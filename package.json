@@ -1,18 +1,19 @@
 {
   "name": "nombre-de-tu-proyecto",
   "version": "1.0.0",
-  // ... otras propiedades
+  "description": "Panel de control de ventas", 
+  "main": "index.html",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"  <-- ¡ESTA LÍNEA DEBE EXISTIR!
+    "build": "vite build"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.x.x" 
+    "@supabase/supabase-js": "^2.39.2"
   },
   "devDependencies": {
-    "vite": "^5.x.x",
-    "tailwindcss": "^3.x.x",
-    "postcss": "^8.x.x",
-    "autoprefixer": "^10.x.x"
+    "vite": "^5.0.12",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8.4.35",
+    "autoprefixer": "^10.4.17"
   }
 }
