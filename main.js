@@ -91,7 +91,7 @@ const renderDebts = () => {
     });
 };
 
-// FUNCIÓN DE ESCUCHA CORREGIDA
+// FUNCIÓN DE ESCUCHA CORREGIDA para usar la sintaxis Realtime moderna
 const setupDataListeners = () => {
     const authStatusEl = document.getElementById('auth-status');
 
@@ -177,7 +177,7 @@ window.handleNewSale = async (event) => {
     }
 };
 
-// FUNCIÓN CORREGIDA para evitar el error de expresión regular en el build
+// FUNCIÓN CORREGIDA para evitar el error de expresión regular en la compilación
 window.handleUpdateDebt = async (event) => {
     event.preventDefault();
     if (!isSupabaseReady) return;
@@ -191,12 +191,10 @@ window.handleUpdateDebt = async (event) => {
     }
 
     try {
-        // 1. Normaliza: Convierte a minúsculas y elimina tildes/acentos
+        // 1. Normaliza: Convierte a minúsculas, elimina tildes/acentos
         const nameNormalized = clientName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         
         // 2. Genera el ID: Reemplaza cualquier caracter que NO sea a-z o 0-9 con guion bajo.
-        // NOTA: Esta es la línea que causaba el error al copiar/pegar en el editor de GitHub.
-        // Al usarla así, forzamos la corrección de codificación.
         const docId = nameNormalized.replace(/[^a-z0-9]/g, '_'); 
 
         const { error } = await supabase.from(COLLECTION_CLIENTES).upsert({
