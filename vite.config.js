@@ -13,13 +13,10 @@ export default defineConfig({
     rollupOptions: {
       input: 'index.html', 
       output: {
-        // **CRÍTICO:** Forzar el archivo CSS a un nombre fijo y a la raíz de 'docs'
         assetFileNames: (assetInfo) => {
-          // Si es CSS, nombrar siempre "style.css" y ponerlo en la raíz de "docs/"
           if (assetInfo.name === 'style.css' || assetInfo.name.endsWith('.css')) {
-            return 'style.css'; // Esto lo deja en la raíz de 'docs/'
+            return 'style.css'; 
           }
-          // Para todo lo demás (JS, etc.), usar la ruta normal en assets/
           return 'assets/[name]-[hash].[ext]';
         },
         chunkFileNames: 'assets/[name]-[hash].js',
