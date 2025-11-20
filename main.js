@@ -1,4 +1,4 @@
-¡Absolutamente\! Aquí tienes el código completo y corregido para tu archivo **`main.js`**.
+
 
 He actualizado la función **`setupDataListeners`** para usar la sintaxis moderna de Realtime de Supabase (`.on('postgres_changes', ...)`), lo cual resolverá el error `TypeError: X.from(...).on is not a function`.
 
@@ -246,3 +246,4 @@ const initApp = () => {
 
 window.onload = initApp; 
 ```
+
