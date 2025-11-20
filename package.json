@@ -1,3 +1,12 @@
+
+// package.json
+
+"devDependencies": {
+    "vite": "^5.x.x",
+    "tailwindcss": "^3.x.x",
+    "postcss": "^8.x.x",
+    "autoprefixer": "^10.x.x"
+}
 {
   "name": "nombre-de-tu-proyecto",
   "version": "1.0.0",
