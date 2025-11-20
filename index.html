@@ -1,163 +1,73 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-gray-100">
-
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Ventas - Creativac</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script type="module" crossorigin src="creativac/assets/index-DdFeMhC4.js"></script>
-</head>
-
-<body class="h-full">
-    <div id="app" class="min-h-full">
-        <header class="bg-white shadow">
-            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
-                <h1 class="text-3xl font-bold tracking-tight text-gray-900">📊 Dashboard de Ventas</h1>
-                <div id="auth-status" class="text-sm text-gray-600">Verificando conexión...</div>
-            </div>
-        </header>
-
-        <main>
-            <div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500">
-                        <p class="text-sm font-medium text-gray-500">Ventas Totales</p>
-                        <p id="total-sales" class="mt-1 text-3xl font-semibold text-gray-900">$0.00</p>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-red-500">
-                        <p class="text-sm font-medium text-gray-500">Deuda Pendiente</p>
-                        <p id="total-debt" class="mt-1 text-3xl font-semibold text-red-600">$0.00</p>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500">
-                        <p class="text-sm font-medium text-gray-500">Clientes Deudores</p>
-                        <p id="debtor-count" class="mt-1 text-3xl font-semibold text-yellow-600">0</p>
-                    </div>
-                </div>
-
-                <div class="mb-8 flex space-x-4">
-                    <button onclick="window.showModal('add-sale-modal')" class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
-                        ➕ Añadir Venta
-                    </button>
-                    <button onclick="window.showModal('update-debt-modal')" class="inline-flex items-center rounded-md bg-yellow-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-500 transition-colors">
-                        💰 Actualizar Deuda
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-lg shadow-lg">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4">Ventas Recientes</h2>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                                        <th class="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
-                                        <th class="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                        <th class="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Productos</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sales-list" class="bg-white divide-y divide-gray-200">
-                                    </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-lg shadow-lg">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4">Deudas Pendientes</h2>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                                        <th class="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deuda</th>
-                                        <th class="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Actualización</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="debt-list" class="bg-white divide-y divide-gray-200">
-                                    </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <div id="add-sale-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 z-50 hidden flex justify-center items-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Registrar Nueva Venta</h3>
-                <form id="add-sale-form" onsubmit="window.handleNewSale(event)">
-                    <div class="space-y-4">
-                        <div>
-                            <label for="sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                            <input type="text" id="sale-client-name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                        </div>
-                        <div>
-                            <label for="sale-amount" class="block text-sm font-medium text-gray-700">Monto ($)</label>
-                            <input type="number" step="0.01" id="sale-amount" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                        </div>
-                        <div>
-                            <label for="sale-products" class="block text-sm font-medium text-gray-700">Productos/Concepto (separados por coma)</label>
-                            <input type="text" id="sale-products" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                        </div>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" onclick="window.hideModal('add-sale-modal')" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors">Cancelar</button>
-                        <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">Registrar</button>
-                    </div>
-                </form>
-            </div>
+    <title>Creativa CNC</title>
+    
+      <script type="module" crossorigin src="./assets/index-F66ZGSej.js"></script>
+      <link rel="stylesheet" crossorigin href="./assets/index-C6G_3qQV.css">
+    </head>
+<body class="bg-gray-50 font-sans antialiased">
+    
+    <header class="bg-white shadow-sm p-4 border-b">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-indigo-600">
+                Dashboard de Ventas
+            </h1>
+            <button id="logoutBtn" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition duration-200">
+                Salir
+            </button>
         </div>
-    </div>
+    </header>
 
-    <div id="update-debt-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 z-50 hidden flex justify-center items-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Actualizar Deuda de Cliente</h3>
-                <form id="update-debt-form" onsubmit="window.handleUpdateDebt(event)">
-                    <div class="space-y-4">
-                        <div>
-                            <label for="debt-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                            <input type="text" id="debt-client-name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-2 border">
-                        </div>
-                        <div>
-                            <label for="debt-amount" class="block text-sm font-medium text-gray-700">Deuda Actual ($)</label>
-                            <input type="number" step="0.01" id="debt-amount" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-2 border">
-                            <p class="mt-2 text-xs text-gray-500">Coloque 0.00 para saldar la deuda.</p>
-                        </div>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" onclick="window.hideModal('update-debt-modal')" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors">Cancelar</button>
-                        <button type="submit" class="rounded-md bg-yellow-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-500 transition-colors">Guardar Deuda</button>
-                    </div>
-                </form>
+    <main class="container mx-auto p-6">
+        
+        <section id="kpi-section" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-sm font-medium text-gray-500">Ventas Totales</p>
+                <p id="totalVentas" class="text-3xl font-bold text-gray-900 mt-1">$...</p>
             </div>
-        </div>
-    </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-sm font-medium text-gray-500">Unidades Vendidas</p>
+                <p id="totalUnidades" class="text-3xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-sm font-medium text-gray-500">Clientes Nuevos</p>
+                <p id="clientesNuevos" class="text-3xl font-bold text-gray-900 mt-1">...</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <p class="text-sm font-medium text-gray-500">Venta Promedio</p>
+                <p id="ventaPromedio" class="text-3xl font-bold text-gray-900 mt-1">$...</p>
+            </div>
+        </section>
 
-    <script>
-        window.showModal = (id) => {
-            const modal = document.getElementById(id);
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        };
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Ventas por Mes</h2>
+                <canvas id="monthlySalesChart" class="w-full h-80"></canvas>
+            </div>
 
-        window.hideModal = (id) => {
-            const modal = document.getElementById(id);
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
-        };
-    </script>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Top 5 Productos</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidades</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topProductosBody" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
     
 
-</body>
 
+</body>
 </html>
