@@ -1,11 +1,13 @@
 // main.js
 
-import './style.css'; // ¡Debe ser la primera línea!
+// 1. IMPORTACIONES CRÍTICAS
+// Importamos el CSS para que Vite lo compile
+import './style.css'; 
+// Importamos el cliente Supabase usando la sintaxis moderna de módulos
 import { createClient } from '@supabase/supabase-js';
 
-// ... el resto del código ...
-
 // 2. CONFIGURACIÓN DE VARIABLES DE ENTORNO (Vite compatible)
+// Estas claves deben ser definidas en el panel de Netlify (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY; 
 
@@ -184,6 +186,7 @@ window.handleUpdateDebt = async (event) => {
     }
 
     try {
+        // Genera un ID basado en el nombre para upsert
         const docId = clientName.toLowerCase().replace(/[^a-z0-9]+/g, '_'); 
 
         const { error } = await supabase.from(COLLECTION_CLIENTES).upsert({
@@ -211,6 +214,7 @@ const initApp = () => {
 
     if (SUPABASE_URL && SUPABASE_ANON_KEY) {
         try {
+            // Inicialización con las claves inyectadas por Netlify/Vite
             supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             isSupabaseReady = true;
             setupDataListeners();
@@ -224,6 +228,4 @@ const initApp = () => {
     }
 };
 
-
 window.onload = initApp;
-
