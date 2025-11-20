@@ -1,5 +1,8 @@
 // main.js
 
+import './style.css'; // ¡Debe ser la primera línea!
+import { createClient } from '@supabase/supabase-js';
+
 // 1. IMPORTACIONES
 // Importamos el archivo CSS (para que Vite lo compile)
 import './style.css'; 
@@ -224,5 +227,6 @@ const initApp = () => {
         console.error("No se pudo iniciar la conexión a Supabase: Faltan variables de entorno.");
     }
 };
+
 
 window.onload = initApp;
