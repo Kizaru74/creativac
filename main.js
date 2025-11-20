@@ -1,9 +1,3 @@
-
-
-He actualizado la función **`setupDataListeners`** para usar la sintaxis moderna de Realtime de Supabase (`.on('postgres_changes', ...)`), lo cual resolverá el error `TypeError: X.from(...).on is not a function`.
-
-Asegúrate de reemplazar completamente el contenido de tu archivo `main.js` con este código, luego haz `git add .`, `git commit`, y `git push` para que Netlify despliegue la corrección.
-
 ```javascript
 // main.js
 
@@ -246,4 +240,5 @@ const initApp = () => {
 
 window.onload = initApp; 
 ```
+
 
