@@ -1,24 +1,24 @@
-// main.js
+// vite.config.js
 
-// 1. IMPORTACIONES (CSS, librerías, etc.) siempre van al inicio
-import './style.css'; 
+import { defineConfig } from 'vite';
 
-// 2. ENVOLVER EL CÓDIGO DEL DOM
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM Cargado. Inicializando la aplicación...");
+export default defineConfig({
+  // 1. ELIMINAR LA BASE: Deja que Rollup use la ruta relativa pura
+  // base: '/creativac/',  // <--- ¡ELIMINAR ESTA LÍNEA!
 
-    // CÓDIGO PROBLEMÁTICO:
-    // La variable 'o' que es null probablemente es una de estas IDs:
-    const logoutBtn = document.getElementById('logoutBtn');
-    const totalVentas = document.getElementById('totalVentas');
-    // ... cualquier otro elemento que busques.
+  build: {
+    outDir: 'docs', // Carpeta de salida para GitHub Pages
+    emptyOutDir: true, 
 
-    // Comprueba que los elementos existan antes de usarlos
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            // Lógica de Supabase
-        });
-    }
-
-    // Aquí debe ir el resto de la lógica de tu dashboard (gráficos, fetch de datos, etc.)
+    rollupOptions: {
+      input: 'index.html', // Punto de entrada para el build
+      output: {
+        // Asegura que los assets se llamen con el hash y el nombre correcto
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
+    },
+  },
+  plugins: [],
 });
