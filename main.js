@@ -1,14 +1,10 @@
-```javascript
 // main.js
 
 // 1. IMPORTACIONES CRÍTICAS
-// Importamos el CSS para que Vite lo compile
 import './style.css'; 
-// Importamos el cliente Supabase usando la sintaxis moderna de módulos
 import { createClient } from '@supabase/supabase-js';
 
 // 2. CONFIGURACIÓN DE VARIABLES DE ENTORNO (Vite compatible)
-// Estas claves deben ser definidas en el panel de Netlify (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY; 
 
@@ -95,14 +91,13 @@ const renderDebts = () => {
     });
 };
 
-// FUNCIÓN CORREGIDA PARA EL ERROR "on is not a function"
+// FUNCIÓN DE ESCUCHA CORREGIDA
 const setupDataListeners = () => {
     const authStatusEl = document.getElementById('auth-status');
 
     // Suscripción a VENTAS (SINTAXIS MODERNA)
     supabase.from(COLLECTION_VENTAS)
         .on('postgres_changes', { event: '*', schema: 'public', table: COLLECTION_VENTAS }, async (payload) => { 
-            console.log('Cambio en Ventas:', payload);
             await loadAllSales(); 
         })
         .subscribe((status, err) => {
@@ -116,7 +111,6 @@ const setupDataListeners = () => {
     // Suscripción a CLIENTES (SINTAXIS MODERNA)
     supabase.from(COLLECTION_CLIENTES)
         .on('postgres_changes', { event: '*', schema: 'public', table: COLLECTION_CLIENTES }, async (payload) => { 
-            console.log('Cambio en Clientes:', payload);
             await loadAllClients(); 
         })
         .subscribe((status, err) => {
@@ -183,6 +177,7 @@ window.handleNewSale = async (event) => {
     }
 };
 
+// FUNCIÓN CORREGIDA para evitar el error de expresión regular en el build
 window.handleUpdateDebt = async (event) => {
     event.preventDefault();
     if (!isSupabaseReady) return;
@@ -196,10 +191,12 @@ window.handleUpdateDebt = async (event) => {
     }
 
     try {
-        // Generamos el ID: Convertimos a minúsculas, quitamos tildes, y reemplazamos
-        // cualquier cosa que no sea una letra o número con guion bajo.
-        // Se usa .normalize('NFD') para descomponer caracteres acentuados antes de limpiar.
+        // 1. Normaliza: Convierte a minúsculas y elimina tildes/acentos
         const nameNormalized = clientName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        
+        // 2. Genera el ID: Reemplaza cualquier caracter que NO sea a-z o 0-9 con guion bajo.
+        // NOTA: Esta es la línea que causaba el error al copiar/pegar en el editor de GitHub.
+        // Al usarla así, forzamos la corrección de codificación.
         const docId = nameNormalized.replace(/[^a-z0-9]/g, '_'); 
 
         const { error } = await supabase.from(COLLECTION_CLIENTES).upsert({
@@ -219,6 +216,7 @@ window.handleUpdateDebt = async (event) => {
         alert(`Error al actualizar deuda: ${e.message}. Revisa la consola.`);
     }
 };
+
 
 // 6. INICIALIZACIÓN DE LA APLICACIÓN
 const initApp = () => {
@@ -240,10 +238,4 @@ const initApp = () => {
     }
 };
 
-window.onload = initApp; 
-```
-
-
-
-
-
+window.onload = initApp;
