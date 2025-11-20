@@ -1,19 +1,24 @@
-// main.js (CÓDIGO CORREGIDO)
-import './style.css' 
-// import { SupabaseClient } from 'supabase'; // Si estás usando esto
+// main.js
 
-// Envuelve toda la lógica de tu aplicación aquí
+// 1. IMPORTACIONES (CSS, librerías, etc.) siempre van al inicio
+import './style.css'; 
+
+// 2. ENVOLVER EL CÓDIGO DEL DOM
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM Cargado. Inicializando dashboard.");
+    console.log("DOM Cargado. Inicializando la aplicación...");
 
-    // AHORA es seguro acceder a los elementos HTML
-    const logoutButton = document.getElementById('logoutBtn');
-    if (logoutButton) {
-        logoutButton.addEventListener('click', () => {
-            // Lógica de Supabase para cerrar sesión
-            console.log("Cerrar sesión...");
+    // CÓDIGO PROBLEMÁTICO:
+    // La variable 'o' que es null probablemente es una de estas IDs:
+    const logoutBtn = document.getElementById('logoutBtn');
+    const totalVentas = document.getElementById('totalVentas');
+    // ... cualquier otro elemento que busques.
+
+    // Comprueba que los elementos existan antes de usarlos
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            // Lógica de Supabase
         });
     }
 
-    // Aquí va el código para inicializar gráficos, obtener datos de Supabase, etc.
+    // Aquí debe ir el resto de la lógica de tu dashboard (gráficos, fetch de datos, etc.)
 });
