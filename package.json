@@ -1,19 +1,18 @@
 {
-  "name": "creativacnc-web",
+  "name": "nombre-de-tu-proyecto",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  // ... otras propiedades
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build"  <-- ¡ESTA LÍNEA DEBE EXISTIR!
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "@supabase/supabase-js": "^2.83.0",
-    "po": "^4.5.2",
-    "tailwindcss": "^4.1.17",
-    "vite": "^7.2.2"
+    "@supabase/supabase-js": "^2.x.x" 
+  },
+  "devDependencies": {
+    "vite": "^5.x.x",
+    "tailwindcss": "^3.x.x",
+    "postcss": "^8.x.x",
+    "autoprefixer": "^10.x.x"
   }
 }
