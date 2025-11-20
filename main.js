@@ -1,3 +1,10 @@
+¡Absolutamente\! Aquí tienes el código completo y corregido para tu archivo **`main.js`**.
+
+He actualizado la función **`setupDataListeners`** para usar la sintaxis moderna de Realtime de Supabase (`.on('postgres_changes', ...)`), lo cual resolverá el error `TypeError: X.from(...).on is not a function`.
+
+Asegúrate de reemplazar completamente el contenido de tu archivo `main.js` con este código, luego haz `git add .`, `git commit`, y `git push` para que Netlify despliegue la corrección.
+
+```javascript
 // main.js
 
 // 1. IMPORTACIONES CRÍTICAS
@@ -94,11 +101,16 @@ const renderDebts = () => {
     });
 };
 
+// FUNCIÓN CORREGIDA PARA EL ERROR "on is not a function"
 const setupDataListeners = () => {
     const authStatusEl = document.getElementById('auth-status');
 
+    // Suscripción a VENTAS (SINTAXIS MODERNA)
     supabase.from(COLLECTION_VENTAS)
-        .on('*', async () => { await loadAllSales(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: COLLECTION_VENTAS }, async (payload) => { 
+            console.log('Cambio en Ventas:', payload);
+            await loadAllSales(); 
+        })
         .subscribe((status, err) => {
             if (status === 'SUBSCRIBED') {
                 loadAllSales(); 
@@ -107,8 +119,12 @@ const setupDataListeners = () => {
             if (err) { console.error("Error en la suscripción de ventas:", err); }
         });
 
+    // Suscripción a CLIENTES (SINTAXIS MODERNA)
     supabase.from(COLLECTION_CLIENTES)
-        .on('*', async () => { await loadAllClients(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: COLLECTION_CLIENTES }, async (payload) => { 
+            console.log('Cambio en Clientes:', payload);
+            await loadAllClients(); 
+        })
         .subscribe((status, err) => {
             if (status === 'SUBSCRIBED') { loadAllClients(); }
             if (err) console.error("Error en la suscripción de clientes:", err);
@@ -228,4 +244,5 @@ const initApp = () => {
     }
 };
 
-window.onload = initApp;
+window.onload = initApp; 
+```
