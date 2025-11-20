@@ -196,8 +196,11 @@ window.handleUpdateDebt = async (event) => {
     }
 
     try {
-        // Genera un ID basado en el nombre para upsert
-        const docId = clientName.toLowerCase().replace(/[^a-z0-9]+/g, '_'); 
+        // Generamos el ID reemplazando caracteres no alfanuméricos con guiones bajos.
+        // Se usa una cadena para la expresión regular para evitar el error de terminación.
+        const nameCleaned = clientName.toLowerCase();
+        const regex = /[^a-z0-9]/g; 
+        const docId = nameCleaned.replace(regex, '_'); 
 
         const { error } = await supabase.from(COLLECTION_CLIENTES).upsert({
                 id: docId, 
@@ -216,7 +219,6 @@ window.handleUpdateDebt = async (event) => {
         alert(`Error al actualizar deuda: ${e.message}. Revisa la consola.`);
     }
 };
-
 
 // 6. INICIALIZACIÓN DE LA APLICACIÓN
 const initApp = () => {
@@ -240,6 +242,7 @@ const initApp = () => {
 
 window.onload = initApp; 
 ```
+
 
 
 
