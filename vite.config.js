@@ -3,17 +3,16 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  // 1. Usa BASE RELATIVA (./) para evitar la duplicación de rutas
-  base: './', 
+  // Base URL para GitHub Pages
+  base: '/creativac/', 
   
   build: {
-    // outDir: Mantenemos la raíz para Pages
-    outDir: '.', 
+    // Definir la carpeta de salida (usaremos 'docs' como en el último paso)
+    outDir: 'docs', 
+    emptyOutDir: true, 
     
-    // 2. Rollup: Simplificar para evitar el conflicto
+    // Simplificamos las rollupOptions, eliminando 'input' y 'root'
     rollupOptions: {
-      // ELIMINAR CUALQUIER FUNCIÓN 'external' O 'output' COMPLICADA
-      // que mencione "/creativac/"
       output: {
         assetFileNames: 'assets/[name]-[hash].[ext]',
         chunkFileNames: 'assets/[name]-[hash].js',
