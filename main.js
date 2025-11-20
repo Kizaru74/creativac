@@ -3,11 +3,7 @@
 import './style.css'; // ¡Debe ser la primera línea!
 import { createClient } from '@supabase/supabase-js';
 
-// 1. IMPORTACIONES
-// Importamos el archivo CSS (para que Vite lo compile)
-import './style.css'; 
-// Importamos el cliente Supabase usando la sintaxis moderna de módulos
-import { createClient } from '@supabase/supabase-js';
+// ... el resto del código ...
 
 // 2. CONFIGURACIÓN DE VARIABLES DE ENTORNO (Vite compatible)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -230,3 +226,4 @@ const initApp = () => {
 
 
 window.onload = initApp;
+
