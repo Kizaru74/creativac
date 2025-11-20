@@ -1,85 +1,58 @@
 // main.js
 
 // ----------------------------------------------------------------------
-// 1. IMPORTACIONES
+// 1. ESTILOS Y DEPENDENCIAS
 // ----------------------------------------------------------------------
 
 // Importa los estilos CSS/Tailwind que deben ser procesados por Vite
-// NOTA: Esta línea ya no causará el error MIME porque el 'build' ahora funciona.
+// Esta línea es NECESARIA para que Vite sepa qué CSS compilar.
 import './style.css'; 
 
-// Importa el SDK de Supabase (Asumiendo que ya está instalado: npm install @supabase/supabase-js)
+// Importa el SDK de Supabase (Si ya hiciste 'npm install @supabase/supabase-js')
+// Descomenta la siguiente línea y la configuración si ya instalaste el SDK.
 // import { createClient } from '@supabase/supabase-js'; 
 
 // ----------------------------------------------------------------------
-// 2. CONFIGURACIÓN DE SUPABASE (Reemplazar con tus credenciales reales)
+// 2. CONFIGURACIÓN DE SUPABASE (Reemplazar con tus credenciales)
 // ----------------------------------------------------------------------
 
 /*
-const SUPABASE_URL = 'TU_URL_DE_PROYECTO_AQUÍ';
-const SUPABASE_ANON_KEY = 'TU_CLAVE_ANÓNIMA_DE_PROYECTO_AQUÍ';
+// Descomenta y reemplaza estas líneas:
+const SUPABASE_URL = 'https://[TU_ID_PROYECTO].supabase.co';
+const SUPABASE_ANON_KEY = 'TU_CLAVE_ANÓNIMA_LARGA_AQUÍ';
 
-// Inicializa el cliente de Supabase
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 */
 
+
 // ----------------------------------------------------------------------
-// 3. LÓGICA PRINCIPAL (Ejecución Segura al Cargar el DOM)
+// 3. LÓGICA PRINCIPAL (Ejecución Segura y FOUC Fix)
 // ----------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando la aplicación...");
 
-    // Muestra el contenido del BODY, resolviendo el problema FOUC (Parpadeo)
+    // **CORRECCIÓN FOUC:** Quita la clase de ocultamiento del body para mostrar el contenido
+    // Esto asegura que los estilos CSS se han aplicado antes de que el contenido sea visible.
     document.body.classList.remove('loading-hide'); 
 
     // --------------------------------------------------------
-    // A. LÓGICA DE CIERRE DE SESIÓN (Ejemplo)
+    // A. LÓGICA DE EVENTOS (Ejemplo)
     // --------------------------------------------------------
     const logoutBtn = document.getElementById('logoutBtn');
     
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            console.log("Intentando cerrar sesión...");
-            
-            // Lógica de Supabase:
-            /*
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-                console.error("Error al cerrar sesión:", error.message);
-            } else {
-                // Redirigir al usuario a la página de inicio de sesión
-                window.location.href = '/login'; 
-            }
-            */
-           
+            console.log("Cerrando sesión (Lógica de Supabase va aquí)...");
+            // Aquí iría el código: await supabase.auth.signOut();
         });
     }
 
     // --------------------------------------------------------
-    // B. CARGA DE DATOS DEL DASHBOARD (Función principal)
+    // B. CARGA DE DATOS DEL DASHBOARD (Llamar a tu API/Supabase)
     // --------------------------------------------------------
     
-    // Aquí es donde llamarías a la función para obtener datos de Supabase
+    // Aquí es donde llamas a las funciones para llenar los gráficos y KPIs
     // loadDashboardData(); 
-
-    /*
-    async function loadDashboardData() {
-        // Ejemplo de fetch de datos desde Supabase
-        const { data: salesData, error } = await supabase
-            .from('sales')
-            .select('*');
-
-        if (error) {
-            console.error("Error al obtener datos:", error.message);
-            return;
-        }
-
-        console.log("Datos de ventas recibidos:", salesData);
-        // Función para actualizar los KPIs y Gráficos
-        // updateKPIs(salesData);
-        // renderCharts(salesData);
-    }
-    */
 });
