@@ -196,11 +196,11 @@ window.handleUpdateDebt = async (event) => {
     }
 
     try {
-        // Generamos el ID reemplazando caracteres no alfanuméricos con guiones bajos.
-        // Se usa una cadena para la expresión regular para evitar el error de terminación.
-        const nameCleaned = clientName.toLowerCase();
-        const regex = /[^a-z0-9]/g; 
-        const docId = nameCleaned.replace(regex, '_'); 
+        // Generamos el ID: Convertimos a minúsculas, quitamos tildes, y reemplazamos
+        // cualquier cosa que no sea una letra o número con guion bajo.
+        // Se usa .normalize('NFD') para descomponer caracteres acentuados antes de limpiar.
+        const nameNormalized = clientName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const docId = nameNormalized.replace(/[^a-z0-9]/g, '_'); 
 
         const { error } = await supabase.from(COLLECTION_CLIENTES).upsert({
                 id: docId, 
@@ -242,6 +242,7 @@ const initApp = () => {
 
 window.onload = initApp; 
 ```
+
 
 
 
