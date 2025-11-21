@@ -76,8 +76,7 @@ async function loadDashboardData() {
     // 2. Obtener datos de clientes/deudas
     const { data: clients, error: clientsError } = await supabase
         .from('clientes') 
-        .select('*')
-        .gt('debt', 0); 
+        .select('*'); // Traemos todos para calcular correctamente
 
     if (salesError || clientsError) {
         console.error("Error al obtener datos: ", salesError || clientsError);
@@ -153,19 +152,21 @@ function filterPackagesByMainProduct(mainProductName) {
 function populateParentProductSelect() {
     const parentSelect = document.getElementById('product-parent-product');
     // Guardamos el valor actual por si se está editando
-    const currentValue = parentSelect.value;
+    const currentValue = parentSelect ? parentSelect.value : null;
     
-    parentSelect.innerHTML = '<option value="">Ninguno</option>';
+    if (parentSelect) {
+        parentSelect.innerHTML = '<option value="">Ninguno</option>';
 
-    // Filtramos solo los productos principales (MAIN) de la lista global
-    const mainProducts = allProducts.filter(p => p.type === 'MAIN');
+        // Filtramos solo los productos principales (MAIN) de la lista global
+        const mainProducts = allProducts.filter(p => p.type === 'MAIN');
 
-    mainProducts.forEach(product => {
-        parentSelect.innerHTML += `<option value="${product.name}">${product.name}</option>`;
-    });
-    
-    // Restaurar el valor si se estaba editando
-    parentSelect.value = currentValue;
+        mainProducts.forEach(product => {
+            parentSelect.innerHTML += `<option value="${product.name}">${product.name}</option>`;
+        });
+        
+        // Restaurar el valor si se estaba editando
+        parentSelect.value = currentValue;
+    }
 }
 
 
@@ -183,11 +184,11 @@ function updateSummary(sales, clients) {
     document.body.classList.remove('loading-hide');
 }
 
-/** * Renderiza la tabla de administración de productos, agrupándolos 
- * por productos principales (MAIN) y luego sus paquetes (PACKAGE).
- */
+/** Renderiza la tabla de administración de productos, agrupándolos. */
 function renderProductAdminTable(products) {
     const listEl = document.getElementById('products-admin-list');
+    if (!listEl) return;
+    
     listEl.innerHTML = ''; 
 
     if (products.length === 0) {
@@ -213,7 +214,7 @@ function renderProductAdminTable(products) {
         if (groupedProducts[pkg.parent_product]) {
             groupedProducts[pkg.parent_product].packages.push(pkg);
         } else {
-            // Manejar paquetes huérfanos si es necesario (aquí se ignoran si no tienen MAIN padre)
+            // Manejar paquetes huérfanos si es necesario
         }
     });
 
@@ -291,6 +292,8 @@ function renderProductAdminTable(products) {
 /** Renderiza la lista de ventas. */
 function renderSales(sales) {
     const listEl = document.getElementById('sales-list');
+    if (!listEl) return;
+    
     listEl.innerHTML = `
         <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-100">
             <th class="p-4 text-left">Cliente</th>
@@ -302,7 +305,6 @@ function renderSales(sales) {
         </tr>
     `;
     
-    // Cambiado de colspan 5 a 6
     if (sales.length === 0) {
         listEl.innerHTML += `<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>`;
         return;
@@ -316,7 +318,7 @@ function renderSales(sales) {
         const saleId = sale.id; 
         const productsFull = sale.products || 'N/A'; 
 
-        // 1. LÓGICA DE EXTRACCIÓN Y ACORTAMIENTO CLAVE
+        // LÓGICA DE EXTRACCIÓN Y ACORTAMIENTO CLAVE
         let categoryTag = 'N/A';
         let productDescription = productsFull;
 
@@ -374,19 +376,23 @@ function renderSales(sales) {
         listEl.innerHTML += row;
     });
     
-    initializeSaleActions();
+    // Llama a la inicialización para asegurar que los listeners se apliquen a las nuevas filas
+    initializeSaleActions(); 
 }
 
 /** Renderiza la lista de deudas. */
 function renderDebts(clients) {
     const listEl = document.getElementById('debt-list');
-    
+    if (!listEl) return;
+
     const debtors = clients.filter(client => (client.debt || 0) > 0);
     
-    const tbody = listEl.querySelector('tbody') || listEl; 
+    // Usamos listEl.querySelector('tbody') o listEl si el tbody no está bien referenciado
+    const tbody = listEl.tagName === 'TBODY' ? listEl : (listEl.querySelector('tbody') || listEl); 
     tbody.innerHTML = ''; 
 
     if (debtors.length === 0) {
+        // Asumiendo que el tbody ya existe en el HTML o es el propio listEl
         tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">¡Felicidades! No hay deudas pendientes.</td></tr>`;
         return;
     }
@@ -415,7 +421,8 @@ function renderDebts(clients) {
         tbody.innerHTML += row;
     });
     
-    initializeDebtActions();
+    // CORRECCIÓN: Inicializar las acciones de deuda aquí
+    initializeDebtActions(); 
 }
 
 // ----------------------------------------------------------------------
@@ -423,7 +430,7 @@ function renderDebts(clients) {
 // ----------------------------------------------------------------------
 
 // 4.1. Registrar Nueva Venta 
-document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
+document.getElementById('add-sale-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('add-sale-form', true); 
     
@@ -435,8 +442,8 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     const description = document.getElementById('sale-description').value.trim();
     const category = document.getElementById('sale-category').value; 
     
-    if (!clientName || isNaN(amount) || amount <= 0 || !selectedProduct) {
-        alert("Por favor, complete el nombre del cliente, el monto de la venta y seleccione un producto principal.");
+    if (!clientName || isNaN(amount) || amount <= 0 || !selectedProduct || !category) {
+        alert("Por favor, complete todos los campos obligatorios: cliente, monto, producto principal y categoría.");
         toggleLoading('add-sale-form', false);
         return;
     }
@@ -451,10 +458,6 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
 
     if (description) {
         productsCombined += ` | Detalle: ${description}`;
-    }
-
-    if (!productsCombined) {
-        productsCombined = 'N/A';
     }
     
     const { error: saleError } = await supabase.from('ventas').insert({
@@ -473,7 +476,6 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
 
     // 2. ACTUALIZAR/INSERTAR DEUDA DEL CLIENTE
     
-    // A. Intentar obtener el cliente actual (para saber si existe y cuál es su deuda actual)
     const { data: existingClient } = await supabase
         .from('clientes')
         .select('debt')
@@ -483,12 +485,10 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     let newDebt = amount; 
 
     if (existingClient) {
-        // Si el cliente existe, sumar el monto de la nueva venta a la deuda existente.
         const currentDebt = existingClient.debt || 0;
         newDebt = currentDebt + amount;
     }
     
-    // B. Insertar o Actualizar (UPSERT) la deuda con el nuevo monto
     const { error: debtError } = await supabase.from('clientes').upsert(
         {
             name: clientName, 
@@ -500,7 +500,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     
     if (debtError) {
         console.error("Error al actualizar deuda tras venta:", debtError);
-        // La venta se registró, pero la deuda falló. 
+        // Continuamos, la venta fue registrada
     }
 
     // 3. FINALIZACIÓN
@@ -512,7 +512,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
 });
 
 // 4.2. Actualizar/Insertar Deuda 
-document.getElementById('update-debt-form').addEventListener('submit', async (e) => {
+document.getElementById('update-debt-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('update-debt-form', true); 
     
@@ -539,10 +539,10 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
         document.getElementById('update-debt-form').reset();
 
         if (debtAmount === 0) {
-            alert(`✅ La deuda de ${clientName} ha sido liquidada con éxito.`);
-        } else {
-            alert(`✅ La deuda de ${clientName} ha sido actualizada a ${formatter.format(debtAmount)}.`);
-        }
+            // alert(`✅ La deuda de ${clientName} ha sido liquidada con éxito.`);
+        } // else {
+            // alert(`✅ La deuda de ${clientName} ha sido actualizada a ${formatter.format(debtAmount)}.`);
+        // }
 
         loadDashboardData(); 
     } else {
@@ -554,7 +554,7 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
 });
 
 // 4.3. CRUD DE ADMINISTRACIÓN DE PRODUCTOS
-document.getElementById('add-product-form').addEventListener('submit', async (e) => {
+document.getElementById('add-product-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('add-product-form', true); 
 
@@ -563,7 +563,6 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
     const type = document.getElementById('product-type').value; 
     const description = document.getElementById('product-description').value.trim();
     
-    // Capturar el campo de relación
     let parentProduct = null;
     if (type === 'PACKAGE') {
         parentProduct = document.getElementById('product-parent-product').value || null;
@@ -600,9 +599,8 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
         document.getElementById('add-product-form').reset();
         document.getElementById('product-id').value = '';
         document.getElementById('add-product-form').classList.add('hidden');
-        document.getElementById('parent-product-field').classList.add('hidden'); // Ocultar
+        document.getElementById('parent-product-field').classList.add('hidden'); 
         
-        // Recargar datos para actualizar selectores y tablas
         await loadProductsAndPopulate(); 
         
     } else {
@@ -634,6 +632,8 @@ function initializeProductAdminActions() {
             // Lógica para mostrar/ocultar y llenar el campo padre
             const isPackage = type === 'PACKAGE';
             document.getElementById('parent-product-field').classList.toggle('hidden', !isPackage);
+            // Aseguramos que el selector de padre tenga las opciones cargadas antes de asignar el valor
+            populateParentProductSelect(); 
             document.getElementById('product-parent-product').value = parent;
 
             // Mostrar formulario y cambiar título
@@ -691,6 +691,7 @@ function initializeSaleActions() {
         });
     });
 
+    // Listener para el botón de ELIMINAR
     document.querySelectorAll('.delete-sale-btn').forEach(button => {
         button.addEventListener('click', async (e) => {
             const id = e.currentTarget.dataset.saleId;
@@ -715,13 +716,11 @@ function initializeSaleActions() {
     // Nuevo: Lógica para mostrar detalles completos (solo vista) al hacer clic en la descripción
     document.querySelectorAll('.sale-detail-cell').forEach(cell => {
         cell.addEventListener('click', (e) => {
-            // Acceder a los datos almacenados en la celda
             const id = e.currentTarget.dataset.saleId;
             const client = e.currentTarget.dataset.client;
             const amount = e.currentTarget.dataset.amount;
             const products = e.currentTarget.dataset.products;
 
-            // Rellenar el modal de edición (Edit Sale Modal)
             document.getElementById('edit-sale-id').value = id;
             document.getElementById('edit-sale-client-name').value = client;
             document.getElementById('edit-sale-amount').value = amount;
@@ -733,7 +732,6 @@ function initializeSaleActions() {
             document.getElementById('edit-sale-products').disabled = true;
             document.querySelector('#edit-sale-form button[type="submit"]').classList.add('hidden');
             
-            // Mostrar el modal
             showModal('edit-sale-modal');
         });
     });
@@ -747,7 +745,8 @@ function initializeDebtActions() {
             
             // Intentar encontrar la deuda actual para precargar
             const clientRow = e.currentTarget.closest('tr');
-            const debtAmountText = clientRow.cells[1].textContent.replace('$', '').replace(/,/g, '');
+            // Usar regex más robusto para limpiar el formato de moneda
+            const debtAmountText = clientRow.cells[1].textContent.replace(/[^0-9.-]+/g,"");
             const currentDebt = parseFloat(debtAmountText) || 0;
             
             document.getElementById('debt-client-name').value = clientName;
@@ -760,7 +759,7 @@ function initializeDebtActions() {
 }
 
 // 4.6. Manejar el envío del formulario de Edición de Venta (UPDATE)
-document.getElementById('edit-sale-form').addEventListener('submit', async (e) => {
+document.getElementById('edit-sale-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('edit-sale-form', true); 
     
@@ -769,9 +768,10 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
     const amount = parseFloat(document.getElementById('edit-sale-amount').value);
     const products = document.getElementById('edit-sale-products').value.trim();
     
-    // Si los campos están deshabilitados, no se permite la edición.
+    // Si los campos están deshabilitados, significa que estamos en modo 'solo ver'.
     if (document.getElementById('edit-sale-client-name').disabled) {
-        alert("Modo de visualización activo. Use el botón '✏️' para editar.");
+        // En este caso, solo cerramos el modal sin intentar guardar
+        hideModal('edit-sale-modal');
         toggleLoading('edit-sale-form', false);
         return;
     }
@@ -794,6 +794,8 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
     if (!error) {
         hideModal('edit-sale-modal');
         document.getElementById('edit-sale-form').reset();
+        // Nota: Una edición de venta puede requerir recalcular la deuda. 
+        // Por simplicidad, recargamos todos los datos.
         loadDashboardData(); 
     } else {
         console.error("Error al guardar cambios:", error);
@@ -812,85 +814,86 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando la aplicación...");
 
     // Conectar botones principales
-    document.getElementById('addSaleBtn').addEventListener('click', () => {
+    document.getElementById('addSaleBtn')?.addEventListener('click', () => {
         showModal('add-sale-modal');
         document.getElementById('add-sale-form').reset(); 
-        // Asegurar que el selector de paquetes esté vacío al inicio
         document.getElementById('sale-package-type').innerHTML = '<option value="">Ninguno (Opcional)</option>'; 
     });
     
-    document.getElementById('updateDebtBtn').addEventListener('click', () => {
+    document.getElementById('updateDebtBtn')?.addEventListener('click', () => {
         showModal('update-debt-modal');
         document.getElementById('update-debt-form').reset(); 
         document.getElementById('debt-client-name').focus(); 
     });
     
-    // Botón para abrir la administración de productos
-    document.getElementById('addProductAdminBtn').addEventListener('click', () => {
+    document.getElementById('addProductAdminBtn')?.addEventListener('click', () => {
         loadProductsAndPopulate(); 
         showModal('product-admin-modal');
         document.getElementById('add-product-form').classList.add('hidden');
         document.getElementById('parent-product-field').classList.add('hidden');
     });
 
-    // 💡 LISTENER CLAVE: Lógica de selectores encadenados (Venta)
-    document.getElementById('sale-products-select').addEventListener('change', (e) => {
+    // LISTENER: Lógica de selectores encadenados (Venta)
+    document.getElementById('sale-products-select')?.addEventListener('change', (e) => {
         const selectedMainProduct = e.target.value;
         filterPackagesByMainProduct(selectedMainProduct);
     });
 
-    // 💡 LISTENER CLAVE: Lógica para mostrar/ocultar el selector Padre en Administración
-    document.getElementById('product-type').addEventListener('change', (e) => {
+    // LISTENER: Lógica para mostrar/ocultar el selector Padre en Administración
+    document.getElementById('product-type')?.addEventListener('change', (e) => {
         const isPackage = e.target.value === 'PACKAGE';
         document.getElementById('parent-product-field').classList.toggle('hidden', !isPackage);
-        // Reseteamos el valor del padre si cambiamos a MAIN
         if (!isPackage) {
              document.getElementById('product-parent-product').value = '';
         }
     });
 
 
-    // Botón para mostrar el formulario de agregar producto (CORRECCIÓN APLICADA AQUÍ)
-    document.getElementById('showAddProductFormBtn').addEventListener('click', () => {
+    // Botón para mostrar el formulario de agregar producto
+    document.getElementById('showAddProductFormBtn')?.addEventListener('click', () => {
         document.getElementById('add-product-form').classList.remove('hidden');
         document.getElementById('product-form-title').textContent = 'Agregar Nuevo Producto';
         document.getElementById('add-product-form').reset();
         document.getElementById('product-id').value = '';
         
-        // CORRECCIÓN: Asegurar que el selector de tipo tenga un valor por defecto y la dependencia se oculte.
         document.getElementById('parent-product-field').classList.add('hidden'); 
         document.getElementById('product-type').value = 'MAIN'; 
         
-        // Aseguramos que el select de padre esté lleno
         populateParentProductSelect(); 
     });
     
     // Botón para cancelar agregar/editar producto
-    document.getElementById('cancelAddProduct').addEventListener('click', () => {
+    document.getElementById('cancelAddProduct')?.addEventListener('click', () => {
         document.getElementById('add-product-form').classList.add('hidden');
         document.getElementById('add-product-form').reset();
     });
 
     // Botón para cerrar el modal de administración
-    document.getElementById('closeProductAdminModal').addEventListener('click', () => hideModal('product-admin-modal'));
+    document.getElementById('closeProductAdminModal')?.addEventListener('click', () => hideModal('product-admin-modal'));
 
     // Conectar botones de Cancelar de los modales existentes
-    document.getElementById('cancelAddSale').addEventListener('click', () => hideModal('add-sale-modal'));
-    document.getElementById('cancelUpdateDebt').addEventListener('click', () => hideModal('update-debt-modal'));
+    document.getElementById('cancelAddSale')?.addEventListener('click', () => hideModal('add-sale-modal'));
+    document.getElementById('cancelUpdateDebt')?.addEventListener('click', () => hideModal('update-debt-modal'));
     
-    // Lógica de Restauración del Modal de Edición
+    // Lógica de Restauración del Modal de Edición al Cancelar
     const restoreEditModal = () => {
-        document.getElementById('edit-sale-client-name').disabled = false;
-        document.getElementById('edit-sale-amount').disabled = false;
-        document.getElementById('edit-sale-products').disabled = false;
-        document.querySelector('#edit-sale-form button[type="submit"]').classList.remove('hidden');
+        const clientNameInput = document.getElementById('edit-sale-client-name');
+        const amountInput = document.getElementById('edit-sale-amount');
+        const productsInput = document.getElementById('edit-sale-products');
+        const submitButton = document.querySelector('#edit-sale-form button[type="submit"]');
+
+        if (clientNameInput) clientNameInput.disabled = false;
+        if (amountInput) amountInput.disabled = false;
+        if (productsInput) productsInput.disabled = false;
+        if (submitButton) submitButton.classList.remove('hidden');
+        
         hideModal('edit-sale-modal');
     };
     
-    document.getElementById('cancelEditSale').addEventListener('click', restoreEditModal);
+    document.getElementById('cancelEditSale')?.addEventListener('click', restoreEditModal);
     
     // Conectar el botón de salir (simulado con recarga)
-    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+    document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
         e.preventDefault();
         window.location.reload(); 
     });

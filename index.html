@@ -37,14 +37,14 @@
         </header>
 
         <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-            
+             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                
+                 
                 <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
                     <p class="text-sm font-medium text-gray-500">Ventas Totales</p>
                     <p id="total-sales" class="mt-1 text-3xl font-bold text-gray-900">$0.00</p>
                 </div>
-                
+                 
                 <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-red-500">
                     <p class="text-sm font-medium text-gray-500">Deuda Pendiente</p>
                     <p id="total-debt" class="mt-1 text-3xl font-bold text-red-600">$0.00</p>
@@ -63,7 +63,7 @@
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <tbody id="sales-list" class="bg-white divide-y divide-gray-200">
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -81,7 +81,7 @@
                                 </tr>
                             </thead>
                             <tbody id="debt-list" class="bg-white divide-y divide-gray-200">
-                                </tbody>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -94,22 +94,22 @@
         <div class="bg-white rounded-xl p-8 max-w-lg w-full shadow-2xl"> 
             <h3 class="text-2xl font-bold mb-6 text-gray-800">Registrar Nueva Venta</h3>
             <form id="add-sale-form">
-                
+                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    
+                     
                     <div>
                         <label for="sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
                         <input type="text" id="sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
                     </div>
-                    
+                     
                     <div>
                         <label for="sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
                         <input type="number" id="sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
                     </div>
                 </div>
-                
+                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    
+                     
                     <div>
                         <label for="sale-products-select" class="block text-sm font-medium text-gray-700">Producto / Opción Principal</label>
                         <select id="sale-products-select" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
@@ -124,23 +124,24 @@
                         </select>
                     </div>
                 </div>
-                
+                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    
+                     
                     <div>
                         <label for="sale-category" class="block text-sm font-medium text-gray-700">Categoría de Venta</label>
                         <select id="sale-category" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                        <option value="Servicio Nuevo">Servicio Nuevo</option>
-                        <option value="Adicional/Extra">Adicional/Extra</option>
-                        <option value="Mantenimiento">Mantenimiento</option>
-                </select>
+                            <option value="Servicio Nuevo">Servicio Nuevo</option>
+                            <option value="Adicional/Extra">Adicional/Extra</option>
+                            <option value="Mantenimiento">Mantenimiento</option>
+                            <option value="Consultoría">Consultoría</option> </select>
+                    </div>
 
-                    <div>
+                    <div> 
                         <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales</label>
                         <textarea id="sale-description" rows="2" placeholder="Ej: Especificaciones, fechas clave, etc." class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500"></textarea>
                     </div>
                 </div>
-                
+                 
                 <div class="flex justify-end space-x-3">
                     <button type="button" id="cancelAddSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
                     <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-300">Registrar</button>
@@ -149,80 +150,79 @@
         </div>
     </div>
     
-        <div id="product-admin-modal" class="hidden fixed inset-0 z-50 bg-gray-600 bg-opacity-75 overflow-y-auto">
-    
-    <div class="bg-white rounded-lg shadow-xl m-4 md:max-w-4xl md:mx-auto mt-10 p-6">
-        
-        <h2 class="text-2xl font-bold mb-4">Administración de Productos/Opciones</h2>
-
-        <div class="flex justify-between items-center mb-4">
-            <button id="showAddProductFormBtn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
-                + Agregar Nuevo Producto
-            </button>
-            <button id="closeProductAdminModal" class="text-gray-500 hover:text-gray-700 text-xl">
-                &times;
-            </button>
-        </div>
-
-        <form id="add-product-form" class="hidden p-4 mb-4 border border-gray-200 rounded-lg bg-indigo-50">
-            <h3 id="product-form-title" class="text-xl font-semibold mb-3">Agregar Nuevo Producto</h3>
-            <input type="hidden" id="product-id">
+    <div id="product-admin-modal" class="hidden fixed inset-0 z-50 bg-gray-600 bg-opacity-75 overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-xl m-4 md:max-w-4xl md:mx-auto mt-10 p-6">
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                <div>
-                    <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre</label>
-                    <input type="text" id="product-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                </div>
-                
-                <div>
-                    <label for="product-type" class="block text-sm font-medium text-gray-700">Tipo</label>
-                    <select id="product-type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                        <option value="MAIN">Producto Principal (MAIN)</option>
-                        <option value="PACKAGE">Tipo de Paquete (PACKAGE)</option>
-                    </select>
-                </div>
+            <h2 class="text-2xl font-bold mb-4">Administración de Productos/Opciones</h2>
 
-                <div id="parent-product-field" class="hidden"> 
-                    <label for="product-parent-product" class="block text-sm font-medium text-gray-700">Producto Padre (MAIN)</label>
-                    <select id="product-parent-product" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                        <option value="">Ninguno</option>
-                    </select>
-                </div>
-                
-            </div>
-            
-            <div class="mt-4">
-                <label for="product-description" class="block text-sm font-medium text-gray-700">Descripción (Opcional)</label>
-                <textarea id="product-description" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
-            </div>
-            
-            <div class="mt-6 flex justify-end gap-3">
-                <button type="button" id="cancelAddProduct" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">
-                    Cancelar
+            <div class="flex justify-between items-center mb-4">
+                <button id="showAddProductFormBtn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                    + Agregar Nuevo Producto
                 </button>
-                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                    Guardar Producto
+                <button id="closeProductAdminModal" class="text-gray-500 hover:text-gray-700 text-xl">
+                    &times;
                 </button>
             </div>
-        </form>
 
-        <div class="mt-4 border rounded-lg overflow-hidden **max-h-96** **overflow-y-auto**">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 sticky top-0">
-                    <tr>
-                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nombre</th>
-                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipo</th>
-                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Descripción</th>
-                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="products-admin-list" class="bg-white divide-y divide-gray-200">
+            <form id="add-product-form" class="hidden p-4 mb-4 border border-gray-200 rounded-lg bg-indigo-50">
+                <h3 id="product-form-title" class="text-xl font-semibold mb-3">Agregar Nuevo Producto</h3>
+                <input type="hidden" id="product-id">
+                 
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     
+                    <div>
+                        <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre</label>
+                        <input type="text" id="product-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                    </div>
+                     
+                    <div>
+                        <label for="product-type" class="block text-sm font-medium text-gray-700">Tipo</label>
+                        <select id="product-type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                            <option value="MAIN">Producto Principal (MAIN)</option>
+                            <option value="PACKAGE">Tipo de Paquete (PACKAGE)</option>
+                        </select>
+                    </div>
+
+                    <div id="parent-product-field" class="hidden"> 
+                        <label for="product-parent-product" class="block text-sm font-medium text-gray-700">Producto Padre (MAIN)</label>
+                        <select id="product-parent-product" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                            <option value="">Ninguno</option>
+                        </select>
+                    </div>
+                     
+                </div>
+                 
+                <div class="mt-4">
+                    <label for="product-description" class="block text-sm font-medium text-gray-700">Descripción (Opcional)</label>
+                    <textarea id="product-description" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+                </div>
+                 
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="cancelAddProduct" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        Guardar Producto
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nombre</th>
+                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipo</th>
+                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Descripción</th>
+                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-admin-list" class="bg-white divide-y divide-gray-200">
                     </tbody>
-            </table>
+                </table>
+            </div>
         </div>
-        </div>
-        </div>
+    </div>
 
 
     <div id="update-debt-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
