@@ -3,346 +3,364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creativa Dashboard</title> 
-    <style>
-        body.loading-hide {
-            display: none;
-        }
-    </style>
-  <script type="module" crossorigin src="./assets/index-mYw1FXoR.js"></script>
+    <title>Sistema de Gestión de Deudas y Ventas</title>
+    <link rel="stylesheet" href="./src/index.css">
+  <script type="module" crossorigin src="./assets/index-DkctSTUb.js"></script>
   <link rel="stylesheet" crossorigin href="./style.css">
 </head>
-<body class="bg-gray-50 loading-hide">
-    
-    <div class="min-h-screen flex flex-col">
-        <header class="bg-white shadow-md">
+<body class="bg-gray-50 min-h-screen">
+
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-gray-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Iniciar Sesión</h2>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="login-identifier" class="block text-sm font-medium text-gray-700">Nombre de Usuario o Email</label>
+                    <input type="text" id="login-identifier" required class="mt-1 p-2 w-full border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="mb-6">
+                    <label for="login-password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                    <input type="password" id="login-password" required class="mt-1 p-2 w-full border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Acceder
+                </button>
+            </form>
+            <p class="mt-4 text-center text-sm text-gray-500">
+                ¿No tienes cuenta? <a href="#" class="text-indigo-600 hover:text-indigo-500 font-medium" onclick="alert('Contacta al administrador para crear una cuenta.')">Regístrate</a>
+            </p>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        
+        <header class="bg-white shadow-md sticky top-0 z-10">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                <h1 class="text-3xl font-extrabold text-blue-600">
-                    Creativa 🚀
-                </h1>
-                <nav class="flex items-center space-x-4">
-                    <button id="addProductAdminBtn" class="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-300 shadow-md">
-                        Administrar Productos
+                <h1 class="text-2xl font-bold text-gray-900">Dashboard de Ventas y Deudas 💸</h1>
+                <div class="space-x-3">
+                    <button id="addProductAdminBtn" class="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300">
+                        📦 Administración de Productos
                     </button>
-                    <button id="addSaleBtn" class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-300 shadow-md">
-                        + Nueva Venta
+                    <button id="logoutBtn" class="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                        Salir
                     </button>
-                    <button id="updateDebtBtn" class="px-4 py-2 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 transition duration-300 shadow-md">
-                        Actualizar Deuda
-                    </button>
-                    <button id="logoutBtn" class="text-gray-600 hover:text-red-500 transition duration-300">
-                        Cerrar Sesión
-                    </button>
-                </nav>
+                </div>
             </div>
         </header>
 
-        <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                 
-                <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
-                    <p class="text-sm font-medium text-gray-500">Ventas Totales</p>
-                    <p id="total-sales" class="mt-1 text-3xl font-bold text-gray-900">$0.00</p>
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <section class="mb-10">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">📊 Resumen General</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-indigo-500">
+                        <p class="text-sm font-medium text-gray-500">Ventas Totales (Acumulado)</p>
+                        <p id="total-sales" class="mt-1 text-3xl font-extrabold text-gray-900">...</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-red-500">
+                        <p class="text-sm font-medium text-gray-500">Deuda Pendiente Total</p>
+                        <p id="total-debt" class="mt-1 text-3xl font-extrabold text-red-600">...</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-500">
+                        <p class="text-sm font-medium text-gray-500">Clientes con Deuda</p>
+                        <p id="debtor-count" class="mt-1 text-3xl font-extrabold text-gray-900">...</p>
+                    </div>
                 </div>
-                 
-                <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-red-500">
-                    <p class="text-sm font-medium text-gray-500">Deuda Pendiente</p>
-                    <p id="total-debt" class="mt-1 text-3xl font-bold text-red-600">$0.00</p>
-                </div>
+            </section>
 
-                <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-yellow-500">
-                    <p class="text-sm font-medium text-gray-500">Clientes con Deuda</p>
-                    <p id="debtor-count" class="mt-1 text-3xl font-bold text-yellow-600">0</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                <div class="bg-white p-6 rounded-xl shadow-lg overflow-hidden">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Últimas Ventas</h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <tbody id="sales-list" class="bg-white divide-y divide-gray-200">
-                            </tbody>
-                        </table>
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+                
+                <div class="lg:col-span-1">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">🚀 Acciones Rápidas</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-lg space-y-4">
+                        <button id="addSaleBtn" class="w-full py-3 px-4 text-base font-semibold rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition">
+                            ➕ Registrar Nueva Venta/Cargo
+                        </button>
+                        <button id="updateDebtBtn" class="w-full py-3 px-4 text-base font-semibold rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition">
+                            💵 Registrar Abono / Ajustar Deuda
+                        </button>
                     </div>
                 </div>
 
-                <div class="bg-white p-6 rounded-xl shadow-lg overflow-hidden">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Clientes con Deuda</h2>
-                    <div class="overflow-x-auto">
+                <div class="lg:col-span-2">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">🚨 Deudas Pendientes (Top)</h2>
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-100">
-                                    <th class="p-4 text-left">Cliente</th>
-                                    <th class="p-4 text-left">Monto Deuda</th>
-                                    <th class="p-4 text-left">Última Actualización</th>
-                                    <th class="p-4 text-left">Acción</th>
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Cliente</th>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Deuda Actual</th>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Última Actualización</th>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Acción</th>
                                 </tr>
                             </thead>
                             <tbody id="debt-list" class="bg-white divide-y divide-gray-200">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">📜 Últimas 10 Ventas Registradas</h2>
+                <div class="bg-white rounded-lg shadow-lg overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            </thead>
+                        <tbody id="sales-list" class="bg-white divide-y divide-gray-200">
                             </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-gray-500">
+            © 2025 - Gestión de Deudas impulsado por Supabase.
+        </footer>
+
+    </div>
+    
+    <div id="add-sale-modal" class="fixed inset-0 z-30 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-900">Registrar Nueva Venta/Cargo</h3>
+                <button id="cancelAddSale" class="text-gray-400 hover:text-gray-600">✖️</button>
+            </div>
+            <form id="add-sale-form" class="p-6 space-y-4">
+                <div>
+                    <label for="sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
+                    <input type="text" id="sale-client-name" required class="mt-1 p-2 w-full border rounded-md">
+                </div>
+                <div>
+                    <label for="sale-amount" class="block text-sm font-medium text-gray-700">Monto del Cargo (Deuda)</label>
+                    <input type="number" id="sale-amount" step="0.01" min="0.01" required class="mt-1 p-2 w-full border rounded-md">
+                </div>
+                <div>
+                    <label for="sale-category" class="block text-sm font-medium text-gray-700">Categoría de Venta</label>
+                    <select id="sale-category" required class="mt-1 p-2 w-full border rounded-md">
+                        <option value="">Seleccione una categoría</option>
+                        <option value="Servicio">Servicio</option>
+                        <option value="Producto">Producto Físico</option>
+                        <option value="Mixto">Mixto</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="sale-products-select" class="block text-sm font-medium text-gray-700">Producto Principal</label>
+                    <select id="sale-products-select" required class="mt-1 p-2 w-full border rounded-md">
+                        </select>
+                </div>
+                <div id="package-type-field">
+                    <label for="sale-package-type" class="block text-sm font-medium text-gray-700">Tipo de Paquete (Opcional)</label>
+                    <select id="sale-package-type" class="mt-1 p-2 w-full border rounded-md">
+                         <option value="">Ninguno</option>
+                        </select>
+                </div>
+                <div>
+                    <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales (Opcional)</label>
+                    <textarea id="sale-description" rows="2" class="mt-1 p-2 w-full border rounded-md"></textarea>
+                </div>
+                <button type="submit" class="w-full py-2 px-4 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700">
+                    Registrar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="update-debt-modal" class="fixed inset-0 z-30 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-900">Registro de Abono o Ajuste</h3>
+                <button id="cancelUpdateDebt" class="text-gray-400 hover:text-gray-600">✖️</button>
+            </div>
+            <form id="update-debt-form" class="p-6 space-y-4">
+                <div>
+                    <label for="debt-client-name" class="block text-sm font-medium text-gray-700">Cliente</label>
+                    <input type="text" id="debt-client-name" required class="mt-1 p-2 w-full border rounded-md">
+                </div>
+                <div class="flex justify-between items-center bg-red-50 p-3 rounded-md border border-red-200">
+                    <span class="text-sm font-medium text-red-700">Deuda Actual:</span>
+                    <span id="current-debt-display" class="text-xl font-bold text-red-900">$0.00</span>
+                    <input type="hidden" id="original-debt-amount" value="0">
+                </div>
+                
+                <div class="border-t pt-4">
+                    <label for="debt-payment-amount" class="block text-sm font-medium text-gray-700">Monto del Abono/Pago (Deja en 0 si es ajuste manual)</label>
+                    <input type="number" id="debt-payment-amount" step="0.01" min="0" value="0.00" class="mt-1 p-2 w-full border rounded-md">
+                </div>
+
+                <div class="border-t pt-4">
+                    <label for="manual-final-debt" class="block text-sm font-medium text-gray-700">Ajuste Manual: Saldo Final (Opcional, anula el Abono)</label>
+                    <input type="number" id="manual-final-debt" step="0.01" min="0" placeholder="Ej: 50.00 (para fijar la deuda en $50.00)" class="mt-1 p-2 w-full border rounded-md">
+                </div>
+
+                <button type="submit" class="w-full py-2 px-4 bg-indigo-600 text-white rounded-md font-semibold hover:bg-indigo-700">
+                    Registrar Abono
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="client-sales-detail-modal" class="fixed inset-0 z-40 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center sticky top-0 bg-white">
+                <h3 class="text-xl font-bold text-gray-900">Detalle del Cliente: <span id="client-detail-name" class="text-indigo-600"></span></h3>
+                <button id="closeClientSalesDetailModal" class="text-gray-400 hover:text-gray-600">✖️</button>
+            </div>
+            
+            <div class="p-6 space-y-6 overflow-y-auto">
+                <div class="flex justify-between items-center p-4 bg-red-100 rounded-md border border-red-300">
+                    <span class="text-lg font-medium text-red-700">Deuda Actual Total:</span>
+                    <span id="client-detail-debt" class="text-2xl font-extrabold text-red-900">$0.00</span>
+                </div>
+
+                <button id="openUpdateDebtFromDetail" class="w-full py-2 px-4 text-sm font-semibold rounded-md text-white bg-green-600 hover:bg-green-700 transition">
+                    💵 Registrar Abono/Pago para este cliente
+                </button>
+
+                <div class="pt-4 border-t">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-3">Historial de Movimientos de Deuda</h4>
+                    <div class="bg-white border rounded-lg overflow-x-auto">
+                         <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fecha/Hora</th>
+                                    <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
+                                    <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Tipo</th>
+                                    <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Saldo Final</th>
+                                </tr>
+                            </thead>
+                            <tbody id="client-movements-list" class="bg-white divide-y divide-gray-200">
+                                </tbody>
                         </table>
                     </div>
                 </div>
 
-            </div>
-        </main>
-    </div>
-
-    <div id="add-sale-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl p-8 max-w-lg w-full shadow-2xl"> 
-            <h3 class="text-2xl font-bold mb-6 text-gray-800">Registrar Nueva Venta</h3>
-            <form id="add-sale-form">
-                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                     
-                    <div>
-                        <label for="sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                        <input type="text" id="sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                    </div>
-                     
-                    <div>
-                        <label for="sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
-                        <input type="number" id="sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
+                <div class="pt-4 border-t">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-3">Historial de Ventas/Cargos</h4>
+                    <div class="bg-white border rounded-lg overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fecha</th>
+                                    <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
+                                    <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody id="client-sales-list" class="bg-white divide-y divide-gray-200">
+                                </tbody>
+                        </table>
                     </div>
                 </div>
-                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                     
-                    <div>
-                        <label for="sale-products-select" class="block text-sm font-medium text-gray-700">Producto / Opción Principal</label>
-                        <select id="sale-products-select" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                            <option value="">Cargando opciones...</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="sale-package-type" class="block text-sm font-medium text-gray-700">Tipo de Paquete / Nivel</label>
-                        <select id="sale-package-type" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                            <option value="">Ninguno (Opcional)</option>
-                        </select>
-                    </div>
-                </div>
-                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                     
-                    <div>
-                        <label for="sale-category" class="block text-sm font-medium text-gray-700">Categoría de Venta</label>
-                        <select id="sale-category" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                            <option value="Servicio Nuevo">Servicio Nuevo</option>
-                            <option value="Adicional/Extra">Adicional/Extra</option>
-                            <option value="Mantenimiento">Mantenimiento</option>
-                            <option value="Consultoría">Consultoría</option>
-                        </select>
-                    </div>
-
-                    <div> 
-                        <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales</label>
-                        <textarea id="sale-description" rows="2" placeholder="Ej: Especificaciones, fechas clave, etc." class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500"></textarea>
-                    </div>
-                </div>
-                 
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancelAddSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-300">Registrar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <div id="product-admin-modal" class="hidden fixed inset-0 z-50 bg-gray-600 bg-opacity-75 overflow-y-auto">
-        <div class="bg-white rounded-lg shadow-xl m-4 md:max-w-4xl md:mx-auto mt-10 p-6">
-            
-            <h2 class="text-2xl font-bold mb-4">Administración de Productos/Opciones</h2>
-
-            <div class="flex justify-between items-center mb-4">
-                <button id="showAddProductFormBtn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
-                    + Agregar Nuevo Producto
-                </button>
-                <button id="closeProductAdminModal" class="text-gray-500 hover:text-gray-700 text-xl">
-                    &times;
-                </button>
-            </div>
-
-            <form id="add-product-form" class="hidden p-4 mb-4 border border-gray-200 rounded-lg bg-indigo-50">
-                <h3 id="product-form-title" class="text-xl font-semibold mb-3">Agregar Nuevo Producto</h3>
-                <input type="hidden" id="product-id">
-                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     
-                    <div>
-                        <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre</label>
-                        <input type="text" id="product-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                    </div>
-                     
-                    <div>
-                        <label for="product-type" class="block text-sm font-medium text-gray-700">Tipo</label>
-                        <select id="product-type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                            <option value="MAIN">Producto Principal (MAIN)</option>
-                            <option value="PACKAGE">Tipo de Paquete (PACKAGE)</option>
-                        </select>
-                    </div>
-
-                    <div id="parent-product-field" class="hidden"> 
-                        <label for="product-parent-product" class="block text-sm font-medium text-gray-700">Producto Padre (MAIN)</label>
-                        <select id="product-parent-product" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                            <option value="">Ninguno</option>
-                        </select>
-                    </div>
-                     
-                </div>
-                 
-                <div class="mt-4">
-                    <label for="product-description" class="block text-sm font-medium text-gray-700">Descripción (Opcional)</label>
-                    <textarea id="product-description" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
-                </div>
-                 
-                <div class="mt-6 flex justify-end gap-3">
-                    <button type="button" id="cancelAddProduct" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                        Guardar Producto
-                    </button>
-                </div>
-            </form>
-
-            <div class="mt-4 border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 sticky top-0">
-                        <tr>
-                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nombre</th>
-                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipo</th>
-                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Descripción</th>
-                            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="products-admin-list" class="bg-white divide-y divide-gray-200">
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
 
 
-    <div id="update-debt-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-            <h3 class="text-2xl font-bold mb-6 text-gray-800">Registrar Abono o Ajustar Deuda</h3>
-            <form id="update-debt-form">
-                <div class="mb-4">
-                    <label for="debt-client-name" class="block text-sm font-medium text-gray-700">Cliente</label>
-                    <input type="text" id="debt-client-name" required readonly class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 bg-gray-100 cursor-not-allowed">
-                </div>
-
-                <div class="mb-4">
-                    <p class="text-sm font-medium text-gray-700">Saldo Actual</p>
-                    <p id="current-debt-display" class="mt-1 text-2xl font-bold text-red-600">$0.00</p>
-                    <input type="hidden" id="original-debt-amount"> 
-                </div>
-                
-                <div class="mb-6">
-                    <label for="debt-payment-amount" class="block text-sm font-medium text-gray-700">Monto de Abono (Pago Parcial/Liquidación) ($)</label>
-                    <input type="number" id="debt-payment-amount" step="0.01" value="0.00" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-yellow-500 focus:border-yellow-500">
-                    <p class="mt-2 text-xs text-gray-500">Ingresa el monto pagado. Se calculará el nuevo saldo (Actual - Abono).</p>
-                </div>
-                
-                <div class="mb-6 border-t pt-4">
-                    <label for="manual-final-debt" class="block text-sm font-medium text-gray-700">Ajustar Saldo Final (Opcional)</label>
-                    <input type="number" id="manual-final-debt" step="0.01" placeholder="Dejar vacío para usar el Abono" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-yellow-500 focus:border-yellow-500">
-                    <p class="mt-2 text-xs text-red-500">Si ingresas un valor aquí, se **ignorará** el Abono y se establecerá este como el saldo final.</p>
-                </div>
-                
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancelUpdateDebt" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">Registrar Abono</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="edit-sale-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-            <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Venta</h3>
-            <form id="edit-sale-form">
-                <input type="hidden" id="edit-sale-id"> 
-                
-                <div class="mb-4">
-                    <label for="edit-sale-date" class="block text-sm font-medium text-gray-700">Fecha de Venta</label>
-                    <input type="date" id="edit-sale-date" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div class="mb-4">
+    <div id="edit-sale-modal" class="fixed inset-0 z-30 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-900">Ver / Editar Venta</h3>
+                <button id="cancelEditSale" class="text-gray-400 hover:text-gray-600">✖️</button>
+            </div>
+            <form id="edit-sale-form" class="p-6 space-y-4">
+                <input type="hidden" id="edit-sale-id">
+                <div>
                     <label for="edit-sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                    <input type="text" id="edit-sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+                    <input type="text" id="edit-sale-client-name" required class="mt-1 p-2 w-full border rounded-md">
                 </div>
-                <div class="mb-4">
-                    <label for="edit-sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
-                    <input type="number" id="edit-sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+                <div>
+                    <label for="edit-sale-amount" class="block text-sm font-medium text-gray-700">Monto del Cargo</label>
+                    <input type="number" id="edit-sale-amount" step="0.01" min="0.01" required class="mt-1 p-2 w-full border rounded-md">
                 </div>
-                <div class="mb-6">
-                    <label for="edit-sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios Vendidos</label>
-                    <textarea id="edit-sale-products" rows="4" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    <p class="mt-1 text-xs text-gray-500">Línea 1: Categoría y Producto Principal. Líneas siguientes: Detalles.</p>
+                <div>
+                    <label for="edit-sale-date" class="block text-sm font-medium text-gray-700">Fecha de la Venta</label>
+                    <input type="date" id="edit-sale-date" required class="mt-1 p-2 w-full border rounded-md">
                 </div>
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancelEditSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Cambios</button>
+                <div>
+                    <label for="edit-sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios y Detalles</label>
+                    <textarea id="edit-sale-products" rows="4" required class="mt-1 p-2 w-full border rounded-md font-mono text-xs"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">El formato es crucial: [Categoría] Producto (Paquete) | Detalle: Descripción</p>
                 </div>
+                <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">
+                    Guardar Cambios
+                </button>
             </form>
         </div>
     </div>
-    
-    <div id="client-sales-detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6 border-b pb-2">
-                <h3 class="text-2xl font-bold text-gray-800">Historial de <span id="client-detail-name" class="text-blue-600"></span></h3>
-                <button id="closeClientSalesDetailModal" class="text-gray-500 hover:text-gray-700 text-3xl leading-none">
-                    &times;
-                </button>
+
+    <div id="product-admin-modal" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center sticky top-0 bg-white">
+                <h3 class="text-xl font-bold text-gray-900">📦 Administración de Productos y Servicios</h3>
+                <button id="closeProductAdminModal" class="text-gray-400 hover:text-gray-600">✖️</button>
             </div>
             
-            <div class="flex justify-between items-center mb-4">
-                <p class="text-lg font-semibold text-red-600">Deuda Total Actual: <span id="client-detail-debt" class="font-bold"></span></p>
-                <button id="openUpdateDebtFromDetail" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">
-                    Registrar Abono o Ajustar
+            <div class="p-6 space-y-6 overflow-y-auto">
+                
+                <button id="showAddProductFormBtn" class="py-2 px-4 text-sm font-semibold rounded-md text-white bg-green-600 hover:bg-green-700 transition">
+                    ➕ Agregar Nuevo Producto/Opción
                 </button>
-            </div>
 
-            <hr class="my-4">
-            
-            <h4 class="text-xl font-bold text-gray-800 mb-3 mt-6">Historial de Pagos y Ajustes</h4>
-            <div class="overflow-x-auto border rounded-lg mb-6">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 sticky top-0">
-                        <tr>
-                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Fecha/Hora</th>
-                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Monto del Movimiento</th>
-                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipo</th>
-                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Saldo Final</th>
-                        </tr>
-                    </thead>
-                    <tbody id="client-movements-list" class="bg-white divide-y divide-gray-200">
-                        </tbody>
-                </table>
-            </div>
+                <div id="add-product-form" class="border p-4 rounded-lg bg-gray-50 hidden">
+                    <h4 id="product-form-title" class="text-lg font-bold mb-3">Agregar Nuevo Producto</h4>
+                    <form class="grid grid-cols-1 md:grid-cols-3 gap-4" onsubmit="return false">
+                        <input type="hidden" id="product-id">
+                        
+                        <div>
+                            <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre</label>
+                            <input type="text" id="product-name" required class="mt-1 p-2 w-full border rounded-md">
+                        </div>
+                        
+                        <div>
+                            <label for="product-type" class="block text-sm font-medium text-gray-700">Tipo</label>
+                            <select id="product-type" required class="mt-1 p-2 w-full border rounded-md">
+                                <option value="MAIN">MAIN (Producto Principal)</option>
+                                <option value="PACKAGE">PACKAGE (Opción/Paquete)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="parent-product-field" class="hidden">
+                            <label for="product-parent-product" class="block text-sm font-medium text-gray-700">Asociar a Principal</label>
+                            <select id="product-parent-product" class="mt-1 p-2 w-full border rounded-md">
+                                <option value="">Ninguno</option>
+                                </select>
+                        </div>
 
-            <hr class="my-4">
+                        <div class="col-span-1 md:col-span-3">
+                            <label for="product-description" class="block text-sm font-medium text-gray-700">Descripción (Opcional)</label>
+                            <textarea id="product-description" rows="1" class="mt-1 p-2 w-full border rounded-md"></textarea>
+                        </div>
+                        
+                        <div class="col-span-1 md:col-span-3 flex justify-end gap-3">
+                            <button type="button" id="cancelAddProduct" class="py-2 px-4 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="py-2 px-4 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                Guardar Producto
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="pt-4 border-t">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-3">Productos y Opciones Registradas</h4>
+                    <div class="bg-white border rounded-lg overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Nombre</th>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Tipo</th>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Descripción</th>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-admin-list" class="bg-white divide-y divide-gray-200">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
 
-            <h4 class="text-xl font-bold text-gray-800 mb-3 mt-6">Ventas Registradas</h4>
-            <div class="overflow-x-auto border rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 sticky top-0">
-                        <tr>
-                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Fecha</th>
-                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Monto ($)</th>
-                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Producto/Detalle</th>
-                        </tr>
-                    </thead>
-                    <tbody id="client-sales-list" class="bg-white divide-y divide-gray-200">
-                        </tbody>
-                </table>
             </div>
         </div>
     </div>
