@@ -9,7 +9,7 @@
             display: none;
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-C-Dkk7SB.js"></script>
+  <script type="module" crossorigin src="./assets/index-Dh_DPkBk.js"></script>
   <link rel="stylesheet" crossorigin href="./style.css">
 </head>
 <body class="bg-gray-50 loading-hide">
@@ -21,6 +21,9 @@
                     Creativa 🚀
                 </h1>
                 <nav class="flex items-center space-x-4">
+                    <button id="addProductAdminBtn" class="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition duration-300 shadow-md">
+                        Administrar Productos
+                    </button>
                     <button id="addSaleBtn" class="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-300 shadow-md">
                         + Nueva Venta
                     </button>
@@ -104,22 +107,14 @@
                 <div class="mb-4">
                     <label for="sale-products-select" class="block text-sm font-medium text-gray-700">Producto / Opción Principal</label>
                     <select id="sale-products-select" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                        <option value="">Seleccione una opción...</option>
-                        <option value="Diseño Web">Diseño Web</option>
-                        <option value="Branding / Identidad">Branding / Identidad</option>
-                        <option value="Gestión Redes Sociales">Gestión Redes Sociales</option>
-                        <option value="Publicidad Digital">Publicidad Digital</option>
-                        <option value="Otro">Otro (Detalle abajo)</option>
+                        <option value="">Cargando opciones...</option>
                     </select>
                 </div>
 
                 <div class="mb-4">
                     <label for="sale-package-type" class="block text-sm font-medium text-gray-700">Tipo de Paquete / Nivel</label>
                     <select id="sale-package-type" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                        <option value="">Ninguno (Opcional)</option>
-                        <option value="Básico">Paquete Básico</option>
-                        <option value="Premium">Paquete Premium</option>
-                        <option value="Personalizado">Proyecto Personalizado</option>
+                        <option value="">Cargando opciones...</option>
                     </select>
                 </div>
 
@@ -127,6 +122,7 @@
                     <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales</label>
                     <textarea id="sale-description" rows="2" placeholder="Ej: Paquete Pro, 5 posts al mes, retoque fotográfico, etc." class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500"></textarea>
                 </div>
+                
                 <div class="flex justify-end space-x-3">
                     <button type="button" id="cancelAddSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
                     <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-300">Registrar</button>
@@ -134,6 +130,65 @@
             </form>
         </div>
     </div>
+    
+    <div id="product-admin-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-8 max-w-4xl w-full shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800 flex justify-between items-center">
+                Administración de Productos/Opciones
+                <button id="showAddProductFormBtn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition duration-300">
+                    + Agregar Nuevo
+                </button>
+            </h3>
+
+            <form id="add-product-form" class="bg-gray-50 p-4 rounded-lg mb-6 border hidden">
+                <input type="hidden" id="product-id"> <h4 class="text-lg font-semibold mb-3" id="product-form-title">Agregar Nuevo Producto</h4>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre de la Opción</label>
+                        <input type="text" id="product-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="product-type" class="block text-sm font-medium text-gray-700">Tipo</label>
+                        <select id="product-type" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="MAIN">Producto Principal</option>
+                            <option value="PACKAGE">Tipo de Paquete</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-1">
+                        <label for="product-description" class="block text-sm font-medium text-gray-700">Detalle / Descripción</label>
+                        <input type="text" id="product-description" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: Válido para 2025, solo incluye diseño.">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-4">
+                    <button type="button" id="cancelAddProduct" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Producto</button>
+                </div>
+            </form>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-100">
+                            <th class="p-4 text-left">Nombre</th>
+                            <th class="p-4 text-left">Tipo</th>
+                            <th class="p-4 text-left">Descripción</th>
+                            <th class="p-4 text-left">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-admin-list" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="4" class="p-4 text-center text-gray-500">Cargando productos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" id="closeProductAdminModal" class="px-4 py-2 text-white bg-gray-500 rounded-lg hover:bg-gray-600 transition duration-300">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
 
     <div id="update-debt-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
