@@ -12,7 +12,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Variable global para almacenar los productos
+// Variable global para almacenar los productos, incluyendo el campo parent_product
 let allProducts = [];
 
 // ----------------------------------------------------------------------
@@ -51,7 +51,6 @@ const toggleLoading = (formId, isLoading) => {
         if (formId === 'update-debt-form') button.textContent = 'Guardar Deuda';
         if (formId === 'edit-sale-form') button.textContent = 'Guardar Cambios';
         if (formId === 'add-product-form') {
-            // Determinar si es Edición o Creación para restaurar el texto
             const title = document.getElementById('product-form-title').textContent;
             button.textContent = title.includes('Editar') ? 'Guardar Cambios' : 'Guardar Producto';
         }
@@ -92,10 +91,11 @@ async function loadDashboardData() {
 }
 
 
-// --- LÓGICA DE PRODUCTOS DINÁMICA ---
+// --- LÓGICA DE SELECTORES ENCADENADOS (NUEVA) ---
 
 /** Carga productos y llena los selectores de Venta */
 async function loadProductsAndPopulate() {
+    // Asegúrate de seleccionar todos los campos, incluido el nuevo parent_product
     const { data, error } = await supabase
         .from('productos')
         .select('*')
@@ -107,31 +107,66 @@ async function loadProductsAndPopulate() {
         return;
     }
     
-    allProducts = data;
+    allProducts = data; // Almacenar todos los productos
     populateProductSelects(data);
     renderProductAdminTable(data);
 }
 
-/** Llena los SELECT del modal de Nueva Venta */
+/** Llena el selector principal de Venta y resetea el de paquetes */
 function populateProductSelects(products) {
     const mainSelect = document.getElementById('sale-products-select');
     const packageSelect = document.getElementById('sale-package-type');
 
-    // Resetear
+    // Resetear ambos
     mainSelect.innerHTML = '<option value="">Seleccione una opción...</option>';
     packageSelect.innerHTML = '<option value="">Ninguno (Opcional)</option>';
 
-    // Filtramos usando el campo 'type' (MAIN o PACKAGE)
+    // Filtramos solo los productos principales (MAIN)
     const mainProducts = products.filter(p => p.type === 'MAIN');
-    const packageTypes = products.filter(p => p.type === 'PACKAGE');
 
     mainProducts.forEach(product => {
         mainSelect.innerHTML += `<option value="${product.name}">${product.name}</option>`;
     });
 
-    packageTypes.forEach(product => {
-        packageSelect.innerHTML += `<option value="${product.name}">${product.name}</option>`;
+    // 💡 NOTA: El selector de paquetes se llenará dinámicamente con filterPackagesByMainProduct
+}
+
+/** Filtra y llena el selector de tipos de paquete basado en la selección principal */
+function filterPackagesByMainProduct(mainProductName) {
+    const packageSelect = document.getElementById('sale-package-type');
+    
+    // Limpiar el select de paquetes
+    packageSelect.innerHTML = '<option value="">Ninguno (Opcional)</option>';
+
+    if (!mainProductName) {
+        // Si no hay producto principal seleccionado, no mostramos opciones.
+        return; 
+    }
+
+    // Filtrar la variable global 'allProducts'
+    // Buscamos productos que sean 'PACKAGE' Y cuyo 'parent_product' coincida con el nombre seleccionado.
+    const relevantPackages = allProducts.filter(p => 
+        p.type === 'PACKAGE' && p.parent_product === mainProductName
+    );
+
+    relevantPackages.forEach(packageItem => {
+        packageSelect.innerHTML += `<option value="${packageItem.name}">${packageItem.name}</option>`;
     });
+}
+
+
+// --- LÓGICA DE RENDERIZADO DEL DASHBOARD ---
+
+function updateSummary(sales, clients) {
+    const totalSalesAmount = sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
+    const totalDebtAmount = clients.reduce((sum, client) => sum + (client.debt || 0), 0);
+    const debtorCount = clients.filter(client => (client.debt || 0) > 0).length;
+
+    document.getElementById('total-sales').textContent = formatter.format(totalSalesAmount);
+    document.getElementById('total-debt').textContent = formatter.format(totalDebtAmount);
+    document.getElementById('debtor-count').textContent = debtorCount;
+
+    document.body.classList.remove('loading-hide');
 }
 
 /** Renderiza la tabla de administración de productos */
@@ -147,6 +182,9 @@ function renderProductAdminTable(products) {
     products.forEach(product => {
         const typeLabel = product.type === 'MAIN' ? 'Producto Principal' : 'Tipo de Paquete';
         
+        // El campo parent_product NO se muestra aquí para simplificar la interfaz, 
+        // pero se usa en el JS para la lógica encadenada.
+        
         listEl.innerHTML += `
             <tr class="hover:bg-gray-50">
                 <td class="p-4 text-sm font-medium text-gray-900">${product.name}</td>
@@ -158,6 +196,7 @@ function renderProductAdminTable(products) {
                         data-name="${product.name}" 
                         data-type="${product.type}" 
                         data-description="${product.description || ''}" 
+                        data-parent="${product.parent_product || ''}" 
                         class="edit-product-btn text-blue-600 hover:text-blue-800"
                         title="Editar Producto">
                         ✏️ Editar
@@ -175,20 +214,6 @@ function renderProductAdminTable(products) {
     });
     
     initializeProductAdminActions();
-}
-
-// --- LÓGICA EXISTENTE DE DASHBOARD ---
-
-function updateSummary(sales, clients) {
-    const totalSalesAmount = sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
-    const totalDebtAmount = clients.reduce((sum, client) => sum + (client.debt || 0), 0);
-    const debtorCount = clients.filter(client => (client.debt || 0) > 0).length;
-
-    document.getElementById('total-sales').textContent = formatter.format(totalSalesAmount);
-    document.getElementById('total-debt').textContent = formatter.format(totalDebtAmount);
-    document.getElementById('debtor-count').textContent = debtorCount;
-
-    document.body.classList.remove('loading-hide');
 }
 
 /** Renderiza la lista de ventas. */
@@ -344,6 +369,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     if (!error) {
         hideModal('add-sale-modal');
         document.getElementById('add-sale-form').reset();
+        // Recargar datos para actualizar resúmenes y tablas
         loadDashboardData(); 
     } else {
         console.error("Error al registrar venta:", error);
@@ -405,6 +431,12 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
     const type = document.getElementById('product-type').value; 
     const description = document.getElementById('product-description').value.trim();
     
+    // Este campo de relación no se pide en el formulario, pero lo incluimos si fuera necesario:
+    // const parentProduct = document.getElementById('product-parent-product').value.trim();
+    
+    // Si el producto es MAIN, parent_product debe ser NULL.
+    // Si el producto fuera PACKAGE, deberías agregar un selector al formulario para parent_product.
+    // Por simplicidad, en el form solo manejamos name, type y description.
     const productData = { name, type, description: description || null }; 
     let error;
 
@@ -447,13 +479,15 @@ function initializeProductAdminActions() {
             const name = e.currentTarget.dataset.name;
             const type = e.currentTarget.dataset.type; 
             const description = e.currentTarget.dataset.description;
+            // const parent = e.currentTarget.dataset.parent; // Descomentar si usas este campo en el form
 
             // Llenar el formulario
             document.getElementById('product-id').value = id;
             document.getElementById('product-name').value = name;
             document.getElementById('product-type').value = type; 
             document.getElementById('product-description').value = description;
-            
+            // document.getElementById('product-parent-product').value = parent;
+
             // Mostrar formulario y cambiar título
             document.getElementById('product-form-title').textContent = `Editar Producto: ${name}`;
             document.getElementById('add-product-form').classList.remove('hidden');
@@ -518,7 +552,6 @@ function initializeSaleActions() {
                     console.error("Error al eliminar venta:", error);
                     alert("Error al eliminar la venta.");
                 } else {
-                    // Recargar datos para actualizar la tabla y los resúmenes (incluyendo potencialmente la deuda)
                     loadDashboardData(); 
                 }
             }
@@ -590,7 +623,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Conectar botones principales
     document.getElementById('addSaleBtn').addEventListener('click', () => {
         showModal('add-sale-modal');
-        document.getElementById('add-sale-form').reset(); // Limpiar formulario
+        document.getElementById('add-sale-form').reset(); 
+        // Asegurar que el selector de paquetes esté limpio al abrir
+        document.getElementById('sale-package-type').innerHTML = '<option value="">Ninguno (Opcional)</option>';
     });
     
     document.getElementById('updateDebtBtn').addEventListener('click', () => {
@@ -604,6 +639,12 @@ document.addEventListener('DOMContentLoaded', () => {
         loadProductsAndPopulate(); 
         showModal('product-admin-modal');
         document.getElementById('add-product-form').classList.add('hidden');
+    });
+
+    // 💡 LISTENER CLAVE: Lógica de selectores encadenados
+    document.getElementById('sale-products-select').addEventListener('change', (e) => {
+        const selectedMainProduct = e.target.value;
+        filterPackagesByMainProduct(selectedMainProduct);
     });
 
     // Botón para mostrar el formulario de agregar producto
@@ -631,14 +672,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Conectar el botón de salir
     document.getElementById('logoutBtn').addEventListener('click', async (e) => {
         e.preventDefault();
-        // Si tienes autenticación implementada:
-        // const { error } = await supabase.auth.signOut();
-        // if (error) {
-        //     console.error("Error al cerrar sesión:", error);
-        //     alert("No se pudo cerrar la sesión.");
-        // } else {
-            window.location.reload(); 
-        // }
+        // Lógica de cierre de sesión
+        window.location.reload(); 
     });
 
     loadDashboardData(); 
