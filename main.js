@@ -4,7 +4,7 @@ import './style.css';
 import { createClient } from '@supabase/supabase-js'; 
 
 // ----------------------------------------------------------------------
-// 1. CONFIGURACIÓN DE SUPABASE (REEMPLAZAR)
+// 1. CONFIGURACIÓN DE SUPABASE (¡REEMPLAZAR!)
 // ----------------------------------------------------------------------
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
@@ -13,7 +13,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ----------------------------------------------------------------------
-// 2. UTILIDADES DE LA INTERFAZ DE USUARIO (RESTAURADAS)
+// 2. UTILIDADES DE LA INTERFAZ DE USUARIO
 // ----------------------------------------------------------------------
 
 const formatter = new Intl.NumberFormat('es-MX', {
@@ -22,36 +22,37 @@ const formatter = new Intl.NumberFormat('es-MX', {
 });
 
 /** Muestra un modal por su ID. */
-export const showModal = (id) => {
+const showModal = (id) => {
     document.getElementById(id).classList.remove('hidden');
-    // Si necesitas más efectos (opacidad, etc.), agrégalos aquí.
 };
 
 /** Oculta un modal por su ID. */
-export const hideModal = (id) => {
+const hideModal = (id) => {
     document.getElementById(id).classList.add('hidden');
 };
 
 // ----------------------------------------------------------------------
-// 3. FUNCIONES DE BASE DE DATOS (ADAPTADAS A SUPABASE)
+// 3. MANEJO DE DATOS (CONEXIÓN SUPABASE CORREGIDA)
 // ----------------------------------------------------------------------
 
 async function loadDashboardData() {
-    // 1. Obtener datos de ventas
+    // 1. Obtener datos de ventas 
+    // CRÍTICO: Usando 'timestamptz' para ordenar
     const { data: sales, error: salesError } = await supabase
-        .from('ventas') // Reemplaza 'ventas' por el nombre de tu tabla
+        .from('ventas') 
         .select('*')
-        .order('fecha', { ascending: false }) // Suponiendo que tienes una columna 'fecha'
+        .order('timestamptz', { ascending: false }); 
 
     // 2. Obtener datos de clientes/deudas
+    // Se asume que la tabla es 'clientes' y la columna de deuda es 'debt'
     const { data: clients, error: clientsError } = await supabase
-        .from('clientes') // Reemplaza 'clientes' por el nombre de tu tabla
+        .from('clientes') 
         .select('*')
-        .gt('debt', 0); // Solo clientes con deuda > 0
+        .gt('debt', 0); 
 
     if (salesError || clientsError) {
-        console.error("Error al obtener datos:", salesError || clientsError);
-        // Podrías actualizar el UI con un mensaje de error aquí
+        console.error("Error al obtener datos: ", salesError || clientsError);
+        document.body.classList.remove('loading-hide');
         return;
     }
 
@@ -83,8 +84,9 @@ function renderSales(sales) {
         return;
     }
 
-    sales.slice(0, 10).forEach(sale => { // Mostrar solo 10 ventas recientes
-        const date = sale.fecha ? new Date(sale.fecha).toLocaleDateString('es-MX', {
+    sales.slice(0, 10).forEach(sale => {
+        // CRÍTICO: Usar 'timestamptz' para extraer la fecha y convertir la cadena ISO a Date
+        const date = sale.timestamptz ? new Date(sale.timestamptz).toLocaleDateString('es-MX', {
             day: '2-digit', month: 'short', year: 'numeric'
         }) : 'N/A';
         
@@ -112,6 +114,7 @@ function renderDebts(clients) {
     }
 
     debtors.sort((a, b) => (b.debt || 0) - (a.debt || 0)).forEach(client => {
+        // Asumiendo que la columna de fecha en la tabla 'clientes' se llama 'lastUpdate'
         const date = client.lastUpdate ? new Date(client.lastUpdate).toLocaleDateString('es-MX', {
             day: '2-digit', month: 'short', year: 'numeric'
         }) : 'N/A';
@@ -127,27 +130,72 @@ function renderDebts(clients) {
     });
 }
 
-// Implementar las funciones de registro de datos aquí (handleNewSale, handleUpdateDebt)
-// ... (omito el código de manejo de formularios por brevedad, asumiendo que lo adaptarás)
+// ----------------------------------------------------------------------
+// 4. MANEJO DE FORMULARIOS 
+// ----------------------------------------------------------------------
+
+document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log("Registrando nueva venta...");
+    
+    const clientName = document.getElementById('sale-client-name').value;
+    const amount = parseFloat(document.getElementById('sale-amount').value);
+    const products = document.getElementById('sale-products').value;
+    
+    // PENDIENTE DE IMPLEMENTAR:
+    // const { error } = await supabase.from('ventas').insert({
+    //     clientName: clientName, 
+    //     amount: amount, 
+    //     products: products,
+    //     timestamptz: new Date().toISOString() // La columna 'timestamptz' en Supabase a veces se llena automáticamente, pero es bueno enviarla.
+    // });
+    
+    hideModal('add-sale-modal');
+    document.getElementById('add-sale-form').reset();
+    // loadDashboardData(); // Descomentar al implementar la inserción
+});
+
+document.getElementById('update-debt-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log("Actualizando deuda...");
+    
+    const clientName = document.getElementById('debt-client-name').value;
+    const debtAmount = parseFloat(document.getElementById('debt-amount').value);
+    
+    // PENDIENTE DE IMPLEMENTAR:
+    // const { error } = await supabase.from('clientes').upsert({
+    //     name: clientName, 
+    //     debt: debtAmount, 
+    //     lastUpdate: new Date().toISOString()
+    // }, { onConflict: 'name' }); // Actualiza si el nombre existe, inserta si no existe
+    
+    hideModal('update-debt-modal');
+    document.getElementById('update-debt-form').reset();
+    // loadDashboardData(); // Descomentar al implementar la actualización
+});
+
 
 // ----------------------------------------------------------------------
-// 4. LÓGICA DE INICIO Y LISTENERS DE EVENTOS
+// 5. INICIALIZACIÓN Y LISTENERS DE EVENTOS
 // ----------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando la aplicación...");
 
-    // Conectar botones a las funciones de Modales (RESTAURADO)
+    // Conectar botones a las funciones de Modales
     document.getElementById('addSaleBtn').addEventListener('click', () => showModal('add-sale-modal'));
     document.getElementById('updateDebtBtn').addEventListener('click', () => showModal('update-debt-modal'));
+    
+    // Conectar botones de Cancelar en los modales
+    document.getElementById('cancelAddSale').addEventListener('click', () => hideModal('add-sale-modal'));
+    document.getElementById('cancelUpdateDebt').addEventListener('click', () => hideModal('update-debt-modal'));
     
     // Conectar el botón de salir
     document.getElementById('logoutBtn').addEventListener('click', (e) => {
         e.preventDefault();
-        console.log("Cerrar sesión (Lógica Supabase pendiente)");
-        // Aquí iría la lógica: await supabase.auth.signOut();
+        console.log("Cerrar sesión (Lógica Supabase auth pendiente)");
     });
 
-    // Cargar datos (Descomentar cuando las credenciales estén puestas)
+    // Cargar datos (Descomentar y verificar credenciales)
     loadDashboardData(); 
 });
