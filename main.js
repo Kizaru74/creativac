@@ -13,7 +13,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ----------------------------------------------------------------------
-// 2. UTILIDADES DE LA INTERFAZ DE USUARIO
+// 2. UTILIDADES DE LA INTERFAZ DE USUARIO Y UX
 // ----------------------------------------------------------------------
 
 // Formato de moneda en Pesos Mexicanos (MXN)
@@ -32,12 +32,32 @@ const hideModal = (id) => {
     document.getElementById(id).classList.add('hidden');
 };
 
+/** Muestra/Oculta el estado de carga en los botones (Retroalimentación Visual) */
+const toggleLoading = (formId, isLoading) => {
+    const button = document.querySelector(`#${formId} button[type="submit"]`);
+    if (!button) return;
+
+    if (isLoading) {
+        button.disabled = true;
+        button.textContent = 'Procesando...'; 
+        button.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        button.disabled = false;
+        // Restaurar el texto original del botón
+        if (formId === 'add-sale-form') button.textContent = 'Registrar';
+        if (formId === 'update-debt-form') button.textContent = 'Guardar Deuda';
+        if (formId === 'edit-sale-form') button.textContent = 'Guardar Cambios';
+        
+        button.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+};
+
 // ----------------------------------------------------------------------
-// 3. MANEJO DE DATOS
+// 3. MANEJO DE DATOS Y RENDERIZADO
 // ----------------------------------------------------------------------
 
 async function loadDashboardData() {
-    // 1. Obtener datos de ventas (Usando 'date')
+    // 1. Obtener datos de ventas
     const { data: sales, error: salesError } = await supabase
         .from('ventas') 
         .select('*')
@@ -72,7 +92,7 @@ function updateSummary(sales, clients) {
     document.body.classList.remove('loading-hide');
 }
 
-/** Renderiza la lista de ventas. Incluye botones de Editar y Eliminar. */
+/** Renderiza la lista de ventas. */
 function renderSales(sales) {
     const listEl = document.getElementById('sales-list');
     listEl.innerHTML = `
@@ -132,11 +152,9 @@ function renderSales(sales) {
 /** Renderiza la lista de deudas. Incluye botón de Edición Rápida. */
 function renderDebts(clients) {
     const listEl = document.getElementById('debt-list');
-    // Ya no se borra listEl.innerHTML porque se asume que el THEAD ya está en index.html
     
     const debtors = clients.filter(client => (client.debt || 0) > 0);
     
-    // Solo actualizamos el tbody
     const tbody = listEl.querySelector('tbody') || listEl; 
     tbody.innerHTML = ''; 
 
@@ -176,10 +194,10 @@ function renderDebts(clients) {
 // 4. MANEJO DE FORMULARIOS Y ACCIONES
 // ----------------------------------------------------------------------
 
-// 4.1. Registrar Nueva Venta (INSERT)
+// 4.1. Registrar Nueva Venta (INSERT y Trigger Automático de Deuda)
 document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    console.log("Registrando nueva venta...");
+    toggleLoading('add-sale-form', true); // <-- INICIO DE CARGA
     
     const clientName = document.getElementById('sale-client-name').value.trim();
     const amount = parseFloat(document.getElementById('sale-amount').value);
@@ -187,13 +205,16 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     
     if (!clientName || isNaN(amount) || amount <= 0) {
         alert("Por favor, complete el nombre del cliente y el monto de la venta.");
+        toggleLoading('add-sale-form', false);
         return;
     }
     
+    // CORRECCIÓN: Se añade 'date' para que el TRIGGER pueda usar NEW.date
     const { error } = await supabase.from('ventas').insert({
         clientName: clientName, 
         amount: amount, 
-        products: products
+        products: products,
+        date: new Date().toISOString(), 
     });
     
     if (!error) {
@@ -204,18 +225,21 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         console.error("Error al registrar venta:", error);
         alert(`Hubo un error al registrar la venta. Código: ${error.code}`);
     }
+    
+    toggleLoading('add-sale-form', false); // <-- FIN DE CARGA
 });
 
-// 4.2. Actualizar/Insertar Deuda (UPSERT)
+// 4.2. Actualizar/Insertar Deuda (UPSERT para liquidación o ajuste manual)
 document.getElementById('update-debt-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    console.log("Actualizando deuda...");
+    toggleLoading('update-debt-form', true); // <-- INICIO DE CARGA
     
     const clientName = document.getElementById('debt-client-name').value.trim();
     const debtAmount = parseFloat(document.getElementById('debt-amount').value);
     
     if (!clientName || isNaN(debtAmount) || debtAmount < 0) {
         alert("Por favor, complete el nombre del cliente y un monto de deuda válido (>= 0).");
+        toggleLoading('update-debt-form', false);
         return;
     }
 
@@ -231,11 +255,21 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
     if (!error) {
         hideModal('update-debt-modal');
         document.getElementById('update-debt-form').reset();
+
+        // Retroalimentación UX Avanzada
+        if (debtAmount === 0) {
+            alert(`✅ La deuda de ${clientName} ha sido liquidada con éxito.`);
+        } else {
+            alert(`✅ La deuda de ${clientName} ha sido actualizada a ${formatter.format(debtAmount)}.`);
+        }
+
         loadDashboardData(); 
     } else {
         console.error("Error al actualizar deuda:", error);
         alert(`Hubo un error al actualizar la deuda. Código: ${error.code}`);
     }
+    
+    toggleLoading('update-debt-form', false); // <-- FIN DE CARGA
 });
 
 // 4.3. Lógica para botones de Editar y Eliminar Ventas
@@ -260,7 +294,11 @@ function initializeSaleActions() {
         button.addEventListener('click', async (e) => {
             const id = e.currentTarget.dataset.saleId;
             
-            if (confirm("¿Estás seguro de que quieres eliminar esta venta permanentemente?")) {
+            if (confirm("¿Estás seguro de que quieres eliminar esta venta permanentemente? Esta acción NO revierte la deuda asociada.")) {
+                
+                // Nota: La eliminación de la venta debe ser manejada manualmente en la deuda,
+                // o se debe crear otro Trigger para restar el monto.
+                
                 const { error } = await supabase
                     .from('ventas')
                     .delete()
@@ -277,20 +315,17 @@ function initializeSaleActions() {
     });
 }
 
-// 4.4. Lógica para botones de Edición Rápida de Deudas (NUEVO)
+// 4.4. Lógica para botones de Edición Rápida de Deudas
 function initializeDebtActions() {
     document.querySelectorAll('.quick-edit-debt-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const clientName = e.currentTarget.dataset.clientName;
             
-            // Rellenar el campo del nombre del cliente y mostrar el modal
             document.getElementById('debt-client-name').value = clientName;
-            
-            // Limpiamos el monto para forzar al usuario a ingresar el nuevo valor
             document.getElementById('debt-amount').value = ''; 
 
             showModal('update-debt-modal');
-            document.getElementById('debt-amount').focus();
+            document.getElementById('debt-amount').focus(); // UX: Enfocar el monto
         });
     });
 }
@@ -299,6 +334,7 @@ function initializeDebtActions() {
 // 4.5. Manejar el envío del formulario de Edición de Venta (UPDATE)
 document.getElementById('edit-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    toggleLoading('edit-sale-form', true); // <-- INICIO DE CARGA
     
     const id = document.getElementById('edit-sale-id').value;
     const clientName = document.getElementById('edit-sale-client-name').value.trim();
@@ -307,6 +343,7 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
     
     if (!id || !clientName || isNaN(amount) || amount <= 0) {
         alert("Datos inválidos.");
+        toggleLoading('edit-sale-form', false);
         return;
     }
     
@@ -322,11 +359,15 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
     if (!error) {
         hideModal('edit-sale-modal');
         document.getElementById('edit-sale-form').reset();
+        // Nota: Si el monto se cambia, la deuda no se actualiza automáticamente. 
+        // Para esto se necesitaría un TRIGGER más complejo (UPDATE)
         loadDashboardData(); 
     } else {
         console.error("Error al guardar cambios:", error);
         alert(`Hubo un error al actualizar la venta. Código: ${error.code}`);
     }
+    
+    toggleLoading('edit-sale-form', false); // <-- FIN DE CARGA
 });
 
 
@@ -339,13 +380,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Conectar botones principales
     document.getElementById('addSaleBtn').addEventListener('click', () => showModal('add-sale-modal'));
+    
+    // UX: Limpiar formulario y enfocar el nombre al abrir el modal principal
     document.getElementById('updateDebtBtn').addEventListener('click', () => {
         showModal('update-debt-modal');
-        // Asegurarse de que el formulario esté vacío al abrir desde el botón principal
         document.getElementById('update-debt-form').reset(); 
+        document.getElementById('debt-client-name').focus(); // UX: Enfocar el nombre
     });
     
-    // Conectar botones de Cancelar en los modales
+    // Conectar botones de Cancelar
     document.getElementById('cancelAddSale').addEventListener('click', () => hideModal('add-sale-modal'));
     document.getElementById('cancelUpdateDebt').addEventListener('click', () => hideModal('update-debt-modal'));
     document.getElementById('cancelEditSale').addEventListener('click', () => hideModal('edit-sale-modal'));
@@ -362,6 +405,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Iniciar la carga de datos
     loadDashboardData(); 
 });
