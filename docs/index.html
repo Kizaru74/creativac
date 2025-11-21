@@ -9,7 +9,7 @@
             display: none;
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-DvYoyWFZ.js"></script>
+  <script type="module" crossorigin src="./assets/index-C5xHN0dt.js"></script>
   <link rel="stylesheet" crossorigin href="./style.css">
 </head>
 <body class="bg-gray-50 loading-hide">
@@ -75,7 +75,8 @@
                                     <th class="p-4 text-left">Cliente</th>
                                     <th class="p-4 text-left">Monto Deuda</th>
                                     <th class="p-4 text-left">Última Actualización</th>
-                                    <th class="p-4 text-left">Acción</th> </tr>
+                                    <th class="p-4 text-left">Acción</th>
+                                </tr>
                             </thead>
                             <tbody id="debt-list" class="bg-white divide-y divide-gray-200">
                                 </tbody>
@@ -99,9 +100,21 @@
                     <label for="sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
                     <input type="number" id="sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
                 </div>
+                
+                <div class="mb-4">
+                    <label for="sale-products-select" class="block text-sm font-medium text-gray-700">Producto / Opción Principal</label>
+                    <select id="sale-products-select" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
+                        <option value="">Seleccione una opción...</option>
+                        <option value="Diseño Web">Diseño Web</option>
+                        <option value="Branding / Identidad">Branding / Identidad</option>
+                        <option value="Gestión Redes Sociales">Gestión Redes Sociales</option>
+                        <option value="Publicidad Digital">Publicidad Digital</option>
+                        <option value="Otro">Otro (Detalle abajo)</option>
+                    </select>
+                </div>
                 <div class="mb-6">
-                    <label for="sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios Vendidos</label>
-                    <textarea id="sale-products" rows="2" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500"></textarea>
+                    <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales</label>
+                    <textarea id="sale-description" rows="2" placeholder="Ej: Paquete Pro, 5 posts al mes, retoque fotográfico, etc." class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500"></textarea>
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button type="button" id="cancelAddSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>

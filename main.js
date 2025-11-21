@@ -92,8 +92,6 @@ function updateSummary(sales, clients) {
     document.body.classList.remove('loading-hide');
 }
 
-// main.js - Función renderSales (ACTUALIZADA)
-
 /** Renderiza la lista de ventas. */
 function renderSales(sales) {
     const listEl = document.getElementById('sales-list');
@@ -102,7 +100,8 @@ function renderSales(sales) {
             <th class="p-4 text-left">Cliente</th>
             <th class="p-4 text-left">Monto</th>
             <th class="p-4 text-left">Fecha</th>
-            <th class="p-4 text-left product-header">Productos</th> <th class="p-4 text-left">Acciones</th>
+            <th class="p-4 text-left product-header">Productos</th>
+            <th class="p-4 text-left">Acciones</th>
         </tr>
     `;
     
@@ -117,7 +116,6 @@ function renderSales(sales) {
         }) : 'N/A';
         
         const saleId = sale.id; 
-        // Aseguramos que el producto sea una cadena para usar en el title
         const productsText = sale.products || 'N/A'; 
 
         const row = `
@@ -155,7 +153,7 @@ function renderSales(sales) {
     initializeSaleActions();
 }
 
-/** Renderiza la lista de deudas. Incluye botón de Edición Rápida. */
+/** Renderiza la lista de deudas. */
 function renderDebts(clients) {
     const listEl = document.getElementById('debt-list');
     
@@ -207,7 +205,14 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     
     const clientName = document.getElementById('sale-client-name').value.trim();
     const amount = parseFloat(document.getElementById('sale-amount').value);
-    const products = document.getElementById('sale-products').value.trim();
+    // NUEVOS CAMPOS:
+    const selectedProduct = document.getElementById('sale-products-select').value;
+    const description = document.getElementById('sale-description').value.trim();
+    
+    // Combinar la opción seleccionada y la descripción
+    const productsCombined = selectedProduct ? 
+        `${selectedProduct}${description ? ' | Detalles: ' + description : ''}` :
+        description || 'N/A';
     
     if (!clientName || isNaN(amount) || amount <= 0) {
         alert("Por favor, complete el nombre del cliente y el monto de la venta.");
@@ -215,11 +220,10 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         return;
     }
     
-    // CORRECCIÓN: Se añade 'date' para que el TRIGGER pueda usar NEW.date
     const { error } = await supabase.from('ventas').insert({
         clientName: clientName, 
         amount: amount, 
-        products: products,
+        products: productsCombined, // <-- GUARDANDO EL TEXTO COMBINADO
         date: new Date().toISOString(), 
     });
     
@@ -262,7 +266,6 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
         hideModal('update-debt-modal');
         document.getElementById('update-debt-form').reset();
 
-        // Retroalimentación UX Avanzada
         if (debtAmount === 0) {
             alert(`✅ La deuda de ${clientName} ha sido liquidada con éxito.`);
         } else {
@@ -300,10 +303,7 @@ function initializeSaleActions() {
         button.addEventListener('click', async (e) => {
             const id = e.currentTarget.dataset.saleId;
             
-            if (confirm("¿Estás seguro de que quieres eliminar esta venta permanentemente? Esta acción NO revierte la deuda asociada.")) {
-                
-                // Nota: La eliminación de la venta debe ser manejada manualmente en la deuda,
-                // o se debe crear otro Trigger para restar el monto.
+            if (confirm("¿Estás seguro de que quieres eliminar esta venta permanentemente? La base de datos RESTARÁ este monto automáticamente de la deuda del cliente.")) {
                 
                 const { error } = await supabase
                     .from('ventas')
@@ -314,6 +314,7 @@ function initializeSaleActions() {
                     console.error("Error al eliminar venta:", error);
                     alert("Error al eliminar la venta.");
                 } else {
+                    // El Trigger de DELETE resta la deuda, solo recargamos
                     loadDashboardData(); 
                 }
             }
@@ -331,7 +332,7 @@ function initializeDebtActions() {
             document.getElementById('debt-amount').value = ''; 
 
             showModal('update-debt-modal');
-            document.getElementById('debt-amount').focus(); // UX: Enfocar el monto
+            document.getElementById('debt-amount').focus(); 
         });
     });
 }
@@ -365,8 +366,7 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
     if (!error) {
         hideModal('edit-sale-modal');
         document.getElementById('edit-sale-form').reset();
-        // Nota: Si el monto se cambia, la deuda no se actualiza automáticamente. 
-        // Para esto se necesitaría un TRIGGER más complejo (UPDATE)
+        // NOTA: Si el monto fue modificado, la deuda debe ajustarse manualmente o con un TRIGGER más complejo.
         loadDashboardData(); 
     } else {
         console.error("Error al guardar cambios:", error);
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('updateDebtBtn').addEventListener('click', () => {
         showModal('update-debt-modal');
         document.getElementById('update-debt-form').reset(); 
-        document.getElementById('debt-client-name').focus(); // UX: Enfocar el nombre
+        document.getElementById('debt-client-name').focus(); 
     });
     
     // Conectar botones de Cancelar
