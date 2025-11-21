@@ -9,7 +9,7 @@
             display: none;
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-DIo1i4YF.js"></script>
+  <script type="module" crossorigin src="./assets/index-CzfxTspH.js"></script>
   <link rel="stylesheet" crossorigin href="./style.css">
 </head>
 <body class="bg-gray-50 loading-hide">
@@ -263,48 +263,74 @@
     </div>
 
     <div id="edit-sale-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-        <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Venta</h3>
-        <form id="edit-sale-form">
-            <input type="hidden" id="edit-sale-id"> 
+        <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Venta</h3>
+            <form id="edit-sale-form">
+                <input type="hidden" id="edit-sale-id"> 
+                
+                <div class="mb-4">
+                    <label for="edit-sale-date" class="block text-sm font-medium text-gray-700">Fecha de Venta</label>
+                    <input type="date" id="edit-sale-date" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+                </div>
 
-            <div class="mb-4">
-                <label for="edit-sale-date" class="block text-sm font-medium text-gray-700">Fecha de Venta</label>
-                <input type="date" id="edit-sale-date" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-
-            <div class="mb-4">
-                <label for="edit-sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                <input type="text" id="edit-sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            <div class="mb-4">
-                <label for="edit-sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
-                <input type="number" id="edit-sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            <div class="mb-6">
-                <label for="edit-sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios Vendidos</label>
-                <textarea id="edit-sale-products" rows="4" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
-                <p class="mt-1 text-xs text-gray-500">Línea 1: Categoría y Producto Principal. Líneas siguientes: Detalles.</p>
-            </div>
-            <div class="flex justify-end space-x-3">
-                <button type="button" id="cancelEditSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Cambios</button>
-            </div>
-        </form>
-    </div>
+                <div class="mb-4">
+                    <label for="edit-sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
+                    <input type="text" id="edit-sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label for="edit-sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
+                    <input type="number" id="edit-sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label for="edit-sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios Vendidos</label>
+                    <textarea id="edit-sale-products" rows="4" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    <p class="mt-1 text-xs text-gray-500">Línea 1: Categoría y Producto Principal. Líneas siguientes: Detalles.</p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelEditSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
     </div>
     
     <div id="client-sales-detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6 border-b pb-2">
-                <h3 class="text-2xl font-bold text-gray-800">Ventas de <span id="client-detail-name" class="text-blue-600"></span></h3>
+                <h3 class="text-2xl font-bold text-gray-800">Historial de <span id="client-detail-name" class="text-blue-600"></span></h3>
                 <button id="closeClientSalesDetailModal" class="text-gray-500 hover:text-gray-700 text-3xl leading-none">
                     &times;
                 </button>
             </div>
             
-            <p class="mb-4 text-lg font-semibold text-red-600">Deuda Total: <span id="client-detail-debt" class="font-bold"></span></p>
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-lg font-semibold text-red-600">Deuda Total Actual: <span id="client-detail-debt" class="font-bold"></span></p>
+                <button id="openUpdateDebtFromDetail" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">
+                    Registrar Abono o Ajustar
+                </button>
+            </div>
 
+            <hr class="my-4">
+            
+            <h4 class="text-xl font-bold text-gray-800 mb-3 mt-6">Historial de Pagos y Ajustes</h4>
+            <div class="overflow-x-auto border rounded-lg mb-6">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Fecha/Hora</th>
+                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Monto del Movimiento</th>
+                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipo</th>
+                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Saldo Final</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-movements-list" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+
+            <hr class="my-4">
+
+            <h4 class="text-xl font-bold text-gray-800 mb-3 mt-6">Ventas Registradas</h4>
             <div class="overflow-x-auto border rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50 sticky top-0">
@@ -317,12 +343,6 @@
                     <tbody id="client-sales-list" class="bg-white divide-y divide-gray-200">
                         </tbody>
                 </table>
-            </div>
-            
-            <div class="mt-6 flex justify-end">
-                <button id="openUpdateDebtFromDetail" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">
-                    Registrar Abono o Ajustar
-                </button>
             </div>
         </div>
     </div>

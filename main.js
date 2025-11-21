@@ -48,7 +48,7 @@ const toggleLoading = (formId, isLoading) => {
         button.disabled = false;
         // Restaurar el texto original del botón
         if (formId === 'add-sale-form') button.textContent = 'Registrar';
-        if (formId === 'update-debt-form') button.textContent = 'Registrar Abono'; // Modificado
+        if (formId === 'update-debt-form') button.textContent = 'Registrar Abono'; 
         if (formId === 'edit-sale-form') button.textContent = 'Guardar Cambios';
         if (formId === 'add-product-form') {
             const title = document.getElementById('product-form-title').textContent;
@@ -289,7 +289,7 @@ function renderProductAdminTable(products) {
     initializeProductAdminActions();
 }
 
-/** Renderiza la lista de ventas. */
+/** Renderiza la lista de ventas. (MODIFICADO para incluir la fecha en el dataset) */
 function renderSales(sales) {
     const listEl = document.getElementById('sales-list');
     if (!listEl) return;
@@ -483,12 +483,8 @@ document.getElementById('add-sale-form')?.addEventListener('submit', async (e) =
         .eq('name', clientName)
         .single();
     
-    let newDebt = amount; 
-
-    if (existingClient) {
-        const currentDebt = existingClient.debt || 0;
-        newDebt = currentDebt + amount;
-    }
+    const currentDebt = existingClient ? existingClient.debt || 0 : 0;
+    const newDebt = currentDebt + amount;
     
     const { error: debtError } = await supabase.from('clientes').upsert(
         {
@@ -499,12 +495,24 @@ document.getElementById('add-sale-form')?.addEventListener('submit', async (e) =
         { onConflict: 'name' } 
     );
     
-    if (debtError) {
-        console.error("Error al actualizar deuda tras venta:", debtError);
-        // Continuamos, la venta fue registrada
+    // 3. REGISTRAR MOVIMIENTO DE CARGO (Venta)
+    if (!debtError) {
+        const { error: movementError } = await supabase.from('movimientos_deuda').insert({
+            clientName: clientName,
+            amount: amount, // Cargo positivo
+            type: 'CARGO',
+            oldDebt: currentDebt,
+            newDebt: newDebt,
+            date: new Date().toISOString()
+        });
+        
+        if (movementError) {
+            console.error("Error al registrar el movimiento de cargo (venta):", movementError);
+        }
     }
 
-    // 3. FINALIZACIÓN
+
+    // 4. FINALIZACIÓN
     hideModal('add-sale-modal');
     document.getElementById('add-sale-form').reset();
     loadDashboardData(); 
@@ -512,7 +520,7 @@ document.getElementById('add-sale-form')?.addEventListener('submit', async (e) =
     toggleLoading('add-sale-form', false); 
 });
 
-// 4.2. Actualizar/Insertar Deuda o Registrar Abono
+// 4.2. Actualizar/Insertar Deuda o Registrar Abono (MODIFICADO para registrar historial)
 document.getElementById('update-debt-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('update-debt-form', true); 
@@ -523,34 +531,38 @@ document.getElementById('update-debt-form')?.addEventListener('submit', async (e
     const originalDebt = parseFloat(document.getElementById('original-debt-amount').value) || 0;
     
     let finalDebtAmount;
+    let movementType = 'ABONO';
+    let movementAmount = 0; 
+    let currentDebt = originalDebt;
+
+    // Asegurar que currentDebt esté actualizado si vino del botón principal sin precarga
+    if (currentDebt === 0 && document.getElementById('debt-client-name').value) {
+        const { data: existingClient } = await supabase
+            .from('clientes')
+            .select('debt')
+            .eq('name', clientName)
+            .single();
+        
+        if (existingClient) {
+            currentDebt = existingClient.debt || 0;
+        }
+    }
 
     if (manualFinalDebt !== '') {
-        // Modo 1: Ajuste Manual de Saldo Final (el valor en el campo reemplaza todo)
+        // Modo 1: Ajuste Manual de Saldo Final
         finalDebtAmount = parseFloat(manualFinalDebt);
+        movementType = 'AJUSTE';
+        movementAmount = finalDebtAmount - currentDebt; // Diferencia puede ser positiva o negativa
 
     } else if (paymentAmount > 0) {
-        // Modo 2: Registro de Abono (resta el abono del saldo original)
-        let currentDebt = originalDebt;
-
-        if (currentDebt === 0) {
-            // Si el cliente no se precargó (vino del botón principal) o el originalDebt era 0, 
-            // intentamos buscar su deuda actual en Supabase.
-            const { data: existingClient } = await supabase
-                .from('clientes')
-                .select('debt')
-                .eq('name', clientName)
-                .single();
-            
-            if (existingClient) {
-                currentDebt = existingClient.debt || 0;
-            }
-        }
-
-        finalDebtAmount = Math.max(0, currentDebt - paymentAmount); // Asegura que no sea negativo
+        // Modo 2: Registro de Abono
+        finalDebtAmount = Math.max(0, currentDebt - paymentAmount); 
+        movementType = 'ABONO';
+        movementAmount = paymentAmount * -1; // Abonos son negativos
 
     } else {
         // Si no hay abono y no hay ajuste manual, mantiene el saldo original
-        finalDebtAmount = originalDebt; 
+        finalDebtAmount = currentDebt; 
 
         if (finalDebtAmount > 0) {
              alert("Por favor, ingresa un Monto de Abono o un Saldo Final para realizar un cambio.");
@@ -566,7 +578,8 @@ document.getElementById('update-debt-form')?.addEventListener('submit', async (e
     }
 
 
-    const { error } = await supabase.from('clientes').upsert(
+    // 1. ACTUALIZAR DEUDA EN LA TABLA 'clientes'
+    const { error: debtUpdateError } = await supabase.from('clientes').upsert(
         {
             name: clientName, 
             debt: finalDebtAmount, 
@@ -574,24 +587,36 @@ document.getElementById('update-debt-form')?.addEventListener('submit', async (e
         }, 
         { onConflict: 'name' } 
     );
-    
-    if (!error) {
+
+    // 2. REGISTRAR MOVIMIENTO EN LA NUEVA TABLA 'movimientos_deuda'
+    if (!debtUpdateError && movementAmount !== 0) {
+         const { error: movementError } = await supabase.from('movimientos_deuda').insert({
+            clientName: clientName,
+            amount: movementAmount,
+            type: movementType,
+            oldDebt: currentDebt,
+            newDebt: finalDebtAmount,
+            date: new Date().toISOString()
+         });
+         
+         if (movementError) {
+             console.error("Error al registrar el movimiento de deuda:", movementError);
+         }
+    }
+
+    if (!debtUpdateError) {
         hideModal('update-debt-modal');
         document.getElementById('update-debt-form').reset();
         
-        // Mensaje de éxito basado en la acción (solo para log)
-        if (finalDebtAmount === 0 && paymentAmount > 0) {
-            console.log(`Deuda de ${clientName} liquidada con abono de ${formatter.format(paymentAmount)}.`);
-        } else if (paymentAmount > 0) {
-            console.log(`Abono de ${formatter.format(paymentAmount)} registrado para ${clientName}. Nuevo saldo: ${formatter.format(finalDebtAmount)}.`);
-        } else if (manualFinalDebt !== '') {
-            console.log(`Saldo final de ${clientName} ajustado manualmente a ${formatter.format(finalDebtAmount)}.`);
+        // Log de éxito
+        if (movementAmount !== 0) {
+            console.log(`${movementType} registrado para ${clientName}. Nuevo saldo: ${formatter.format(finalDebtAmount)}.`);
         }
 
         loadDashboardData(); 
     } else {
-        console.error("Error al actualizar deuda:", error);
-        alert(`Hubo un error al actualizar la deuda. Código: ${error.code}`);
+        console.error("Error al actualizar deuda:", debtUpdateError);
+        alert(`Hubo un error al actualizar la deuda. Código: ${debtUpdateError.code}`);
     }
     
     toggleLoading('update-debt-form', false); 
@@ -710,16 +735,16 @@ function initializeProductAdminActions() {
     });
 }
 
-// 4.4. Lógica para botones de Editar y Eliminar Ventas
+// 4.4. Lógica para botones de Editar y Eliminar Ventas (MODIFICADO para fecha y formato)
 function initializeSaleActions() {
     
-    // Función auxiliar para formatear la descripción del producto
+    // Función auxiliar para formatear la descripción del producto para el textarea
     const formatProductDetails = (productsFull) => {
         // Busca el patrón: (Cualquier cosa) | Detalle: (Cualquier cosa)
         const match = productsFull.match(/(\[.*?\]\s*.*?)\s*\|\s*Detalle:\s*(.*)/);
 
         if (match && match[1] && match[2]) {
-            // Línea 1: Categoría y Producto Principal (en negritas usando markdown)
+            // Línea 1: Categoría y Producto Principal (en negritas usando markdown **palabra**)
             const primaryProduct = `**${match[1].trim()}**`; 
             // Línea 2: Detalles
             const details = match[2].trim(); 
@@ -729,36 +754,36 @@ function initializeSaleActions() {
         return productsFull;
     };
     
-    // Listener para el botón de EDICIÓN
+    // Listener para el botón de EDICIÓN (✏️)
     document.querySelectorAll('.edit-sale-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.saleId;
             const client = e.currentTarget.dataset.client;
             const amount = e.currentTarget.dataset.amount;
             const products = e.currentTarget.dataset.products;
-            const dateStr = e.currentTarget.dataset.date; // Nuevo: obtener la fecha
+            const dateStr = e.currentTarget.dataset.date; 
 
             // Cargar datos
             document.getElementById('edit-sale-id').value = id;
             document.getElementById('edit-sale-client-name').value = client;
             document.getElementById('edit-sale-amount').value = amount;
-            document.getElementById('edit-sale-date').value = dateStr.substring(0, 10); // Formato YYYY-MM-DD
+            document.getElementById('edit-sale-date').value = dateStr ? dateStr.substring(0, 10) : ''; // Formato YYYY-MM-DD
             
             // Aplicar el nuevo formato al campo de productos/servicios
             document.getElementById('edit-sale-products').value = formatProductDetails(products);
 
-            // Habilitar Edición
+            // HABILITAR Edición (Garantizando la editabilidad)
             document.getElementById('edit-sale-client-name').disabled = false;
             document.getElementById('edit-sale-amount').disabled = false;
             document.getElementById('edit-sale-products').disabled = false;
-            document.getElementById('edit-sale-date').disabled = false; // Nuevo: Habilitar fecha
+            document.getElementById('edit-sale-date').disabled = false; 
             document.querySelector('#edit-sale-form button[type="submit"]').classList.remove('hidden');
 
             showModal('edit-sale-modal');
         });
     });
 
-    // Listener para el botón de ELIMINAR (Mismo código anterior)
+    // Listener para el botón de ELIMINAR
     document.querySelectorAll('.delete-sale-btn').forEach(button => {
         button.addEventListener('click', async (e) => {
             const id = e.currentTarget.dataset.saleId;
@@ -787,19 +812,19 @@ function initializeSaleActions() {
             const client = e.currentTarget.dataset.client;
             const amount = e.currentTarget.dataset.amount;
             const products = e.currentTarget.dataset.products;
-            const dateStr = e.currentTarget.dataset.date; // Nuevo: obtener la fecha
+            const dateStr = e.currentTarget.dataset.date; 
 
             document.getElementById('edit-sale-id').value = id;
             document.getElementById('edit-sale-client-name').value = client;
             document.getElementById('edit-sale-amount').value = amount;
-            document.getElementById('edit-sale-date').value = dateStr.substring(0, 10); // Formato YYYY-MM-DD
-            document.getElementById('edit-sale-products').value = formatProductDetails(products); // Aplicar el nuevo formato
+            document.getElementById('edit-sale-date').value = dateStr ? dateStr.substring(0, 10) : '';
+            document.getElementById('edit-sale-products').value = formatProductDetails(products);
             
             // Deshabilitar campos (MODO SÓLO LECTURA)
             document.getElementById('edit-sale-client-name').disabled = true;
             document.getElementById('edit-sale-amount').disabled = true;
             document.getElementById('edit-sale-products').disabled = true;
-            document.getElementById('edit-sale-date').disabled = true; // Nuevo: Deshabilitar fecha
+            document.getElementById('edit-sale-date').disabled = true; 
             document.querySelector('#edit-sale-form button[type="submit"]').classList.add('hidden');
             
             showModal('edit-sale-modal');
@@ -814,7 +839,7 @@ function initializeDebtActions() {
             const clientName = e.currentTarget.dataset.clientName;
             const debtAmount = parseFloat(e.currentTarget.dataset.debtAmount) || 0;
             
-            // Lógica principal: Cargar y mostrar el detalle de ventas
+            // Lógica principal: Cargar y mostrar el detalle de ventas y movimientos
             loadClientSales(clientName, debtAmount);
             showModal('client-sales-detail-modal');
         });
@@ -834,52 +859,109 @@ function initializeDebtActions() {
 }
 
 /**
- * Carga las ventas de un cliente específico y las renderiza en el modal de detalle.
+ * Carga las ventas y el historial de movimientos de deuda de un cliente.
+ * (MODIFICADO para incluir tabla de movimientos)
  * @param {string} clientName - Nombre del cliente a buscar.
  * @param {number} debtAmount - Monto de la deuda actual.
  */
 async function loadClientSales(clientName, debtAmount) {
-    const listEl = document.getElementById('client-sales-list');
+    const salesListEl = document.getElementById('client-sales-list');
+    const movementsListEl = document.getElementById('client-movements-list'); 
     const nameEl = document.getElementById('client-detail-name');
     const debtEl = document.getElementById('client-detail-debt');
     
-    listEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Cargando ventas...</td></tr>';
+    // Asignar nombres y deudas
     nameEl.textContent = clientName;
     debtEl.textContent = formatter.format(debtAmount);
 
-    const { data: sales, error } = await supabase
+    // Inicializar tablas
+    salesListEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Cargando ventas...</td></tr>';
+    if(movementsListEl) movementsListEl.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Cargando movimientos...</td></tr>';
+    
+    // --- 1. Obtener Ventas ---
+    const { data: sales, error: salesError } = await supabase
         .from('ventas')
         .select('*')
-        .eq('clientName', clientName) // Filtra solo las ventas del cliente
+        .eq('clientName', clientName) 
         .order('date', { ascending: false });
 
-    if (error) {
-        console.error("Error al obtener ventas del cliente:", error);
-        listEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Error al cargar el historial de ventas.</td></tr>';
-        return;
-    }
-    
-    if (sales.length === 0) {
-        listEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Este cliente no tiene ventas registradas.</td></tr>';
-        return;
-    }
-    
-    listEl.innerHTML = ''; // Limpiar el "Cargando..."
-    
-    sales.forEach(sale => {
-        const date = sale.date ? new Date(sale.date).toLocaleDateString('es-MX', {
-            day: '2-digit', month: 'short', year: 'numeric'
-        }) : 'N/A';
+    // --- 2. Obtener Movimientos de Deuda (ABONOS/AJUSTES) ---
+    const { data: movements, error: movementsError } = await supabase
+        .from('movimientos_deuda')
+        .select('*')
+        .eq('clientName', clientName)
+        .order('date', { ascending: false });
 
-        const row = `
-            <tr class="hover:bg-gray-50">
-                <td class="p-3 whitespace-nowrap text-sm text-gray-500">${date}</td>
-                <td class="p-3 whitespace-nowrap text-sm font-medium text-gray-900">${formatter.format(sale.amount || 0)}</td>
-                <td class="p-3 text-sm text-gray-500">${sale.products || 'N/A'}</td>
-            </tr>
-        `;
-        listEl.innerHTML += row;
-    });
+
+    if (salesError || movementsError) {
+        console.error("Error al obtener datos del cliente:", salesError || movementsError);
+        salesListEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Error al cargar historial de ventas.</td></tr>';
+        if(movementsListEl) movementsListEl.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Error al cargar historial de abonos.</td></tr>';
+        return;
+    }
+    
+    // --- RENDERIZAR VENTAS ---
+    salesListEl.innerHTML = '';
+    if (sales.length === 0) {
+        salesListEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Este cliente no tiene ventas registradas.</td></tr>';
+    } else {
+        sales.forEach(sale => {
+            const date = sale.date ? new Date(sale.date).toLocaleDateString('es-MX', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            }) : 'N/A';
+    
+            const row = `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-3 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                    <td class="p-3 whitespace-nowrap text-sm font-medium text-gray-900">${formatter.format(sale.amount || 0)}</td>
+                    <td class="p-3 text-sm text-gray-500">${sale.products || 'N/A'}</td>
+                </tr>
+            `;
+            salesListEl.innerHTML += row;
+        });
+    }
+
+
+    // --- RENDERIZAR MOVIMIENTOS DE DEUDA (NUEVO) ---
+    if (movementsListEl) {
+        const movementsHtml = movements.map(move => {
+            const date = move.date ? new Date(move.date).toLocaleDateString('es-MX', {
+                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : 'N/A';
+            
+            let amountDisplay;
+            let styleClass;
+            let typeDisplay;
+
+            if (move.type === 'ABONO' || move.type === 'CARGO') {
+                // Abonos vienen negativos, Cargos vienen positivos. Mostramos el valor absoluto.
+                amountDisplay = formatter.format(Math.abs(move.amount || 0)); 
+                styleClass = move.type === 'ABONO' ? 'text-green-600 font-bold' : 'text-blue-600 font-bold';
+                typeDisplay = move.type === 'ABONO' ? '✅ Pago / Abono' : '🛒 Cargo por Venta';
+
+            } else if (move.type === 'AJUSTE') {
+                // Ajustes pueden ser positivos o negativos, mostramos el valor con su signo.
+                amountDisplay = formatter.format(move.amount || 0);
+                styleClass = move.amount < 0 ? 'text-red-600' : 'text-orange-600';
+                typeDisplay = '⚠️ Ajuste Manual';
+            }
+            
+            return `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-3 whitespace-nowrap text-xs text-gray-500">${date}</td>
+                    <td class="p-3 whitespace-nowrap text-sm ${styleClass}">${amountDisplay}</td>
+                    <td class="p-3 text-sm text-gray-800">${typeDisplay}</td>
+                    <td class="p-3 whitespace-nowrap text-sm text-red-700 font-semibold">${formatter.format(move.newDebt || 0)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        if (movements.length === 0) {
+            movementsListEl.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay movimientos de abonos ni ajustes registrados.</td></tr>';
+        } else {
+            movementsListEl.innerHTML = movementsHtml;
+        }
+    }
 }
 
 // 4.6. Manejar el envío del formulario de Edición de Venta (UPDATE)
@@ -890,36 +972,51 @@ document.getElementById('edit-sale-form')?.addEventListener('submit', async (e) 
     const id = document.getElementById('edit-sale-id').value;
     const clientName = document.getElementById('edit-sale-client-name').value.trim();
     const amount = parseFloat(document.getElementById('edit-sale-amount').value);
-    const products = document.getElementById('edit-sale-products').value.trim();
+    const productsFormatted = document.getElementById('edit-sale-products').value.trim();
+    const newDate = document.getElementById('edit-sale-date').value; 
     
     // Si los campos están deshabilitados, significa que estamos en modo 'solo ver'.
     if (document.getElementById('edit-sale-client-name').disabled) {
-        // En este caso, solo cerramos el modal sin intentar guardar
         hideModal('edit-sale-modal');
         toggleLoading('edit-sale-form', false);
         return;
     }
 
-    if (!id || !clientName || isNaN(amount) || amount <= 0) {
-        alert("Datos inválidos.");
+    if (!id || !clientName || isNaN(amount) || amount <= 0 || !newDate) {
+        alert("Datos inválidos. Asegúrate de que el cliente, monto y fecha estén llenos.");
         toggleLoading('edit-sale-form', false);
         return;
     }
+
+    // Lógica para revertir el formato de presentación del textarea al formato de guardado
+    let productsToSave = productsFormatted;
+    const match = productsFormatted.match(/\*\*(.*?)\*\*[\r\n]Detalles:\s*(.*)/s);
+    
+    if (match && match[1] && match[2]) {
+        // Reconstruir el formato [Categoría] Producto | Detalle: Descripción
+        const primaryProduct = match[1].trim(); 
+        const details = match[2].trim();
+        productsToSave = `${primaryProduct} | Detalle: ${details}`;
+    }
+
+    // Convertir la fecha YYYY-MM-DD a formato ISO de Supabase 
+    const isoDate = new Date(newDate).toISOString(); 
     
     const { error } = await supabase
         .from('ventas')
         .update({
             clientName: clientName, 
             amount: amount, 
-            products: products 
+            products: productsToSave,
+            date: isoDate 
         })
         .eq('id', id); 
 
     if (!error) {
         hideModal('edit-sale-modal');
         document.getElementById('edit-sale-form').reset();
-        // Nota: Una edición de venta puede requerir recalcular la deuda. 
-        // Por simplicidad, recargamos todos los datos.
+        // NOTA: La edición de una venta DEBERÍA recalcular las deudas y movimientos. 
+        // Por simplicidad, solo recargamos y confiamos en la recarga general por ahora.
         loadDashboardData(); 
     } else {
         console.error("Error al guardar cambios:", error);
@@ -1032,14 +1129,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Lógica de Restauración del Modal de Edición al Cancelar
     const restoreEditModal = () => {
+        // Al cerrar, nos aseguramos de que todos los campos sean re-habilitados 
+        // por si se intenta abrir el modal de edición de nuevo.
         const clientNameInput = document.getElementById('edit-sale-client-name');
         const amountInput = document.getElementById('edit-sale-amount');
         const productsInput = document.getElementById('edit-sale-products');
+        const dateInput = document.getElementById('edit-sale-date');
         const submitButton = document.querySelector('#edit-sale-form button[type="submit"]');
 
         if (clientNameInput) clientNameInput.disabled = false;
         if (amountInput) amountInput.disabled = false;
         if (productsInput) productsInput.disabled = false;
+        if (dateInput) dateInput.disabled = false;
         if (submitButton) submitButton.classList.remove('hidden');
         
         hideModal('edit-sale-modal');
