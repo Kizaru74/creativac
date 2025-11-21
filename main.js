@@ -50,7 +50,11 @@ const toggleLoading = (formId, isLoading) => {
         if (formId === 'add-sale-form') button.textContent = 'Registrar';
         if (formId === 'update-debt-form') button.textContent = 'Guardar Deuda';
         if (formId === 'edit-sale-form') button.textContent = 'Guardar Cambios';
-        if (formId === 'add-product-form') document.getElementById('product-form-title').textContent.includes('Editar') ? button.textContent = 'Guardar Cambios' : button.textContent = 'Guardar Producto';
+        if (formId === 'add-product-form') {
+            // Determinar si es Edición o Creación para restaurar el texto
+            const title = document.getElementById('product-form-title').textContent;
+            button.textContent = title.includes('Editar') ? 'Guardar Cambios' : 'Guardar Producto';
+        }
         
         button.classList.remove('opacity-50', 'cursor-not-allowed');
     }
@@ -61,7 +65,7 @@ const toggleLoading = (formId, isLoading) => {
 // ----------------------------------------------------------------------
 
 async function loadDashboardData() {
-    // ⭐ CARGA DE PRODUCTOS GARANTIZADA AL INICIO
+    // Carga de productos garantizada al inicio
     await loadProductsAndPopulate();
     
     // 1. Obtener datos de ventas
@@ -305,7 +309,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     const packageType = document.getElementById('sale-package-type').value; 
     const description = document.getElementById('sale-description').value.trim();
     
-    // LÓGICA DE COMBINACIÓN
+    // LÓGICA DE COMBINACIÓN DE PRODUCTOS
     let productsCombined = selectedProduct;
 
     if (packageType) {
@@ -316,8 +320,8 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
 
     if (description) {
         productsCombined = productsCombined ? 
-            `${productsCombined} | Detalles: ${description}` : 
-            `Detalles: ${description}`;
+            `${productsCombined} | Detalle: ${description}` : 
+            `Detalle: ${description}`;
     }
 
     if (!productsCombined) {
@@ -422,7 +426,7 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
         document.getElementById('product-id').value = '';
         document.getElementById('add-product-form').classList.add('hidden'); // Ocultar form
         
-        // ⭐ RECARGA Y ACTUALIZA SELECTORES DESPUÉS DE LA EDICIÓN/GUARDADO
+        // RECARGA Y ACTUALIZA SELECTORES DESPUÉS DE LA EDICIÓN/GUARDADO
         await loadProductsAndPopulate(); 
         
     } else {
@@ -473,7 +477,7 @@ function initializeProductAdminActions() {
                     console.error("Error al eliminar producto:", error);
                     alert("Error al eliminar el producto.");
                 } else {
-                    // ⭐ RECARGA Y ACTUALIZA SELECTORES DESPUÉS DE LA ELIMINACIÓN
+                    // RECARGA Y ACTUALIZA SELECTORES DESPUÉS DE LA ELIMINACIÓN
                     await loadProductsAndPopulate();
                 }
             }
@@ -503,7 +507,7 @@ function initializeSaleActions() {
         button.addEventListener('click', async (e) => {
             const id = e.currentTarget.dataset.saleId;
             
-            if (confirm("¿Estás seguro de que quieres eliminar esta venta permanentemente? La base de datos RESTARÁ este monto automáticamente de la deuda del cliente.")) {
+            if (confirm("¿Estás seguro de que quieres eliminar esta venta permanentemente? Esta acción es irreversible.")) {
                 
                 const { error } = await supabase
                     .from('ventas')
@@ -514,6 +518,7 @@ function initializeSaleActions() {
                     console.error("Error al eliminar venta:", error);
                     alert("Error al eliminar la venta.");
                 } else {
+                    // Recargar datos para actualizar la tabla y los resúmenes (incluyendo potencialmente la deuda)
                     loadDashboardData(); 
                 }
             }
@@ -583,29 +588,33 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando la aplicación...");
 
     // Conectar botones principales
-    document.getElementById('addSaleBtn').addEventListener('click', () => showModal('add-sale-modal'));
+    document.getElementById('addSaleBtn').addEventListener('click', () => {
+        showModal('add-sale-modal');
+        document.getElementById('add-sale-form').reset(); // Limpiar formulario
+    });
+    
     document.getElementById('updateDebtBtn').addEventListener('click', () => {
         showModal('update-debt-modal');
         document.getElementById('update-debt-form').reset(); 
         document.getElementById('debt-client-name').focus(); 
     });
     
-    // Botón para abrir la administración
+    // Botón para abrir la administración de productos
     document.getElementById('addProductAdminBtn').addEventListener('click', () => {
         loadProductsAndPopulate(); 
         showModal('product-admin-modal');
         document.getElementById('add-product-form').classList.add('hidden');
     });
 
-    // Botón para mostrar el formulario de agregar
+    // Botón para mostrar el formulario de agregar producto
     document.getElementById('showAddProductFormBtn').addEventListener('click', () => {
-        document.getElementById('add-product-form').classList.toggle('hidden');
+        document.getElementById('add-product-form').classList.remove('hidden');
         document.getElementById('product-form-title').textContent = 'Agregar Nuevo Producto';
         document.getElementById('add-product-form').reset();
         document.getElementById('product-id').value = '';
     });
     
-    // Botón para cancelar agregar/editar
+    // Botón para cancelar agregar/editar producto
     document.getElementById('cancelAddProduct').addEventListener('click', () => {
         document.getElementById('add-product-form').classList.add('hidden');
         document.getElementById('add-product-form').reset();
@@ -622,13 +631,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Conectar el botón de salir
     document.getElementById('logoutBtn').addEventListener('click', async (e) => {
         e.preventDefault();
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-            console.error("Error al cerrar sesión:", error);
-            alert("No se pudo cerrar la sesión.");
-        } else {
+        // Si tienes autenticación implementada:
+        // const { error } = await supabase.auth.signOut();
+        // if (error) {
+        //     console.error("Error al cerrar sesión:", error);
+        //     alert("No se pudo cerrar la sesión.");
+        // } else {
             window.location.reload(); 
-        }
+        // }
     });
 
     loadDashboardData(); 
