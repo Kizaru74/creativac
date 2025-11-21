@@ -498,11 +498,11 @@ document.getElementById('add-sale-form')?.addEventListener('submit', async (e) =
     // 3. REGISTRAR MOVIMIENTO DE CARGO (Venta)
     if (!debtError) {
         const { error: movementError } = await supabase.from('movimientos_deuda').insert({
-            clientName: clientName,
+            clientname: clientName, // CORREGIDO: Usar minúsculas para coincidir con la BD
             amount: amount, // Cargo positivo
             type: 'CARGO',
-            oldDebt: currentDebt,
-            newDebt: newDebt,
+            olddebt: currentDebt, // CORREGIDO
+            newdebt: newDebt, // CORREGIDO
             date: new Date().toISOString()
         });
         
@@ -520,7 +520,7 @@ document.getElementById('add-sale-form')?.addEventListener('submit', async (e) =
     toggleLoading('add-sale-form', false); 
 });
 
-// 4.2. Actualizar/Insertar Deuda o Registrar Abono (MODIFICADO para registrar historial)
+// 4.2. Actualizar/Insertar Deuda o Registrar Abono (MODIFICADO y CORREGIDO)
 document.getElementById('update-debt-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('update-debt-form', true); 
@@ -591,11 +591,11 @@ document.getElementById('update-debt-form')?.addEventListener('submit', async (e
     // 2. REGISTRAR MOVIMIENTO EN LA NUEVA TABLA 'movimientos_deuda'
     if (!debtUpdateError && movementAmount !== 0) {
          const { error: movementError } = await supabase.from('movimientos_deuda').insert({
-            clientName: clientName,
+            clientname: clientName, // CORREGIDO
             amount: movementAmount,
             type: movementType,
-            oldDebt: currentDebt,
-            newDebt: finalDebtAmount,
+            olddebt: currentDebt, // CORREGIDO
+            newdebt: finalDebtAmount, // CORREGIDO
             date: new Date().toISOString()
          });
          
@@ -860,7 +860,7 @@ function initializeDebtActions() {
 
 /**
  * Carga las ventas y el historial de movimientos de deuda de un cliente.
- * (MODIFICADO para incluir tabla de movimientos)
+ * (MODIFICADO para incluir tabla de movimientos y corregir nombres de columnas)
  * @param {string} clientName - Nombre del cliente a buscar.
  * @param {number} debtAmount - Monto de la deuda actual.
  */
@@ -886,15 +886,16 @@ async function loadClientSales(clientName, debtAmount) {
         .order('date', { ascending: false });
 
     // --- 2. Obtener Movimientos de Deuda (ABONOS/AJUSTES) ---
+    // NOTA: No usamos 'clientName' en la query, solo en el filtro eq('clientName', ...)
     const { data: movements, error: movementsError } = await supabase
         .from('movimientos_deuda')
         .select('*')
-        .eq('clientName', clientName)
+        .eq('clientname', clientName) // CORREGIDO: Usar 'clientname'
         .order('date', { ascending: false });
 
 
     if (salesError || movementsError) {
-        console.error("Error al obtener datos del cliente:", salesError || movementsError);
+        console.error("Error al obtener datos del cliente: ", salesError || movementsError);
         salesListEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Error al cargar historial de ventas.</td></tr>';
         if(movementsListEl) movementsListEl.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Error al cargar historial de abonos.</td></tr>';
         return;
@@ -951,8 +952,7 @@ async function loadClientSales(clientName, debtAmount) {
                     <td class="p-3 whitespace-nowrap text-xs text-gray-500">${date}</td>
                     <td class="p-3 whitespace-nowrap text-sm ${styleClass}">${amountDisplay}</td>
                     <td class="p-3 text-sm text-gray-800">${typeDisplay}</td>
-                    <td class="p-3 whitespace-nowrap text-sm text-red-700 font-semibold">${formatter.format(move.newDebt || 0)}</td>
-                </tr>
+                    <td class="p-3 whitespace-nowrap text-sm text-red-700 font-semibold">${formatter.format(move.newdebt || 0)}</td> </tr>
             `;
         }).join('');
 
@@ -1015,8 +1015,6 @@ document.getElementById('edit-sale-form')?.addEventListener('submit', async (e) 
     if (!error) {
         hideModal('edit-sale-modal');
         document.getElementById('edit-sale-form').reset();
-        // NOTA: La edición de una venta DEBERÍA recalcular las deudas y movimientos. 
-        // Por simplicidad, solo recargamos y confiamos en la recarga general por ahora.
         loadDashboardData(); 
     } else {
         console.error("Error al guardar cambios:", error);
