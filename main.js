@@ -782,13 +782,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // Botón para mostrar el formulario de agregar producto
+    // Botón para mostrar el formulario de agregar producto (CORRECCIÓN APLICADA AQUÍ)
     document.getElementById('showAddProductFormBtn').addEventListener('click', () => {
         document.getElementById('add-product-form').classList.remove('hidden');
         document.getElementById('product-form-title').textContent = 'Agregar Nuevo Producto';
         document.getElementById('add-product-form').reset();
         document.getElementById('product-id').value = '';
-        document.getElementById('parent-product-field').classList.add('hidden');
+        
+        // CORRECCIÓN: Asegurar que el selector de tipo tenga un valor por defecto y la dependencia se oculte.
+        document.getElementById('parent-product-field').classList.add('hidden'); 
+        document.getElementById('product-type').value = 'MAIN'; 
+        
         // Aseguramos que el select de padre esté lleno
         populateParentProductSelect(); 
     });
