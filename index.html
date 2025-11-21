@@ -112,7 +112,7 @@
                     
                     <div>
                         <label for="sale-products-select" class="block text-sm font-medium text-gray-700">Producto / Opción Principal</label>
-                        <select id="sale-products-select" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
+                        <select id="sale-products-select" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
                             <option value="">Cargando opciones...</option>
                         </select>
                     </div>
@@ -120,14 +120,28 @@
                     <div>
                         <label for="sale-package-type" class="block text-sm font-medium text-gray-700">Tipo de Paquete / Nivel</label>
                         <select id="sale-package-type" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                            <option value="">Cargando opciones...</option>
+                            <option value="">Ninguno (Opcional)</option>
                         </select>
                     </div>
                 </div>
                 
-                <div class="mb-6">
-                    <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales</label>
-                    <textarea id="sale-description" rows="2" placeholder="Ej: Paquete Pro, 5 posts al mes, retoque fotográfico, etc." class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500"></textarea>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    
+                    <div>
+                        <label for="sale-category" class="block text-sm font-medium text-gray-700">Categoría de Venta</label>
+                        <select id="sale-category" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
+                            <option value="Servicio Nuevo">Servicio Nuevo</option>
+                            <option value="Renovación">Renovación</option>
+                            <option value="Adicional/Extra">Adicional/Extra</option>
+                            <option value="Mantenimiento">Mantenimiento</option>
+                            <option value="Consultoría">Consultoría</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales</label>
+                        <textarea id="sale-description" rows="2" placeholder="Ej: Especificaciones, fechas clave, etc." class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500"></textarea>
+                    </div>
                 </div>
                 
                 <div class="flex justify-end space-x-3">
@@ -139,18 +153,19 @@
     </div>
     
     <div id="product-admin-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl p-8 max-w-4xl w-full shadow-2xl">
+        <div class="bg-white rounded-xl p-8 max-w-5xl w-full shadow-2xl"> 
             <h3 class="text-2xl font-bold mb-6 text-gray-800 flex justify-between items-center">
                 Administración de Productos/Opciones
-                <button id="showAddProductFormBtn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition duration-300">
+                <button id="showAddProductFormBtn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition duration-300 shadow-md">
                     + Agregar Nuevo
                 </button>
             </h3>
 
             <form id="add-product-form" class="bg-gray-50 p-4 rounded-lg mb-6 border hidden">
-                <input type="hidden" id="product-id"> <h4 class="text-lg font-semibold mb-3" id="product-form-title">Agregar Nuevo Producto</h4>
+                <input type="hidden" id="product-id"> 
+                <h4 class="text-lg font-semibold mb-3" id="product-form-title">Agregar Nuevo Producto</h4>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4"> 
                     <div>
                         <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre de la Opción</label>
                         <input type="text" id="product-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
@@ -162,6 +177,14 @@
                             <option value="PACKAGE">Tipo de Paquete</option>
                         </select>
                     </div>
+                    
+                    <div id="parent-product-field" class="hidden"> 
+                        <label for="product-parent-product" class="block text-sm font-medium text-gray-700">Producto Padre (MAIN)</label>
+                        <select id="product-parent-product" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Ninguno</option>
+                            </select>
+                    </div>
+
                     <div class="md:col-span-1">
                         <label for="product-description" class="block text-sm font-medium text-gray-700">Detalle / Descripción</label>
                         <input type="text" id="product-description" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: Válido para 2025, solo incluye diseño.">
@@ -234,6 +257,7 @@
                 <div class="mb-6">
                     <label for="edit-sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios Vendidos</label>
                     <textarea id="edit-sale-products" rows="2" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    <p class="mt-1 text-xs text-gray-500">Incluye la Categoría y los detalles en este campo. Ej: [Servicio Nuevo] Plasma (Corte) | Detalle: 120m</p>
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button type="button" id="cancelEditSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>

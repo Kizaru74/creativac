@@ -35,7 +35,7 @@ const hideModal = (id) => {
     document.getElementById(id).classList.add('hidden');
 };
 
-/** Muestra/Oculta el estado de carga en los botones (Retroalimentación Visual) */
+/** Muestra/Oculta el estado de carga en los botones */
 const toggleLoading = (formId, isLoading) => {
     const button = document.querySelector(`#${formId} button[type="submit"]`);
     if (!button) return;
@@ -91,11 +91,10 @@ async function loadDashboardData() {
 }
 
 
-// --- LÓGICA DE SELECTORES ENCADENADOS (NUEVA) ---
+// --- LÓGICA DE PRODUCTOS Y SELECTORES ENCADENADOS ---
 
-/** Carga productos y llena los selectores de Venta */
+/** Carga productos y llena los selectores de Venta y Administración */
 async function loadProductsAndPopulate() {
-    // Asegúrate de seleccionar todos los campos, incluido el nuevo parent_product
     const { data, error } = await supabase
         .from('productos')
         .select('*')
@@ -109,6 +108,7 @@ async function loadProductsAndPopulate() {
     
     allProducts = data; // Almacenar todos los productos
     populateProductSelects(data);
+    populateParentProductSelect(); // Llenar selectores de Administración
     renderProductAdminTable(data);
 }
 
@@ -127,24 +127,19 @@ function populateProductSelects(products) {
     mainProducts.forEach(product => {
         mainSelect.innerHTML += `<option value="${product.name}">${product.name}</option>`;
     });
-
-    // 💡 NOTA: El selector de paquetes se llenará dinámicamente con filterPackagesByMainProduct
 }
 
 /** Filtra y llena el selector de tipos de paquete basado en la selección principal */
 function filterPackagesByMainProduct(mainProductName) {
     const packageSelect = document.getElementById('sale-package-type');
     
-    // Limpiar el select de paquetes
     packageSelect.innerHTML = '<option value="">Ninguno (Opcional)</option>';
 
     if (!mainProductName) {
-        // Si no hay producto principal seleccionado, no mostramos opciones.
         return; 
     }
 
-    // Filtrar la variable global 'allProducts'
-    // Buscamos productos que sean 'PACKAGE' Y cuyo 'parent_product' coincida con el nombre seleccionado.
+    // Filtra productos que sean 'PACKAGE' Y cuyo 'parent_product' coincida con el nombre seleccionado.
     const relevantPackages = allProducts.filter(p => 
         p.type === 'PACKAGE' && p.parent_product === mainProductName
     );
@@ -152,6 +147,25 @@ function filterPackagesByMainProduct(mainProductName) {
     relevantPackages.forEach(packageItem => {
         packageSelect.innerHTML += `<option value="${packageItem.name}">${packageItem.name}</option>`;
     });
+}
+
+/** Llena el selector de producto padre en el modal de administración */
+function populateParentProductSelect() {
+    const parentSelect = document.getElementById('product-parent-product');
+    // Guardamos el valor actual por si se está editando
+    const currentValue = parentSelect.value;
+    
+    parentSelect.innerHTML = '<option value="">Ninguno</option>';
+
+    // Filtramos solo los productos principales (MAIN) de la lista global
+    const mainProducts = allProducts.filter(p => p.type === 'MAIN');
+
+    mainProducts.forEach(product => {
+        parentSelect.innerHTML += `<option value="${product.name}">${product.name}</option>`;
+    });
+    
+    // Restaurar el valor si se estaba editando
+    parentSelect.value = currentValue;
 }
 
 
@@ -181,9 +195,6 @@ function renderProductAdminTable(products) {
 
     products.forEach(product => {
         const typeLabel = product.type === 'MAIN' ? 'Producto Principal' : 'Tipo de Paquete';
-        
-        // El campo parent_product NO se muestra aquí para simplificar la interfaz, 
-        // pero se usa en el JS para la lógica encadenada.
         
         listEl.innerHTML += `
             <tr class="hover:bg-gray-50">
@@ -333,30 +344,28 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     const selectedProduct = document.getElementById('sale-products-select').value;
     const packageType = document.getElementById('sale-package-type').value; 
     const description = document.getElementById('sale-description').value.trim();
+    const category = document.getElementById('sale-category').value; // NUEVO CAMPO
     
-    // LÓGICA DE COMBINACIÓN DE PRODUCTOS
-    let productsCombined = selectedProduct;
+    if (!clientName || isNaN(amount) || amount <= 0 || !selectedProduct) {
+        alert("Por favor, complete el nombre del cliente, el monto de la venta y seleccione un producto principal.");
+        toggleLoading('add-sale-form', false);
+        return;
+    }
+    
+    // LÓGICA DE COMBINACIÓN DE PRODUCTOS (ACTUALIZADA)
+    // Formato: [Categoría] Producto Principal (Paquete) | Detalle: Descripción
+    let productsCombined = `[${category}] ${selectedProduct}`;
 
     if (packageType) {
-        productsCombined = productsCombined ? 
-            `${productsCombined} (${packageType})` : 
-            `${packageType}`; 
+        productsCombined += ` (${packageType})`;
     }
 
     if (description) {
-        productsCombined = productsCombined ? 
-            `${productsCombined} | Detalle: ${description}` : 
-            `Detalle: ${description}`;
+        productsCombined += ` | Detalle: ${description}`;
     }
 
     if (!productsCombined) {
         productsCombined = 'N/A';
-    }
-    
-    if (!clientName || isNaN(amount) || amount <= 0) {
-        alert("Por favor, complete el nombre del cliente y el monto de la venta.");
-        toggleLoading('add-sale-form', false);
-        return;
     }
     
     const { error } = await supabase.from('ventas').insert({
@@ -369,7 +378,6 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     if (!error) {
         hideModal('add-sale-modal');
         document.getElementById('add-sale-form').reset();
-        // Recargar datos para actualizar resúmenes y tablas
         loadDashboardData(); 
     } else {
         console.error("Error al registrar venta:", error);
@@ -431,14 +439,25 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
     const type = document.getElementById('product-type').value; 
     const description = document.getElementById('product-description').value.trim();
     
-    // Este campo de relación no se pide en el formulario, pero lo incluimos si fuera necesario:
-    // const parentProduct = document.getElementById('product-parent-product').value.trim();
-    
-    // Si el producto es MAIN, parent_product debe ser NULL.
-    // Si el producto fuera PACKAGE, deberías agregar un selector al formulario para parent_product.
-    // Por simplicidad, en el form solo manejamos name, type y description.
-    const productData = { name, type, description: description || null }; 
+    // Capturar el nuevo campo de relación
+    let parentProduct = null;
+    if (type === 'PACKAGE') {
+        parentProduct = document.getElementById('product-parent-product').value || null;
+    }
+
+    const productData = { 
+        name, 
+        type, 
+        description: description || null,
+        parent_product: parentProduct
+    }; 
     let error;
+    
+    if (type === 'PACKAGE' && !parentProduct) {
+        alert("Un Tipo de Paquete debe estar asociado a un Producto Principal.");
+        toggleLoading('add-product-form', false);
+        return;
+    }
 
     if (id) {
         // Modo Edición (UPDATE)
@@ -456,9 +475,10 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
     if (!error) {
         document.getElementById('add-product-form').reset();
         document.getElementById('product-id').value = '';
-        document.getElementById('add-product-form').classList.add('hidden'); // Ocultar form
+        document.getElementById('add-product-form').classList.add('hidden');
+        document.getElementById('parent-product-field').classList.add('hidden'); // Ocultar
         
-        // RECARGA Y ACTUALIZA SELECTORES DESPUÉS DE LA EDICIÓN/GUARDADO
+        // Recargar datos para actualizar selectores y tablas
         await loadProductsAndPopulate(); 
         
     } else {
@@ -479,14 +499,18 @@ function initializeProductAdminActions() {
             const name = e.currentTarget.dataset.name;
             const type = e.currentTarget.dataset.type; 
             const description = e.currentTarget.dataset.description;
-            // const parent = e.currentTarget.dataset.parent; // Descomentar si usas este campo en el form
+            const parent = e.currentTarget.dataset.parent;
 
             // Llenar el formulario
             document.getElementById('product-id').value = id;
             document.getElementById('product-name').value = name;
             document.getElementById('product-type').value = type; 
             document.getElementById('product-description').value = description;
-            // document.getElementById('product-parent-product').value = parent;
+            
+            // Lógica para mostrar/ocultar y llenar el campo padre
+            const isPackage = type === 'PACKAGE';
+            document.getElementById('parent-product-field').classList.toggle('hidden', !isPackage);
+            document.getElementById('product-parent-product').value = parent;
 
             // Mostrar formulario y cambiar título
             document.getElementById('product-form-title').textContent = `Editar Producto: ${name}`;
@@ -511,7 +535,6 @@ function initializeProductAdminActions() {
                     console.error("Error al eliminar producto:", error);
                     alert("Error al eliminar el producto.");
                 } else {
-                    // RECARGA Y ACTUALIZA SELECTORES DESPUÉS DE LA ELIMINACIÓN
                     await loadProductsAndPopulate();
                 }
             }
@@ -558,22 +581,6 @@ function initializeSaleActions() {
         });
     });
 }
-
-// 4.5. Lógica para botones de Edición Rápida de Deudas
-function initializeDebtActions() {
-    document.querySelectorAll('.quick-edit-debt-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const clientName = e.currentTarget.dataset.clientName;
-            
-            document.getElementById('debt-client-name').value = clientName;
-            document.getElementById('debt-amount').value = ''; 
-
-            showModal('update-debt-modal');
-            document.getElementById('debt-amount').focus(); 
-        });
-    });
-}
-
 
 // 4.6. Manejar el envío del formulario de Edición de Venta (UPDATE)
 document.getElementById('edit-sale-form').addEventListener('submit', async (e) => {
@@ -624,7 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('addSaleBtn').addEventListener('click', () => {
         showModal('add-sale-modal');
         document.getElementById('add-sale-form').reset(); 
-        // Asegurar que el selector de paquetes esté limpio al abrir
         document.getElementById('sale-package-type').innerHTML = '<option value="">Ninguno (Opcional)</option>';
     });
     
@@ -639,6 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadProductsAndPopulate(); 
         showModal('product-admin-modal');
         document.getElementById('add-product-form').classList.add('hidden');
+        document.getElementById('parent-product-field').classList.add('hidden');
     });
 
     // 💡 LISTENER CLAVE: Lógica de selectores encadenados
@@ -647,12 +654,26 @@ document.addEventListener('DOMContentLoaded', () => {
         filterPackagesByMainProduct(selectedMainProduct);
     });
 
+    // 💡 LISTENER CLAVE: Lógica para mostrar/ocultar el selector Padre en Administración
+    document.getElementById('product-type').addEventListener('change', (e) => {
+        const isPackage = e.target.value === 'PACKAGE';
+        document.getElementById('parent-product-field').classList.toggle('hidden', !isPackage);
+        // Reseteamos el valor del padre si cambiamos a MAIN
+        if (!isPackage) {
+             document.getElementById('product-parent-product').value = '';
+        }
+    });
+
+
     // Botón para mostrar el formulario de agregar producto
     document.getElementById('showAddProductFormBtn').addEventListener('click', () => {
         document.getElementById('add-product-form').classList.remove('hidden');
         document.getElementById('product-form-title').textContent = 'Agregar Nuevo Producto';
         document.getElementById('add-product-form').reset();
         document.getElementById('product-id').value = '';
+        document.getElementById('parent-product-field').classList.add('hidden');
+        // Aseguramos que el select de padre esté lleno
+        populateParentProductSelect(); 
     });
     
     // Botón para cancelar agregar/editar producto
@@ -672,7 +693,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Conectar el botón de salir
     document.getElementById('logoutBtn').addEventListener('click', async (e) => {
         e.preventDefault();
-        // Lógica de cierre de sesión
         window.location.reload(); 
     });
 
