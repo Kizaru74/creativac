@@ -9,7 +9,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variable global para almacenar los productos, incluyendo el campo parent_product
@@ -76,7 +75,7 @@ async function loadDashboardData() {
     // 2. Obtener datos de clientes/deudas
     const { data: clients, error: clientsError } = await supabase
         .from('clientes') 
-        .select('*'); // Traemos todos para calcular correctamente
+        .select('*'); 
 
     if (salesError || clientsError) {
         console.error("Error al obtener datos: ", salesError || clientsError);
@@ -411,9 +410,10 @@ function renderDebts(clients) {
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">
                     <button 
                         data-client-name="${client.name}" 
+                        data-debt-amount="${client.debt}"
                         class="quick-edit-debt-btn text-blue-600 hover:text-blue-800"
-                        title="Editar o Liquidar Deuda">
-                        ✏️ Editar
+                        title="Ver Detalle de Ventas">
+                        🔎 Detalle
                     </button>
                 </td>
             </tr>
@@ -537,12 +537,6 @@ document.getElementById('update-debt-form')?.addEventListener('submit', async (e
     if (!error) {
         hideModal('update-debt-modal');
         document.getElementById('update-debt-form').reset();
-
-        if (debtAmount === 0) {
-            // alert(`✅ La deuda de ${clientName} ha sido liquidada con éxito.`);
-        } // else {
-            // alert(`✅ La deuda de ${clientName} ha sido actualizada a ${formatter.format(debtAmount)}.`);
-        // }
 
         loadDashboardData(); 
     } else {
@@ -737,24 +731,66 @@ function initializeSaleActions() {
     });
 }
 
-// 4.5. Lógica para los botones de edición rápida de deuda
+// 4.5. Lógica para los botones de edición rápida / VER DETALLE de deuda
 function initializeDebtActions() {
     document.querySelectorAll('.quick-edit-debt-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const clientName = e.currentTarget.dataset.clientName;
+            const debtAmount = e.currentTarget.dataset.debtAmount;
             
-            // Intentar encontrar la deuda actual para precargar
-            const clientRow = e.currentTarget.closest('tr');
-            // Usar regex más robusto para limpiar el formato de moneda
-            const debtAmountText = clientRow.cells[1].textContent.replace(/[^0-9.-]+/g,"");
-            const currentDebt = parseFloat(debtAmountText) || 0;
-            
-            document.getElementById('debt-client-name').value = clientName;
-            document.getElementById('debt-amount').value = currentDebt; 
-            
-            showModal('update-debt-modal');
-            document.getElementById('debt-amount').focus(); 
+            // Lógica principal: Cargar y mostrar el detalle de ventas
+            loadClientSales(clientName, debtAmount);
+            showModal('client-sales-detail-modal');
         });
+    });
+}
+
+/**
+ * Carga las ventas de un cliente específico y las renderiza en el modal de detalle.
+ * @param {string} clientName - Nombre del cliente a buscar.
+ * @param {number} debtAmount - Monto de la deuda actual.
+ */
+async function loadClientSales(clientName, debtAmount) {
+    const listEl = document.getElementById('client-sales-list');
+    const nameEl = document.getElementById('client-detail-name');
+    const debtEl = document.getElementById('client-detail-debt');
+    
+    listEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Cargando ventas...</td></tr>';
+    nameEl.textContent = clientName;
+    debtEl.textContent = formatter.format(debtAmount);
+
+    const { data: sales, error } = await supabase
+        .from('ventas')
+        .select('*')
+        .eq('clientName', clientName) // Filtra solo las ventas del cliente
+        .order('date', { ascending: false });
+
+    if (error) {
+        console.error("Error al obtener ventas del cliente:", error);
+        listEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Error al cargar el historial de ventas.</td></tr>';
+        return;
+    }
+    
+    if (sales.length === 0) {
+        listEl.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Este cliente no tiene ventas registradas.</td></tr>';
+        return;
+    }
+    
+    listEl.innerHTML = ''; // Limpiar el "Cargando..."
+    
+    sales.forEach(sale => {
+        const date = sale.date ? new Date(sale.date).toLocaleDateString('es-MX', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        }) : 'N/A';
+
+        const row = `
+            <tr class="hover:bg-gray-50">
+                <td class="p-3 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                <td class="p-3 whitespace-nowrap text-sm font-medium text-gray-900">${formatter.format(sale.amount || 0)}</td>
+                <td class="p-3 text-sm text-gray-500">${sale.products || 'N/A'}</td>
+            </tr>
+        `;
+        listEl.innerHTML += row;
     });
 }
 
@@ -875,6 +911,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelAddSale')?.addEventListener('click', () => hideModal('add-sale-modal'));
     document.getElementById('cancelUpdateDebt')?.addEventListener('click', () => hideModal('update-debt-modal'));
     
+    // NUEVOS LISTENERS PARA EL MODAL DE DETALLE DE CLIENTE
+    document.getElementById('closeClientSalesDetailModal')?.addEventListener('click', () => {
+        hideModal('client-sales-detail-modal');
+    });
+
+    document.getElementById('openUpdateDebtFromDetail')?.addEventListener('click', () => {
+        // Obtenemos el nombre y deuda mostrados actualmente en el modal de detalle
+        const clientName = document.getElementById('client-detail-name').textContent;
+        const debtText = document.getElementById('client-detail-debt').textContent;
+        
+        // Limpiamos el formato para obtener solo el número
+        const currentDebt = parseFloat(debtText.replace(/[^0-9.-]+/g,"")) || 0; 
+        
+        // Cerramos el modal de detalle
+        hideModal('client-sales-detail-modal');
+        
+        // Abrimos el modal de actualización de deuda y precargamos los datos
+        document.getElementById('debt-client-name').value = clientName;
+        document.getElementById('debt-amount').value = currentDebt; 
+        showModal('update-debt-modal');
+    });
+
     // Lógica de Restauración del Modal de Edición al Cancelar
     const restoreEditModal = () => {
         const clientNameInput = document.getElementById('edit-sale-client-name');

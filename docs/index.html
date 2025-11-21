@@ -9,7 +9,7 @@
             display: none;
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-utzvhXxb.js"></script>
+  <script type="module" crossorigin src="./assets/index-fUU2BQqn.js"></script>
   <link rel="stylesheet" crossorigin href="./style.css">
 </head>
 <body class="bg-gray-50 loading-hide">
@@ -134,7 +134,8 @@
                             <option value="Servicio Nuevo">Servicio Nuevo</option>
                             <option value="Adicional/Extra">Adicional/Extra</option>
                             <option value="Mantenimiento">Mantenimiento</option>
-                            <option value="Consultoría">Consultoría</option> </select>
+                            <option value="Consultoría">Consultoría</option>
+                        </select>
                     </div>
 
                     <div> 
@@ -270,6 +271,39 @@
                     <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Cambios</button>
                 </div>
             </form>
+        </div>
+    </div>
+    
+    <div id="client-sales-detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b pb-2">
+                <h3 class="text-2xl font-bold text-gray-800">Ventas de <span id="client-detail-name" class="text-blue-600"></span></h3>
+                <button id="closeClientSalesDetailModal" class="text-gray-500 hover:text-gray-700 text-3xl leading-none">
+                    &times;
+                </button>
+            </div>
+            
+            <p class="mb-4 text-lg font-semibold text-red-600">Deuda Total: <span id="client-detail-debt" class="font-bold"></span></p>
+
+            <div class="overflow-x-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Fecha</th>
+                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Monto ($)</th>
+                            <th class="p-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Producto/Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-sales-list" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button id="openUpdateDebtFromDetail" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">
+                    Actualizar/Liquidar Deuda
+                </button>
+            </div>
         </div>
     </div>
 
