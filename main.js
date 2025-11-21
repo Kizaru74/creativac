@@ -92,6 +92,8 @@ function updateSummary(sales, clients) {
     document.body.classList.remove('loading-hide');
 }
 
+// main.js - Función renderSales (ACTUALIZADA)
+
 /** Renderiza la lista de ventas. */
 function renderSales(sales) {
     const listEl = document.getElementById('sales-list');
@@ -100,8 +102,7 @@ function renderSales(sales) {
             <th class="p-4 text-left">Cliente</th>
             <th class="p-4 text-left">Monto</th>
             <th class="p-4 text-left">Fecha</th>
-            <th class="p-4 text-left">Productos</th>
-            <th class="p-4 text-left">Acciones</th>
+            <th class="p-4 text-left product-header">Productos</th> <th class="p-4 text-left">Acciones</th>
         </tr>
     `;
     
@@ -116,13 +117,18 @@ function renderSales(sales) {
         }) : 'N/A';
         
         const saleId = sale.id; 
+        // Aseguramos que el producto sea una cadena para usar en el title
+        const productsText = sale.products || 'N/A'; 
 
         const row = `
             <tr class="hover:bg-gray-50">
                 <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.clientName || 'N/A'}</td>
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${formatter.format(sale.amount || 0)}</td>
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
-                <td class="p-4 whitespace-nowrap text-sm text-gray-500">${sale.products || 'N/A'}</td>
+                
+                <td class="p-4 text-sm text-gray-500 product-cell" title="${productsText}">
+                    ${productsText}
+                </td>
                 
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500 flex gap-2">
                     <button 

@@ -45,15 +45,17 @@ ${w}`}class R extends Error{constructor({message:e,code:t,cause:r,name:n}){var i
             <th class="p-4 text-left">Cliente</th>
             <th class="p-4 text-left">Monto</th>
             <th class="p-4 text-left">Fecha</th>
-            <th class="p-4 text-left">Productos</th>
-            <th class="p-4 text-left">Acciones</th>
+            <th class="p-4 text-left product-header">Productos</th> <th class="p-4 text-left">Acciones</th>
         </tr>
-    `,s.length===0){e.innerHTML+='<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';return}s.slice(0,10).forEach(t=>{const r=t.date?new Date(t.date).toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"}):"N/A",n=t.id,i=`
+    `,s.length===0){e.innerHTML+='<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';return}s.slice(0,10).forEach(t=>{const r=t.date?new Date(t.date).toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"}):"N/A",n=t.id,i=t.products||"N/A",o=`
             <tr class="hover:bg-gray-50">
                 <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${t.clientName||"N/A"}</td>
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${we.format(t.amount||0)}</td>
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${r}</td>
-                <td class="p-4 whitespace-nowrap text-sm text-gray-500">${t.products||"N/A"}</td>
+                
+                <td class="p-4 text-sm text-gray-500 product-cell" title="${i}">
+                    ${i}
+                </td>
                 
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500 flex gap-2">
                     <button 
@@ -73,7 +75,7 @@ ${w}`}class R extends Error{constructor({message:e,code:t,cause:r,name:n}){var i
                     </button>
                 </td>
             </tr>
-        `;e.innerHTML+=i}),mi()}function wi(s){const e=document.getElementById("debt-list"),t=s.filter(n=>(n.debt||0)>0),r=e.querySelector("tbody")||e;if(r.innerHTML="",t.length===0){r.innerHTML='<tr><td colspan="4" class="p-4 text-center text-gray-500">¡Felicidades! No hay deudas pendientes.</td></tr>';return}t.sort((n,i)=>(i.debt||0)-(n.debt||0)).forEach(n=>{const i=n.lastUpdate?new Date(n.lastUpdate).toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"}):"N/A",o=`
+        `;e.innerHTML+=o}),mi()}function wi(s){const e=document.getElementById("debt-list"),t=s.filter(n=>(n.debt||0)>0),r=e.querySelector("tbody")||e;if(r.innerHTML="",t.length===0){r.innerHTML='<tr><td colspan="4" class="p-4 text-center text-gray-500">¡Felicidades! No hay deudas pendientes.</td></tr>';return}t.sort((n,i)=>(i.debt||0)-(n.debt||0)).forEach(n=>{const i=n.lastUpdate?new Date(n.lastUpdate).toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"}):"N/A",o=`
             <tr class="hover:bg-red-50">
                 <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${n.name}</td>
                 <td class="p-4 whitespace-nowrap text-sm font-bold text-red-600">${we.format(n.debt)}</td>

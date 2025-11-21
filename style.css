@@ -3,3 +3,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* style.css - NUEVAS REGLAS PARA TRUNCAR TEXTO */
+
+.product-cell {
+    /* 1. Definir un ancho máximo para la columna */
+    max-width: 150px; /* Puedes ajustar este valor (por ejemplo, 150px, 200px, etc.) */
+    
+    /* 2. Asegurar que el contenido no fuerce el ancho de la celda */
+    white-space: nowrap; 
+    
+    /* 3. Ocultar el texto que excede el ancho */
+    overflow: hidden; 
+    
+    /* 4. Mostrar puntos suspensivos (...) al final del texto cortado */
+    text-overflow: ellipsis; 
+}
+/* Opcional: Asegurar que el encabezado no se corte */
+.product-header {
+    min-width: 150px;
+}
