@@ -9,13 +9,14 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ----------------------------------------------------------------------
 // 2. UTILIDADES DE LA INTERFAZ DE USUARIO
 // ----------------------------------------------------------------------
 
-// Cambiado a Pesos Mexicanos (MXN)
+// Formato de moneda en Pesos Mexicanos (MXN)
 const formatter = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN', 
@@ -71,12 +72,9 @@ function updateSummary(sales, clients) {
     document.body.classList.remove('loading-hide');
 }
 
-/** * Renderiza la lista de ventas.
- * Incluye nueva columna de Acciones con botones de Editar y Eliminar.
- */
+/** Renderiza la lista de ventas. Incluye botones de Editar y Eliminar. */
 function renderSales(sales) {
     const listEl = document.getElementById('sales-list');
-    // Actualizar el colspan a 5 (4 columnas de datos + 1 de acciones)
     listEl.innerHTML = `
         <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-100">
             <th class="p-4 text-left">Cliente</th>
@@ -97,7 +95,6 @@ function renderSales(sales) {
             day: '2-digit', month: 'short', year: 'numeric'
         }) : 'N/A';
         
-        // El 'id' de la venta es CRÍTICO
         const saleId = sale.id; 
 
         const row = `
@@ -129,18 +126,22 @@ function renderSales(sales) {
         listEl.innerHTML += row;
     });
     
-    // Inicializar listeners después de renderizar la tabla
     initializeSaleActions();
 }
 
+/** Renderiza la lista de deudas. Incluye botón de Edición Rápida. */
 function renderDebts(clients) {
     const listEl = document.getElementById('debt-list');
-    listEl.innerHTML = ''; 
+    // Ya no se borra listEl.innerHTML porque se asume que el THEAD ya está en index.html
     
     const debtors = clients.filter(client => (client.debt || 0) > 0);
     
+    // Solo actualizamos el tbody
+    const tbody = listEl.querySelector('tbody') || listEl; 
+    tbody.innerHTML = ''; 
+
     if (debtors.length === 0) {
-        listEl.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-500">¡Felicidades! No hay deudas pendientes.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">¡Felicidades! No hay deudas pendientes.</td></tr>`;
         return;
     }
 
@@ -154,10 +155,21 @@ function renderDebts(clients) {
                 <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
                 <td class="p-4 whitespace-nowrap text-sm font-bold text-red-600">${formatter.format(client.debt)}</td>
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                
+                <td class="p-4 whitespace-nowrap text-sm text-gray-500">
+                    <button 
+                        data-client-name="${client.name}" 
+                        class="quick-edit-debt-btn text-blue-600 hover:text-blue-800"
+                        title="Editar o Liquidar Deuda">
+                        ✏️ Editar
+                    </button>
+                </td>
             </tr>
         `;
-        listEl.innerHTML += row;
+        tbody.innerHTML += row;
     });
+    
+    initializeDebtActions();
 }
 
 // ----------------------------------------------------------------------
@@ -213,7 +225,7 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
             debt: debtAmount, 
             lastUpdate: new Date().toISOString()
         }, 
-        { onConflict: 'name' } // Requiere la restricción UNIQUE en 'name' de la tabla 'clientes'
+        { onConflict: 'name' } 
     );
     
     if (!error) {
@@ -226,11 +238,8 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
     }
 });
 
-// 4.3. Lógica para botones de Editar y Eliminar (DELETE / UPDATE)
-
-/** Inicializa los listeners para los botones de Editar y Eliminar */
+// 4.3. Lógica para botones de Editar y Eliminar Ventas
 function initializeSaleActions() {
-    // 1. Botón de Editar
     document.querySelectorAll('.edit-sale-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.saleId;
@@ -238,7 +247,6 @@ function initializeSaleActions() {
             const amount = e.currentTarget.dataset.amount;
             const products = e.currentTarget.dataset.products;
 
-            // Rellenar el formulario del modal de edición
             document.getElementById('edit-sale-id').value = id;
             document.getElementById('edit-sale-client-name').value = client;
             document.getElementById('edit-sale-amount').value = amount;
@@ -248,7 +256,6 @@ function initializeSaleActions() {
         });
     });
 
-    // 2. Botón de Eliminar
     document.querySelectorAll('.delete-sale-btn').forEach(button => {
         button.addEventListener('click', async (e) => {
             const id = e.currentTarget.dataset.saleId;
@@ -257,7 +264,7 @@ function initializeSaleActions() {
                 const { error } = await supabase
                     .from('ventas')
                     .delete()
-                    .eq('id', id); // Elimina la fila cuyo 'id' coincida
+                    .eq('id', id); 
 
                 if (error) {
                     console.error("Error al eliminar venta:", error);
@@ -270,7 +277,26 @@ function initializeSaleActions() {
     });
 }
 
-// 4.4. Manejar el envío del formulario de Edición (UPDATE)
+// 4.4. Lógica para botones de Edición Rápida de Deudas (NUEVO)
+function initializeDebtActions() {
+    document.querySelectorAll('.quick-edit-debt-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const clientName = e.currentTarget.dataset.clientName;
+            
+            // Rellenar el campo del nombre del cliente y mostrar el modal
+            document.getElementById('debt-client-name').value = clientName;
+            
+            // Limpiamos el monto para forzar al usuario a ingresar el nuevo valor
+            document.getElementById('debt-amount').value = ''; 
+
+            showModal('update-debt-modal');
+            document.getElementById('debt-amount').focus();
+        });
+    });
+}
+
+
+// 4.5. Manejar el envío del formulario de Edición de Venta (UPDATE)
 document.getElementById('edit-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -284,7 +310,6 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
         return;
     }
     
-    // Actualizar los datos en Supabase
     const { error } = await supabase
         .from('ventas')
         .update({
@@ -292,7 +317,7 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
             amount: amount, 
             products: products 
         })
-        .eq('id', id); // Condición para saber qué fila actualizar
+        .eq('id', id); 
 
     if (!error) {
         hideModal('edit-sale-modal');
@@ -314,12 +339,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Conectar botones principales
     document.getElementById('addSaleBtn').addEventListener('click', () => showModal('add-sale-modal'));
-    document.getElementById('updateDebtBtn').addEventListener('click', () => showModal('update-debt-modal'));
+    document.getElementById('updateDebtBtn').addEventListener('click', () => {
+        showModal('update-debt-modal');
+        // Asegurarse de que el formulario esté vacío al abrir desde el botón principal
+        document.getElementById('update-debt-form').reset(); 
+    });
     
     // Conectar botones de Cancelar en los modales
     document.getElementById('cancelAddSale').addEventListener('click', () => hideModal('add-sale-modal'));
     document.getElementById('cancelUpdateDebt').addEventListener('click', () => hideModal('update-debt-modal'));
-    document.getElementById('cancelEditSale').addEventListener('click', () => hideModal('edit-sale-modal')); // Nuevo Cancelar Edición
+    document.getElementById('cancelEditSale').addEventListener('click', () => hideModal('edit-sale-modal'));
     
     // Conectar el botón de salir
     document.getElementById('logoutBtn').addEventListener('click', async (e) => {

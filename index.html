@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creativa Dashboard</title>
     <link rel="stylesheet" href="./style.css">
-    
     <style>
-        /* Estilo para ocultar la página mientras carga el JS y los datos */
         body.loading-hide {
             display: none;
         }
@@ -16,7 +14,6 @@
 <body class="bg-gray-50 loading-hide">
     
     <div class="min-h-screen flex flex-col">
-
         <header class="bg-white shadow-md">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
                 <h1 class="text-3xl font-extrabold text-blue-600">
@@ -77,7 +74,7 @@
                                     <th class="p-4 text-left">Cliente</th>
                                     <th class="p-4 text-left">Monto Deuda</th>
                                     <th class="p-4 text-left">Última Actualización</th>
-                                </tr>
+                                    <th class="p-4 text-left">Acción</th> </tr>
                             </thead>
                             <tbody id="debt-list" class="bg-white divide-y divide-gray-200">
                                 </tbody>
@@ -139,7 +136,6 @@
             <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Venta</h3>
             <form id="edit-sale-form">
                 <input type="hidden" id="edit-sale-id"> 
-
                 <div class="mb-4">
                     <label for="edit-sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
                     <input type="text" id="edit-sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
