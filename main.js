@@ -183,7 +183,9 @@ function updateSummary(sales, clients) {
     document.body.classList.remove('loading-hide');
 }
 
-/** Renderiza la tabla de administración de productos */
+/** * Renderiza la tabla de administración de productos, agrupándolos 
+ * por productos principales (MAIN) y luego sus paquetes (PACKAGE).
+ */
 function renderProductAdminTable(products) {
     const listEl = document.getElementById('products-admin-list');
     listEl.innerHTML = ''; 
@@ -193,28 +195,54 @@ function renderProductAdminTable(products) {
         return;
     }
 
-    products.forEach(product => {
-        const typeLabel = product.type === 'MAIN' ? 'Producto Principal' : 'Tipo de Paquete';
+    // 1. Agrupar productos por categoría principal
+    const groupedProducts = {};
+    const mainProducts = products.filter(p => p.type === 'MAIN');
+    const packageProducts = products.filter(p => p.type === 'PACKAGE');
+    
+    // Inicializar grupos con los productos MAIN
+    mainProducts.forEach(main => {
+        groupedProducts[main.name] = {
+            main: main,
+            packages: []
+        };
+    });
+
+    // Asignar paquetes a su producto principal
+    packageProducts.forEach(pkg => {
+        if (groupedProducts[pkg.parent_product]) {
+            groupedProducts[pkg.parent_product].packages.push(pkg);
+        } else {
+            // Manejar paquetes huérfanos si es necesario (aquí se ignoran si no tienen MAIN padre)
+        }
+    });
+
+    // 2. Renderizar la tabla usando la estructura agrupada
+    let htmlContent = '';
+
+    Object.values(groupedProducts).forEach(group => {
+        const main = group.main;
         
-        listEl.innerHTML += `
-            <tr class="hover:bg-gray-50">
-                <td class="p-4 text-sm font-medium text-gray-900">${product.name}</td>
-                <td class="p-4 text-sm text-gray-500">${typeLabel}</td>
-                <td class="p-4 text-sm text-gray-500">${product.description || '-'}</td>
+        // --- FILA DEL PRODUCTO PRINCIPAL (MAIN) ---
+        htmlContent += `
+            <tr class="bg-gray-100 border-b border-gray-300 hover:bg-gray-200">
+                <td class="p-4 text-sm font-bold text-gray-900">${main.name} <span class="text-xs text-blue-600">(PRINCIPAL)</span></td>
+                <td class="p-4 text-sm font-bold text-gray-500">MAIN</td>
+                <td class="p-4 text-sm text-gray-500">${main.description || '-'}</td>
                 <td class="p-4 text-sm text-gray-500 flex gap-2">
                     <button 
-                        data-id="${product.id}" 
-                        data-name="${product.name}" 
-                        data-type="${product.type}" 
-                        data-description="${product.description || ''}" 
-                        data-parent="${product.parent_product || ''}" 
+                        data-id="${main.id}" 
+                        data-name="${main.name}" 
+                        data-type="${main.type}" 
+                        data-description="${main.description || ''}" 
+                        data-parent="${main.parent_product || ''}" 
                         class="edit-product-btn text-blue-600 hover:text-blue-800"
                         title="Editar Producto">
                         ✏️ Editar
                     </button>
                     <button 
-                        data-id="${product.id}" 
-                        data-name="${product.name}" 
+                        data-id="${main.id}" 
+                        data-name="${main.name}" 
                         class="delete-product-btn text-red-600 hover:text-red-800"
                         title="Eliminar Producto">
                         🗑️
@@ -222,8 +250,41 @@ function renderProductAdminTable(products) {
                 </td>
             </tr>
         `;
+
+        // --- FILAS DE LOS PAQUETES (PACKAGE) ASOCIADOS ---
+        group.packages.forEach(pkg => {
+            htmlContent += `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 text-sm text-gray-900 pl-8">↳ ${pkg.name}</td>
+                    <td class="p-4 text-sm text-gray-500">PACKAGE</td>
+                    <td class="p-4 text-sm text-gray-500">${pkg.description || '-'}</td>
+                    <td class="p-4 text-sm text-gray-500 flex gap-2">
+                        <button 
+                            data-id="${pkg.id}" 
+                            data-name="${pkg.name}" 
+                            data-type="${pkg.type}" 
+                            data-description="${pkg.description || ''}" 
+                            data-parent="${pkg.parent_product || ''}" 
+                            class="edit-product-btn text-blue-600 hover:text-blue-800"
+                            title="Editar Producto">
+                            ✏️ Editar
+                        </button>
+                        <button 
+                            data-id="${pkg.id}" 
+                            data-name="${pkg.name}" 
+                            class="delete-product-btn text-red-600 hover:text-red-800"
+                            title="Eliminar Producto">
+                            🗑️
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
     });
+
+    listEl.innerHTML = htmlContent;
     
+    // 3. Inicializar las acciones de editar/eliminar para todas las filas nuevas
     initializeProductAdminActions();
 }
 
@@ -352,7 +413,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         return;
     }
     
-    // LÓGICA DE COMBINACIÓN DE PRODUCTOS (ACTUALIZADA)
+    // LÓGICA DE COMBINACIÓN DE PRODUCTOS
     // Formato: [Categoría] Producto Principal (Paquete) | Detalle: Descripción
     let productsCombined = `[${category}] ${selectedProduct}`;
 
@@ -439,7 +500,7 @@ document.getElementById('add-product-form').addEventListener('submit', async (e)
     const type = document.getElementById('product-type').value; 
     const description = document.getElementById('product-description').value.trim();
     
-    // Capturar el nuevo campo de relación
+    // Capturar el campo de relación
     let parentProduct = null;
     if (type === 'PACKAGE') {
         parentProduct = document.getElementById('product-parent-product').value || null;
@@ -582,6 +643,26 @@ function initializeSaleActions() {
     });
 }
 
+// 4.5. Lógica para los botones de edición rápida de deuda
+function initializeDebtActions() {
+    document.querySelectorAll('.quick-edit-debt-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const clientName = e.currentTarget.dataset.clientName;
+            
+            // Intentar encontrar la deuda actual para precargar
+            const clientRow = e.currentTarget.closest('tr');
+            const debtAmountText = clientRow.cells[1].textContent.replace('$', '').replace(/,/g, '');
+            const currentDebt = parseFloat(debtAmountText) || 0;
+            
+            document.getElementById('debt-client-name').value = clientName;
+            document.getElementById('debt-amount').value = currentDebt; 
+            
+            showModal('update-debt-modal');
+            document.getElementById('debt-amount').focus(); 
+        });
+    });
+}
+
 // 4.6. Manejar el envío del formulario de Edición de Venta (UPDATE)
 document.getElementById('edit-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -631,7 +712,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('addSaleBtn').addEventListener('click', () => {
         showModal('add-sale-modal');
         document.getElementById('add-sale-form').reset(); 
-        document.getElementById('sale-package-type').innerHTML = '<option value="">Ninguno (Opcional)</option>';
+        // Asegurar que el selector de paquetes esté vacío al inicio
+        document.getElementById('sale-package-type').innerHTML = '<option value="">Ninguno (Opcional)</option>'; 
     });
     
     document.getElementById('updateDebtBtn').addEventListener('click', () => {
@@ -648,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('parent-product-field').classList.add('hidden');
     });
 
-    // 💡 LISTENER CLAVE: Lógica de selectores encadenados
+    // 💡 LISTENER CLAVE: Lógica de selectores encadenados (Venta)
     document.getElementById('sale-products-select').addEventListener('change', (e) => {
         const selectedMainProduct = e.target.value;
         filterPackagesByMainProduct(selectedMainProduct);
@@ -690,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelUpdateDebt').addEventListener('click', () => hideModal('update-debt-modal'));
     document.getElementById('cancelEditSale').addEventListener('click', () => hideModal('edit-sale-modal'));
     
-    // Conectar el botón de salir
+    // Conectar el botón de salir (simulado con recarga)
     document.getElementById('logoutBtn').addEventListener('click', async (e) => {
         e.preventDefault();
         window.location.reload(); 
