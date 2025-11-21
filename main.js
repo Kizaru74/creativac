@@ -394,7 +394,7 @@ function renderDebts(clients) {
 // 4. MANEJO DE FORMULARIOS Y ACCIONES
 // ----------------------------------------------------------------------
 
-// 4.1. Registrar Nueva Venta 
+// 4.1. Registrar Nueva Venta (¡LÓGICA DE DEUDA ACTUALIZADA!)
 document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('add-sale-form', true); 
@@ -405,7 +405,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     const selectedProduct = document.getElementById('sale-products-select').value;
     const packageType = document.getElementById('sale-package-type').value; 
     const description = document.getElementById('sale-description').value.trim();
-    const category = document.getElementById('sale-category').value; // NUEVO CAMPO
+    const category = document.getElementById('sale-category').value; 
     
     if (!clientName || isNaN(amount) || amount <= 0 || !selectedProduct) {
         alert("Por favor, complete el nombre del cliente, el monto de la venta y seleccione un producto principal.");
@@ -413,7 +413,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         return;
     }
     
-    // LÓGICA DE COMBINACIÓN DE PRODUCTOS
+    // 1. REGISTRAR VENTA
     // Formato: [Categoría] Producto Principal (Paquete) | Detalle: Descripción
     let productsCombined = `[${category}] ${selectedProduct}`;
 
@@ -429,21 +429,56 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         productsCombined = 'N/A';
     }
     
-    const { error } = await supabase.from('ventas').insert({
+    const { error: saleError } = await supabase.from('ventas').insert({
         clientName: clientName, 
         amount: amount, 
         products: productsCombined, 
         date: new Date().toISOString(), 
     });
     
-    if (!error) {
-        hideModal('add-sale-modal');
-        document.getElementById('add-sale-form').reset();
-        loadDashboardData(); 
-    } else {
-        console.error("Error al registrar venta:", error);
-        alert(`Hubo un error al registrar la venta. Código: ${error.code}`);
+    if (saleError) {
+        console.error("Error al registrar venta:", saleError);
+        alert(`Hubo un error al registrar la venta. Código: ${saleError.code}`);
+        toggleLoading('add-sale-form', false);
+        return;
     }
+
+    // 2. ACTUALIZAR/INSERTAR DEUDA DEL CLIENTE
+    
+    // A. Intentar obtener el cliente actual (para saber si existe y cuál es su deuda actual)
+    const { data: existingClient } = await supabase
+        .from('clientes')
+        .select('debt')
+        .eq('name', clientName)
+        .single();
+    
+    let newDebt = amount; 
+
+    if (existingClient) {
+        // Si el cliente existe, sumar el monto de la nueva venta a la deuda existente.
+        const currentDebt = existingClient.debt || 0;
+        newDebt = currentDebt + amount;
+    }
+    
+    // B. Insertar o Actualizar (UPSERT) la deuda con el nuevo monto
+    const { error: debtError } = await supabase.from('clientes').upsert(
+        {
+            name: clientName, 
+            debt: newDebt, 
+            lastUpdate: new Date().toISOString()
+        }, 
+        { onConflict: 'name' } 
+    );
+    
+    if (debtError) {
+        console.error("Error al actualizar deuda tras venta:", debtError);
+        // La venta se registró, pero la deuda falló. 
+    }
+
+    // 3. FINALIZACIÓN
+    hideModal('add-sale-modal');
+    document.getElementById('add-sale-form').reset();
+    loadDashboardData(); 
     
     toggleLoading('add-sale-form', false); 
 });
