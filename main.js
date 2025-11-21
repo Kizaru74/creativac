@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // ----------------------------------------------------------------------
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo';  
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -225,25 +225,41 @@ profileUpdateForm?.addEventListener('submit', async (e) => {
 
 
 // ----------------------------------------------------------------------
-// 4. MANEJO DE DATOS Y RENDERIZADO (¡LÓGICA CORREGIDA PARA MOSTRAR DATOS!)
+// 4. MANEJO DE DATOS Y RENDERIZADO (Correcciones Clave)
 // ----------------------------------------------------------------------
 
-/** Renderiza la lista de deudas en la tabla. */
+/** Calcula y actualiza los totales del dashboard. */
+function updateSummary(sales, clients) {
+    // 1. Ventas Totales (Suma todas las ventas cargadas)
+    const totalSalesAmount = sales.reduce((sum, sale) => sum + (sale.amount || 0), 0);
+    
+    // 2. Deuda Pendiente Total (Suma la deuda de todos los clientes)
+    const totalDebtAmount = clients.reduce((sum, client) => sum + (client.debt || 0), 0);
+
+    // 3. Clientes con Deuda (Cuenta los clientes con 'debt' > 0)
+    const debtorCount = clients.filter(client => client.debt > 0).length;
+
+    // Inyectar los valores en el HTML
+    document.getElementById('total-sales').textContent = formatter.format(totalSalesAmount);
+    document.getElementById('total-debt').textContent = formatter.format(totalDebtAmount);
+    document.getElementById('debtor-count').textContent = debtorCount;
+}
+
+
+/** Renderiza la lista de deudas en la tabla (solo las pendientes: debt > 0). */
 function renderDebts(clients) {
     const debtListBody = document.getElementById('debt-list'); // tbody id="debt-list"
     if (!debtListBody) return; 
 
-    // Limpiar contenido anterior
     debtListBody.innerHTML = ''; 
-
-    // Si no hay datos, mostrar un mensaje
-    if (!clients || clients.length === 0) {
-        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay deudas pendientes registradas.</td></tr>';
-        return;
-    }
+    let debtorsCount = 0; // Contador de clientes con deuda
 
     clients.forEach(client => {
-        // Aseguramos el uso de las propiedades exactas del JSON
+        // 🛑 FILTRO PARA DEUDAS PENDIENTES
+        if (client.debt <= 0) return; 
+        
+        debtorsCount++; 
+
         const formattedDebt = formatter.format(client.debt);
         const debtDate = new Date(client.lastUpdate).toLocaleDateString();
 
@@ -266,22 +282,26 @@ function renderDebts(clients) {
         `;
         debtListBody.innerHTML += row;
     });
+    
+    // Mostrar mensaje si no hay deudas
+    if (debtorsCount === 0) {
+        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-green-500 font-semibold">¡Felicidades! No hay deudas pendientes. 🎉</td></tr>';
+    }
 }
 
-/** Renderiza la lista de ventas en la tabla. */
-function renderSales(sales) {
+/** Renderiza la lista de ventas en la tabla, usando clientMap para buscar el nombre. */
+function renderSales(sales, clientMap) {
     const salesListBody = document.getElementById('sales-list'); // tbody id="sales-list"
     if (!salesListBody) return;
 
-    salesListBody.innerHTML = ''; // Limpiar contenido
+    salesListBody.innerHTML = ''; 
     
-    // Si no hay datos, mostrar un mensaje
     if (!sales || sales.length === 0) {
         salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';
         return;
     }
 
-    // Encabezado de la tabla (solo si hay datos)
+    // Encabezado de la tabla 
     const tableHeader = document.querySelector('#sales-list').parentElement.querySelector('thead');
     tableHeader.innerHTML = `
         <tr class="bg-gray-50">
@@ -293,14 +313,17 @@ function renderSales(sales) {
         </tr>
     `;
 
-
     sales.forEach(sale => {
         const formattedAmount = formatter.format(sale.amount);
         const saleDate = new Date(sale.date).toLocaleString();
+        
+        // 🔑 SOLUCIÓN NOMBRES N/A: Busca el nombre en el mapa de clientes
+        // Asume que la columna en la tabla 'ventas' que guarda el ID es 'client_id'
+        const clientName = clientMap[sale.client_id] || 'N/A';
 
         const row = `
             <tr class="hover:bg-gray-50">
-                <td class="p-4">${sale.clientname || 'N/A'}</td>
+                <td class="p-4">${clientName}</td>
                 <td class="p-4 font-medium">${formattedAmount}</td>
                 <td class="p-4 text-sm text-gray-500">${sale.description || 'Sin descripción'}</td>
                 <td class="p-4 text-sm">${saleDate}</td>
@@ -313,51 +336,61 @@ function renderSales(sales) {
 
 
 async function loadDashboardData() {
-    // 1. Obtener datos de ventas
+    // 1. Obtener datos de clientes (primero, para mapear nombres)
+    const { data: clients, error: clientsError } = await supabase
+        .from('clientes') 
+        .select('*'); 
+    
+    // Crear un mapa {id: name} para búsqueda rápida (Solución Nombres N/A)
+    const clientMap = clients.reduce((map, client) => {
+        map[client.id] = client.name;
+        return map;
+    }, {});
+
+    // 2. Obtener datos de ventas
     const { data: sales, error: salesError } = await supabase
         .from('ventas') 
         .select('*')
         .order('date', { ascending: false })
         .limit(10); 
 
-    // 2. Obtener datos de clientes/deudas
-    const { data: clients, error: clientsError } = await supabase
-        .from('clientes') 
-        .select('*'); 
-
     if (salesError || clientsError) {
         console.error("Error al obtener datos: ", salesError || clientsError);
-        // Si hay error, limpiar las tablas con mensaje de error
-        renderSales([]); 
+        renderSales([], {}); // Pasar mapa vacío
         renderDebts([]); 
         return;
     }
 
     // LLAMADAS CRÍTICAS PARA MOSTRAR LA INFORMACIÓN:
-    renderSales(sales); 
+    renderSales(sales, clientMap); 
     renderDebts(clients); 
-
-    // updateSummary(sales, clients); // (Esta función aún no está implementada)
+    
+    updateSummary(sales, clients);
 }
 
 
 // ----------------------------------------------------------------------
-// 5. INICIALIZACIÓN Y LISTENERS DE EVENTOS
+// 5. INICIALIZACIÓN Y LISTENERS DE EVENTOS (Conexión de Botones)
 // ----------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM Cargado. Inicializando la aplicación...");
-
-    // Conectar botones de Modales (Perfil y Admin)
+    // Conectar botones de Modales (Perfil y Cerrar)
     const openProfileModalBtn = document.getElementById('openProfileModalBtn');
     const closeProfileModal = document.getElementById('closeProfileModal');
     
-    // Conectar botones de Modales
+    // Conectar botones de Acciones Rápidas (SOLUCIÓN BOTONES INACTIVOS)
+    const addSaleBtn = document.getElementById('addSaleBtn');
+    const updateDebtBtn = document.getElementById('updateDebtBtn');
+
+    // Listeners de Modales de Perfil
     openProfileModalBtn?.addEventListener('click', loadUserProfile);
     closeProfileModal?.addEventListener('click', () => hideModal('user-profile-modal'));
 
-    // ... (Conectar otros botones como addProductAdminBtn, closeProductAdminModal, etc.)
-
+    // Listeners de Acciones Rápidas (Abre Modales)
+    // Asumiendo IDs de Modales: 'add-sale-modal' y 'update-debt-modal'
+    addSaleBtn?.addEventListener('click', () => showModal('add-sale-modal'));
+    updateDebtBtn?.addEventListener('click', () => showModal('update-debt-modal'));
+    
     // **Llamada de inicio para verificar la sesión**
     initializeAuthListener(); 
 });
