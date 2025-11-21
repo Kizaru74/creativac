@@ -201,18 +201,34 @@ function renderDebts(clients) {
 // 4.1. Registrar Nueva Venta (INSERT y Trigger Automático de Deuda)
 document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    toggleLoading('add-sale-form', true); // <-- INICIO DE CARGA
+    toggleLoading('add-sale-form', true); 
     
     const clientName = document.getElementById('sale-client-name').value.trim();
     const amount = parseFloat(document.getElementById('sale-amount').value);
-    // NUEVOS CAMPOS:
+    
+    // 1. CAPTURA DE LOS TRES CAMPOS:
     const selectedProduct = document.getElementById('sale-products-select').value;
+    const packageType = document.getElementById('sale-package-type').value; 
     const description = document.getElementById('sale-description').value.trim();
     
-    // Combinar la opción seleccionada y la descripción
-    const productsCombined = selectedProduct ? 
-        `${selectedProduct}${description ? ' | Detalles: ' + description : ''}` :
-        description || 'N/A';
+    // 2. LÓGICA DE COMBINACIÓN
+    let productsCombined = selectedProduct;
+
+    if (packageType) {
+        productsCombined = productsCombined ? 
+            `${productsCombined} (${packageType})` : 
+            `${packageType}`; 
+    }
+
+    if (description) {
+        productsCombined = productsCombined ? 
+            `${productsCombined} | Detalles: ${description}` : 
+            `Detalles: ${description}`;
+    }
+
+    if (!productsCombined) {
+        productsCombined = 'N/A';
+    }
     
     if (!clientName || isNaN(amount) || amount <= 0) {
         alert("Por favor, complete el nombre del cliente y el monto de la venta.");
@@ -220,10 +236,11 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         return;
     }
     
+    // 3. INSERCIÓN EN SUPABASE
     const { error } = await supabase.from('ventas').insert({
         clientName: clientName, 
         amount: amount, 
-        products: productsCombined, // <-- GUARDANDO EL TEXTO COMBINADO
+        products: productsCombined, 
         date: new Date().toISOString(), 
     });
     
@@ -236,13 +253,13 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         alert(`Hubo un error al registrar la venta. Código: ${error.code}`);
     }
     
-    toggleLoading('add-sale-form', false); // <-- FIN DE CARGA
+    toggleLoading('add-sale-form', false); 
 });
 
 // 4.2. Actualizar/Insertar Deuda (UPSERT para liquidación o ajuste manual)
 document.getElementById('update-debt-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    toggleLoading('update-debt-form', true); // <-- INICIO DE CARGA
+    toggleLoading('update-debt-form', true); 
     
     const clientName = document.getElementById('debt-client-name').value.trim();
     const debtAmount = parseFloat(document.getElementById('debt-amount').value);
@@ -278,7 +295,7 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
         alert(`Hubo un error al actualizar la deuda. Código: ${error.code}`);
     }
     
-    toggleLoading('update-debt-form', false); // <-- FIN DE CARGA
+    toggleLoading('update-debt-form', false); 
 });
 
 // 4.3. Lógica para botones de Editar y Eliminar Ventas
@@ -314,7 +331,6 @@ function initializeSaleActions() {
                     console.error("Error al eliminar venta:", error);
                     alert("Error al eliminar la venta.");
                 } else {
-                    // El Trigger de DELETE resta la deuda, solo recargamos
                     loadDashboardData(); 
                 }
             }
@@ -341,7 +357,7 @@ function initializeDebtActions() {
 // 4.5. Manejar el envío del formulario de Edición de Venta (UPDATE)
 document.getElementById('edit-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    toggleLoading('edit-sale-form', true); // <-- INICIO DE CARGA
+    toggleLoading('edit-sale-form', true); 
     
     const id = document.getElementById('edit-sale-id').value;
     const clientName = document.getElementById('edit-sale-client-name').value.trim();
@@ -366,14 +382,13 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
     if (!error) {
         hideModal('edit-sale-modal');
         document.getElementById('edit-sale-form').reset();
-        // NOTA: Si el monto fue modificado, la deuda debe ajustarse manualmente o con un TRIGGER más complejo.
         loadDashboardData(); 
     } else {
         console.error("Error al guardar cambios:", error);
         alert(`Hubo un error al actualizar la venta. Código: ${error.code}`);
     }
     
-    toggleLoading('edit-sale-form', false); // <-- FIN DE CARGA
+    toggleLoading('edit-sale-form', false); 
 });
 
 
