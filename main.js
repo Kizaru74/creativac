@@ -37,11 +37,10 @@ const hideModal = (id) => {
 
 async function loadDashboardData() {
     // 1. Obtener datos de ventas 
-    // CORRECCIÓN FINAL: Usando el nombre real de la columna: 'date'
     const { data: sales, error: salesError } = await supabase
         .from('ventas') 
         .select('*')
-        .order('date', { ascending: false }); // <--- ¡CORREGIDO A 'date'!
+        .order('date', { ascending: false }); // Usando 'date'
 
     // 2. Obtener datos de clientes/deudas
     const { data: clients, error: clientsError } = await supabase
@@ -55,7 +54,6 @@ async function loadDashboardData() {
         return;
     }
 
-    // 3. Renderizar datos
     updateSummary(sales, clients);
     renderSales(sales);
     renderDebts(clients);
@@ -83,7 +81,6 @@ function renderSales(sales) {
     }
 
     sales.slice(0, 10).forEach(sale => {
-        // CORRECCIÓN FINAL: Usando 'date' para extraer la fecha
         const date = sale.date ? new Date(sale.date).toLocaleDateString('es-MX', {
             day: '2-digit', month: 'short', year: 'numeric'
         }) : 'N/A';
@@ -112,7 +109,6 @@ function renderDebts(clients) {
     }
 
     debtors.sort((a, b) => (b.debt || 0) - (a.debt || 0)).forEach(client => {
-        // Se mantiene 'lastUpdate' para clientes, asumiendo que esa columna sí existe.
         const date = client.lastUpdate ? new Date(client.lastUpdate).toLocaleDateString('es-MX', {
             day: '2-digit', month: 'short', year: 'numeric'
         }) : 'N/A';
@@ -129,23 +125,76 @@ function renderDebts(clients) {
 }
 
 // ----------------------------------------------------------------------
-// 4. MANEJO DE FORMULARIOS 
+// 4. MANEJO DE FORMULARIOS (IMPLEMENTACIÓN COMPLETA) 🚀
 // ----------------------------------------------------------------------
-// (Las funciones de formularios siguen siendo placeholders y deben implementarse)
+
 document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log("Registrando nueva venta...");
-    // ... Lógica de inserción ...
-    hideModal('add-sale-modal'); 
-    document.getElementById('add-sale-form').reset();
+    
+    const clientName = document.getElementById('sale-client-name').value.trim();
+    const amount = parseFloat(document.getElementById('sale-amount').value);
+    const products = document.getElementById('sale-products').value.trim();
+    
+    if (!clientName || isNaN(amount) || amount <= 0) {
+        alert("Por favor, complete el nombre del cliente y el monto de la venta.");
+        return;
+    }
+    
+    const { error } = await supabase.from('ventas').insert({
+        clientName: clientName, 
+        amount: amount, 
+        products: products,
+        // La columna 'date' se llena automáticamente con el DEFAULT NOW() en tu esquema.
+        // Si no se llenara, podrías añadir: date: new Date().toISOString()
+    });
+    
+    if (!error) {
+        hideModal('add-sale-modal');
+        document.getElementById('add-sale-form').reset();
+        // Recargar datos para ver la nueva venta
+        loadDashboardData(); 
+    } else {
+        console.error("Error al registrar venta:", error);
+        alert(`Hubo un error al registrar la venta. Código: ${error.code}`);
+    }
 });
 
 document.getElementById('update-debt-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log("Actualizando deuda...");
-    // ... Lógica de actualización ...
-    hideModal('update-debt-modal'); 
-    document.getElementById('update-debt-form').reset();
+    
+    const clientName = document.getElementById('debt-client-name').value.trim();
+    const debtAmount = parseFloat(document.getElementById('debt-amount').value);
+    
+    if (!clientName || isNaN(debtAmount) || debtAmount < 0) {
+        alert("Por favor, complete el nombre del cliente y un monto de deuda válido (>= 0).");
+        return;
+    }
+
+    const { error } = await supabase.from('clientes').upsert(
+        {
+            name: clientName, 
+            debt: debtAmount, 
+            lastUpdate: new Date().toISOString()
+        }, 
+        { 
+            // Esto le dice a Supabase que si el 'name' ya existe, lo actualice (UPSERT).
+            // Si tu tabla 'clientes' usa otro campo como clave principal (ej. 'id'), 
+            // necesitarías ajustar esta opción o el diseño de la tabla.
+            onConflict: 'name' 
+        }
+    );
+    
+    if (!error) {
+        hideModal('update-debt-modal');
+        document.getElementById('update-debt-form').reset();
+        // Recargar datos para ver la deuda actualizada
+        loadDashboardData(); 
+    } else {
+        console.error("Error al actualizar deuda:", error);
+        alert(`Hubo un error al actualizar la deuda. Código: ${error.code}`);
+    }
 });
 
 
@@ -164,10 +213,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelAddSale').addEventListener('click', () => hideModal('add-sale-modal'));
     document.getElementById('cancelUpdateDebt').addEventListener('click', () => hideModal('update-debt-modal'));
     
-    // Conectar el botón de salir
-    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+    // Conectar el botón de salir (IMPLEMENTACIÓN COMPLETA)
+    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
         e.preventDefault();
-        console.log("Cerrar sesión (Lógica Supabase auth pendiente)");
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error("Error al cerrar sesión:", error);
+            alert("No se pudo cerrar la sesión.");
+        } else {
+            // Redirigir al usuario a la página de inicio de sesión o a index
+            window.location.reload(); // O redirige a login.html si lo tienes
+        }
     });
 
     // Iniciar la carga de datos
