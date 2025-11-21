@@ -311,9 +311,10 @@ function renderSales(sales) {
     }
 
     sales.slice(0, 10).forEach(sale => {
-        const date = sale.date ? new Date(sale.date).toLocaleDateString('es-MX', {
+        const saleDate = sale.date || new Date().toISOString(); // Usar la fecha ISO para el dataset
+        const dateDisplay = new Date(saleDate).toLocaleDateString('es-MX', {
             day: '2-digit', month: 'short', year: 'numeric'
-        }) : 'N/A';
+        });
         
         const saleId = sale.id; 
         const productsFull = sale.products || 'N/A'; 
@@ -322,15 +323,12 @@ function renderSales(sales) {
         let categoryTag = 'N/A';
         let productDescription = productsFull;
 
-        // Intentar extraer la categoría (ej: [Servicio Nuevo])
         const categoryMatch = productsFull.match(/^\[(.*?)\]/);
         if (categoryMatch && categoryMatch[1]) {
             categoryTag = categoryMatch[1];
-            // Eliminar la categoría y el espacio del inicio de la descripción
             productDescription = productsFull.replace(categoryMatch[0], '').trim();
         }
 
-        // Limitar la longitud de la descripción mostrada en la tabla
         const maxDisplayLength = 40; 
         const productDisplay = productDescription.length > maxDisplayLength 
             ? productDescription.substring(0, maxDisplayLength) + '...' 
@@ -341,7 +339,7 @@ function renderSales(sales) {
             <tr class="hover:bg-gray-50">
                 <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.clientName || 'N/A'}</td>
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${formatter.format(sale.amount || 0)}</td>
-                <td class="p-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+                <td class="p-4 whitespace-nowrap text-sm text-gray-500">${dateDisplay}</td>
                 
                 <td class="p-4 whitespace-nowrap text-xs font-semibold text-indigo-600">${categoryTag}</td>
 
@@ -350,7 +348,8 @@ function renderSales(sales) {
                     data-sale-id="${saleId}" 
                     data-client="${sale.clientName}" 
                     data-amount="${sale.amount}" 
-                    data-products="${sale.products}">
+                    data-products="${productsFull}"
+                    data-date="${saleDate}"> 
                     ${productDisplay}
                 </td>
                 
@@ -359,7 +358,8 @@ function renderSales(sales) {
                         data-sale-id="${saleId}" 
                         data-client="${sale.clientName}" 
                         data-amount="${sale.amount}" 
-                        data-products="${sale.products}" 
+                        data-products="${productsFull}"
+                        data-date="${saleDate}" 
                         class="edit-sale-btn text-blue-600 hover:text-blue-800"
                         title="Editar Venta">
                         ✏️
@@ -712,6 +712,23 @@ function initializeProductAdminActions() {
 
 // 4.4. Lógica para botones de Editar y Eliminar Ventas
 function initializeSaleActions() {
+    
+    // Función auxiliar para formatear la descripción del producto
+    const formatProductDetails = (productsFull) => {
+        // Busca el patrón: (Cualquier cosa) | Detalle: (Cualquier cosa)
+        const match = productsFull.match(/(\[.*?\]\s*.*?)\s*\|\s*Detalle:\s*(.*)/);
+
+        if (match && match[1] && match[2]) {
+            // Línea 1: Categoría y Producto Principal (en negritas usando markdown)
+            const primaryProduct = `**${match[1].trim()}**`; 
+            // Línea 2: Detalles
+            const details = match[2].trim(); 
+            return `${primaryProduct}\nDetalles: ${details}`;
+        }
+        // Si no tiene el patrón de detalle, devuelve el texto original.
+        return productsFull;
+    };
+    
     // Listener para el botón de EDICIÓN
     document.querySelectorAll('.edit-sale-btn').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -719,23 +736,29 @@ function initializeSaleActions() {
             const client = e.currentTarget.dataset.client;
             const amount = e.currentTarget.dataset.amount;
             const products = e.currentTarget.dataset.products;
+            const dateStr = e.currentTarget.dataset.date; // Nuevo: obtener la fecha
 
+            // Cargar datos
             document.getElementById('edit-sale-id').value = id;
             document.getElementById('edit-sale-client-name').value = client;
             document.getElementById('edit-sale-amount').value = amount;
-            document.getElementById('edit-sale-products').value = products;
+            document.getElementById('edit-sale-date').value = dateStr.substring(0, 10); // Formato YYYY-MM-DD
+            
+            // Aplicar el nuevo formato al campo de productos/servicios
+            document.getElementById('edit-sale-products').value = formatProductDetails(products);
 
-            // Asegurar que los campos estén HABILITADOS y el botón de guardar VISIBLE para la EDICIÓN
+            // Habilitar Edición
             document.getElementById('edit-sale-client-name').disabled = false;
             document.getElementById('edit-sale-amount').disabled = false;
             document.getElementById('edit-sale-products').disabled = false;
+            document.getElementById('edit-sale-date').disabled = false; // Nuevo: Habilitar fecha
             document.querySelector('#edit-sale-form button[type="submit"]').classList.remove('hidden');
 
             showModal('edit-sale-modal');
         });
     });
 
-    // Listener para el botón de ELIMINAR
+    // Listener para el botón de ELIMINAR (Mismo código anterior)
     document.querySelectorAll('.delete-sale-btn').forEach(button => {
         button.addEventListener('click', async (e) => {
             const id = e.currentTarget.dataset.saleId;
@@ -764,16 +787,19 @@ function initializeSaleActions() {
             const client = e.currentTarget.dataset.client;
             const amount = e.currentTarget.dataset.amount;
             const products = e.currentTarget.dataset.products;
+            const dateStr = e.currentTarget.dataset.date; // Nuevo: obtener la fecha
 
             document.getElementById('edit-sale-id').value = id;
             document.getElementById('edit-sale-client-name').value = client;
             document.getElementById('edit-sale-amount').value = amount;
-            document.getElementById('edit-sale-products').value = products;
-
-            // Deshabilitar campos y ocultar botón si es solo visualización
+            document.getElementById('edit-sale-date').value = dateStr.substring(0, 10); // Formato YYYY-MM-DD
+            document.getElementById('edit-sale-products').value = formatProductDetails(products); // Aplicar el nuevo formato
+            
+            // Deshabilitar campos (MODO SÓLO LECTURA)
             document.getElementById('edit-sale-client-name').disabled = true;
             document.getElementById('edit-sale-amount').disabled = true;
             document.getElementById('edit-sale-products').disabled = true;
+            document.getElementById('edit-sale-date').disabled = true; // Nuevo: Deshabilitar fecha
             document.querySelector('#edit-sale-form button[type="submit"]').classList.add('hidden');
             
             showModal('edit-sale-modal');

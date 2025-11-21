@@ -9,7 +9,7 @@
             display: none;
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-ZVDniDpu.js"></script>
+  <script type="module" crossorigin src="./assets/index-DIo1i4YF.js"></script>
   <link rel="stylesheet" crossorigin href="./style.css">
 </head>
 <body class="bg-gray-50 loading-hide">
@@ -263,29 +263,35 @@
     </div>
 
     <div id="edit-sale-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-            <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Venta</h3>
-            <form id="edit-sale-form">
-                <input type="hidden" id="edit-sale-id"> 
-                <div class="mb-4">
-                    <label for="edit-sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                    <input type="text" id="edit-sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div class="mb-4">
-                    <label for="edit-sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
-                    <input type="number" id="edit-sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div class="mb-6">
-                    <label for="edit-sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios Vendidos</label>
-                    <textarea id="edit-sale-products" rows="2" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    <p class="mt-1 text-xs text-gray-500">Incluye la Categoría y los detalles en este campo. Ej: [Servicio Nuevo] Plasma (Corte) | Detalle: 120m</p>
-                </div>
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancelEditSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Cambios</button>
-                </div>
-            </form>
-        </div>
+    <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
+        <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Venta</h3>
+        <form id="edit-sale-form">
+            <input type="hidden" id="edit-sale-id"> 
+
+            <div class="mb-4">
+                <label for="edit-sale-date" class="block text-sm font-medium text-gray-700">Fecha de Venta</label>
+                <input type="date" id="edit-sale-date" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div class="mb-4">
+                <label for="edit-sale-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
+                <input type="text" id="edit-sale-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="edit-sale-amount" class="block text-sm font-medium text-gray-700">Monto Total ($)</label>
+                <input type="number" id="edit-sale-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mb-6">
+                <label for="edit-sale-products" class="block text-sm font-medium text-gray-700">Productos/Servicios Vendidos</label>
+                <textarea id="edit-sale-products" rows="4" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <p class="mt-1 text-xs text-gray-500">Línea 1: Categoría y Producto Principal. Líneas siguientes: Detalles.</p>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="cancelEditSale" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
     </div>
     
     <div id="client-sales-detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
