@@ -32,16 +32,16 @@ const hideModal = (id) => {
 };
 
 // ----------------------------------------------------------------------
-// 3. MANEJO DE DATOS (CONEXIÓN SUPABASE CORREGIDA CON 'created_at')
+// 3. MANEJO DE DATOS (SOLUCIÓN DEFINITIVA CON 'created_at')
 // ----------------------------------------------------------------------
 
 async function loadDashboardData() {
     // 1. Obtener datos de ventas 
-    // CORRECCIÓN FINAL: Usando 'created_at' para ordenar, el nombre por defecto de Supabase
+    // CORRECCIÓN FINAL: Usando 'created_at' para ordenar.
     const { data: sales, error: salesError } = await supabase
         .from('ventas') 
         .select('*')
-        .order('created_at', { ascending: false }); 
+        .order('created_at', { ascending: false }); // <--- ¡AQUÍ ESTÁ LA CLAVE!
 
     // 2. Obtener datos de clientes/deudas
     const { data: clients, error: clientsError } = await supabase
@@ -112,7 +112,7 @@ function renderDebts(clients) {
     }
 
     debtors.sort((a, b) => (b.debt || 0) - (a.debt || 0)).forEach(client => {
-        // Asumiendo que la columna de fecha en la tabla 'clientes' se llama 'lastUpdate'
+        // Se mantiene 'lastUpdate' para clientes, asumiendo que esa columna sí existe.
         const date = client.lastUpdate ? new Date(client.lastUpdate).toLocaleDateString('es-MX', {
             day: '2-digit', month: 'short', year: 'numeric'
         }) : 'N/A';
@@ -146,7 +146,6 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
         clientName: clientName, 
         amount: amount, 
         products: products
-        // created_at se llena automáticamente por Supabase
     });
     
     if (!error) {
@@ -159,7 +158,6 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
     }
     */
     
-    // Ocultar modal solo para fines de prueba si la inserción está comentada
     hideModal('add-sale-modal'); 
     document.getElementById('add-sale-form').reset();
 });
@@ -189,7 +187,6 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
     }
     */
 
-    // Ocultar modal solo para fines de prueba si la inserción está comentada
     hideModal('update-debt-modal'); 
     document.getElementById('update-debt-form').reset();
 });
