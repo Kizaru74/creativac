@@ -296,13 +296,15 @@ function renderSales(sales) {
             <th class="p-4 text-left">Cliente</th>
             <th class="p-4 text-left">Monto</th>
             <th class="p-4 text-left">Fecha</th>
-            <th class="p-4 text-left product-header">Productos</th>
+            <th class="p-4 text-left">Categoría</th> 
+            <th class="p-4 text-left product-header">Producto/Detalle</th>
             <th class="p-4 text-left">Acciones</th>
         </tr>
     `;
     
+    // Cambiado de colspan 5 a 6
     if (sales.length === 0) {
-        listEl.innerHTML += `<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>`;
+        listEl.innerHTML += `<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>`;
         return;
     }
 
@@ -312,7 +314,26 @@ function renderSales(sales) {
         }) : 'N/A';
         
         const saleId = sale.id; 
-        const productsText = sale.products || 'N/A'; 
+        const productsFull = sale.products || 'N/A'; 
+
+        // 1. LÓGICA DE EXTRACCIÓN Y ACORTAMIENTO CLAVE
+        let categoryTag = 'N/A';
+        let productDescription = productsFull;
+
+        // Intentar extraer la categoría (ej: [Servicio Nuevo])
+        const categoryMatch = productsFull.match(/^\[(.*?)\]/);
+        if (categoryMatch && categoryMatch[1]) {
+            categoryTag = categoryMatch[1];
+            // Eliminar la categoría y el espacio del inicio de la descripción
+            productDescription = productsFull.replace(categoryMatch[0], '').trim();
+        }
+
+        // Limitar la longitud de la descripción mostrada en la tabla
+        const maxDisplayLength = 40; 
+        const productDisplay = productDescription.length > maxDisplayLength 
+            ? productDescription.substring(0, maxDisplayLength) + '...' 
+            : productDescription;
+        // FIN DE LA LÓGICA CLAVE
 
         const row = `
             <tr class="hover:bg-gray-50">
@@ -320,8 +341,15 @@ function renderSales(sales) {
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${formatter.format(sale.amount || 0)}</td>
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
                 
-                <td class="p-4 text-sm text-gray-500 product-cell" title="${productsText}">
-                    ${productsText}
+                <td class="p-4 whitespace-nowrap text-xs font-semibold text-indigo-600">${categoryTag}</td>
+
+                <td class="p-4 text-sm text-gray-500 product-cell sale-detail-cell cursor-pointer" 
+                    title="${productsFull}"
+                    data-sale-id="${saleId}" 
+                    data-client="${sale.clientName}" 
+                    data-amount="${sale.amount}" 
+                    data-products="${sale.products}">
+                    ${productDisplay}
                 </td>
                 
                 <td class="p-4 whitespace-nowrap text-sm text-gray-500 flex gap-2">
@@ -394,7 +422,7 @@ function renderDebts(clients) {
 // 4. MANEJO DE FORMULARIOS Y ACCIONES
 // ----------------------------------------------------------------------
 
-// 4.1. Registrar Nueva Venta (¡LÓGICA DE DEUDA ACTUALIZADA!)
+// 4.1. Registrar Nueva Venta 
 document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('add-sale-form', true); 
@@ -640,6 +668,7 @@ function initializeProductAdminActions() {
 
 // 4.4. Lógica para botones de Editar y Eliminar Ventas
 function initializeSaleActions() {
+    // Listener para el botón de EDICIÓN
     document.querySelectorAll('.edit-sale-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.saleId;
@@ -651,6 +680,12 @@ function initializeSaleActions() {
             document.getElementById('edit-sale-client-name').value = client;
             document.getElementById('edit-sale-amount').value = amount;
             document.getElementById('edit-sale-products').value = products;
+
+            // Asegurar que los campos estén HABILITADOS y el botón de guardar VISIBLE para la EDICIÓN
+            document.getElementById('edit-sale-client-name').disabled = false;
+            document.getElementById('edit-sale-amount').disabled = false;
+            document.getElementById('edit-sale-products').disabled = false;
+            document.querySelector('#edit-sale-form button[type="submit"]').classList.remove('hidden');
 
             showModal('edit-sale-modal');
         });
@@ -674,6 +709,32 @@ function initializeSaleActions() {
                     loadDashboardData(); 
                 }
             }
+        });
+    });
+
+    // Nuevo: Lógica para mostrar detalles completos (solo vista) al hacer clic en la descripción
+    document.querySelectorAll('.sale-detail-cell').forEach(cell => {
+        cell.addEventListener('click', (e) => {
+            // Acceder a los datos almacenados en la celda
+            const id = e.currentTarget.dataset.saleId;
+            const client = e.currentTarget.dataset.client;
+            const amount = e.currentTarget.dataset.amount;
+            const products = e.currentTarget.dataset.products;
+
+            // Rellenar el modal de edición (Edit Sale Modal)
+            document.getElementById('edit-sale-id').value = id;
+            document.getElementById('edit-sale-client-name').value = client;
+            document.getElementById('edit-sale-amount').value = amount;
+            document.getElementById('edit-sale-products').value = products;
+
+            // Deshabilitar campos y ocultar botón si es solo visualización
+            document.getElementById('edit-sale-client-name').disabled = true;
+            document.getElementById('edit-sale-amount').disabled = true;
+            document.getElementById('edit-sale-products').disabled = true;
+            document.querySelector('#edit-sale-form button[type="submit"]').classList.add('hidden');
+            
+            // Mostrar el modal
+            showModal('edit-sale-modal');
         });
     });
 }
@@ -708,6 +769,13 @@ document.getElementById('edit-sale-form').addEventListener('submit', async (e) =
     const amount = parseFloat(document.getElementById('edit-sale-amount').value);
     const products = document.getElementById('edit-sale-products').value.trim();
     
+    // Si los campos están deshabilitados, no se permite la edición.
+    if (document.getElementById('edit-sale-client-name').disabled) {
+        alert("Modo de visualización activo. Use el botón '✏️' para editar.");
+        toggleLoading('edit-sale-form', false);
+        return;
+    }
+
     if (!id || !clientName || isNaN(amount) || amount <= 0) {
         alert("Datos inválidos.");
         toggleLoading('edit-sale-form', false);
@@ -809,7 +877,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Conectar botones de Cancelar de los modales existentes
     document.getElementById('cancelAddSale').addEventListener('click', () => hideModal('add-sale-modal'));
     document.getElementById('cancelUpdateDebt').addEventListener('click', () => hideModal('update-debt-modal'));
-    document.getElementById('cancelEditSale').addEventListener('click', () => hideModal('edit-sale-modal'));
+    
+    // Lógica de Restauración del Modal de Edición
+    const restoreEditModal = () => {
+        document.getElementById('edit-sale-client-name').disabled = false;
+        document.getElementById('edit-sale-amount').disabled = false;
+        document.getElementById('edit-sale-products').disabled = false;
+        document.querySelector('#edit-sale-form button[type="submit"]').classList.remove('hidden');
+        hideModal('edit-sale-modal');
+    };
+    
+    document.getElementById('cancelEditSale').addEventListener('click', restoreEditModal);
     
     // Conectar el botón de salir (simulado con recarga)
     document.getElementById('logoutBtn').addEventListener('click', async (e) => {

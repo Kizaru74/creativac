@@ -129,14 +129,11 @@
                     
                     <div>
                         <label for="sale-category" class="block text-sm font-medium text-gray-700">Categoría de Venta</label>
-                        <select id="sale-category" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                            <option value="Servicio Nuevo">Servicio Nuevo</option>
-                            <option value="Renovación">Renovación</option>
-                            <option value="Adicional/Extra">Adicional/Extra</option>
-                            <option value="Mantenimiento">Mantenimiento</option>
-                            <option value="Consultoría">Consultoría</option>
-                        </select>
-                    </div>
+                        <select id="sale-category" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        <option value="Servicio Nuevo">Servicio Nuevo</option>
+                        <option value="Adicional/Extra">Adicional/Extra</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                </select>
 
                     <div>
                         <label for="sale-description" class="block text-sm font-medium text-gray-700">Descripción / Detalles Adicionales</label>
@@ -152,72 +149,80 @@
         </div>
     </div>
     
-    <div id="product-admin-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl p-8 max-w-5xl w-full shadow-2xl"> 
-            <h3 class="text-2xl font-bold mb-6 text-gray-800 flex justify-between items-center">
-                Administración de Productos/Opciones
-                <button id="showAddProductFormBtn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition duration-300 shadow-md">
-                    + Agregar Nuevo
-                </button>
-            </h3>
+        <div id="product-admin-modal" class="hidden fixed inset-0 z-50 bg-gray-600 bg-opacity-75 overflow-y-auto">
+    
+    <div class="bg-white rounded-lg shadow-xl m-4 md:max-w-4xl md:mx-auto mt-10 p-6">
+        
+        <h2 class="text-2xl font-bold mb-4">Administración de Productos/Opciones</h2>
 
-            <form id="add-product-form" class="bg-gray-50 p-4 rounded-lg mb-6 border hidden">
-                <input type="hidden" id="product-id"> 
-                <h4 class="text-lg font-semibold mb-3" id="product-form-title">Agregar Nuevo Producto</h4>
-                
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4"> 
-                    <div>
-                        <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre de la Opción</label>
-                        <input type="text" id="product-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="product-type" class="block text-sm font-medium text-gray-700">Tipo</label>
-                        <select id="product-type" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="MAIN">Producto Principal</option>
-                            <option value="PACKAGE">Tipo de Paquete</option>
-                        </select>
-                    </div>
-                    
-                    <div id="parent-product-field" class="hidden"> 
-                        <label for="product-parent-product" class="block text-sm font-medium text-gray-700">Producto Padre (MAIN)</label>
-                        <select id="product-parent-product" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Ninguno</option>
-                            </select>
-                    </div>
-
-                    <div class="md:col-span-1">
-                        <label for="product-description" class="block text-sm font-medium text-gray-700">Detalle / Descripción</label>
-                        <input type="text" id="product-description" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: Válido para 2025, solo incluye diseño.">
-                    </div>
-                </div>
-
-                <div class="flex justify-end space-x-3 mt-4">
-                    <button type="button" id="cancelAddProduct" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">Guardar Producto</button>
-                </div>
-            </form>
-
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                        <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-100">
-                            <th class="p-4 text-left">Nombre</th>
-                            <th class="p-4 text-left">Tipo</th>
-                            <th class="p-4 text-left">Descripción</th>
-                            <th class="p-4 text-left">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="products-admin-list" class="bg-white divide-y divide-gray-200">
-                        <tr><td colspan="4" class="p-4 text-center text-gray-500">Cargando productos...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flex justify-end space-x-3 mt-6">
-                <button type="button" id="closeProductAdminModal" class="px-4 py-2 text-white bg-gray-500 rounded-lg hover:bg-gray-600 transition duration-300">Cerrar</button>
-            </div>
+        <div class="flex justify-between items-center mb-4">
+            <button id="showAddProductFormBtn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                + Agregar Nuevo Producto
+            </button>
+            <button id="closeProductAdminModal" class="text-gray-500 hover:text-gray-700 text-xl">
+                &times;
+            </button>
         </div>
-    </div>
+
+        <form id="add-product-form" class="hidden p-4 mb-4 border border-gray-200 rounded-lg bg-indigo-50">
+            <h3 id="product-form-title" class="text-xl font-semibold mb-3">Agregar Nuevo Producto</h3>
+            <input type="hidden" id="product-id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <div>
+                    <label for="product-name" class="block text-sm font-medium text-gray-700">Nombre</label>
+                    <input type="text" id="product-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                </div>
+                
+                <div>
+                    <label for="product-type" class="block text-sm font-medium text-gray-700">Tipo</label>
+                    <select id="product-type" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        <option value="MAIN">Producto Principal (MAIN)</option>
+                        <option value="PACKAGE">Tipo de Paquete (PACKAGE)</option>
+                    </select>
+                </div>
+
+                <div id="parent-product-field" class="hidden"> 
+                    <label for="product-parent-product" class="block text-sm font-medium text-gray-700">Producto Padre (MAIN)</label>
+                    <select id="product-parent-product" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                        <option value="">Ninguno</option>
+                    </select>
+                </div>
+                
+            </div>
+            
+            <div class="mt-4">
+                <label for="product-description" class="block text-sm font-medium text-gray-700">Descripción (Opcional)</label>
+                <textarea id="product-description" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+            </div>
+            
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" id="cancelAddProduct" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400">
+                    Cancelar
+                </button>
+                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Guardar Producto
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-4 border rounded-lg overflow-hidden **max-h-96** **overflow-y-auto**">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Nombre</th>
+                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Tipo</th>
+                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Descripción</th>
+                        <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="products-admin-list" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+            </table>
+        </div>
+        </div>
+        </div>
 
 
     <div id="update-debt-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
