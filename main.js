@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variable global para almacenar los productos, incluyendo el campo parent_product
@@ -47,7 +48,7 @@ const toggleLoading = (formId, isLoading) => {
         button.disabled = false;
         // Restaurar el texto original del botón
         if (formId === 'add-sale-form') button.textContent = 'Registrar';
-        if (formId === 'update-debt-form') button.textContent = 'Guardar Deuda';
+        if (formId === 'update-debt-form') button.textContent = 'Registrar Abono'; // Modificado
         if (formId === 'edit-sale-form') button.textContent = 'Guardar Cambios';
         if (formId === 'add-product-form') {
             const title = document.getElementById('product-form-title').textContent;
@@ -511,24 +512,64 @@ document.getElementById('add-sale-form')?.addEventListener('submit', async (e) =
     toggleLoading('add-sale-form', false); 
 });
 
-// 4.2. Actualizar/Insertar Deuda 
+// 4.2. Actualizar/Insertar Deuda o Registrar Abono
 document.getElementById('update-debt-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('update-debt-form', true); 
     
     const clientName = document.getElementById('debt-client-name').value.trim();
-    const debtAmount = parseFloat(document.getElementById('debt-amount').value);
+    const paymentAmount = parseFloat(document.getElementById('debt-payment-amount').value) || 0;
+    const manualFinalDebt = document.getElementById('manual-final-debt').value.trim();
+    const originalDebt = parseFloat(document.getElementById('original-debt-amount').value) || 0;
     
-    if (!clientName || isNaN(debtAmount) || debtAmount < 0) {
-        alert("Por favor, complete el nombre del cliente y un monto de deuda válido (>= 0).");
+    let finalDebtAmount;
+
+    if (manualFinalDebt !== '') {
+        // Modo 1: Ajuste Manual de Saldo Final (el valor en el campo reemplaza todo)
+        finalDebtAmount = parseFloat(manualFinalDebt);
+
+    } else if (paymentAmount > 0) {
+        // Modo 2: Registro de Abono (resta el abono del saldo original)
+        let currentDebt = originalDebt;
+
+        if (currentDebt === 0) {
+            // Si el cliente no se precargó (vino del botón principal) o el originalDebt era 0, 
+            // intentamos buscar su deuda actual en Supabase.
+            const { data: existingClient } = await supabase
+                .from('clientes')
+                .select('debt')
+                .eq('name', clientName)
+                .single();
+            
+            if (existingClient) {
+                currentDebt = existingClient.debt || 0;
+            }
+        }
+
+        finalDebtAmount = Math.max(0, currentDebt - paymentAmount); // Asegura que no sea negativo
+
+    } else {
+        // Si no hay abono y no hay ajuste manual, mantiene el saldo original
+        finalDebtAmount = originalDebt; 
+
+        if (finalDebtAmount > 0) {
+             alert("Por favor, ingresa un Monto de Abono o un Saldo Final para realizar un cambio.");
+             toggleLoading('update-debt-form', false);
+             return;
+        }
+    }
+    
+    if (isNaN(finalDebtAmount) || finalDebtAmount < 0) {
+        alert("El monto de deuda final no es válido.");
         toggleLoading('update-debt-form', false);
         return;
     }
 
+
     const { error } = await supabase.from('clientes').upsert(
         {
             name: clientName, 
-            debt: debtAmount, 
+            debt: finalDebtAmount, 
             lastUpdate: new Date().toISOString()
         }, 
         { onConflict: 'name' } 
@@ -537,6 +578,15 @@ document.getElementById('update-debt-form')?.addEventListener('submit', async (e
     if (!error) {
         hideModal('update-debt-modal');
         document.getElementById('update-debt-form').reset();
+        
+        // Mensaje de éxito basado en la acción (solo para log)
+        if (finalDebtAmount === 0 && paymentAmount > 0) {
+            console.log(`Deuda de ${clientName} liquidada con abono de ${formatter.format(paymentAmount)}.`);
+        } else if (paymentAmount > 0) {
+            console.log(`Abono de ${formatter.format(paymentAmount)} registrado para ${clientName}. Nuevo saldo: ${formatter.format(finalDebtAmount)}.`);
+        } else if (manualFinalDebt !== '') {
+            console.log(`Saldo final de ${clientName} ajustado manualmente a ${formatter.format(finalDebtAmount)}.`);
+        }
 
         loadDashboardData(); 
     } else {
@@ -736,12 +786,24 @@ function initializeDebtActions() {
     document.querySelectorAll('.quick-edit-debt-btn').forEach(button => {
         button.addEventListener('click', (e) => {
             const clientName = e.currentTarget.dataset.clientName;
-            const debtAmount = e.currentTarget.dataset.debtAmount;
+            const debtAmount = parseFloat(e.currentTarget.dataset.debtAmount) || 0;
             
             // Lógica principal: Cargar y mostrar el detalle de ventas
             loadClientSales(clientName, debtAmount);
             showModal('client-sales-detail-modal');
         });
+    });
+    
+    // Conectar el botón de abrir el modal de deuda desde el dashboard
+    document.getElementById('updateDebtBtn')?.addEventListener('click', () => {
+        // Al abrir desde el botón principal, limpiamos y pedimos el nombre (lo que ya hacía)
+        document.getElementById('update-debt-form').reset(); 
+        document.getElementById('current-debt-display').textContent = formatter.format(0);
+        document.getElementById('original-debt-amount').value = 0;
+        document.getElementById('debt-client-name').removeAttribute('readonly'); // Permite editar el nombre al inicio
+        document.getElementById('debt-client-name').classList.remove('bg-gray-100', 'cursor-not-allowed');
+        document.getElementById('debt-client-name').focus(); 
+        showModal('update-debt-modal');
     });
 }
 
@@ -849,18 +911,13 @@ document.getElementById('edit-sale-form')?.addEventListener('submit', async (e) 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando la aplicación...");
 
-    // Conectar botones principales
+    // Conectar botones principales (addSaleBtn, updateDebtBtn, addProductAdminBtn)
     document.getElementById('addSaleBtn')?.addEventListener('click', () => {
         showModal('add-sale-modal');
         document.getElementById('add-sale-form').reset(); 
         document.getElementById('sale-package-type').innerHTML = '<option value="">Ninguno (Opcional)</option>'; 
     });
     
-    document.getElementById('updateDebtBtn')?.addEventListener('click', () => {
-        showModal('update-debt-modal');
-        document.getElementById('update-debt-form').reset(); 
-        document.getElementById('debt-client-name').focus(); 
-    });
     
     document.getElementById('addProductAdminBtn')?.addEventListener('click', () => {
         loadProductsAndPopulate(); 
@@ -909,7 +966,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Conectar botones de Cancelar de los modales existentes
     document.getElementById('cancelAddSale')?.addEventListener('click', () => hideModal('add-sale-modal'));
-    document.getElementById('cancelUpdateDebt')?.addEventListener('click', () => hideModal('update-debt-modal'));
+    
+    // Conectar botón de Cancelar del modal de Deuda
+    document.getElementById('cancelUpdateDebt')?.addEventListener('click', () => {
+        document.getElementById('update-debt-form').reset();
+        hideModal('update-debt-modal');
+    });
     
     // NUEVOS LISTENERS PARA EL MODAL DE DETALLE DE CLIENTE
     document.getElementById('closeClientSalesDetailModal')?.addEventListener('click', () => {
@@ -917,7 +979,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('openUpdateDebtFromDetail')?.addEventListener('click', () => {
-        // Obtenemos el nombre y deuda mostrados actualmente en el modal de detalle
+        // Obtenemos el nombre y deuda del modal de detalle
         const clientName = document.getElementById('client-detail-name').textContent;
         const debtText = document.getElementById('client-detail-debt').textContent;
         
@@ -927,10 +989,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Cerramos el modal de detalle
         hideModal('client-sales-detail-modal');
         
-        // Abrimos el modal de actualización de deuda y precargamos los datos
+        // Abrimos el modal de actualización/abono de deuda
         document.getElementById('debt-client-name').value = clientName;
-        document.getElementById('debt-amount').value = currentDebt; 
+        document.getElementById('debt-client-name').setAttribute('readonly', true); // Bloquea el campo de nombre
+        document.getElementById('debt-client-name').classList.add('bg-gray-100', 'cursor-not-allowed');
+        
+        document.getElementById('original-debt-amount').value = currentDebt;
+        document.getElementById('current-debt-display').textContent = formatter.format(currentDebt);
+        
+        document.getElementById('debt-payment-amount').value = '0.00'; // Resetear el abono
+        document.getElementById('manual-final-debt').value = ''; // Resetear ajuste manual
+
         showModal('update-debt-modal');
+        document.getElementById('debt-payment-amount').focus(); 
     });
 
     // Lógica de Restauración del Modal de Edición al Cancelar

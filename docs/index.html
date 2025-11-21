@@ -9,7 +9,7 @@
             display: none;
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-fUU2BQqn.js"></script>
+  <script type="module" crossorigin src="./assets/index-ZVDniDpu.js"></script>
   <link rel="stylesheet" crossorigin href="./style.css">
 </head>
 <body class="bg-gray-50 loading-hide">
@@ -229,20 +229,34 @@
 
     <div id="update-debt-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-            <h3 class="text-2xl font-bold mb-6 text-gray-800">Actualizar o Liquidar Deuda</h3>
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Registrar Abono o Ajustar Deuda</h3>
             <form id="update-debt-form">
                 <div class="mb-4">
-                    <label for="debt-client-name" class="block text-sm font-medium text-gray-700">Nombre del Cliente</label>
-                    <input type="text" id="debt-client-name" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-yellow-500 focus:border-yellow-500">
+                    <label for="debt-client-name" class="block text-sm font-medium text-gray-700">Cliente</label>
+                    <input type="text" id="debt-client-name" required readonly class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 bg-gray-100 cursor-not-allowed">
                 </div>
+
+                <div class="mb-4">
+                    <p class="text-sm font-medium text-gray-700">Saldo Actual</p>
+                    <p id="current-debt-display" class="mt-1 text-2xl font-bold text-red-600">$0.00</p>
+                    <input type="hidden" id="original-debt-amount"> 
+                </div>
+                
                 <div class="mb-6">
-                    <label for="debt-amount" class="block text-sm font-medium text-gray-700">Nuevo Monto de Deuda ($)</label>
-                    <input type="number" id="debt-amount" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-yellow-500 focus:border-yellow-500">
-                    <p class="mt-2 text-xs text-gray-500">Para liquidar la deuda, ingresa **0**.</p>
+                    <label for="debt-payment-amount" class="block text-sm font-medium text-gray-700">Monto de Abono (Pago Parcial/Liquidación) ($)</label>
+                    <input type="number" id="debt-payment-amount" step="0.01" value="0.00" required class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-yellow-500 focus:border-yellow-500">
+                    <p class="mt-2 text-xs text-gray-500">Ingresa el monto pagado. Se calculará el nuevo saldo (Actual - Abono).</p>
                 </div>
+                
+                <div class="mb-6 border-t pt-4">
+                    <label for="manual-final-debt" class="block text-sm font-medium text-gray-700">Ajustar Saldo Final (Opcional)</label>
+                    <input type="number" id="manual-final-debt" step="0.01" placeholder="Dejar vacío para usar el Abono" class="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm p-3 focus:ring-yellow-500 focus:border-yellow-500">
+                    <p class="mt-2 text-xs text-red-500">Si ingresas un valor aquí, se **ignorará** el Abono y se establecerá este como el saldo final.</p>
+                </div>
+                
                 <div class="flex justify-end space-x-3">
                     <button type="button" id="cancelUpdateDebt" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-300">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">Guardar Deuda</button>
+                    <button type="submit" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">Registrar Abono</button>
                 </div>
             </form>
         </div>
@@ -301,7 +315,7 @@
             
             <div class="mt-6 flex justify-end">
                 <button id="openUpdateDebtFromDetail" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-300">
-                    Actualizar/Liquidar Deuda
+                    Registrar Abono o Ajustar
                 </button>
             </div>
         </div>
