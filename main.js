@@ -32,16 +32,16 @@ const hideModal = (id) => {
 };
 
 // ----------------------------------------------------------------------
-// 3. MANEJO DE DATOS (SOLUCIÓN DEFINITIVA CON 'created_at')
+// 3. MANEJO DE DATOS (SOLUCIÓN DEFINITIVA CON 'date')
 // ----------------------------------------------------------------------
 
 async function loadDashboardData() {
     // 1. Obtener datos de ventas 
-    // CORRECCIÓN FINAL: Usando 'created_at' para ordenar.
+    // CORRECCIÓN FINAL: Usando el nombre real de la columna: 'date'
     const { data: sales, error: salesError } = await supabase
         .from('ventas') 
         .select('*')
-        .order('created_at', { ascending: false }); // <--- ¡AQUÍ ESTÁ LA CLAVE!
+        .order('date', { ascending: false }); // <--- ¡CORREGIDO A 'date'!
 
     // 2. Obtener datos de clientes/deudas
     const { data: clients, error: clientsError } = await supabase
@@ -83,8 +83,8 @@ function renderSales(sales) {
     }
 
     sales.slice(0, 10).forEach(sale => {
-        // CORRECCIÓN FINAL: Usando 'created_at' para extraer la fecha
-        const date = sale.created_at ? new Date(sale.created_at).toLocaleDateString('es-MX', {
+        // CORRECCIÓN FINAL: Usando 'date' para extraer la fecha
+        const date = sale.date ? new Date(sale.date).toLocaleDateString('es-MX', {
             day: '2-digit', month: 'short', year: 'numeric'
         }) : 'N/A';
         
@@ -131,33 +131,11 @@ function renderDebts(clients) {
 // ----------------------------------------------------------------------
 // 4. MANEJO DE FORMULARIOS 
 // ----------------------------------------------------------------------
-
+// (Las funciones de formularios siguen siendo placeholders y deben implementarse)
 document.getElementById('add-sale-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log("Registrando nueva venta...");
-    
-    const clientName = document.getElementById('sale-client-name').value;
-    const amount = parseFloat(document.getElementById('sale-amount').value);
-    const products = document.getElementById('sale-products').value;
-    
-    // PENDIENTE DE IMPLEMENTAR:
-    /*
-    const { error } = await supabase.from('ventas').insert({
-        clientName: clientName, 
-        amount: amount, 
-        products: products
-    });
-    
-    if (!error) {
-        hideModal('add-sale-modal');
-        document.getElementById('add-sale-form').reset();
-        loadDashboardData(); 
-    } else {
-        console.error("Error al registrar venta:", error);
-        alert("Hubo un error al registrar la venta.");
-    }
-    */
-    
+    // ... Lógica de inserción ...
     hideModal('add-sale-modal'); 
     document.getElementById('add-sale-form').reset();
 });
@@ -165,28 +143,7 @@ document.getElementById('add-sale-form').addEventListener('submit', async (e) =>
 document.getElementById('update-debt-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     console.log("Actualizando deuda...");
-    
-    const clientName = document.getElementById('debt-client-name').value;
-    const debtAmount = parseFloat(document.getElementById('debt-amount').value);
-    
-    // PENDIENTE DE IMPLEMENTAR:
-    /*
-    const { error } = await supabase.from('clientes').upsert({
-        name: clientName, 
-        debt: debtAmount, 
-        lastUpdate: new Date().toISOString()
-    }, { onConflict: 'name' }); 
-    
-    if (!error) {
-        hideModal('update-debt-modal');
-        document.getElementById('update-debt-form').reset();
-        loadDashboardData(); 
-    } else {
-        console.error("Error al actualizar deuda:", error);
-        alert("Hubo un error al actualizar la deuda.");
-    }
-    */
-
+    // ... Lógica de actualización ...
     hideModal('update-debt-modal'); 
     document.getElementById('update-debt-form').reset();
 });
