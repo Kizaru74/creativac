@@ -172,19 +172,11 @@ document.getElementById('update-debt-form').addEventListener('submit', async (e)
         return;
     }
 
-    const { error } = await supabase.from('clientes').upsert(
-        {
-            name: clientName, 
-            debt: debtAmount, 
-            lastUpdate: new Date().toISOString()
-        }, 
-        { 
-            // Esto le dice a Supabase que si el 'name' ya existe, lo actualice (UPSERT).
-            // Si tu tabla 'clientes' usa otro campo como clave principal (ej. 'id'), 
-            // necesitarías ajustar esta opción o el diseño de la tabla.
-            onConflict: 'name' 
-        }
-    );
+// main.js - Actualización de deuda
+const { error } = await supabase.from('clientes').upsert(
+    { name: clientName, debt: debtAmount, lastUpdate: new Date().toISOString() }, 
+    { onConflict: 'name' } 
+);
     
     if (!error) {
         hideModal('update-debt-modal');
