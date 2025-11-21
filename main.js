@@ -8,17 +8,16 @@ import { createClient } from '@supabase/supabase-js';
 // ----------------------------------------------------------------------
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo';  
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variables globales para la interfaz y datos
-let allProducts = []; // Inicializamos como let para poder llenarlo
+let allProducts = []; 
 const authModal = document.getElementById('auth-modal');
 const loginForm = document.getElementById('login-form');
 const appContainer = document.getElementById('app-container');
 const profileUpdateForm = document.getElementById('profile-update-form');
-
 
 // ----------------------------------------------------------------------
 // 2. UTILIDADES DE LA INTERFAZ DE USUARIO Y UX
@@ -32,12 +31,12 @@ const formatter = new Intl.NumberFormat('es-MX', {
 
 /** Muestra un modal por su ID. */
 const showModal = (id) => {
-    document.getElementById(id).classList.remove('hidden');
+    document.getElementById(id)?.classList.remove('hidden');
 };
 
 /** Oculta un modal por su ID. */
 const hideModal = (id) => {
-    document.getElementById(id).classList.add('hidden');
+    document.getElementById(id)?.classList.add('hidden');
 };
 
 /** Muestra/Oculta el estado de carga en los botones */
@@ -52,8 +51,6 @@ const toggleLoading = (formId, isLoading) => {
     } else {
         button.disabled = false;
         if (formId === 'login-form') button.textContent = 'Acceder';
-        // (Añadir lógica para restaurar otros botones si es necesario)
-        
         button.classList.remove('opacity-50', 'cursor-not-allowed');
     }
 };
@@ -71,12 +68,10 @@ function showAppScreen() {
     loadDashboardData(); 
 }
 
-
 // ----------------------------------------------------------------------
 // 3. LÓGICA DE AUTENTICACIÓN Y PERFIL
 // ----------------------------------------------------------------------
 
-/** Muestra un formulario para que el usuario ingrese la nueva contraseña (PASSWORD_RECOVERY) */
 function showPasswordResetForm() {
     const newPassword = prompt("✅ ¡Enlace de restablecimiento aceptado! Por favor, introduce tu **NUEVA** contraseña (mínimo 6 caracteres):");
 
@@ -90,7 +85,6 @@ function showPasswordResetForm() {
     }
 }
 
-/** Llama a la API de Supabase para actualizar la contraseña (usado en recuperación o perfil) */
 async function updateUserPassword(newPassword) {
     const { error } = await supabase.auth.updateUser({
         password: newPassword
@@ -104,8 +98,6 @@ async function updateUserPassword(newPassword) {
     }
 }
 
-
-/** Escucha los cambios de sesión (login, logout, token, recuperación) */
 function initializeAuthListener() {
     supabase.auth.onAuthStateChange((event, session) => {
         
@@ -123,39 +115,30 @@ function initializeAuthListener() {
     });
 }
 
-
-// 1. Manejar el inicio de sesión por formulario
+// Manejar el inicio de sesión por formulario
 loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     toggleLoading('login-form', true);
     
     const loginIdentifier = document.getElementById('login-identifier').value.trim(); 
     const password = document.getElementById('login-password').value;
-
-    if (!loginIdentifier || !password) {
-        alert("Por favor, introduce tu Nombre de Usuario/Email y Contraseña.");
-        toggleLoading('login-form', false);
-        return;
-    }
-    
     let emailToLogin = loginIdentifier;
     
     // Búsqueda por Nombre de Usuario si no contiene '@'
     if (!loginIdentifier.includes('@')) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
             .from('profiles')
-            .select('email') // Asumimos que también guardaste el email en profiles para facilitar la búsqueda
+            .select('email')
             .eq('username', loginIdentifier)
             .single();
 
-        if (profileError || !profile || !profile.email) {
+        if (profile && profile.email) {
+            emailToLogin = profile.email;
+        } else {
             alert("Error: Nombre de Usuario no encontrado o credenciales inválidas.");
-            console.error('Profile search error:', profileError);
             toggleLoading('login-form', false);
             return;
         }
-        
-        emailToLogin = profile.email;
     } 
     
     // Ejecutar el inicio de sesión con el email y contraseña
@@ -166,39 +149,24 @@ loginForm?.addEventListener('submit', async (e) => {
 
     if (loginError) {
         alert(`Error al iniciar sesión: Credenciales inválidas. Verifica tu email y contraseña.`);
-        console.error('Login error:', loginError);
     } 
-    // Si no hay error, el listener se encargará de mostrar la aplicación.
     
     toggleLoading('login-form', false);
 });
 
-// 2. Manejar el cierre de sesión 
+// Manejar el cierre de sesión 
 document.getElementById('logoutBtn')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signOut();
-
-    if (!error) {
-        // Limpiar la interfaz al cerrar sesión
-        document.getElementById('sales-list').innerHTML = ''; 
-        document.getElementById('debt-list').innerHTML = ''; 
-    }
-    // El listener se encargará de mostrar la pantalla de login.
+    await supabase.auth.signOut();
 });
 
-
-/** Carga los datos del perfil actual del usuario para el modal. */
+// Lógica de perfil (Actualización de username y password)
 async function loadUserProfile() {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        alert("Sesión no encontrada. Por favor, vuelve a iniciar sesión.");
-        return;
-    }
+    if (!user) return; 
 
-    // 1. Mostrar Email
     document.getElementById('profile-email-display').textContent = user.email;
 
-    // 2. Cargar Nombre de Usuario (asumiendo RLS permite SELECT en profiles)
     const { data: profile } = await supabase
         .from('profiles')
         .select('username')
@@ -208,16 +176,13 @@ async function loadUserProfile() {
     if (profile && profile.username) {
         document.getElementById('profile-username-input').value = profile.username;
     } else {
-         // Valor por defecto si no existe username
          document.getElementById('profile-username-input').value = user.email.split('@')[0]; 
     }
     
-    // Limpiar el campo de contraseña antes de mostrar
     document.getElementById('profile-new-password').value = ''; 
     showModal('user-profile-modal');
 }
 
-/** Maneja el envío del formulario de actualización de perfil */
 profileUpdateForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -225,24 +190,17 @@ profileUpdateForm?.addEventListener('submit', async (e) => {
     const newPassword = document.getElementById('profile-new-password').value.trim();
     
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        alert("Sesión expirada. Por favor, inicia sesión de nuevo.");
-        return;
-    }
+    if (!user) return;
 
     let changesMade = false;
 
-    // A. Actualizar Nombre de Usuario (UPSERT: inserta si no existe, actualiza si existe por 'id')
+    // A. Actualizar Nombre de Usuario
     if (newUsername.length >= 3) {
         const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({ id: user.id, username: newUsername }, { onConflict: 'id' });
+            .upsert({ id: user.id, username: newUsername, email: user.email }, { onConflict: 'id' });
         
-        if (profileError) {
-            alert(`Error al actualizar el nombre de usuario: ${profileError.message}`);
-        } else {
-            changesMade = true;
-        }
+        if (!profileError) changesMade = true;
     }
 
     // B. Actualizar Contraseña
@@ -251,11 +209,9 @@ profileUpdateForm?.addEventListener('submit', async (e) => {
             password: newPassword
         });
 
-        if (passwordError) {
-            alert(`Error al actualizar la contraseña: ${passwordError.message}`);
-        } else {
+        if (!passwordError) {
             changesMade = true;
-            document.getElementById('profile-new-password').value = ''; // Limpiar el campo
+            document.getElementById('profile-new-password').value = '';
         }
     }
     
@@ -269,12 +225,94 @@ profileUpdateForm?.addEventListener('submit', async (e) => {
 
 
 // ----------------------------------------------------------------------
-// 4. MANEJO DE DATOS DEL DASHBOARD (Implementación simplificada)
+// 4. MANEJO DE DATOS Y RENDERIZADO (¡LÓGICA CORREGIDA PARA MOSTRAR DATOS!)
 // ----------------------------------------------------------------------
 
-async function loadDashboardData() {
-    // Si la sesión no está activa, el listenerAuthListener ya se encargó.
+/** Renderiza la lista de deudas en la tabla. */
+function renderDebts(clients) {
+    const debtListBody = document.getElementById('debt-list'); // tbody id="debt-list"
+    if (!debtListBody) return; 
 
+    // Limpiar contenido anterior
+    debtListBody.innerHTML = ''; 
+
+    // Si no hay datos, mostrar un mensaje
+    if (!clients || clients.length === 0) {
+        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay deudas pendientes registradas.</td></tr>';
+        return;
+    }
+
+    clients.forEach(client => {
+        // Aseguramos el uso de las propiedades exactas del JSON
+        const formattedDebt = formatter.format(client.debt);
+        const debtDate = new Date(client.lastUpdate).toLocaleDateString();
+
+        const row = `
+            <tr class="hover:bg-red-50">
+                <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
+                <td class="p-4 whitespace-nowrap text-sm font-bold text-red-600">${formattedDebt}</td>
+                <td class="p-4 whitespace-nowrap text-sm text-gray-500">${debtDate}</td>
+                
+                <td class="p-4 whitespace-nowrap text-sm text-gray-500">
+                    <button 
+                        data-client-id="${client.id}" 
+                        data-debt-amount="${client.debt}"
+                        class="quick-edit-debt-btn text-blue-600 hover:text-blue-800"
+                        title="Ver Detalle de Ventas">
+                        🔎 Detalle
+                    </button>
+                </td>
+            </tr>
+        `;
+        debtListBody.innerHTML += row;
+    });
+}
+
+/** Renderiza la lista de ventas en la tabla. */
+function renderSales(sales) {
+    const salesListBody = document.getElementById('sales-list'); // tbody id="sales-list"
+    if (!salesListBody) return;
+
+    salesListBody.innerHTML = ''; // Limpiar contenido
+    
+    // Si no hay datos, mostrar un mensaje
+    if (!sales || sales.length === 0) {
+        salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';
+        return;
+    }
+
+    // Encabezado de la tabla (solo si hay datos)
+    const tableHeader = document.querySelector('#sales-list').parentElement.querySelector('thead');
+    tableHeader.innerHTML = `
+        <tr class="bg-gray-50">
+            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Cliente</th>
+            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
+            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Descripción</th>
+            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fecha</th>
+            <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Acción</th>
+        </tr>
+    `;
+
+
+    sales.forEach(sale => {
+        const formattedAmount = formatter.format(sale.amount);
+        const saleDate = new Date(sale.date).toLocaleString();
+
+        const row = `
+            <tr class="hover:bg-gray-50">
+                <td class="p-4">${sale.clientname || 'N/A'}</td>
+                <td class="p-4 font-medium">${formattedAmount}</td>
+                <td class="p-4 text-sm text-gray-500">${sale.description || 'Sin descripción'}</td>
+                <td class="p-4 text-sm">${saleDate}</td>
+                <td class="p-4"><button data-id="${sale.id}" class="text-indigo-600 hover:text-indigo-900">Editar</button></td>
+            </tr>
+        `;
+        salesListBody.innerHTML += row;
+    });
+}
+
+
+async function loadDashboardData() {
     // 1. Obtener datos de ventas
     const { data: sales, error: salesError } = await supabase
         .from('ventas') 
@@ -289,13 +327,17 @@ async function loadDashboardData() {
 
     if (salesError || clientsError) {
         console.error("Error al obtener datos: ", salesError || clientsError);
+        // Si hay error, limpiar las tablas con mensaje de error
+        renderSales([]); 
+        renderDebts([]); 
         return;
     }
 
-    // Funciones placeholders que debes tener implementadas:
-    // updateSummary(sales, clients);
-    // renderSales(sales);
-    // renderDebts(clients);
+    // LLAMADAS CRÍTICAS PARA MOSTRAR LA INFORMACIÓN:
+    renderSales(sales); 
+    renderDebts(clients); 
+
+    // updateSummary(sales, clients); // (Esta función aún no está implementada)
 }
 
 
@@ -306,20 +348,15 @@ async function loadDashboardData() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando la aplicación...");
 
-    // Conectar botones de Modales (Perfi, Admin, etc.)
+    // Conectar botones de Modales (Perfil y Admin)
     const openProfileModalBtn = document.getElementById('openProfileModalBtn');
     const closeProfileModal = document.getElementById('closeProfileModal');
     
-    const addProductAdminBtn = document.getElementById('addProductAdminBtn');
-    const closeProductAdminModal = document.getElementById('closeProductAdminModal');
-
-    // Listener para el nuevo modal de perfil
+    // Conectar botones de Modales
     openProfileModalBtn?.addEventListener('click', loadUserProfile);
     closeProfileModal?.addEventListener('click', () => hideModal('user-profile-modal'));
 
-    // Listener para el modal de admin de productos (ejemplo)
-    addProductAdminBtn?.addEventListener('click', () => showModal('product-admin-modal'));
-    closeProductAdminModal?.addEventListener('click', () => hideModal('product-admin-modal'));
+    // ... (Conectar otros botones como addProductAdminBtn, closeProductAdminModal, etc.)
 
     // **Llamada de inicio para verificar la sesión**
     initializeAuthListener(); 
