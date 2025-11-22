@@ -372,20 +372,52 @@ async function handleDeleteCategory(e) {
 
 async function fetchDashboardData() {
     try {
-        // ** NOTA: Reemplazar estas llamadas por tus RPCs o Vistas de Supabase **
-        const salesData = 15000.50; // Total de ventas (simulado por ahora)
-        const debtData = 5200.75;  // Deuda total (simulado por ahora)
-        const debtorCount = 12;    // Clientes con deuda (simulado por ahora)
+        // 1. Cargar datos de Deuda Total y Conteo de Deudores
+        //    (Usando la vista 'clientes_con_deuda' que ya está creada)
+        const { data: debtData, error: debtError } = await supabase
+            .from('clientes_con_deuda')
+            .select('debt');
 
+        if (debtError) throw debtError;
+
+        let totalDebt = 0;
+        let debtorCount = 0;
+
+        if (debtData && debtData.length > 0) {
+            debtData.forEach(client => {
+                totalDebt += parseFloat(client.debt);
+            });
+            debtorCount = debtData.length;
+        }
+
+        // 2. Cargar el Total de Ventas
+        //    (Usando la vista 'total_ventas_dashboard' que has creado)
+        let salesData = 0;
+        const { data: salesResult, error: salesError } = await supabase
+            .from('total_ventas_dashboard')
+            .select('total_sales')
+            .single(); // Esperamos un único resultado
+
+        if (salesError && salesError.code !== 'PGRST116') {
+            // PGRST116 es "la fila no fue encontrada", lo cual es normal si la BD está vacía.
+            // Si es otro error, lo lanzamos.
+            console.warn("Advertencia: No se encontró el total de ventas (BD vacía).", salesError);
+        } else if (salesResult) {
+            salesData = parseFloat(salesResult.total_sales);
+        }
+        
+        // 3. Renderizar los Resultados
         totalSalesDisplay.textContent = `$${salesData.toFixed(2)}`;
-        totalDebtDisplay.textContent = `$${debtData.toFixed(2)}`;
+        totalDebtDisplay.textContent = `$${totalDebt.toFixed(2)}`;
         debtorCountDisplay.textContent = debtorCount;
         
-        // Cargar listas
+        // 4. Cargar Listas (ya conectadas a datos reales)
         await renderDebtList();
         await renderSalesList(); 
+
     } catch (error) {
         console.error('Error al cargar dashboard:', error);
+        alert('Error al cargar datos del dashboard. Revise RLS y las vistas.');
     }
 }
 
