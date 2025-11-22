@@ -6,8 +6,8 @@
 import './style.css' 
 import { createClient } from '@supabase/supabase-js';
 
-// NOTA IMPORTANTE: Para que Select2 (que usa $) funcione, DEBES cargar 
-// jQuery y Select2 en tu index.html ANTES de este script.
+// NOTA IMPORTANTE: Select2 requiere que jQuery y Select2 JS estén cargados 
+// en tu index.html ANTES de este script.
 
 // ===============================================
 // 2. CONFIGURACIÓN E INICIALIZACIÓN DE SUPABASE
@@ -48,13 +48,13 @@ const productAdminModal = document.getElementById('product-admin-modal');
 const userProfileModal = document.getElementById('user-profile-modal');
 
 // Elementos específicos de formularios y displays
-const saleClientIdInput = document.getElementById('sale-client-id');
+const saleClientNameInput = document.getElementById('sale-client-name'); 
 const saleAmountInput = document.getElementById('sale-amount');
 const saleDescriptionInput = document.getElementById('sale-description');
 const debtClientDisplay = document.getElementById('debt-client-display');
 const debtPaymentAmountInput = document.getElementById('debt-payment-amount');
 
-// Selects para la jerarquía de Venta (VERIFICADOS)
+// Selects para la jerarquía de Venta
 const baseProductSelect = document.getElementById('base-product-id'); 
 const subcategorySelect = document.getElementById('subcategory-id');
 
@@ -85,7 +85,46 @@ async function handleLogout() {
 // ===============================================
 
 /**
- * Registra una nueva venta. Ahora usa una descripción detallada.
+ * Busca un cliente por nombre. Si no existe, lo crea.
+ * Retorna el ID del cliente (existente o nuevo).
+ */
+async function findOrCreateClientByName(name) {
+    const clientName = name.trim();
+    if (!clientName) throw new Error('El nombre del cliente no puede estar vacío.');
+    
+    // 1. Buscar Cliente existente
+    let { data: clients, error: searchError } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('name', clientName)
+        .limit(1);
+
+    if (searchError) throw new Error('Error buscando cliente: ' + searchError.message);
+
+    if (clients && clients.length > 0) {
+        // Cliente encontrado, retorna su ID
+        console.log(`Cliente "${clientName}" encontrado con ID: ${clients[0].id}`);
+        return clients[0].id;
+    }
+
+    // 2. Cliente no encontrado, CREAR nuevo cliente
+    console.log(`Cliente "${clientName}" no encontrado. Creando nuevo cliente...`);
+    const { data: newClient, error: insertError } = await supabase
+        .from('clientes')
+        .insert([{ name: clientName }])
+        .select('id')
+        .single();
+
+    if (insertError) throw new Error('Error creando cliente: ' + insertError.message);
+    
+    // Retorna el ID del nuevo cliente
+    console.log(`Nuevo cliente creado con ID: ${newClient.id}`);
+    return newClient.id;
+}
+
+
+/**
+ * Registra una nueva venta.
  */
 async function registerSale(clientId, amount, categoryId, detailedDescription) {
     const { error } = await supabase
@@ -397,18 +436,25 @@ function closeModal(modal) {
     }
 }
 
-// --- VENTA (Ajustado a jerarquía) ---
+// --- VENTA (Ajustado a Creación de Cliente por Nombre) ---
 async function handleNewSale(e) {
     e.preventDefault();
 
-    const clientId = parseInt(saleClientIdInput.value);
+    const clientName = saleClientNameInput.value.trim(); // Tomar el nombre
     const amount = parseFloat(saleAmountInput.value);
-    
-    // Select2 usa el valor del select.
     const subcategoryId = subcategorySelect.value;
     
+    // Validaciones básicas
+    if (!clientName || clientName.length < 3) {
+        alert('Por favor, ingresa un nombre de cliente válido (mínimo 3 caracteres).');
+        return;
+    }
     if (!baseProductSelect.value || !subcategoryId) {
         alert('Por favor, selecciona un Producto Base y una Subcategoría.');
+        return;
+    }
+    if (isNaN(amount) || amount <= 0) {
+        alert('Por favor, ingresa un monto de venta válido.');
         return;
     }
     
@@ -417,21 +463,28 @@ async function handleNewSale(e) {
     
     const detailedDescription = `${baseProductText} > ${subcategoryText} | Notas: ${saleDescriptionInput.value.trim()}`;
     
-
-    if (isNaN(clientId) || isNaN(amount) || amount <= 0) {
-        alert('Por favor, rellena el ID del cliente y el monto de la venta correctamente.');
+    let clientId;
+    try {
+        // 🛑 PASO CLAVE: Buscar/Crear el cliente y obtener su ID
+        clientId = await findOrCreateClientByName(clientName);
+        
+    } catch (error) {
+        console.error('Error al obtener/crear cliente:', error);
+        alert('Error al gestionar el cliente. No se puede registrar la venta.');
         return;
     }
 
     try {
+        // Usar el ID del cliente (existente o recién creado)
         await registerSale(clientId, amount, subcategoryId, detailedDescription);
-        alert('Venta registrada con éxito.');
+        
+        alert(`Venta registrada con éxito para el cliente: ${clientName}.`);
         closeModal(addSaleModal);
         await fetchDashboardData(); 
         
     } catch (error) {
         console.error('Error al registrar venta:', error);
-        alert('Error al registrar venta. Verifique que el Client ID exista.');
+        alert('Error al registrar venta. Revise la consola.');
     }
 }
 
@@ -493,16 +546,21 @@ function setupAdminListeners() {
     });
 }
 
-// Función de renderizado del HTML de la lista de Items (Productos/Subcategorías)
+/**
+ * Función de renderizado del HTML de la lista de Items (Productos/Subcategorías).
+ * Se ajustó para que la cabecera de la tabla sea sticky.
+ */
 function renderItemList(items, type) {
     if (!items || items.length === 0) {
         return '<p class="text-gray-500 p-4">No hay items de este tipo registrados.</p>';
     }
     
+    // El contenedor principal (#packages-content) ya tiene max-h-96 overflow-y-auto.
+    // Usamos overflow-x-auto aquí para tablas que son demasiado anchas.
     let html = `
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto"> 
         <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+            <thead class="bg-gray-50 sticky top-0 z-10"> 
                 <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
@@ -540,11 +598,11 @@ async function renderPackagesList(mainId = null, mainName = 'Todos') {
     
     if (!packagesContent || !filterStatus) return; 
     
-    // 🛑 CORRECCIÓN: Si no hay ID de producto principal, muestra la instrucción y sale.
+    // Si no hay ID de producto principal, muestra la instrucción y sale.
     if (!mainId) {
         packagesContent.innerHTML = '<p class="text-gray-500 p-4">Seleccione un Producto Principal de la columna izquierda para ver sus Subcategorías asociadas.</p>';
         filterStatus.textContent = ' (Seleccione Producto Base)';
-        // Necesitamos resetear la clase de selección en MAINs si se deselecciona.
+        // Resetear selección en MAINs
         document.querySelectorAll('.select-main-btn').forEach(row => {
             row.classList.remove('bg-yellow-100');
         });
@@ -675,7 +733,7 @@ async function renderCategoryAdmin() {
                     
                     <div id="packages-content" class="max-h-96 overflow-y-auto"> 
                         <p class="text-gray-500 p-4">Seleccione un Producto Principal de la columna izquierda para ver sus Subcategorías asociadas.</p>
-                        </div>
+                    </div>
                 </div>
             </div>
         `;
