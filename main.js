@@ -8,17 +8,19 @@ import { createClient } from '@supabase/supabase-js';
 // ----------------------------------------------------------------------
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo';  
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variables globales para la interfaz y datos
 let allProducts = []; 
+let allCategories = []; // 👈 RESTAURADO
 const authModal = document.getElementById('auth-modal');
 const loginForm = document.getElementById('login-form');
 const appContainer = document.getElementById('app-container');
 const profileUpdateForm = document.getElementById('profile-update-form');
-const addSaleForm = document.getElementById('add-sale-form'); // Conexión del formulario de venta
+const addSaleForm = document.getElementById('add-sale-form'); 
+const updateDebtForm = document.getElementById('update-debt-form'); // AGREGADO
 
 // ----------------------------------------------------------------------
 // 2. UTILIDADES DE LA INTERFAZ DE USUARIO Y UX
@@ -232,7 +234,60 @@ profileUpdateForm?.addEventListener('submit', async (e) => {
 // 4. MANEJO DE DATOS Y RENDERIZADO
 // ----------------------------------------------------------------------
 
-/** Maneja el envío del formulario de nueva venta (NUEVA LÓGICA). */
+/** Maneja el envío del formulario para registrar un abono a la deuda. */
+async function handleDebtPayment(e) {
+    e.preventDefault();
+    
+    toggleLoading('update-debt-form', true);
+
+    const clientId = document.getElementById('debt-client-display').textContent;
+    const paymentAmount = parseFloat(document.getElementById('debt-payment-amount').value);
+
+    // 1. Validaciones
+    if (clientId === 'N/A' || isNaN(paymentAmount) || paymentAmount <= 0) {
+        alert('Por favor, selecciona un cliente y agrega un monto de abono válido.');
+        toggleLoading('update-debt-form', false);
+        return;
+    }
+
+    // 2. Obtener la deuda actual del cliente
+    const { data: clientData, error: fetchError } = await supabase
+        .from('clientes')
+        .select('debt')
+        .eq('id', clientId)
+        .single();
+        
+    if (fetchError || !clientData) {
+        alert(`Error: No se pudo encontrar la deuda actual del cliente ID: ${clientId}.`);
+        toggleLoading('update-debt-form', false);
+        return;
+    }
+
+    const currentDebt = clientData.debt;
+    const newDebt = currentDebt - paymentAmount;
+    
+    // 3. Actualizar la Deuda
+    const { error: debtUpdateError } = await supabase
+        .from('clientes')
+        .update({ debt: newDebt, lastUpdate: new Date().toISOString() })
+        .eq('id', clientId);
+        
+    if (debtUpdateError) {
+        alert(`Fallo la actualización de deuda: ${debtUpdateError.message}`);
+        toggleLoading('update-debt-form', false);
+        return;
+    }
+
+    // 4. Finalización y Recarga
+    alert('✅ ¡Abono registrado con éxito!');
+    hideModal('update-debt-modal');
+    document.getElementById('update-debt-form').reset(); 
+    loadDashboardData(); 
+    toggleLoading('update-debt-form', false);
+}
+
+
+/** Maneja el envío del formulario de nueva venta. */
 async function handleNewSale(e) {
     e.preventDefault();
     
@@ -240,6 +295,7 @@ async function handleNewSale(e) {
 
     const clientId = document.getElementById('sale-client-id').value;
     const amount = parseFloat(document.getElementById('sale-amount').value);
+    const categoryId = document.getElementById('sale-category-id').value; // Asume que agregaste este ID al index.html
     const description = document.getElementById('sale-description').value;
 
     if (!clientId || isNaN(amount) || amount <= 0) {
@@ -254,6 +310,7 @@ async function handleNewSale(e) {
         .insert({
             client_id: clientId, 
             amount: amount,
+            category_id: categoryId, // AGREGADO
             description: description,
             date: new Date().toISOString()
         });
@@ -354,7 +411,7 @@ function renderDebts(clients) {
 }
 
 /** Renderiza la lista de ventas en la tabla, usando clientMap para buscar el nombre. */
-function renderSales(sales, clientMap) {
+function renderSales(sales, clientMap, categories) {
     const salesListBody = document.getElementById('sales-list'); 
     if (!salesListBody) return;
 
@@ -364,34 +421,40 @@ function renderSales(sales, clientMap) {
         salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';
         return;
     }
+    
+    // Crear un mapa {id: name} para categorías para búsqueda rápida
+    const categoryMap = categories.reduce((map, category) => {
+        map[category.id] = category.name;
+        return map;
+    }, {});
 
-    // Encabezado de la tabla (Asegura que el thead exista)
+
+    // Encabezado de la tabla (Asegura que el thead exista y tenga la columna 'Categoría')
     const tableHeader = document.querySelector('#sales-list').parentElement.querySelector('thead');
     if (tableHeader) {
          tableHeader.innerHTML = `
             <tr class="bg-gray-50">
                 <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Cliente</th>
                 <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Monto</th>
-                <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Descripción</th>
+                <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Categoría</th>
                 <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fecha</th>
                 <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Acción</th>
             </tr>
         `;
     }
 
-
     sales.forEach(sale => {
         const formattedAmount = formatter.format(sale.amount);
         const saleDate = new Date(sale.date).toLocaleString();
         
-        // 🔑 SOLUCIÓN NOMBRES N/A
         const clientName = clientMap[sale.client_id] || 'N/A';
+        const categoryName = categoryMap[sale.category_id] || 'N/A'; // Muestra la categoría
 
         const row = `
             <tr class="hover:bg-gray-50">
                 <td class="p-4">${clientName}</td>
                 <td class="p-4 font-medium">${formattedAmount}</td>
-                <td class="p-4 text-sm text-gray-500">${sale.description || 'Sin descripción'}</td>
+                <td class="p-4 text-sm text-gray-500">${categoryName}</td>
                 <td class="p-4 text-sm">${saleDate}</td>
                 <td class="p-4"><button data-id="${sale.id}" class="text-indigo-600 hover:text-indigo-900">Editar</button></td>
             </tr>
@@ -400,35 +463,70 @@ function renderSales(sales, clientMap) {
     });
 }
 
+/** Renderiza la lista de categorías en la sección de administración. */
+function renderAdminData(categories) {
+    const adminListBody = document.getElementById('admin-categories-list');
+    if (!adminListBody) return;
+
+    adminListBody.innerHTML = '';
+    
+    if (categories.length === 0) {
+        adminListBody.innerHTML = '<tr><td colspan="2" class="p-4 text-center text-gray-500">No hay categorías registradas.</td></tr>';
+        return;
+    }
+
+    categories.forEach(category => {
+        const row = `
+            <tr class="hover:bg-gray-50">
+                <td class="p-4">${category.name}</td>
+                <td class="p-4"><button data-id="${category.id}" class="text-red-600 hover:text-red-800">Eliminar</button></td>
+            </tr>
+        `;
+        adminListBody.innerHTML += row;
+    });
+}
+
 
 async function loadDashboardData() {
-    // 1. Obtener datos de clientes (para mapear nombres y deudas)
+    // 1. Obtener datos de clientes
     const { data: clients, error: clientsError } = await supabase
         .from('clientes') 
         .select('*'); 
     
-    // Crear un mapa {id: name}
     const clientMap = clients.reduce((map, client) => {
         map[client.id] = client.name;
         return map;
     }, {});
 
-    // 2. Obtener datos de ventas
+    // 2. Obtener datos de categorías
+    const { data: categories, error: categoriesError } = await supabase
+        .from('categorias') 
+        .select('*');
+
+    if (categoriesError) {
+        console.error("Error al obtener categorías: ", categoriesError);
+        allCategories = []; 
+    } else {
+        allCategories = categories; 
+        renderAdminData(categories); // Muestra la tabla de administración
+    }
+    
+    // 3. Obtener datos de ventas
     const { data: sales, error: salesError } = await supabase
         .from('ventas') 
         .select('*')
         .order('date', { ascending: false })
         .limit(10); 
 
-    if (salesError || clientsError) {
+    if (salesError || clientsError || categoriesError) {
         console.error("Error al obtener datos: ", salesError || clientsError);
-        renderSales([], {}); 
+        renderSales([], {}, allCategories); 
         renderDebts([]); 
         return;
     }
 
-    // RENDERIZADO:
-    renderSales(sales, clientMap); 
+    // LLAMADAS CRÍTICAS PARA MOSTRAR LA INFORMACIÓN:
+    renderSales(sales, clientMap, allCategories); 
     renderDebts(clients); 
     updateSummary(sales, clients);
 }
@@ -445,9 +543,8 @@ document.addEventListener('click', (e) => {
         e.preventDefault();
         
         const clientId = e.target.dataset.clientId;
-        const debtAmount = e.target.dataset.debtAmount;
 
-        // Mostrar el ID del cliente en el modal (si existe el elemento)
+        // Mostrar el ID del cliente en el modal
         document.getElementById('debt-client-display').textContent = clientId;
         
         // Abrir el modal de abonos/detalles
@@ -465,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addSaleBtn = document.getElementById('addSaleBtn');
     const updateDebtBtn = document.getElementById('updateDebtBtn');
 
-    // Conexiones para cerrar modales (asumiendo los IDs en index.html)
+    // Conexiones para cerrar modales 
     document.getElementById('close-add-sale-modal')?.addEventListener('click', () => {
         hideModal('add-sale-modal');
     });
@@ -482,9 +579,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDebtBtn?.addEventListener('click', () => showModal('update-debt-modal'));
 
     // Listeners de Formularios
-    profileUpdateForm?.addEventListener('submit', profileUpdateForm); // Ya conectado arriba, pero por seguridad
-    addSaleForm?.addEventListener('submit', handleNewSale); // CONEXIÓN CRÍTICA DE GUARDADO
-    // TODO: Conectar el formulario de Abono (update-debt-form)
+    profileUpdateForm?.addEventListener('submit', profileUpdateForm);
+    addSaleForm?.addEventListener('submit', handleNewSale); 
+    updateDebtForm?.addEventListener('submit', handleDebtPayment); // CONEXIÓN CRÍTICA DEL ABONO
 
     // **Llamada de inicio para verificar la sesión**
     initializeAuthListener(); 
