@@ -6,6 +6,8 @@
 import './style.css' 
 import { createClient } from '@supabase/supabase-js';
 
+// NOTA IMPORTANTE: Para que Select2 (que usa $) funcione, DEBES cargar 
+// jQuery y Select2 en tu index.html ANTES de este script.
 
 // ===============================================
 // 2. CONFIGURACIÓN E INICIALIZACIÓN DE SUPABASE
@@ -52,8 +54,8 @@ const saleDescriptionInput = document.getElementById('sale-description');
 const debtClientDisplay = document.getElementById('debt-client-display');
 const debtPaymentAmountInput = document.getElementById('debt-payment-amount');
 
-// Selects para la jerarquía de Venta
-const baseProductSelect = document.getElementById('base-product-id');
+// Selects para la jerarquía de Venta (VERIFICADOS)
+const baseProductSelect = document.getElementById('base-product-id'); 
 const subcategorySelect = document.getElementById('subcategory-id');
 
 
@@ -92,9 +94,8 @@ async function registerSale(clientId, amount, categoryId, detailedDescription) {
             {
                 client_id: clientId,
                 amount: amount,
-                // category_id se enlaza al PACKAGE (Subcategoría) seleccionado
                 category_id: categoryId, 
-                products: detailedDescription, // Usamos 'products' para la descripción jerárquica
+                products: detailedDescription, 
                 created_at: new Date().toISOString()
             }
         ]);
@@ -126,11 +127,10 @@ async function registerPayment(clientId, amount) {
  */
 async function registerItem(name, type, parentProductId, price) {
     
-    // El parent_product solo se envía si no es un item MAIN y tiene un padre válido
     const parentId = type === 'MAIN' ? null : parseInt(parentProductId) || null;
 
     const { error } = await supabase
-        .from('categorias') // Usamos la tabla única
+        .from('categorias') 
         .insert([{ 
             name: name, 
             type: type, 
@@ -159,7 +159,6 @@ async function deleteCategory(itemId) {
 
 async function fetchDashboardData() {
     try {
-        // 1. Cargar datos de Deuda Total y Conteo de Deudores
         const { data: debtData, error: debtError } = await supabase
             .from('clientes_con_deuda')
             .select('debt');
@@ -176,7 +175,6 @@ async function fetchDashboardData() {
             debtorCount = debtData.length;
         }
 
-        // 2. Cargar el Total de Ventas
         let salesData = 0;
         const { data: salesResult } = await supabase
             .from('total_ventas_dashboard')
@@ -187,12 +185,10 @@ async function fetchDashboardData() {
             salesData = parseFloat(salesResult.total_sales);
         }
         
-        // 3. Renderizar los Resultados
         totalSalesDisplay.textContent = `$${salesData.toFixed(2)}`;
         totalDebtDisplay.textContent = `$${totalDebt.toFixed(2)}`;
         debtorCountDisplay.textContent = debtorCount;
         
-        // 4. Cargar Listas 
         await renderDebtList();
         await renderSalesList(); 
 
@@ -333,12 +329,14 @@ async function renderSaleSelects() {
 
         const baseProducts = await fetchBaseProducts(); 
         
+        // 1. Llenar el select de Productos Principales (MAIN)
         baseProductSelect.innerHTML = '<option value="">-- Seleccionar Producto Base --</option>';
         baseProducts.forEach(p => {
             baseProductSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
         });
         
-        subcategorySelect.innerHTML = '<option value="">-- Seleccionar Subcategoría --</option>';
+        // 2. Limpiar e inicializar el select de Subcategorías (PACKAGE)
+        subcategorySelect.innerHTML = '<option value="">-- Seleccionar Subcategoría --</option>'; 
         addSaleForm.reset(); 
 
     } catch (error) {
@@ -348,6 +346,12 @@ async function renderSaleSelects() {
 
 async function handleBaseProductChange() {
     const baseProductId = baseProductSelect.value;
+    
+    // Destruir Select2 para actualizar el HTML interno y volver a inicializar
+    if (typeof $ !== 'undefined' && $('#subcategory-id').data('select2')) {
+        $('#subcategory-id').select2('destroy');
+    }
+    
     subcategorySelect.innerHTML = '<option value="">-- Seleccionar Subcategoría --</option>';
     
     if (baseProductId) {
@@ -361,6 +365,15 @@ async function handleBaseProductChange() {
             console.error("Error al cargar subcategorías:", error);
         }
     }
+    
+    // Volver a inicializar Select2 después de actualizar el HTML
+    if (typeof $ !== 'undefined') {
+        $('#subcategory-id').select2({
+            dropdownParent: $('#add-sale-modal'),
+            placeholder: "-- Seleccionar Subcategoría --",
+            allowClear: true
+        });
+    }
 }
 
 
@@ -373,6 +386,11 @@ function openModal(modal) {
 }
 
 function closeModal(modal) {
+    // 🛑 Destruir Select2 al cerrar el modal de venta
+    if (modal.id === 'add-sale-modal' && typeof $ !== 'undefined' && $('#subcategory-id').data('select2')) {
+        $('#subcategory-id').select2('destroy');
+    }
+    
     modal.classList.add('hidden');
     if (modal.querySelector('form')) {
         modal.querySelector('form').reset();
@@ -386,7 +404,10 @@ async function handleNewSale(e) {
     const clientId = parseInt(saleClientIdInput.value);
     const amount = parseFloat(saleAmountInput.value);
     
-    if (!baseProductSelect.value || !subcategorySelect.value) {
+    // Select2 usa el valor del select.
+    const subcategoryId = subcategorySelect.value;
+    
+    if (!baseProductSelect.value || !subcategoryId) {
         alert('Por favor, selecciona un Producto Base y una Subcategoría.');
         return;
     }
@@ -396,7 +417,6 @@ async function handleNewSale(e) {
     
     const detailedDescription = `${baseProductText} > ${subcategoryText} | Notas: ${saleDescriptionInput.value.trim()}`;
     
-    const categoryId = subcategorySelect.value; 
 
     if (isNaN(clientId) || isNaN(amount) || amount <= 0) {
         alert('Por favor, rellena el ID del cliente y el monto de la venta correctamente.');
@@ -404,7 +424,7 @@ async function handleNewSale(e) {
     }
 
     try {
-        await registerSale(clientId, amount, categoryId, detailedDescription);
+        await registerSale(clientId, amount, subcategoryId, detailedDescription);
         alert('Venta registrada con éxito.');
         closeModal(addSaleModal);
         await fetchDashboardData(); 
@@ -456,20 +476,17 @@ async function handleUpdateDebt(e) {
 // --- ADMINISTRACIÓN DE ITEMS (Productos y Servicios) ---
 
 function setupAdminListeners() {
-    // Re-asignar listener al formulario de nueva categoría (ya que fue reconstruido)
     const newCatForm = document.getElementById('newCategoryForm');
     if (newCatForm) {
         newCatForm.removeEventListener('submit', handleNewItem); 
         newCatForm.addEventListener('submit', handleNewItem);
     }
     
-    // Re-asignar listeners a los botones de eliminar
     adminContentArea.querySelectorAll('.delete-category-btn').forEach(btn => {
         btn.removeEventListener('click', handleDeleteItem);
         btn.addEventListener('click', handleDeleteItem);
     });
 
-    // Asignar listeners a los Productos Principales para filtrar
     adminContentArea.querySelectorAll('.select-main-btn').forEach(row => {
         row.removeEventListener('click', handleMainProductClick); 
         row.addEventListener('click', handleMainProductClick);
@@ -522,26 +539,39 @@ async function renderPackagesList(mainId = null, mainName = 'Todos') {
     const filterStatus = document.getElementById('subcategory-filter-status');
     
     if (!packagesContent || !filterStatus) return; 
+    
+    // 🛑 CORRECCIÓN: Si no hay ID de producto principal, muestra la instrucción y sale.
+    if (!mainId) {
+        packagesContent.innerHTML = '<p class="text-gray-500 p-4">Seleccione un Producto Principal de la columna izquierda para ver sus Subcategorías asociadas.</p>';
+        filterStatus.textContent = ' (Seleccione Producto Base)';
+        // Necesitamos resetear la clase de selección en MAINs si se deselecciona.
+        document.querySelectorAll('.select-main-btn').forEach(row => {
+            row.classList.remove('bg-yellow-100');
+        });
+        return; 
+    }
 
     try {
         let query = supabase
             .from('categorias')
             .select('id, name, type, price, parent_product')
             .eq('type', 'PACKAGE')
+            .eq('parent_product', parseInt(mainId)) // Filtrar por el MAIN ID
             .order('name');
 
-        if (mainId) {
-            query = query.eq('parent_product', parseInt(mainId));
-            filterStatus.textContent = ` (Filtrando por: ${mainName})`;
-        } else {
-            filterStatus.textContent = ' (Todos)';
-        }
+        filterStatus.textContent = ` (Filtrando por: ${mainName})`;
 
         const { data: packages, error } = await query;
         if (error) throw error;
-
-        packagesContent.innerHTML = renderItemList(packages, 'PACKAGE');
-        setupAdminListeners(); // Reasignar listeners de eliminación
+        
+        // Maneja el caso en que el MAIN no tiene Packages asociados
+        if (packages.length === 0) {
+            packagesContent.innerHTML = '<p class="text-gray-500 p-4">Este Producto Principal no tiene Subcategorías (PACKAGE) asignadas.</p>';
+        } else {
+            packagesContent.innerHTML = renderItemList(packages, 'PACKAGE');
+        }
+        
+        setupAdminListeners(); 
         
     } catch (error) {
         console.error('Error al cargar lista de subcategorías filtradas:', error);
@@ -559,16 +589,16 @@ function handleMainProductClick(e) {
     const allMainRows = document.querySelectorAll('.select-main-btn');
     const isCurrentlySelected = e.currentTarget.classList.contains('bg-yellow-100');
 
-    // Limpiar estilos de todos
+    // Quitar la selección a todas las filas
     allMainRows.forEach(row => {
         row.classList.remove('bg-yellow-100');
     });
     
     if (isCurrentlySelected) {
-        // Si estaba seleccionado, deseleccionar y resetear filtro
+        // Si estaba seleccionado, lo deseleccionamos y mostramos lista vacía
         renderPackagesList(null); 
     } else {
-        // Seleccionar el nuevo y aplicar filtro
+        // Seleccionamos la nueva fila y cargamos sus packages
         e.currentTarget.classList.add('bg-yellow-100');
         renderPackagesList(mainId, mainName);
     }
@@ -577,18 +607,14 @@ function handleMainProductClick(e) {
 // Función de carga y renderizado de la interfaz de administración
 async function renderCategoryAdmin() {
     try {
-        // Cargar TODOS los items para poder separarlos
         const { data: items, error } = await supabase
             .from('categorias')
             .select('id, name, type, price, parent_product'); 
 
         if (error) throw error;
         
-        // Separación de datos
         const mainProducts = items.filter(item => item.type === 'MAIN');
-        const packages = items.filter(item => item.type === 'PACKAGE');
-
-        // Construcción del Select de Productos Base para el Formulario de Creación
+        
         const parentSelectOptions = mainProducts.map(p => 
             `<option value="${p.id}">${p.name}</option>`
         ).join('');
@@ -645,23 +671,22 @@ async function renderCategoryAdmin() {
                 </div>
 
                 <div class="p-4 border rounded-lg bg-white shadow-md">
-                    <h5 class="text-lg font-semibold mb-3">🛠️ Subcategorías <span id="subcategory-filter-status" class="text-sm font-normal text-indigo-500"> (Todos)</span></h5>
+                    <h5 class="text-lg font-semibold mb-3">🛠️ Subcategorías <span id="subcategory-filter-status" class="text-sm font-normal text-indigo-500"> (Seleccione Producto Base)</span></h5>
                     
                     <div id="packages-content" class="max-h-96 overflow-y-auto"> 
-                        ${renderItemList(packages, 'PACKAGE')}
-                    </div>
+                        <p class="text-gray-500 p-4">Seleccione un Producto Principal de la columna izquierda para ver sus Subcategorías asociadas.</p>
+                        </div>
                 </div>
             </div>
         `;
         
         setupAdminListeners();
 
-        // Listener para habilitar/deshabilitar el select de Padre
         document.getElementById('itemType').addEventListener('change', (e) => {
             const parentSelect = document.getElementById('parentProductId');
             parentSelect.disabled = (e.target.value !== 'PACKAGE');
             if (e.target.value === 'MAIN') {
-                parentSelect.value = ""; // Limpiar si es MAIN
+                parentSelect.value = ""; 
             }
         });
 
@@ -672,10 +697,6 @@ async function renderCategoryAdmin() {
     }
 }
 
-/**
- * Maneja el envío del formulario de creación de nuevos ítems (MAIN o PACKAGE).
- * Valida los campos y llama a la función de registro.
- */
 async function handleNewItem(e) {
     e.preventDefault();
 
@@ -688,22 +709,18 @@ async function handleNewItem(e) {
     const type = typeSelect.value;
     const parentProductId = parentSelect.value;
     
-    // El precio es opcional: si está vacío, se guarda como null
     const price = priceInput.value === '' ? null : parseFloat(priceInput.value); 
 
-    // 1. Validaciones básicas:
     if (!name || !type) {
         alert('El nombre y el tipo de item son obligatorios.');
         return;
     }
     
-    // 2. Validación de precio (si se ingresa, debe ser numérico)
     if (priceInput.value !== '' && isNaN(price)) {
         alert('El valor del precio debe ser un número válido.');
         return;
     }
 
-    // 3. Validación de jerarquía:
     if (type === 'PACKAGE' && !parentProductId) {
         alert('Las subcategorías (PACKAGE) deben tener un Producto Padre (MAIN) asignado.');
         return;
@@ -713,7 +730,7 @@ async function handleNewItem(e) {
         await registerItem(name, type, parentProductId, price); 
         
         alert(`Item de tipo "${type}" creado con éxito.`);
-        await renderCategoryAdmin(); // Recarga la lista y el formulario
+        await renderCategoryAdmin(); 
         
     } catch (error) {
         console.error('Error al crear item:', error);
@@ -758,6 +775,15 @@ function setupEventListeners() {
     document.getElementById('addSaleBtn').addEventListener('click', async () => {
         await renderSaleSelects(); 
         openModal(addSaleModal);
+        
+        // ✨ Inicializar Select2 al abrir
+        if (typeof $ !== 'undefined') {
+            $('#subcategory-id').select2({
+                dropdownParent: $('#add-sale-modal'), 
+                placeholder: "-- Seleccionar Subcategoría --",
+                allowClear: true
+            });
+        }
     });
     document.getElementById('addProductAdminBtn').addEventListener('click', async () => {
         await renderCategoryAdmin();
@@ -791,13 +817,11 @@ function setupEventListeners() {
 
 // BLOQUE DE INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', async () => {
-    // Inicialización de Listeners (solo una vez)
     setupEventListeners();
 
     // Simulación de estado de usuario:
     authModal.classList.add('hidden');
     appContainer.classList.remove('hidden');
     
-    // Carga inicial de datos al iniciar la app
     await fetchDashboardData(); 
 });
