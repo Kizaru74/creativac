@@ -13,14 +13,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variables globales para la interfaz y datos
-let allProducts = []; 
-let allCategories = []; // 👈 RESTAURADO
+let allCategories = []; // Contiene todas las categorías cargadas
 const authModal = document.getElementById('auth-modal');
 const loginForm = document.getElementById('login-form');
 const appContainer = document.getElementById('app-container');
 const profileUpdateForm = document.getElementById('profile-update-form');
 const addSaleForm = document.getElementById('add-sale-form'); 
-const updateDebtForm = document.getElementById('update-debt-form'); // AGREGADO
+const updateDebtForm = document.getElementById('update-debt-form');
 
 // ----------------------------------------------------------------------
 // 2. UTILIDADES DE LA INTERFAZ DE USUARIO Y UX
@@ -231,7 +230,7 @@ profileUpdateForm?.addEventListener('submit', async (e) => {
 
 
 // ----------------------------------------------------------------------
-// 4. MANEJO DE DATOS Y RENDERIZADO
+// 4. MANEJO DE DATOS Y RENDERIZADO (Recuperando funciones)
 // ----------------------------------------------------------------------
 
 /** Maneja el envío del formulario para registrar un abono a la deuda. */
@@ -250,7 +249,7 @@ async function handleDebtPayment(e) {
         return;
     }
 
-    // 2. Obtener la deuda actual del cliente
+    // 2. Obtener la deuda actual
     const { data: clientData, error: fetchError } = await supabase
         .from('clientes')
         .select('debt')
@@ -295,7 +294,7 @@ async function handleNewSale(e) {
 
     const clientId = document.getElementById('sale-client-id').value;
     const amount = parseFloat(document.getElementById('sale-amount').value);
-    const categoryId = document.getElementById('sale-category-id').value; // Asume que agregaste este ID al index.html
+    const categoryId = document.getElementById('sale-category-id').value; // Usando el ID para categoría
     const description = document.getElementById('sale-description').value;
 
     if (!clientId || isNaN(amount) || amount <= 0) {
@@ -310,7 +309,7 @@ async function handleNewSale(e) {
         .insert({
             client_id: clientId, 
             amount: amount,
-            category_id: categoryId, // AGREGADO
+            category_id: categoryId, 
             description: description,
             date: new Date().toISOString()
         });
@@ -410,7 +409,11 @@ function renderDebts(clients) {
     }
 }
 
-/** Renderiza la lista de ventas en la tabla, usando clientMap para buscar el nombre. */
+/** * Renderiza la lista de ventas en la tabla.
+ * @param {Array} sales - Lista de ventas.
+ * @param {Object} clientMap - Mapa de clientes {id: name}.
+ * @param {Array} categories - Lista de todas las categorías.
+ */
 function renderSales(sales, clientMap, categories) {
     const salesListBody = document.getElementById('sales-list'); 
     if (!salesListBody) return;
@@ -422,7 +425,7 @@ function renderSales(sales, clientMap, categories) {
         return;
     }
     
-    // Crear un mapa {id: name} para categorías para búsqueda rápida
+    // Crear un mapa {id: name} para categorías
     const categoryMap = categories.reduce((map, category) => {
         map[category.id] = category.name;
         return map;
@@ -463,27 +466,38 @@ function renderSales(sales, clientMap, categories) {
     });
 }
 
-/** Renderiza la lista de categorías en la sección de administración. */
+/** * Renderiza la lista de categorías en el selector de Venta y en la sección de administración. 
+ * @param {Array} categories - Lista de todas las categorías.
+ */
 function renderAdminData(categories) {
     const adminListBody = document.getElementById('admin-categories-list');
-    if (!adminListBody) return;
+    const saleCategorySelect = document.getElementById('sale-category-id'); // Selector de venta
 
-    adminListBody.innerHTML = '';
-    
-    if (categories.length === 0) {
-        adminListBody.innerHTML = '<tr><td colspan="2" class="p-4 text-center text-gray-500">No hay categorías registradas.</td></tr>';
-        return;
+    // 1. Renderizar tabla de Administración
+    if (adminListBody) {
+        adminListBody.innerHTML = '';
+        if (categories.length === 0) {
+            adminListBody.innerHTML = '<tr><td colspan="2" class="p-4 text-center text-gray-500">No hay categorías registradas.</td></tr>';
+        } else {
+            categories.forEach(category => {
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-4">${category.name}</td>
+                        <td class="p-4"><button data-id="${category.id}" class="text-red-600 hover:text-red-800">Eliminar</button></td>
+                    </tr>
+                `;
+                adminListBody.innerHTML += row;
+            });
+        }
     }
-
-    categories.forEach(category => {
-        const row = `
-            <tr class="hover:bg-gray-50">
-                <td class="p-4">${category.name}</td>
-                <td class="p-4"><button data-id="${category.id}" class="text-red-600 hover:text-red-800">Eliminar</button></td>
-            </tr>
-        `;
-        adminListBody.innerHTML += row;
-    });
+    
+    // 2. Renderizar selector de Categorías en el modal de Venta
+    if (saleCategorySelect) {
+        saleCategorySelect.innerHTML = '<option value="">Selecciona una Categoría</option>';
+        categories.forEach(category => {
+            saleCategorySelect.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+        });
+    }
 }
 
 
@@ -508,7 +522,7 @@ async function loadDashboardData() {
         allCategories = []; 
     } else {
         allCategories = categories; 
-        renderAdminData(categories); // Muestra la tabla de administración
+        renderAdminData(categories); // Muestra la tabla de administración y llena el selector
     }
     
     // 3. Obtener datos de ventas
@@ -544,7 +558,7 @@ document.addEventListener('click', (e) => {
         
         const clientId = e.target.dataset.clientId;
 
-        // Mostrar el ID del cliente en el modal
+        // Mostrar el ID del cliente en el modal (si existe el elemento)
         document.getElementById('debt-client-display').textContent = clientId;
         
         // Abrir el modal de abonos/detalles
@@ -569,6 +583,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-update-debt-modal')?.addEventListener('click', () => {
         hideModal('update-debt-modal');
     });
+    // Si tienes un modal de administración, conéctalo aquí.
+    // document.getElementById('close-admin-modal')?.addEventListener('click', () => {
+    //     hideModal('admin-modal');
+    // });
+
 
     // Listeners de Modales de Perfil
     openProfileModalBtn?.addEventListener('click', loadUserProfile);
@@ -577,11 +596,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listeners de Acciones Rápidas (Abre Modales)
     addSaleBtn?.addEventListener('click', () => showModal('add-sale-modal'));
     updateDebtBtn?.addEventListener('click', () => showModal('update-debt-modal'));
+    // Si tienes un botón de Admin:
+    // document.getElementById('adminBtn')?.addEventListener('click', () => showModal('admin-modal'));
 
     // Listeners de Formularios
     profileUpdateForm?.addEventListener('submit', profileUpdateForm);
     addSaleForm?.addEventListener('submit', handleNewSale); 
-    updateDebtForm?.addEventListener('submit', handleDebtPayment); // CONEXIÓN CRÍTICA DEL ABONO
+    updateDebtForm?.addEventListener('submit', handleDebtPayment); 
 
     // **Llamada de inicio para verificar la sesión**
     initializeAuthListener(); 
