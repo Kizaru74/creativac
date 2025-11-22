@@ -1,379 +1,179 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+// main.js
+
+// ----------------------------------------------------
+// IMPORTACIÓN DE ESTILOS (¡Necesario para Vite!)
+import './style.css' 
+// ----------------------------------------------------
+
 
 // ===============================================
-// 1. CONFIGURACIÓN Y CLIENTE SUPABASE
+// 1. CONFIGURACIÓN DE SUPABASE
 // ===============================================
-// **IMPORTANTE:** REEMPLAZA CON TUS CLAVES REALES DE SUPABASE
+
+// Reemplaza con tus claves reales de Supabase
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
 
-// Inicialización del cliente Supabase
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-let CURRENT_DEBT_CLIENT_ID = null; 
+// Declaramos la variable con 'let' para inicializarla dentro del DOMContentLoaded
+// Esto resuelve el error "can't access lexical declaration 'supabase' before initialization"
+let supabase; 
 
 
 // ===============================================
-// 2. REFERENCIAS DEL DOM
+// 2. VARIABLES GLOBALES Y ELEMENTOS DOM
 // ===============================================
 
-// Contenedores Principales y Auth
+// Variables de estado
+let CURRENT_DEBT_CLIENT_ID = null;
+
+// Contenedores de la aplicación (para control de login)
 const authModal = document.getElementById('auth-modal');
 const appContainer = document.getElementById('app-container');
+
+// Elementos del Resumen (KPIs)
+const totalSalesDisplay = document.getElementById('totalSalesDisplay');
+const totalDebtDisplay = document.getElementById('totalDebtDisplay');
+const debtorCountDisplay = document.getElementById('debtorCountDisplay');
+
+// Tablas
+const debtListBody = document.getElementById('debtListBody'); // Usando ID corregido del HTML
+const salesListBody = document.getElementById('salesListBody'); // Usando ID corregido del HTML
+
+// Forms
 const loginForm = document.getElementById('login-form');
-const logoutBtn = document.getElementById('logoutBtn');
-
-// Dashboard Info
-const totalSalesDisplay = document.getElementById('total-sales');
-const totalDebtDisplay = document.getElementById('total-debt');
-const debtorCountDisplay = document.getElementById('debtor-count');
-const debtListBody = document.getElementById('debt-list');
-const salesListBody = document.getElementById('sales-list'); 
-
-// Botones de Acción Rápida
-const addProductAdminBtn = document.getElementById('addProductAdminBtn');
-const addSaleBtn = document.getElementById('addSaleBtn');
-// El botón updateDebtBtn ya tiene su listener de alerta en la Sección 11
-
-// Modal de Registro de Venta
-const addSaleModal = document.getElementById('add-sale-modal');
-const closeAddSaleModalBtn = document.getElementById('close-add-sale-modal'); 
 const addSaleForm = document.getElementById('add-sale-form');
-const saleCategorySelector = document.getElementById('sale-category-id'); 
-
-// Modal de Abono/Ajuste de Deuda
-const updateDebtModal = document.getElementById('update-debt-modal');
-const closeUpdateDebtModalBtn = document.getElementById('close-update-debt-modal');
 const updateDebtForm = document.getElementById('update-debt-form');
+const newCategoryForm = document.getElementById('newCategoryForm'); // Para el modal de Admin
+
+// Modales y Botones de Control
+const addSaleModal = document.getElementById('add-sale-modal');
+const updateDebtModal = document.getElementById('update-debt-modal');
+const productAdminModal = document.getElementById('product-admin-modal');
+const userProfileModal = document.getElementById('user-profile-modal');
+
+// Elementos específicos de formularios y displays
+const saleClientIdInput = document.getElementById('sale-client-id');
+const saleAmountInput = document.getElementById('sale-amount');
+const saleCategorySelect = document.getElementById('sale-category-id');
+const saleDescriptionInput = document.getElementById('sale-description');
+const debtClientDisplay = document.getElementById('debt-client-display');
 const debtPaymentAmountInput = document.getElementById('debt-payment-amount');
 
-// Modal de Administración de Productos/Categorías
-const productAdminModal = document.getElementById('product-admin-modal');
-const closeProductAdminModalBtn = document.getElementById('close-product-admin-modal');
+// Admin de Categorías (Placeholder)
 const adminContentArea = document.getElementById('admin-content-area');
-
-// Modal de Perfil
-const userProfileModal = document.getElementById('user-profile-modal');
-const closeProfileModal = document.getElementById('closeProfileModal');
 
 
 // ===============================================
-// 3. FUNCIONES DE AUTENTICACIÓN
+// 3. FUNCIONES DE AUTENTICACIÓN (Placeholder)
 // ===============================================
 
 async function handleLogin(e) {
     e.preventDefault();
-    const identifier = document.getElementById('login-identifier').value;
-    const password = document.getElementById('login-password').value;
+    // Aquí iría la lógica de signInWithPassword o signInWithOtp
+    // POR AHORA, simulación de éxito:
+    alert('Simulación: Acceso exitoso. En un proyecto real, use supabase.auth.signInWithPassword.');
     
-    // Loguearse usando email (o username si tienes un trigger en Supabase que lo mapea)
-    const { error } = await supabase.auth.signInWithPassword({ email: identifier, password: password });
-    
-    if (error) {
-        alert('Error de login: ' + error.message);
-        console.error('Error de Login:', error);
-        return;
-    }
-    
-    checkAuthStatus(); // Recarga el estado y la aplicación
+    // Muestra la app y oculta el login
+    authModal.classList.add('hidden');
+    appContainer.classList.remove('hidden');
+    await fetchDashboardData(); // Cargar datos al iniciar sesión
 }
 
 async function handleLogout() {
-    await supabase.auth.signOut();
-    window.location.reload(); 
+    // Aquí iría supabase.auth.signOut()
+    alert('Sesión cerrada. En un proyecto real, use supabase.auth.signOut().');
+    
+    // Muestra el login y oculta la app
+    appContainer.classList.add('hidden');
+    authModal.classList.remove('hidden');
 }
 
-function checkAuthStatus() {
-    // Obtiene el estado actual de la sesión.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-            // Usuario autenticado
-            authModal.classList.add('hidden');
-            appContainer.classList.remove('hidden');
-            initializeApp();
-        } else {
-            // Usuario no autenticado
-            authModal.classList.remove('hidden');
-            appContainer.classList.add('hidden');
-            // Intentar cargar categorías (requiere RLS SELECT anon)
-            populateCategorySelector(); 
-        }
-    }).catch(error => {
-        console.error("Error al obtener la sesión de Supabase:", error);
-    });
-}
 
 // ===============================================
-// 4. FUNCIONES CRUD GENERALES (Clientes, Pagos)
+// 4. FUNCIONES CRUD GENERALES
 // ===============================================
 
 /**
- * Verifica si un cliente existe por su ID. Si no existe, lo crea.
- * Requiere RLS SELECT e INSERT para authenticated en la tabla 'clientes'.
- * @param {number} client_id El ID del cliente a buscar o crear.
- * @returns {number} El ID del cliente (existente o recién creado).
+ * Verifica si un cliente existe por ID (solo para IDs, simplificado)
+ * Para nombres, la lógica de búsqueda es más compleja y depende del gusto.
  */
-async function getOrCreateClient(client_id) {
-    
-    // 1. Intentar obtener el cliente
-    let { data: client, error } = await supabase
+async function getClientNameById(clientId) {
+    const { data } = await supabase
         .from('clientes')
-        .select('id')
-        .eq('id', client_id)
+        .select('name')
+        .eq('id', clientId)
         .single();
-
-    if (error && error.code !== 'PGRST116') { 
-        console.error('Error al buscar cliente:', error);
-    }
-    
-    // 2. Si no existe, crear el cliente
-    if (!client) {
-        console.log(`Cliente ID ${client_id} no encontrado, intentando crear uno nuevo...`);
-        const { data: newClient, error: insertError } = await supabase
-            .from('clientes')
-            .insert({ id: client_id, name: `Cliente ${client_id}` }) 
-            .select('id')
-            .single();
-
-        if (insertError) {
-            console.error('Error al crear cliente (Verifica RLS INSERT para authenticated):', insertError);
-            throw new Error("No se pudo crear el cliente.");
-        }
-        return newClient.id;
-    }
-
-    return client.id;
+    return data ? data.name : 'Cliente Desconocido';
 }
 
+/**
+ * Registra una nueva venta en la tabla 'ventas'.
+ */
+async function registerSale(clientId, amount, categoryId, products) {
+    const { error } = await supabase
+        .from('ventas')
+        .insert([
+            {
+                client_id: clientId,
+                amount: amount,
+                category_id: categoryId,
+                products: products,
+                created_at: new Date().toISOString()
+            }
+        ]);
 
-async function registerPayment(client_id, amount) {
-    try {
-        // Asumimos que la tabla se llama 'pagos'
-        const { error } = await supabase
-            .from('pagos') 
-            .insert([
-                { 
-                    client_id: client_id, 
-                    amount: amount 
-                }
-            ]);
-
-        if (error) throw error;
-
-        console.log(`Pago de $${amount.toFixed(2)} registrado REALMENTE para Cliente ID: ${client_id}`);
-        return true;
-        
-    } catch (error) {
-        console.error('Error al registrar pago en Supabase:', error);
-        alert('Error al registrar pago: ' + error.message);
-        return false;
-    }
+    if (error) throw new Error('Error al registrar venta: ' + error.message);
+    return true;
 }
 
+/**
+ * Registra un pago/abono en la tabla 'pagos'.
+ */
+async function registerPayment(clientId, amount) {
+    const { error } = await supabase
+        .from('pagos')
+        .insert([
+            {
+                client_id: clientId,
+                amount: amount,
+                created_at: new Date().toISOString()
+            }
+        ]);
 
-// ===============================================
-// 5. FUNCIONES CRUD CATEGORÍAS
-// ===============================================
-
-async function fetchCategories() {
-    // Requiere RLS SELECT para anon/authenticated en la tabla 'categorias'
-    const { data, error } = await supabase
-        .from('categorias')
-        .select('id, name')
-        .order('name', { ascending: true });
-
-    if (error) {
-        console.error('Error al obtener categorías. ¿Tabla "categorias" existe y tiene RLS SELECT anon/authenticated?', error);
-        return [];
-    }
-    return data;
+    if (error) throw new Error('Error al registrar pago: ' + error.message);
+    return true;
 }
 
-async function addCategory(name) {
+async function registerCategory(name, description) {
     const { error } = await supabase
         .from('categorias')
-        .insert({ name: name });
+        .insert([{ name: name, description: description }]);
 
-    if (error) {
-        alert('Error al crear categoría: ' + error.message);
-        return false;
-    }
+    if (error) throw new Error('Error al crear categoría: ' + error.message);
     return true;
 }
 
 async function deleteCategory(categoryId) {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta categoría?')) return false;
-
     const { error } = await supabase
         .from('categorias')
         .delete()
         .eq('id', categoryId);
 
-    if (error) {
-        alert('Error al eliminar categoría: ' + error.message);
-        return false;
-    }
+    if (error) throw new Error('Error al borrar categoría: ' + error.message);
     return true;
 }
 
 
 // ===============================================
-// 6. LÓGICA DE VISTA DE CATEGORÍAS Y FORMULARIOS
+// 5. FUNCIONES DE RENDERIZADO Y DASHBOARD
 // ===============================================
 
-async function populateCategorySelector() {
-    const categories = await fetchCategories();
-    
-    saleCategorySelector.innerHTML = '<option value="">-- Seleccionar Categoría --</option>';
-
-    if (categories && categories.length > 0) {
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            saleCategorySelector.appendChild(option);
-        });
-    } else {
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'ERROR: No se cargaron categorías. Revise RLS.';
-        saleCategorySelector.appendChild(option);
-    }
-}
-
-async function loadCategoryAdminList() {
-    const categories = await fetchCategories();
-    
-    let html = '';
-
-    // 1. Renderizar Formulario de Nueva Categoría
-    html += `
-        <div class="border p-4 rounded-lg bg-gray-50 mb-6">
-            <h4 class="text-lg font-semibold mb-3">Añadir Nueva Categoría</h4>
-            <form id="add-category-form" class="flex gap-4">
-                <input type="text" id="category-name-input" required 
-                       placeholder="Nombre de la Categoría"
-                       class="flex-grow p-2 border rounded-md" minlength="3">
-                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                    Guardar
-                </button>
-            </form>
-        </div>
-    `;
-
-    // 2. Renderizar Controles de Vista
-    html += `
-        <div class="flex space-x-2 mb-4">
-            <button id="view-categories-btn" class="px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white">Categorías</button>
-            <button id="view-products-btn" class="px-4 py-2 text-sm font-medium rounded-md bg-gray-300 text-gray-800">Productos/Paquetes</button>
-        </div>
-    `;
-
-    // 3. Renderizar Tabla de Categorías
-    // ... (El resto del HTML para la tabla de categorías, usando categories.map)
-    html += '<h4 class="text-lg font-semibold mb-3">Lista de Categorías Existentes</h4>';
-    if (categories.length === 0) {
-        html += '<p class="text-gray-500">No hay categorías registradas.</p>';
-    } else {
-        html += `
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 bg-white shadow-sm rounded-lg">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="p-3 text-left text-xs font-semibold text-gray-600 uppercase">ID</th>
-                            <th class="p-3 text-left text-xs font-semibold text-gray-600 uppercase">Nombre</th>
-                            <th class="p-3 text-left text-xs font-semibold text-gray-600 uppercase">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        ${categories.map(cat => `
-                            <tr>
-                                <td class="p-3 whitespace-nowrap text-sm text-gray-900">${cat.id}</td>
-                                <td class="p-3 text-sm text-gray-700">${cat.name}</td>
-                                <td class="p-3 whitespace-nowrap text-sm font-medium">
-                                    <button data-category-id="${cat.id}" 
-                                            class="delete-category-btn text-red-600 hover:text-red-900 text-sm">
-                                        Eliminar
-                                    </button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-    adminContentArea.innerHTML = html;
-
-    // Volver a agregar listeners
-    adminContentArea.querySelectorAll('.delete-category-btn').forEach(button => {
-        button.addEventListener('click', handleDeleteCategory);
-    });
-
-    document.getElementById('view-categories-btn').addEventListener('click', loadCategoryAdminList);
-    document.getElementById('view-products-btn').addEventListener('click', loadProductAdminPlaceholder);
-
-    // Agregar listener para el formulario de agregar categoría
-    const addCategoryForm = document.getElementById('add-category-form');
-    if (addCategoryForm) {
-        addCategoryForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await handleAddCategory(e.target);
-        });
-    }
-}
-
-function loadProductAdminPlaceholder() {
-    // ... (código para el placeholder de productos)
-    adminContentArea.innerHTML = `
-        <div class="flex space-x-2 mb-4">
-            <button id="view-categories-btn" class="px-4 py-2 text-sm font-medium rounded-md bg-gray-300 text-gray-800">Categorías</button>
-            <button id="view-products-btn" class="px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white">Productos/Paquetes</button>
-        </div>
-        <p class="text-gray-500 p-4">La gestión de Productos y Paquetes se implementará pronto. Ahora solo puedes administrar Categorías.</p>`;
-
-    document.getElementById('view-categories-btn').addEventListener('click', loadCategoryAdminList);
-    document.getElementById('view-products-btn').addEventListener('click', loadProductAdminPlaceholder);
-}
-
-async function handleAddCategory(form) {
-    const categoryNameInput = form.querySelector('#category-name-input');
-    const name = categoryNameInput.value.trim();
-
-    if (!name) {
-        alert('Por favor, ingresa un nombre para la categoría.');
-        return;
-    }
-
-    const success = await addCategory(name);
-
-    if (success) {
-        alert('Categoría creada con éxito.');
-        categoryNameInput.value = ''; 
-        await loadCategoryAdminList(); 
-        await populateCategorySelector(); 
-    }
-}
-
-async function handleDeleteCategory(e) {
-    const categoryId = e.target.dataset.categoryId;
-    
-    if (await deleteCategory(categoryId)) {
-        alert('Categoría eliminada con éxito.');
-        await loadCategoryAdminList(); 
-        await populateCategorySelector();
-    }
-}
-
-
-// ===============================================
-// 7. LÓGICA DE TABLAS Y RENDERIZADO
-// ===============================================
-
+/**
+ * Carga los KPIs principales y llama a las funciones de renderizado de listas.
+ */
 async function fetchDashboardData() {
     try {
-        // 1. Cargar datos de Deuda Total y Conteo de Deudores
-        //    (Usando la vista 'clientes_con_deuda' que ya está creada)
+        // 1. Cargar datos de Deuda Total y Conteo de Deudores (Vista 'clientes_con_deuda')
         const { data: debtData, error: debtError } = await supabase
             .from('clientes_con_deuda')
             .select('debt');
@@ -390,19 +190,14 @@ async function fetchDashboardData() {
             debtorCount = debtData.length;
         }
 
-        // 2. Cargar el Total de Ventas
-        //    (Usando la vista 'total_ventas_dashboard' que has creado)
+        // 2. Cargar el Total de Ventas (Vista 'total_ventas_dashboard')
         let salesData = 0;
-        const { data: salesResult, error: salesError } = await supabase
+        const { data: salesResult } = await supabase
             .from('total_ventas_dashboard')
             .select('total_sales')
-            .single(); // Esperamos un único resultado
+            .single();
 
-        if (salesError && salesError.code !== 'PGRST116') {
-            // PGRST116 es "la fila no fue encontrada", lo cual es normal si la BD está vacía.
-            // Si es otro error, lo lanzamos.
-            console.warn("Advertencia: No se encontró el total de ventas (BD vacía).", salesError);
-        } else if (salesResult) {
+        if (salesResult) {
             salesData = parseFloat(salesResult.total_sales);
         }
         
@@ -411,30 +206,28 @@ async function fetchDashboardData() {
         totalDebtDisplay.textContent = `$${totalDebt.toFixed(2)}`;
         debtorCountDisplay.textContent = debtorCount;
         
-        // 4. Cargar Listas (ya conectadas a datos reales)
+        // 4. Cargar Listas 
         await renderDebtList();
         await renderSalesList(); 
 
     } catch (error) {
         console.error('Error al cargar dashboard:', error);
-        alert('Error al cargar datos del dashboard. Revise RLS y las vistas.');
+        // Si el usuario no está logueado, forzamos la vista de login (en un proyecto real)
+        // authModal.classList.remove('hidden');
     }
 }
 
 async function renderDebtList() {
     
-    // **NOTA:** En la vida real, necesitarás una RPC o VIEW en Supabase 
-    // que calcule el total de deuda (ventas - pagos) por cliente.
-    
-    // === LÓGICA REAL SUPABASE ===
+    // Consulta real a la vista que calcula el saldo: clientes_con_deuda
     const { data: clients, error } = await supabase
-        .from('clientes_con_deuda') // <--- REEMPLAZA CON EL NOMBRE DE TU VISTA/RPC
+        .from('clientes_con_deuda') 
         .select('id, name, debt, last_update')
-        .order('debt', { ascending: false });
+        .order('debt', { ascending: false })
+        .limit(10);
 
     if (error) {
-        console.error('Error al cargar lista de deudas (RLS o VIEW faltante):', error);
-        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Error al cargar deudas. Revise RLS y la Vista SQL.</td></tr>';
+        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Error al cargar deudas.</td></tr>';
         return;
     }
 
@@ -443,21 +236,22 @@ async function renderDebtList() {
         return;
     }
 
-    // === RENDERIZADO CON DATOS REALES ===
     debtListBody.innerHTML = clients.map(client => `
         <tr class="hover:bg-gray-50">
             <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
             <td class="p-4 whitespace-nowrap text-sm text-red-600 font-semibold">$${parseFloat(client.debt).toFixed(2)}</td>
-            <td class="p-4 whitespace-nowrap text-sm text-gray-500">${client.last_update}</td>
+            <td class="p-4 whitespace-nowrap text-sm text-gray-500">${client.last_update ? new Date(client.last_update).toLocaleDateString() : 'N/A'}</td>
             <td class="p-4 whitespace-nowrap text-sm font-medium">
                 <button data-client-id="${client.id}" 
-                        class="open-debt-modal-btn text-yellow-600 hover:text-yellow-900 text-sm">
+                        data-client-name="${client.name}"
+                        class="open-debt-modal-btn text-yellow-600 hover:text-yellow-900 text-sm py-1 px-2 rounded bg-yellow-100">
                     Abonar
                 </button>
             </td>
         </tr>
     `).join('');
 
+    // Asignar listeners a los botones de Abonar
     debtListBody.querySelectorAll('.open-debt-modal-btn').forEach(btn => {
         btn.addEventListener('click', handleOpenUpdateDebtModal);
     });
@@ -484,12 +278,10 @@ async function renderSalesList() {
             return;
         }
 
-        // Mapeo y Renderizado con manejo de nulos (?. y ??)
         salesListBody.innerHTML = sales.map(sale => {
             
-            // Usamos el operador de encadenamiento opcional (?.) y el operador de coalescencia nula (??)
-            const clientName = sale.clientes?.name ?? 'Cliente Desconocido';
-            const categoryName = sale.categorias?.name ?? 'Sin Categoría';
+            const clientName = sale.clientes?.name ?? 'Desconocido';
+            const categoryName = sale.categorias?.name ?? 'N/A';
             const dateDisplay = new Date(sale.created_at).toLocaleString();
 
             return `
@@ -499,7 +291,7 @@ async function renderSalesList() {
                     <td class="p-4 whitespace-nowrap text-sm text-gray-500">${categoryName}</td>
                     <td class="p-4 whitespace-nowrap text-sm text-gray-500">${dateDisplay}</td>
                     <td class="p-4 whitespace-nowrap text-sm font-medium">
-                        <button data-sale-id="${sale.id}" class="edit-sale-btn text-indigo-600 hover:text-indigo-900 text-sm">
+                        <button data-sale-id="${sale.id}" class="edit-sale-btn text-indigo-600 hover:text-indigo-900 text-sm py-1 px-2 rounded bg-indigo-100">
                             Editar
                         </button>
                     </td>
@@ -508,72 +300,165 @@ async function renderSalesList() {
         }).join('');
 
         salesListBody.querySelectorAll('.edit-sale-btn').forEach(btn => {
-            btn.addEventListener('click', handleEditSale);
+            btn.addEventListener('click', () => alert('Funcionalidad de edición aún no implementada.'));
         });
 
     } catch (error) {
         console.error('Error al cargar lista de ventas:', error);
-        salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error al cargar ventas. Revise RLS.</td></tr>';
+        salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error al cargar ventas.</td></tr>';
+    }
+}
+
+
+async function renderCategoryAdmin() {
+    try {
+        const { data: categories, error } = await supabase
+            .from('categorias')
+            .select('id, name, description');
+
+        if (error) throw error;
+        
+        // Llenar el SELECT en el modal de nueva venta
+        saleCategorySelect.innerHTML = categories.map(cat => 
+            `<option value="${cat.id}">${cat.name}</option>`
+        ).join('');
+        
+        // Renderizar el contenido completo de administración
+        let categoryListHtml = '';
+        if (!categories || categories.length === 0) {
+            categoryListHtml = '<tr><td colspan="3" class="p-4 text-center text-gray-500">No hay categorías registradas.</td></tr>';
+        } else {
+            categoryListHtml = categories.map(cat => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${cat.name}</td>
+                    <td class="p-4 whitespace-nowrap text-sm text-gray-500">${cat.description || 'N/A'}</td>
+                    <td class="p-4 whitespace-nowrap text-sm font-medium">
+                        <button data-category-id="${cat.id}" 
+                                class="delete-category-btn text-red-600 hover:text-red-900 text-sm mr-4">
+                            Eliminar
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Construir la estructura de la sección de Admin de categorías
+        adminContentArea.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="p-4 border rounded-lg bg-gray-50">
+                    <h4 class="text-lg font-semibold mb-3">Crear Nueva Categoría</h4>
+                    <form id="newCategoryForm" class="space-y-3">
+                        <div>
+                            <label for="categoryName" class="block text-sm font-medium text-gray-700">Nombre</label>
+                            <input type="text" id="categoryName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="categoryDescription" class="block text-sm font-medium text-gray-700">Descripción</label>
+                            <textarea id="categoryDescription" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Guardar Categoría
+                        </button>
+                    </form>
+                </div>
+
+                <div class="p-4 border rounded-lg bg-white">
+                    <h4 class="text-lg font-semibold mb-3">Categorías Existentes</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categoryListBody" class="bg-white divide-y divide-gray-200">
+                                ${categoryListHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Re-asignar listeners a los nuevos botones de eliminar
+        adminContentArea.querySelectorAll('.delete-category-btn').forEach(btn => {
+            btn.addEventListener('click', handleDeleteCategory);
+        });
+
+        // Re-asignar listener al formulario de nueva categoría (ya que fue reconstruido)
+        const newCatForm = document.getElementById('newCategoryForm');
+        if (newCatForm) {
+            newCatForm.addEventListener('submit', handleNewCategory);
+        }
+
+    } catch (error) {
+        console.error('Error al cargar lista de categorías:', error);
+        adminContentArea.innerHTML = '<p class="text-red-500">Error al cargar categorías. Revise la consola.</p>';
     }
 }
 
 
 // ===============================================
-// 8. MANEJO DE FORMULARIOS DE ACCIÓN
+// 6. MANEJO DE FORMULARIOS Y MODALES
 // ===============================================
 
-async function handleAddSale(e) {
-    e.preventDefault();
-    
-    const client_id_input = document.getElementById('sale-client-id');
-    const amount_input = document.getElementById('sale-amount');
-    
-    const client_id = parseInt(client_id_input.value);
-    const amount = parseFloat(amount_input.value);
-    const category_id = parseInt(saleCategorySelector.value); 
-    const description = document.getElementById('sale-description').value;
+function openModal(modal) {
+    modal.classList.remove('hidden');
+}
 
-    if (isNaN(client_id) || isNaN(amount) || amount <= 0 || isNaN(category_id)) {
-        alert('Por favor, revisa el ID del Cliente, el Monto y la Categoría.');
+function closeModal(modal) {
+    modal.classList.add('hidden');
+    if (modal.querySelector('form')) {
+        modal.querySelector('form').reset();
+    }
+}
+
+// --- VENTA ---
+async function handleNewSale(e) {
+    e.preventDefault();
+
+    const clientId = parseInt(saleClientIdInput.value);
+    const amount = parseFloat(saleAmountInput.value);
+    const categoryId = parseInt(saleCategorySelect.value);
+    const description = saleDescriptionInput.value.trim();
+
+    if (isNaN(clientId) || isNaN(amount) || amount <= 0 || isNaN(categoryId)) {
+        alert('Por favor, rellena todos los campos de venta correctamente.');
         return;
     }
 
     try {
-        // PASO CLAVE: Asegurar que el cliente existe o crearlo.
-        const finalClientId = await getOrCreateClient(client_id); 
-        
-        // Registrar la venta
-        const { error } = await supabase
-            .from('ventas')
-            .insert({ 
-                client_id: finalClientId, 
-                amount: amount, 
-                category_id: category_id,
-                description: description
-            });
-
-        if (error) throw error;
-
-        alert('Venta/Cargo registrado con éxito.');
-        addSaleForm.reset();
-        addSaleModal.classList.add('hidden');
+        await registerSale(clientId, amount, categoryId, description);
+        alert('Venta registrada con éxito.');
+        closeModal(addSaleModal);
         await fetchDashboardData(); 
         
     } catch (error) {
-        console.error('Error al registrar la venta:', error);
-        alert('Error al registrar la venta: ' + error.message);
+        console.error('Error al registrar venta:', error);
+        alert('Error al registrar venta. Verifique que el Client ID exista.');
     }
+}
+
+// --- ABONO ---
+function handleOpenUpdateDebtModal(e) {
+    const clientId = e.target.dataset.clientId;
+    const clientName = e.target.dataset.clientName;
+    
+    CURRENT_DEBT_CLIENT_ID = clientId;
+    debtClientDisplay.textContent = `${clientName} (ID: ${clientId})`;
+    openModal(updateDebtModal);
 }
 
 async function handleUpdateDebt(e) {
     e.preventDefault();
     
-    // Obtener el ID del cliente seleccionado (viene de la tabla simulada)
-    const client_id_str = CURRENT_DEBT_CLIENT_ID; 
+    const client_id = parseInt(CURRENT_DEBT_CLIENT_ID); 
     const paymentAmount = parseFloat(debtPaymentAmountInput.value);
 
-    if (!client_id_str) {
-        alert('Error: No se ha seleccionado un cliente.');
+    if (isNaN(client_id) || !client_id) {
+        alert('Error: No se ha seleccionado un cliente válido.');
         return;
     }
 
@@ -581,103 +466,115 @@ async function handleUpdateDebt(e) {
         alert('Por favor, ingresa un monto de abono válido.');
         return;
     }
-    
-    // Convertir el ID de string a entero para la función de verificación
-    const client_id = parseInt(client_id_str);
 
     try {
-        // PASO CLAVE: 
-        // 1. Verificar si el cliente existe en la tabla 'clientes'. 
-        // 2. Si no existe, lo crea (requiere RLS INSERT en la tabla 'clientes').
-        const finalClientId = await getOrCreateClient(client_id); 
+        await registerPayment(client_id, paymentAmount);
+        alert('Abono registrado con éxito.');
+        closeModal(updateDebtModal);
+        await fetchDashboardData(); 
         
-        // 3. Registrar el pago usando el ID verificado/creado
-        const success = await registerPayment(finalClientId, paymentAmount);
-
-        if (success) {
-            alert('Abono registrado con éxito.');
-            updateDebtModal.classList.add('hidden');
-            // Nota: El dashboard se recargará, pero el resumen de deuda 
-            // no se actualizará realmente hasta que implementes el RPC en Supabase.
-            await fetchDashboardData(); 
-        }
     } catch (error) {
-        console.error('Error al registrar abono o crear cliente:', error);
-        alert('No se pudo verificar o crear el cliente antes de registrar el abono. Revise el RLS de INSERT en la tabla "clientes".');
+        console.error('Error al registrar abono:', error);
+        alert('Error al registrar abono. Revise la consola.');
     }
 }
 
-function handleOpenUpdateDebtModal(e) {
-    const btn = e.target;
-    const client_id = btn.dataset.clientId;
+// --- CATEGORÍA ---
+async function handleNewCategory(e) {
+    e.preventDefault();
 
-    CURRENT_DEBT_CLIENT_ID = client_id;
+    const nameInput = e.target.querySelector('#categoryName');
+    const descInput = e.target.querySelector('#categoryDescription');
+
+    const name = nameInput.value.trim();
+    const description = descInput.value.trim();
+
+    if (!name) {
+        alert('El nombre de la categoría es obligatorio.');
+        return;
+    }
+
+    try {
+        await registerCategory(name, description);
+        alert('Categoría creada con éxito.');
+        await renderCategoryAdmin(); // Recargar la lista y el select
+    } catch (error) {
+        console.error('Error al crear categoría:', error);
+        alert('Error al crear categoría.');
+    }
+}
+
+async function handleDeleteCategory(e) {
+    const categoryId = e.target.dataset.categoryId; 
     
-    document.getElementById('debt-client-display').textContent = client_id;
-    debtPaymentAmountInput.value = '';
-    updateDebtModal.classList.remove('hidden');
+    if (!confirm('¿Estás seguro de que deseas eliminar esta categoría? Se eliminarán también las ventas asociadas.')) {
+        return;
+    }
+
+    try {
+        await deleteCategory(categoryId); 
+        alert('Categoría eliminada con éxito.');
+        await renderCategoryAdmin(); 
+        await fetchDashboardData(); // Refrescar ventas si es necesario
+        
+    } catch (error) {
+        console.error('Error al borrar categoría:', error);
+        alert('Error al borrar la categoría. Revise la consola.');
+    }
 }
 
 
 // ===============================================
-// 9. FUNCIONES PLACEHOLDER PARA ACCIONES DE VENTA
+// 7. EVENT LISTENERS
 // ===============================================
 
-function handleEditSale(e) {
-    const saleId = e.target.dataset.saleId;
-    alert(`Abriendo edición para Venta ID: ${saleId}`);
-    // Aquí iría la lógica para abrir el modal de edición
+function setupEventListeners() {
+    // Autenticación
+    loginForm.addEventListener('submit', handleLogin);
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+    // Abrir Modales
+    document.getElementById('addSaleBtn').addEventListener('click', () => openModal(addSaleModal));
+    document.getElementById('updateDebtBtn').addEventListener('click', () => openModal(updateDebtModal)); // Botón opcional desde el dashboard
+    document.getElementById('addProductAdminBtn').addEventListener('click', async () => {
+        await renderCategoryAdmin();
+        openModal(productAdminModal);
+    });
+    document.getElementById('openProfileModalBtn').addEventListener('click', () => openModal(userProfileModal));
+    
+    // Cierre de Modales
+    document.getElementById('close-add-sale-modal').addEventListener('click', () => closeModal(addSaleModal));
+    document.getElementById('close-update-debt-modal').addEventListener('click', () => closeModal(updateDebtModal));
+    document.getElementById('close-product-admin-modal').addEventListener('click', () => closeModal(productAdminModal));
+    document.getElementById('closeProfileModal').addEventListener('click', () => closeModal(userProfileModal));
+
+    // Asignación de Forms (Venta y Abono)
+    addSaleForm.addEventListener('submit', handleNewSale);
+    updateDebtForm.addEventListener('submit', handleUpdateDebt);
+    
+    // NOTA: El listener del formulario de Categoría (handleNewCategory) se reasigna
+    // dentro de renderCategoryAdmin porque el HTML del formulario se regenera.
 }
 
 
 // ===============================================
-// 10. FUNCIÓN DE INICIALIZACIÓN PRINCIPAL
+// 8. INICIALIZACIÓN DE LA APLICACIÓN (Reforzado)
 // ===============================================
 
-async function initializeApp() {
-    // 1. Cargar selectores dinámicos (Categorías)
-    await populateCategorySelector(); 
+document.addEventListener('DOMContentLoaded', async () => {
+    // Inicialización de Supabase, garantizando que el SDK ya está cargado.
+    supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    // 2. Cargar datos del dashboard
+    setupEventListeners();
+
+    // Simulación de estado de usuario: si no hay sesión, muestra el login
+    // En un proyecto real, se usaría supabase.auth.getSession()
+    
+    // Simulamos un login exitoso por ahora para cargar el dashboard
+    authModal.classList.add('hidden');
+    appContainer.classList.remove('hidden');
+    
+    // Carga inicial de datos
     await fetchDashboardData(); 
-}
-
-
-// ===============================================
-// 11. EVENT LISTENERS
-// ===============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    checkAuthStatus(); // Verificar si hay sesión activa al cargar
-});
-
-// Autenticación
-loginForm.addEventListener('submit', handleLogin);
-logoutBtn.addEventListener('click', handleLogout);
-
-// Modal de Venta
-addSaleBtn.addEventListener('click', () => addSaleModal.classList.remove('hidden'));
-closeAddSaleModalBtn.addEventListener('click', () => addSaleModal.classList.add('hidden'));
-addSaleForm.addEventListener('submit', handleAddSale);
-
-// Modal de Abono
-// Alerta para el botón principal (acción rápida)
-document.getElementById('updateDebtBtn').addEventListener('click', () => {
-    alert('Por favor, selecciona un cliente de la lista "Deudas Pendientes" para registrar un abono.');
-});
-closeUpdateDebtModalBtn.addEventListener('click', () => updateDebtModal.classList.add('hidden')); 
-updateDebtForm.addEventListener('submit', handleUpdateDebt);
-
-// Modal de Perfil de Usuario
-document.getElementById('openProfileModalBtn').addEventListener('click', () => userProfileModal.classList.remove('hidden'));
-closeProfileModal.addEventListener('click', () => userProfileModal.classList.add('hidden'));
-
-
-// Modal de Administración de Productos/Categorías
-addProductAdminBtn.addEventListener('click', async () => {
-    productAdminModal.classList.remove('hidden');
-    await loadCategoryAdminList(); 
-});
-closeProductAdminModalBtn.addEventListener('click', () => {
-    productAdminModal.classList.add('hidden');
+    await renderCategoryAdmin(); // Pre-carga categorías para el select de venta
 });
