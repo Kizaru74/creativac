@@ -1,569 +1,362 @@
 // main.js
 
-// ----------------------------------------------------
-// 1. IMPORTACIONES
-// ----------------------------------------------------
-import './style.css' 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.44.0/+esm';
 
-// NOTA IMPORTANTE: Select2 requiere que jQuery y Select2 JS estén cargados 
-// en tu index.html ANTES de este script.
-
-// ===============================================
-// 2. CONFIGURACIÓN E INICIALIZACIÓN DE SUPABASE
-// ===============================================
+// Configuración de Supabase (CLAVES PROPORCIONADAS)
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// #####################################################################
+// I. VARIABLES GLOBALES DE UI
+// #####################################################################
 
-// ===============================================
-// 3. VARIABLES GLOBALES Y ELEMENTOS DOM
-// ===============================================
-
-// Variables de estado
-let CURRENT_DEBT_CLIENT_ID = null;
-
-// Contenedores de la aplicación
+// Contenedores principales
 const authModal = document.getElementById('auth-modal');
 const appContainer = document.getElementById('app-container');
 
-// Elementos del Resumen (KPIs)
-const totalSalesDisplay = document.getElementById('totalSalesDisplay');
-const totalDebtDisplay = document.getElementById('totalDebtDisplay');
-const debtorCountDisplay = document.getElementById('debtorCountDisplay');
-
-// Tablas
-const debtListBody = document.getElementById('debtListBody'); 
-const salesListBody = document.getElementById('salesListBody'); 
-const adminContentArea = document.getElementById('admin-content-area');
-
-// Forms y Modales
+// Formularios
 const loginForm = document.getElementById('login-form');
 const addSaleForm = document.getElementById('add-sale-form');
 const updateDebtForm = document.getElementById('update-debt-form');
+const profileUpdateForm = document.getElementById('profile-update-form');
+
+// Botones de acción
+const addSaleBtn = document.getElementById('addSaleBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const addProductAdminBtn = document.getElementById('addProductAdminBtn'); // Botón para abrir admin
+
+// Modales
 const addSaleModal = document.getElementById('add-sale-modal');
 const updateDebtModal = document.getElementById('update-debt-modal');
 const productAdminModal = document.getElementById('product-admin-modal');
 const userProfileModal = document.getElementById('user-profile-modal');
+const productPackageModal = document.getElementById('product-package-modal'); // Modal de Subcategorías
 
-// Elementos específicos de formularios y displays
-const saleClientNameInput = document.getElementById('sale-client-name'); 
-const saleAmountInput = document.getElementById('sale-amount');
-const saleDescriptionInput = document.getElementById('sale-description');
-const debtClientDisplay = document.getElementById('debt-client-display');
-const debtPaymentAmountInput = document.getElementById('debt-payment-amount');
+// Contenedores de datos
+const debtListBody = document.getElementById('debtListBody');
+const salesListBody = document.getElementById('salesListBody');
+const totalSalesDisplay = document.getElementById('totalSalesDisplay');
+const totalDebtDisplay = document.getElementById('totalDebtDisplay');
+const debtorCountDisplay = document.getElementById('debtorCountDisplay');
 
-// Selects para la jerarquía de Venta
-const baseProductSelect = document.getElementById('base-product-id'); 
-const subcategorySelect = document.getElementById('subcategory-id');
+// Selects para el formulario de venta (usando jQuery para Select2)
+const baseProductIdSelect = $('#base-product-id');
+const subcategoryIdSelect = $('#subcategory-id');
+
+// Administración de Productos
+const mainProductsContent = document.getElementById('main-products-content');
+const addMainProductForm = document.getElementById('add-main-product-form');
+const packageMainProductName = document.getElementById('package-main-product-name');
+const addPackageForm = document.getElementById('add-package-form');
+const packagesListBody = document.getElementById('packages-list-body');
 
 
-// ===============================================
-// 4. FUNCIONES DE AUTENTICACIÓN (Placeholder)
-// ===============================================
+// #####################################################################
+// II. UTILIDADES Y MANEJO DE ESTADO
+// #####################################################################
 
-async function handleLogin(e) {
-    e.preventDefault();
-    alert('Simulación: Acceso exitoso. En un proyecto real, use supabase.auth.signInWithPassword.');
-    
-    authModal.classList.add('hidden');
-    appContainer.classList.remove('hidden');
-    await fetchDashboardData(); 
+let currentDebtorId = null;
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+    }).format(amount);
 }
 
-async function handleLogout() {
-    alert('Sesión cerrada. En un proyecto real, use supabase.auth.signOut().');
-    
-    appContainer.classList.add('hidden');
-    authModal.classList.remove('hidden');
-}
-
-
-// ===============================================
-// 5. FUNCIONES CRUD GENERALES
-// ===============================================
-
-/**
- * Busca un cliente por nombre. Si no existe, lo crea.
- * Retorna el ID del cliente (existente o nuevo).
- */
-async function findOrCreateClientByName(name) {
-    const clientName = name.trim();
-    if (!clientName) throw new Error('El nombre del cliente no puede estar vacío.');
-    
-    // 1. Buscar Cliente existente
-    let { data: clients, error: searchError } = await supabase
-        .from('clientes')
-        .select('id')
-        .eq('name', clientName)
-        .limit(1);
-
-    if (searchError) throw new Error('Error buscando cliente: ' + searchError.message);
-
-    if (clients && clients.length > 0) {
-        // Cliente encontrado, retorna su ID
-        console.log(`Cliente "${clientName}" encontrado con ID: ${clients[0].id}`);
-        return clients[0].id;
+function toggleAppVisibility(isAuthenticated) {
+    if (isAuthenticated) {
+        authModal.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+        if (debtListBody.innerHTML === '') {
+            fetchDashboardData();
+        }
+    } else {
+        authModal.classList.remove('hidden');
+        appContainer.classList.add('hidden');
+        debtListBody.innerHTML = '';
+        salesListBody.innerHTML = '';
+        totalSalesDisplay.textContent = '...';
+        totalDebtDisplay.textContent = '...';
+        debtorCountDisplay.textContent = '...';
     }
+}
 
-    // 2. Cliente no encontrado, CREAR nuevo cliente
-    console.log(`Cliente "${clientName}" no encontrado. Creando nuevo cliente...`);
-    const { data: newClient, error: insertError } = await supabase
-        .from('clientes')
-        .insert([{ name: clientName }])
-        .select('id')
-        .single();
+function handleSupabaseError(context, error) {
+    console.error(`Error en ${context}:`, error);
+    alert(`Error al ${context}: ${error.message || error}`);
+}
 
-    if (insertError) throw new Error('Error creando cliente: ' + insertError.message);
+// #####################################################################
+// III. LÓGICA DE AUTENTICACIÓN Y VENTA
+// #####################################################################
+
+// Función para registrar venta (usa RPC)
+async function registerSale({ clientName, amount, baseProductId, subcategoryId, description }) {
+    const saleAmount = parseFloat(amount);
     
-    // Retorna el ID del nuevo cliente
-    console.log(`Nuevo cliente creado con ID: ${newClient.id}`);
-    return newClient.id;
-}
-
-
-/**
- * Registra una nueva venta.
- */
-async function registerSale(clientId, amount, categoryId, detailedDescription) {
-    const { error } = await supabase
-        .from('ventas')
-        .insert([
-            {
-                client_id: clientId,
-                amount: amount,
-                category_id: categoryId, 
-                products: detailedDescription, 
-                created_at: new Date().toISOString()
-            }
-        ]);
-
-    if (error) throw new Error('Error al registrar venta: ' + error.message);
-    return true;
-}
-
-/**
- * Registra un pago/abono en la tabla 'pagos'.
- */
-async function registerPayment(clientId, amount) {
-    const { error } = await supabase
-        .from('pagos')
-        .insert([
-            {
-                client_id: clientId,
-                amount: amount,
-                created_at: new Date().toISOString()
-            }
-        ]);
-
-    if (error) throw new Error('Error al registrar pago: ' + error.message);
-    return true;
-}
-
-/**
- * Registra un nuevo item (Producto MAIN o Subcategoría PACKAGE).
- */
-async function registerItem(name, type, parentProductId, price) {
-    
-    const parentId = type === 'MAIN' ? null : parseInt(parentProductId) || null;
-
-    const { error } = await supabase
-        .from('categorias') 
-        .insert([{ 
-            name: name, 
-            type: type, 
-            parent_product: parentId,
-            price: price 
-        }]); 
-
-    if (error) throw new Error('Error al crear item: ' + error.message);
-    return true;
-}
-
-async function deleteCategory(itemId) {
-    const { error } = await supabase
-        .from('categorias')
-        .delete()
-        .eq('id', itemId);
-
-    if (error) throw new Error('Error al borrar item: ' + error.message);
-    return true;
-}
-
-
-// ===============================================
-// 6. FUNCIONES DE RENDERIZADO Y DASHBOARD
-// ===============================================
-
-async function fetchDashboardData() {
     try {
-        const { data: debtData, error: debtError } = await supabase
-            .from('clientes_con_deuda')
-            .select('debt');
-
-        if (debtError) throw debtError;
-
-        let totalDebt = 0;
-        let debtorCount = 0;
-
-        if (debtData && debtData.length > 0) {
-            debtData.forEach(client => {
-                totalDebt += parseFloat(client.debt);
+        const { error: debtUpdateError } = await supabase
+            .rpc('update_client_debt', {
+                p_client_name: clientName, 
+                p_amount: saleAmount,
+                p_main_product_id: parseInt(baseProductId),
+                p_package_id: parseInt(subcategoryId),
+                p_description: description
             });
-            debtorCount = debtData.length;
-        }
 
-        let salesData = 0;
-        const { data: salesResult } = await supabase
-            .from('total_ventas_dashboard')
-            .select('total_sales')
-            .single();
+        if (debtUpdateError) throw new Error(`Error al procesar venta: ${debtUpdateError.message}`);
 
-        if (salesResult) {
-            salesData = parseFloat(salesResult.total_sales);
-        }
+        alert(`Venta registrada con éxito. Se sumaron ${formatCurrency(saleAmount)} a la deuda de ${clientName}.`);
         
-        totalSalesDisplay.textContent = `$${salesData.toFixed(2)}`;
-        totalDebtDisplay.textContent = `$${totalDebt.toFixed(2)}`;
-        debtorCountDisplay.textContent = debtorCount;
-        
-        await renderDebtList();
-        await renderSalesList(); 
+        fetchDashboardData();
+        addSaleModal.classList.add('hidden');
 
     } catch (error) {
-        console.error('Error al cargar dashboard:', error);
+        handleSupabaseError('registrar venta', error);
     }
 }
 
-async function renderDebtList() {
-    const { data: clients, error } = await supabase
-        .from('clientes_con_deuda') 
-        .select('id, name, debt, last_update')
-        .order('debt', { ascending: false })
-        .limit(10);
+function initAuth() {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        toggleAppVisibility(!!session);
+    });
 
-    if (error) {
-        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Error al cargar deudas.</td></tr>';
-        return;
-    }
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const identifier = document.getElementById('login-identifier').value;
+        const password = document.getElementById('login-password').value;
 
-    if (!clients || clients.length === 0) {
-        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay deudas pendientes registradas.</td></tr>';
-        return;
-    }
-    
-    debtListBody.innerHTML = clients.map(client => `
-        <tr class="hover:bg-gray-50">
-            <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
-            <td class="p-4 whitespace-nowrap text-sm text-red-600 font-semibold">$${parseFloat(client.debt).toFixed(2)}</td>
-            <td class="p-4 whitespace-nowrap text-sm text-gray-500">${client.last_update ? new Date(client.last_update).toLocaleDateString() : 'N/A'}</td>
-            <td class="p-4 whitespace-nowrap text-sm font-medium">
-                <button data-client-id="${client.id}" 
-                        data-client-name="${client.name}"
-                        class="open-debt-modal-btn text-yellow-600 hover:text-yellow-900 text-sm py-1 px-2 rounded bg-yellow-100">
-                    Abonar
-                </button>
-            </td>
-        </tr>
-    `).join('');
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email: identifier,
+                password: password,
+            });
 
-    debtListBody.querySelectorAll('.open-debt-modal-btn').forEach(btn => {
-        btn.addEventListener('click', handleOpenUpdateDebtModal);
+            if (error) {
+                alert(`Error de autenticación: ${error.message}. Asegúrate de que las credenciales sean correctas.`);
+                return;
+            }
+            toggleAppVisibility(true);
+
+        } catch (error) {
+            handleSupabaseError('autenticar', error);
+        }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+        try {
+            await supabase.auth.signOut();
+            toggleAppVisibility(false);
+            window.location.reload(); 
+        } catch (error) {
+            handleSupabaseError('cerrar sesión', error);
+        }
     });
 }
 
-async function renderSalesList() {
+// #####################################################################
+// IV. DASHBOARD - CARGA DE DATOS
+// #####################################################################
+
+async function fetchDashboardData() {
+    await Promise.all([
+        fetchAggregates(),
+        fetchTopDebts(),
+        fetchLatestSales(), 
+        populateProductSelects()
+    ]);
+}
+
+async function fetchAggregates() {
     try {
-        const { data: sales, error } = await supabase
-            .from('ventas')
-            .select(`
-                id,
-                amount,
-                created_at,
-                products,
-                clientes (name),    
-                categorias (name)    
-            `)
-            .order('created_at', { ascending: false })
-            .limit(10); 
+        // Asumiendo que estas 3 funciones RPC ya están corregidas en el SQL
+        const { data: sales, error: salesError } = await supabase.rpc('get_total_sales'); 
+        const { data: debt, error: debtError } = await supabase.rpc('get_total_debt'); 
+        const { data: debtorCount, error: countError } = await supabase.rpc('get_debtor_count'); 
+
+        if (salesError || debtError || countError) {
+            throw new Error(salesError?.message || debtError?.message || countError?.message);
+        }
+
+        totalSalesDisplay.textContent = formatCurrency(sales[0]?.total_sales || 0);
+        totalDebtDisplay.textContent = formatCurrency(debt[0]?.total_debt || 0);
+        debtorCountDisplay.textContent = (debtorCount[0]?.debtor_count || 0).toString();
+
+    } catch (error) {
+        handleSupabaseError('cargar resumen', error);
+    }
+}
+
+// Consulta la tabla 'clientes' (USANDO name y debt)
+async function fetchTopDebts() {
+    try {
+        const { data, error } = await supabase
+            .from('clientes') 
+            .select('id, name, debt, last_update') // <-- USAMOS 'name' y 'debt'
+            .gt('debt', 0) 
+            .order('debt', { ascending: false }) 
+            .limit(5);
 
         if (error) throw error;
 
-        if (!sales || sales.length === 0) {
-            salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';
-            return;
-        }
+        debtListBody.innerHTML = data.map(debtor => `
+            <tr class="hover:bg-gray-50">
+                <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${debtor.name}</td> 
+                <td class="p-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debtor.debt)}</td> 
+                <td class="p-4 whitespace-nowrap text-sm text-gray-500">${new Date(debtor.last_update).toLocaleDateString()}</td>
+                <td class="p-4 whitespace-nowrap text-sm">
+                    <button data-client-id="${debtor.id}" class="open-update-debt-modal text-indigo-600 hover:text-indigo-900">
+                        Registrar Abono
+                    </button>
+                </td>
+            </tr>
+        `).join('');
 
-        salesListBody.innerHTML = sales.map(sale => {
+    } catch (error) {
+        handleSupabaseError('cargar deudas', error);
+        debtListBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Error al cargar deudas.</td></tr>';
+    }
+}
+
+// Consulta la vista 'transacciones_detalle_view'
+async function fetchLatestSales() {
+    try {
+        const { data, error } = await supabase
+            .from('transacciones_detalle_view') 
+            .select(`
+                client_name, 
+                amount, 
+                created_at,
+                main_product_name,
+                package_name
+            `)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (error) throw error;
+
+        salesListBody.innerHTML = data.map(sale => `
+            <tr class="hover:bg-gray-50">
+                <td class="p-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.client_name}</td>
+                <td class="p-4 whitespace-nowrap text-sm text-green-600">${formatCurrency(sale.amount)}</td>
+                <td class="p-4 text-sm text-gray-500 product-cell" title="${sale.main_product_name} / ${sale.package_name || ''}">
+                    ${sale.main_product_name || 'N/A'} / ${sale.package_name || 'N/A'}
+                </td>
+                <td class="p-4 whitespace-nowrap text-sm text-gray-500">${new Date(sale.created_at).toLocaleDateString()}</td>
+                <td class="p-4 whitespace-nowrap text-sm">
+                    <span class="text-gray-400">Detalle</span>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (error) {
+        handleSupabaseError('cargar ventas recientes', error);
+        salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error al cargar ventas recientes. Asegúrate de que la tabla/vista "transacciones_detalle_view" exista.</td></tr>';
+    }
+}
+
+// #####################################################################
+// V. PRODUCTOS - POBLAR SELECTS EN MODAL DE VENTA
+// #####################################################################
+
+async function populateProductSelects() {
+    try {
+        // 1. Cargar Productos Principales (type = MAIN)
+        const { data: mainProducts, error: mainError } = await supabase
+            .from('productos')
+            .select('id, name')
+            .eq('type', 'MAIN')
+            .order('name');
+
+        if (mainError) throw mainError;
+
+        baseProductIdSelect.empty().append('<option value="">-- Seleccionar Producto Base --</option>');
+        mainProducts.forEach(p => {
+            baseProductIdSelect.append(new Option(p.name, p.id));
+        });
+
+        // 2. Manejar el cambio en el Producto Principal
+        baseProductIdSelect.on('change', async function() {
+            const mainId = $(this).val();
+            subcategoryIdSelect.empty().prop('disabled', true).select2('destroy').val('').select2();
             
-            const clientName = sale.clientes?.name ?? 'Desconocido';
-            const itemDescription = sale.products || (sale.categorias?.name ?? 'N/A'); 
-            const dateDisplay = new Date(sale.created_at).toLocaleString();
+            if (mainId) {
+                // Cargar Subcategorías (type = PACKAGE y parent_product = ID del MAIN)
+                const { data: packages, error: packageError } = await supabase
+                    .from('productos') 
+                    .select('id, name')
+                    .eq('type', 'PACKAGE')
+                    .eq('parent_product', mainId)
+                    .order('name');
+                
+                if (packageError) throw packageError;
 
-            return `
-                <tr class="hover:bg-gray-50">
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-900">${clientName}</td>
-                    <td class="p-4 whitespace-nowrap text-sm font-semibold text-green-600">$${parseFloat(sale.amount).toFixed(2)}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-500">${itemDescription}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-500">${dateDisplay}</td>
-                    <td class="p-4 whitespace-nowrap text-sm font-medium">
-                        <button data-sale-id="${sale.id}" class="edit-sale-btn text-indigo-600 hover:text-indigo-900 text-sm py-1 px-2 rounded bg-indigo-100">
-                            Editar
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-        
-
-    } catch (error) {
-        console.error('Error al cargar lista de ventas:', error);
-        salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error al cargar ventas.</td></tr>';
-    }
-}
-
-
-// ===============================================
-// 7. FUNCIONES DE CARGA JERÁRQUICA DE VENTA
-// ===============================================
-
-/**
- * Carga los productos base (los de type = 'MAIN').
- */
-async function fetchBaseProducts() {
-    const { data, error } = await supabase
-        .from('categorias') 
-        .select('id, name')
-        .eq('type', 'MAIN') 
-        .order('name');
-        
-    if (error) throw error;
-    return data;
-}
-
-/**
- * Carga las subcategorías (los de type = 'PACKAGE') que dependen del padre.
- */
-async function fetchSubcategories(baseProductId) {
-    if (!baseProductId) return [];
-    
-    const { data, error } = await supabase
-        .from('categorias')
-        .select('id, name, price') 
-        .eq('type', 'PACKAGE') 
-        .eq('parent_product', parseInt(baseProductId)) 
-        .order('name');
-        
-    if (error) throw error;
-    return data;
-}
-
-async function renderSaleSelects() {
-    try {
-        if (!baseProductSelect || !subcategorySelect) {
-            console.warn("Elementos de selección de venta no encontrados. Verifique su HTML.");
-            return;
-        }
-
-        const baseProducts = await fetchBaseProducts(); 
-        
-        // 1. Llenar el select de Productos Principales (MAIN)
-        baseProductSelect.innerHTML = '<option value="">-- Seleccionar Producto Base --</option>';
-        baseProducts.forEach(p => {
-            baseProductSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                subcategoryIdSelect.append('<option value="">-- Seleccionar Subcategoría --</option>');
+                packages.forEach(p => {
+                    subcategoryIdSelect.append(new Option(p.name, p.id));
+                });
+                subcategoryIdSelect.prop('disabled', false).select2('destroy').select2({
+                    width: '100%',
+                    dropdownParent: addSaleModal 
+                });
+            }
+        }).select2({
+            width: '100%',
+            dropdownParent: addSaleModal
         });
         
-        // 2. Limpiar e inicializar el select de Subcategorías (PACKAGE)
-        subcategorySelect.innerHTML = '<option value="">-- Seleccionar Subcategoría --</option>'; 
-        addSaleForm.reset(); 
+        subcategoryIdSelect.select2({
+            width: '100%',
+            dropdownParent: addSaleModal
+        }).prop('disabled', true);
 
     } catch (error) {
-        console.error("Error al cargar selects de venta:", error);
-    }
-}
-
-async function handleBaseProductChange() {
-    const baseProductId = baseProductSelect.value;
-    
-    // Destruir Select2 para actualizar el HTML interno y volver a inicializar
-    if (typeof $ !== 'undefined' && $('#subcategory-id').data('select2')) {
-        $('#subcategory-id').select2('destroy');
-    }
-    
-    subcategorySelect.innerHTML = '<option value="">-- Seleccionar Subcategoría --</option>';
-    
-    if (baseProductId) {
-        try {
-            const subcategories = await fetchSubcategories(baseProductId); 
-            subcategories.forEach(s => {
-                const price = s.price ? parseFloat(s.price).toFixed(2) : '0.00';
-                subcategorySelect.innerHTML += `<option value="${s.id}" data-price="${price}">${s.name} (+ $${price})</option>`;
-            });
-        } catch (error) {
-            console.error("Error al cargar subcategorías:", error);
-        }
-    }
-    
-    // Volver a inicializar Select2 después de actualizar el HTML
-    if (typeof $ !== 'undefined') {
-        $('#subcategory-id').select2({
-            dropdownParent: $('#add-sale-modal'),
-            placeholder: "-- Seleccionar Subcategoría --",
-            allowClear: true
-        });
+        handleSupabaseError('poblar selectores de productos', error);
     }
 }
 
 
-// ===============================================
-// 8. MANEJO DE FORMULARIOS Y MODALES
-// ===============================================
+// #####################################################################
+// VI. ADMINISTRACIÓN DE PRODUCTOS PRINCIPALES (productos)
+// #####################################################################
 
-function openModal(modal) {
-    modal.classList.remove('hidden');
-}
-
-function closeModal(modal) {
-    // 🛑 Destruir Select2 al cerrar el modal de venta
-    if (modal.id === 'add-sale-modal' && typeof $ !== 'undefined' && $('#subcategory-id').data('select2')) {
-        $('#subcategory-id').select2('destroy');
-    }
-    
-    modal.classList.add('hidden');
-    if (modal.querySelector('form')) {
-        modal.querySelector('form').reset();
-    }
-}
-
-// --- VENTA (Ajustado a Creación de Cliente por Nombre) ---
-async function handleNewSale(e) {
-    e.preventDefault();
-
-    const clientName = saleClientNameInput.value.trim(); // Tomar el nombre
-    const amount = parseFloat(saleAmountInput.value);
-    const subcategoryId = subcategorySelect.value;
-    
-    // Validaciones básicas
-    if (!clientName || clientName.length < 3) {
-        alert('Por favor, ingresa un nombre de cliente válido (mínimo 3 caracteres).');
-        return;
-    }
-    if (!baseProductSelect.value || !subcategoryId) {
-        alert('Por favor, selecciona un Producto Base y una Subcategoría.');
-        return;
-    }
-    if (isNaN(amount) || amount <= 0) {
-        alert('Por favor, ingresa un monto de venta válido.');
-        return;
-    }
-    
-    const baseProductText = baseProductSelect.options[baseProductSelect.selectedIndex].text;
-    const subcategoryText = subcategorySelect.options[subcategorySelect.selectedIndex].text;
-    
-    const detailedDescription = `${baseProductText} > ${subcategoryText} | Notas: ${saleDescriptionInput.value.trim()}`;
-    
-    let clientId;
+async function fetchMainProducts() {
     try {
-        // 🛑 PASO CLAVE: Buscar/Crear el cliente y obtener su ID
-        clientId = await findOrCreateClientByName(clientName);
+        // CORREGIDO: Usamos 'productos' y filtramos por MAIN
+        const { data, error } = await supabase
+            .from('productos')
+            .select('id, name, description') 
+            .eq('type', 'MAIN')
+            .order('name');
+
+        if (error) throw error;
         
+        mainProductsContent.innerHTML = renderItemList(data, 'MAIN');
+        attachAdminEventListeners(); 
+
     } catch (error) {
-        console.error('Error al obtener/crear cliente:', error);
-        alert('Error al gestionar el cliente. No se puede registrar la venta.');
-        return;
-    }
-
-    try {
-        // Usar el ID del cliente (existente o recién creado)
-        await registerSale(clientId, amount, subcategoryId, detailedDescription);
-        
-        alert(`Venta registrada con éxito para el cliente: ${clientName}.`);
-        closeModal(addSaleModal);
-        await fetchDashboardData(); 
-        
-    } catch (error) {
-        console.error('Error al registrar venta:', error);
-        alert('Error al registrar venta. Revise la consola.');
+        handleSupabaseError('cargar productos principales', error);
+        mainProductsContent.innerHTML = '<p class="text-red-500">Error al cargar productos principales.</p>';
     }
 }
 
-// --- ABONO ---
-function handleOpenUpdateDebtModal(e) {
-    const clientId = e.target.dataset.clientId;
-    const clientName = e.target.dataset.clientName;
-    
-    CURRENT_DEBT_CLIENT_ID = clientId;
-    debtClientDisplay.textContent = `${clientName} (ID: ${clientId})`;
-    openModal(updateDebtModal);
-}
-
-async function handleUpdateDebt(e) {
-    e.preventDefault();
-    
-    const client_id = parseInt(CURRENT_DEBT_CLIENT_ID); 
-    const paymentAmount = parseFloat(debtPaymentAmountInput.value);
-
-    if (isNaN(client_id) || !client_id) {
-        alert('Error: No se ha seleccionado un cliente válido.');
-        return;
-    }
-
-    if (isNaN(paymentAmount) || paymentAmount <= 0) {
-        alert('Por favor, ingresa un monto de abono válido.');
-        return;
-    }
-
-    try {
-        await registerPayment(client_id, paymentAmount);
-        alert('Abono registrado con éxito.');
-        closeModal(updateDebtModal);
-        await fetchDashboardData(); 
-        
-    } catch (error) {
-        console.error('Error al registrar abono:', error);
-        alert('Error al registrar abono. Revise la consola.');
-    }
-}
-
-// --- ADMINISTRACIÓN DE ITEMS (Productos y Servicios) ---
-
-function setupAdminListeners() {
-    const newCatForm = document.getElementById('newCategoryForm');
-    if (newCatForm) {
-        newCatForm.removeEventListener('submit', handleNewItem); 
-        newCatForm.addEventListener('submit', handleNewItem);
-    }
-    
-    adminContentArea.querySelectorAll('.delete-category-btn').forEach(btn => {
-        btn.removeEventListener('click', handleDeleteItem);
-        btn.addEventListener('click', handleDeleteItem);
-    });
-
-    adminContentArea.querySelectorAll('.select-main-btn').forEach(row => {
-        row.removeEventListener('click', handleMainProductClick); 
-        row.addEventListener('click', handleMainProductClick);
-    });
-}
-
-/**
- * Función de renderizado del HTML de la lista de Items (Productos/Subcategorías).
- * Se ajustó para que la cabecera de la tabla sea sticky.
- */
 function renderItemList(items, type) {
     if (!items || items.length === 0) {
-        return '<p class="text-gray-500 p-4">No hay items de este tipo registrados.</p>';
+        return '<p class="text-gray-500 p-4">No hay productos registrados.</p>';
     }
     
-    // El contenedor principal (#packages-content) ya tiene max-h-96 overflow-y-auto.
-    // Usamos overflow-x-auto aquí para tablas que son demasiado anchas.
+    if (type !== 'MAIN') return; 
+
     let html = `
-    <div class="overflow-x-auto"> 
+    <div class="border border-gray-200 rounded-lg max-h-96 overflow-y-auto"> 
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50 sticky top-0 z-10"> 
                 <tr>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
                 </tr>
             </thead>
@@ -571,12 +364,14 @@ function renderItemList(items, type) {
     `;
 
     html += items.map(item => `
-        <tr class="hover:bg-gray-50 ${type === 'MAIN' ? 'cursor-pointer select-main-btn' : ''} ${type === 'MAIN' && item.selected ? 'bg-yellow-100' : ''}" 
-            ${type === 'MAIN' ? `data-main-id="${item.id}" data-main-name="${item.name}"` : ''}>
-            
+        <tr class="hover:bg-gray-50">
             <td class="p-3 whitespace-nowrap text-sm font-medium text-gray-900">${item.name}</td>
-            <td class="p-3 whitespace-nowrap text-sm text-green-600">$${parseFloat(item.price || 0).toFixed(2)}</td>
-            <td class="p-3 whitespace-nowrap text-sm font-medium">
+            <td class="p-3 text-sm text-gray-500 truncate max-w-xs">${item.description || 'N/A'}</td>
+            <td class="p-3 whitespace-nowrap text-sm font-medium space-x-2">
+                <button data-main-id="${item.id}" data-main-name="${item.name}" 
+                        class="view-packages-btn text-blue-600 hover:text-blue-900 text-sm">
+                    Ver Subcategorías
+                </button>
                 <button data-category-id="${item.id}" 
                         class="delete-category-btn text-red-600 hover:text-red-900 text-sm">
                     Eliminar
@@ -589,297 +384,293 @@ function renderItemList(items, type) {
     return html;
 }
 
-/**
- * Renderiza la lista de Subcategorías, opcionalmente filtrada por un Producto Padre.
- */
-async function renderPackagesList(mainId = null, mainName = 'Todos') {
-    const packagesContent = document.getElementById('packages-content');
-    const filterStatus = document.getElementById('subcategory-filter-status');
-    
-    if (!packagesContent || !filterStatus) return; 
-    
-    // Si no hay ID de producto principal, muestra la instrucción y sale.
-    if (!mainId) {
-        packagesContent.innerHTML = '<p class="text-gray-500 p-4">Seleccione un Producto Principal de la columna izquierda para ver sus Subcategorías asociadas.</p>';
-        filterStatus.textContent = ' (Seleccione Producto Base)';
-        // Resetear selección en MAINs
-        document.querySelectorAll('.select-main-btn').forEach(row => {
-            row.classList.remove('bg-yellow-100');
-        });
-        return; 
-    }
-
-    try {
-        let query = supabase
-            .from('categorias')
-            .select('id, name, type, price, parent_product')
-            .eq('type', 'PACKAGE')
-            .eq('parent_product', parseInt(mainId)) // Filtrar por el MAIN ID
-            .order('name');
-
-        filterStatus.textContent = ` (Filtrando por: ${mainName})`;
-
-        const { data: packages, error } = await query;
-        if (error) throw error;
-        
-        // Maneja el caso en que el MAIN no tiene Packages asociados
-        if (packages.length === 0) {
-            packagesContent.innerHTML = '<p class="text-gray-500 p-4">Este Producto Principal no tiene Subcategorías (PACKAGE) asignadas.</p>';
-        } else {
-            packagesContent.innerHTML = renderItemList(packages, 'PACKAGE');
-        }
-        
-        setupAdminListeners(); 
-        
-    } catch (error) {
-        console.error('Error al cargar lista de subcategorías filtradas:', error);
-        packagesContent.innerHTML = '<p class="text-red-500 p-4">Error al cargar subcategorías.</p>';
-    }
-}
-
-/**
- * Maneja el clic en un Producto Principal para filtrar Subcategorías.
- */
-function handleMainProductClick(e) {
-    const mainId = e.currentTarget.dataset.mainId;
-    const mainName = e.currentTarget.dataset.mainName;
-    
-    const allMainRows = document.querySelectorAll('.select-main-btn');
-    const isCurrentlySelected = e.currentTarget.classList.contains('bg-yellow-100');
-
-    // Quitar la selección a todas las filas
-    allMainRows.forEach(row => {
-        row.classList.remove('bg-yellow-100');
+function initProductAdminModal() {
+    addProductAdminBtn.addEventListener('click', () => {
+        productAdminModal.classList.remove('hidden');
+        // AÑADIDO/CONFIRMADO: Llamamos a la función para cargar los productos MAIN al abrir el modal.
+        fetchMainProducts(); 
     });
-    
-    if (isCurrentlySelected) {
-        // Si estaba seleccionado, lo deseleccionamos y mostramos lista vacía
-        renderPackagesList(null); 
-    } else {
-        // Seleccionamos la nueva fila y cargamos sus packages
-        e.currentTarget.classList.add('bg-yellow-100');
-        renderPackagesList(mainId, mainName);
-    }
+
+    document.getElementById('close-product-admin-modal').addEventListener('click', () => {
+        productAdminModal.classList.add('hidden');
+    });
+
+    // Crear Producto Principal
+    addMainProductForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('new-main-name').value.trim();
+        const description = document.getElementById('new-main-description').value;
+
+        try {
+            const { error } = await supabase
+                .from('productos')
+                .insert([{ 
+                    name, 
+                    description, 
+                    type: 'MAIN',
+                    parent_product: null 
+                }]);
+
+            if (error) throw error;
+            
+            alert(`Producto Principal "${name}" creado con éxito.`);
+            addMainProductForm.reset();
+            fetchMainProducts(); // Recargar la lista
+            populateProductSelects(); // Recargar selects de venta
+
+        } catch (error) {
+            handleSupabaseError('crear producto principal', error);
+        }
+    });
 }
 
-// Función de carga y renderizado de la interfaz de administración
-async function renderCategoryAdmin() {
-    try {
-        const { data: items, error } = await supabase
-            .from('categorias')
-            .select('id, name, type, price, parent_product'); 
+function attachAdminEventListeners() {
+    // 1. Eliminar Producto Principal
+    document.querySelectorAll('.delete-category-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = e.target.dataset.categoryId;
+            if (!confirm('¿Está seguro de eliminar este Producto Principal? Esto eliminará también sus subcategorías.')) return;
 
-        if (error) throw error;
-        
-        const mainProducts = items.filter(item => item.type === 'MAIN');
-        
-        const parentSelectOptions = mainProducts.map(p => 
-            `<option value="${p.id}">${p.name}</option>`
-        ).join('');
+            try {
+                const { error } = await supabase
+                    .from('productos')
+                    .delete()
+                    .eq('id', id);
 
-        
-        adminContentArea.innerHTML = `
-            <h4 class="text-xl font-bold mb-4">Gestión de Items (MAIN / PACKAGE)</h4>
-            
-            <div class="p-4 border rounded-lg bg-gray-50 mb-6">
-                <h4 class="text-lg font-semibold mb-3">Crear Nuevo Item</h4>
-                <form id="newCategoryForm" class="space-y-3 md:flex md:space-y-0 md:space-x-3 items-end">
-                    
-                    <div class="w-full md:w-1/5">
-                        <label for="itemType" class="block text-sm font-medium text-gray-700">Tipo</label>
-                        <select id="itemType" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
-                            <option value="">-- Seleccionar Tipo --</option>
-                            <option value="MAIN">Producto Principal</option>
-                            <option value="PACKAGE">PACKAGE</option>
-                        </select>
-                    </div>
-
-                    <div class="w-full md:w-1/5" id="parentProductContainer">
-                        <label for="parentProductId" class="block text-sm font-medium text-gray-700">Padre (Solo PACKAGE)</label>
-                        <select id="parentProductId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" disabled>
-                            <option value="">N/A</option>
-                            ${parentSelectOptions}
-                        </select>
-                    </div>
-
-                    <div class="w-full md:w-1/5">
-                        <label for="itemName" class="block text-sm font-medium text-gray-700">Nombre</label>
-                        <input type="text" id="itemName" required placeholder="Nombre" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
-                    </div>
-                    
-                    <div class="w-full md:w-1/5">
-                        <label for="itemPrice" class="block text-sm font-medium text-gray-700">Precio</label>
-                        <input type="number" step="0.01" id="itemPrice" placeholder="(Opcional) 0.00" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
-                    </div>
-
-                    <button type="submit" class="w-full md:w-1/5 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded h-10">
-                        Guardar
-                    </button>
-                </form>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                if (error) throw error;
                 
-                <div class="p-4 border rounded-lg bg-white shadow-md">
-                    <h5 class="text-lg font-semibold mb-3">📦 Productos Principales (Haga clic para filtrar)</h5>
-                    
-                    <div class="max-h-96 overflow-y-auto"> 
-                        ${renderItemList(mainProducts, 'MAIN')}
-                    </div>
-                </div>
+                alert('Producto Principal eliminado con éxito.');
+                fetchMainProducts();
+                populateProductSelects(); // Recargar selects de venta
 
-                <div class="p-4 border rounded-lg bg-white shadow-md">
-                    <h5 class="text-lg font-semibold mb-3">🛠️ Subcategorías <span id="subcategory-filter-status" class="text-sm font-normal text-indigo-500"> (Seleccione Producto Base)</span></h5>
-                    
-                    <div id="packages-content" class="max-h-96 overflow-y-auto"> 
-                        <p class="text-gray-500 p-4">Seleccione un Producto Principal de la columna izquierda para ver sus Subcategorías asociadas.</p>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        setupAdminListeners();
-
-        document.getElementById('itemType').addEventListener('change', (e) => {
-            const parentSelect = document.getElementById('parentProductId');
-            parentSelect.disabled = (e.target.value !== 'PACKAGE');
-            if (e.target.value === 'MAIN') {
-                parentSelect.value = ""; 
+            } catch (error) {
+                handleSupabaseError('eliminar producto principal', error);
             }
         });
+    });
 
+    // 2. Abrir Modal de Subcategorías
+    document.querySelectorAll('.view-packages-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const mainId = e.target.dataset.mainId;
+            const mainName = e.target.dataset.mainName;
+            openPackageAdminModal(mainId, mainName);
+        });
+    });
+}
+
+
+// #####################################################################
+// VII. ADMINISTRACIÓN DE SUBCATEGORÍAS (PACKAGE)
+// #####################################################################
+
+function openPackageAdminModal(mainId, mainName) {
+    packageMainProductName.textContent = mainName;
+    addPackageForm.dataset.mainId = mainId;
+    
+    productAdminModal.classList.add('hidden');
+    productPackageModal.classList.remove('hidden');
+
+    fetchAndRenderPackages(mainId);
+}
+
+function closePackageAdminModal() {
+    productPackageModal.classList.add('hidden');
+    productAdminModal.classList.remove('hidden');
+    addPackageForm.reset();
+}
+
+document.getElementById('close-product-package-modal').addEventListener('click', closePackageAdminModal);
+
+
+async function fetchAndRenderPackages(mainId) {
+    try {
+        const { data, error } = await supabase
+            .from('productos')
+            .select('id, name, description')
+            .eq('type', 'PACKAGE')
+            .eq('parent_product', mainId)
+            .order('name');
+
+        if (error) throw error;
+        
+        renderPackageList(data);
+        attachPackageEventListeners();
 
     } catch (error) {
-        console.error('Error al cargar lista de ítems:', error);
-        adminContentArea.innerHTML = '<p class="text-red-500">Error al cargar ítems. Revise la consola.</p>';
+        handleSupabaseError('cargar subcategorías', error);
+        packagesListBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-500">Error al cargar subcategorías.</td></tr>';
     }
 }
 
-async function handleNewItem(e) {
+function renderPackageList(packages) {
+    if (!packages || packages.length === 0) {
+        packagesListBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">No hay subcategorías registradas para este producto.</td></tr>';
+        return;
+    }
+
+    packagesListBody.innerHTML = packages.map(pkg => `
+        <tr class="hover:bg-gray-50">
+            <td class="p-3 whitespace-nowrap text-sm font-medium text-gray-900">${pkg.name}</td>
+            <td class="p-3 text-sm text-gray-500 truncate max-w-xs">${pkg.description || 'N/A'}</td>
+            <td class="p-3 whitespace-nowrap text-sm font-medium">
+                <button data-package-id="${pkg.id}" 
+                        class="delete-package-btn text-red-600 hover:text-red-900 text-sm">
+                    Eliminar
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function attachPackageEventListeners() {
+    document.querySelectorAll('.delete-package-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const packageId = e.target.dataset.packageId;
+            const mainId = addPackageForm.dataset.mainId;
+            if (!confirm('¿Está seguro de eliminar esta Subcategoría?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('productos') 
+                    .delete()
+                    .eq('id', packageId);
+
+                if (error) throw error;
+                
+                alert('Subcategoría eliminada con éxito.');
+                fetchAndRenderPackages(mainId); 
+                populateProductSelects(); // Recargar selects de venta
+
+            } catch (error) {
+                handleSupabaseError('eliminar subcategoría', error);
+            }
+        });
+    });
+}
+
+// Crear Subcategoría
+addPackageForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const mainId = e.target.dataset.mainId;
+    const name = document.getElementById('new-package-name').value.trim();
+    const description = document.getElementById('new-package-description').value;
 
-    const nameInput = e.target.querySelector('#itemName');
-    const priceInput = e.target.querySelector('#itemPrice');
-    const typeSelect = e.target.querySelector('#itemType');
-    const parentSelect = e.target.querySelector('#parentProductId');
-
-    const name = nameInput.value.trim();
-    const type = typeSelect.value;
-    const parentProductId = parentSelect.value;
-    
-    const price = priceInput.value === '' ? null : parseFloat(priceInput.value); 
-
-    if (!name || !type) {
-        alert('El nombre y el tipo de item son obligatorios.');
-        return;
-    }
-    
-    if (priceInput.value !== '' && isNaN(price)) {
-        alert('El valor del precio debe ser un número válido.');
-        return;
-    }
-
-    if (type === 'PACKAGE' && !parentProductId) {
-        alert('Las subcategorías (PACKAGE) deben tener un Producto Padre (MAIN) asignado.');
+    if (!mainId) {
+        alert('Error: No se pudo obtener el ID del producto principal.');
         return;
     }
 
     try {
-        await registerItem(name, type, parentProductId, price); 
-        
-        alert(`Item de tipo "${type}" creado con éxito.`);
-        await renderCategoryAdmin(); 
-        
-    } catch (error) {
-        console.error('Error al crear item:', error);
-        alert('Error al crear item. Revise la consola.');
-    }
-}
+        const { error } = await supabase
+            .from('productos') 
+            .insert([{ 
+                name, 
+                description,
+                type: 'PACKAGE',
+                parent_product: parseInt(mainId) 
+            }]);
 
-async function handleDeleteItem(e) {
-    const itemId = e.target.dataset.categoryId; 
-    
-    if (!confirm('¿Estás seguro de que deseas eliminar este item? Esto puede romper la jerarquía o borrar ventas asociadas.')) {
+        if (error) throw error;
+        
+        alert(`Subcategoría "${name}" creada con éxito.`);
+        addPackageForm.reset();
+        fetchAndRenderPackages(mainId); 
+        populateProductSelects(); // Recargar selects de venta
+
+    } catch (error) {
+        handleSupabaseError('crear subcategoría', error);
+    }
+});
+
+
+// #####################################################################
+// VIII. OTROS LISTENERS DE EVENTOS (Venta y Abono)
+// #####################################################################
+
+// Listener para abrir modal de Venta
+addSaleBtn.addEventListener('click', () => {
+    addSaleModal.classList.remove('hidden');
+    populateProductSelects(); 
+});
+
+// Listener para cerrar modal de Venta
+document.getElementById('close-add-sale-modal').addEventListener('click', () => {
+    addSaleModal.classList.add('hidden');
+    addSaleForm.reset();
+    baseProductIdSelect.select2('destroy').val('').select2();
+    subcategoryIdSelect.select2('destroy').val('').select2();
+});
+
+// Listener para Abrir Modal de Abono (delegación de eventos)
+debtListBody.addEventListener('click', (e) => {
+    if (e.target.classList.contains('open-update-debt-modal')) {
+        currentDebtorId = e.target.dataset.clientId;
+        // Obtenemos el nombre del cliente de la primera celda <td>
+        document.getElementById('debt-client-display').textContent = e.target.closest('tr').querySelector('td').textContent;
+        updateDebtModal.classList.remove('hidden');
+    }
+});
+
+// Listener para cerrar modal de Abono
+document.getElementById('close-update-debt-modal').addEventListener('click', () => {
+    updateDebtModal.classList.add('hidden');
+    updateDebtForm.reset();
+    currentDebtorId = null;
+});
+
+
+// Enviar Formulario de Venta
+addSaleForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const clientName = document.getElementById('sale-client-name').value;
+    const amount = document.getElementById('sale-amount').value;
+    const baseProductId = baseProductIdSelect.val();
+    const subcategoryId = subcategoryIdSelect.val();
+    const description = document.getElementById('sale-description').value;
+
+    if (!baseProductId || !subcategoryId) {
+        alert('Por favor, selecciona tanto el Producto Principal como la Subcategoría.');
+        return;
+    }
+
+    await registerSale({ clientName, amount, baseProductId, subcategoryId, description });
+});
+
+// Enviar Formulario de Abono
+updateDebtForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const amount = document.getElementById('debt-payment-amount').value;
+
+    if (!currentDebtorId || !amount) {
+        alert('Faltan datos de cliente o monto de abono.');
         return;
     }
 
     try {
-        await deleteCategory(itemId); 
-        alert('Item eliminado con éxito.');
-        await renderCategoryAdmin(); 
-        await fetchDashboardData(); 
-        
-    } catch (error) {
-        console.error('Error al borrar item:', error);
-        alert('Error al borrar el item. Revise la consola.');
-    }
-}
-
-// ===============================================
-// 9. EVENT LISTENERS Y INICIALIZACIÓN
-// ===============================================
-
-function setupEventListeners() {
-    // ------------------------------------
-    // Autenticación y Perfil
-    // ------------------------------------
-    loginForm.addEventListener('submit', handleLogin);
-    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-    document.getElementById('openProfileModalBtn').addEventListener('click', () => openModal(userProfileModal));
-
-    // ------------------------------------
-    // Abrir Modales
-    // ------------------------------------
-    document.getElementById('addSaleBtn').addEventListener('click', async () => {
-        await renderSaleSelects(); 
-        openModal(addSaleModal);
-        
-        // ✨ Inicializar Select2 al abrir
-        if (typeof $ !== 'undefined') {
-            $('#subcategory-id').select2({
-                dropdownParent: $('#add-sale-modal'), 
-                placeholder: "-- Seleccionar Subcategoría --",
-                allowClear: true
+        // Usa el ID del cliente de la tabla clientes
+        const { error } = await supabase
+            .rpc('register_payment', {
+                p_client_id: parseInt(currentDebtorId), 
+                p_amount: parseFloat(amount)
             });
-        }
-    });
-    document.getElementById('addProductAdminBtn').addEventListener('click', async () => {
-        await renderCategoryAdmin();
-        openModal(productAdminModal);
-    });
-    
-    // ------------------------------------
-    // Cierre de Modales
-    // ------------------------------------
-    document.getElementById('close-add-sale-modal').addEventListener('click', () => closeModal(addSaleModal));
-    document.getElementById('close-update-debt-modal').addEventListener('click', () => closeModal(updateDebtModal));
-    document.getElementById('close-product-admin-modal').addEventListener('click', () => closeModal(productAdminModal));
-    document.getElementById('closeProfileModal').addEventListener('click', () => closeModal(userProfileModal));
 
-    // ------------------------------------
-    // Asignación de Forms (Venta y Abono)
-    // ------------------------------------
-    addSaleForm.addEventListener('submit', handleNewSale);
-    updateDebtForm.addEventListener('submit', handleUpdateDebt);
-    
-    // ------------------------------------
-    // Selects Encadenados (Venta)
-    // ------------------------------------
-    if (baseProductSelect) { 
-        baseProductSelect.addEventListener('change', handleBaseProductChange);
-    } else {
-        console.warn("Elemento 'base-product-id' no encontrado en el DOM. Verifique su HTML de venta.");
+        if (error) throw error;
+        
+        alert(`Abono de ${formatCurrency(amount)} registrado con éxito.`);
+        fetchDashboardData();
+        updateDebtModal.classList.add('hidden');
+
+    } catch (error) {
+        handleSupabaseError('registrar abono', error);
     }
-}
+});
 
+// #####################################################################
+// IX. INICIALIZACIÓN
+// #####################################################################
 
-// BLOQUE DE INICIALIZACIÓN
-document.addEventListener('DOMContentLoaded', async () => {
-    setupEventListeners();
-
-    // Simulación de estado de usuario:
-    authModal.classList.add('hidden');
-    appContainer.classList.remove('hidden');
-    
-    await fetchDashboardData(); 
+document.addEventListener('DOMContentLoaded', () => {
+    initAuth();
+    initProductAdminModal();
 });
