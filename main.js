@@ -133,6 +133,51 @@ async function registerPayment(client_id, amount) {
     }
 }
 
+/**
+ * Verifica si un cliente existe por su ID. Si no existe, lo crea (Simulado).
+ * @param {number} client_id El ID del cliente a buscar o crear.
+ * @returns {number} El ID del cliente (existente o recién creado).
+ */
+async function getOrCreateClient(client_id) {
+    if (SUPABASE_URL === 'TU_SUPABASE_URL') {
+        // --- SIMULACIÓN ---
+        console.log(`Simulación: Buscando/Creando cliente ID: ${client_id}`);
+        // En una implementación real, aquí buscarías el cliente.
+        // Si no existe, lo insertarías en la tabla 'clientes'.
+        return client_id; 
+    }
+    
+    // --- LÓGICA REAL SUPABASE (Ejemplo) ---
+    // 1. Intentar obtener el cliente
+    let { data: client, error } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('id', client_id)
+        .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116: No rows found
+        console.error('Error al buscar cliente:', error);
+    }
+    
+    // 2. Si no existe, crear el cliente
+    if (!client) {
+        console.log(`Cliente ID ${client_id} no encontrado, creando uno nuevo...`);
+        const { data: newClient, error: insertError } = await supabase
+            .from('clientes')
+            .insert({ id: client_id, name: `Cliente ${client_id}` }) // Asumimos que el nombre puede ser un placeholder
+            .select('id')
+            .single();
+
+        if (insertError) {
+            console.error('Error al crear cliente:', insertError);
+            throw new Error("No se pudo crear el cliente.");
+        }
+        return newClient.id;
+    }
+
+    return client.id;
+}
+
 
 // ===============================================
 // 5. FUNCIONES CRUD CATEGORÍAS
@@ -417,28 +462,6 @@ function handleOpenUpdateDebtModal(e) {
 // 8. MANEJO DE FORMULARIOS DE ACCIÓN
 // ===============================================
 
-async function handleAddSale(e) {
-    e.preventDefault();
-    
-    // Aquí obtendrías el client_id, amount, category_id, etc.
-    // ...
-    
-    const amount = parseFloat(document.getElementById('sale-amount').value);
-    const category_id = parseInt(saleCategorySelector.value); 
-
-    if (isNaN(amount) || amount <= 0 || isNaN(category_id)) {
-        alert('Por favor, revisa el Monto y la Categoría.');
-        return;
-    }
-
-    console.log('Venta a registrar (Simulada).');
-    
-    alert('Venta/Cargo registrado con éxito (Simulado).');
-    addSaleForm.reset();
-    addSaleModal.classList.add('hidden');
-    await initializeApp(); 
-}
-
 async function handleUpdateDebt(e) {
     e.preventDefault();
     
@@ -464,6 +487,55 @@ async function handleUpdateDebt(e) {
     }
 }
 
+async function handleAddSale(e) {
+    e.preventDefault();
+    
+    const client_id_input = document.getElementById('sale-client-id');
+    const amount_input = document.getElementById('sale-amount');
+    
+    const client_id = parseInt(client_id_input.value);
+    const amount = parseFloat(amount_input.value);
+    const category_id = parseInt(saleCategorySelector.value); 
+    const description = document.getElementById('sale-description').value;
+
+    if (isNaN(client_id) || isNaN(amount) || amount <= 0 || isNaN(category_id)) {
+        alert('Por favor, revisa el ID del Cliente, el Monto y la Categoría.');
+        return;
+    }
+
+    try {
+        // PASO CLAVE: Asegurar que el cliente existe antes de registrar la venta
+        const finalClientId = await getOrCreateClient(client_id); 
+        console.log(`Venta se registrará bajo Cliente ID: ${finalClientId}`);
+
+        if (SUPABASE_URL === 'TU_SUPABASE_URL') {
+            // --- SIMULACIÓN DE REGISTRO DE VENTA ---
+            console.log(`Simulación: Registrando Venta para ${finalClientId}: $${amount.toFixed(2)} (${category_id})`);
+            
+        } else {
+            // --- LÓGICA REAL SUPABASE (Ejemplo) ---
+            const { error } = await supabase
+                .from('ventas')
+                .insert({ 
+                    client_id: finalClientId, 
+                    amount: amount, 
+                    category_id: category_id,
+                    description: description
+                });
+
+            if (error) throw error;
+        }
+
+        alert('Venta/Cargo registrado con éxito.');
+        addSaleForm.reset();
+        addSaleModal.classList.add('hidden');
+        await fetchDashboardData(); // Recargar datos del dashboard
+        
+    } catch (error) {
+        console.error('Error al registrar la venta:', error);
+        alert('Error al registrar la venta: ' + error.message);
+    }
+}
 
 // ===============================================
 // 9. FUNCIONES PLACEHOLDER PARA ACCIONES DE VENTA
