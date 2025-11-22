@@ -432,35 +432,57 @@ async function renderDebtList() {
 }
 
 async function renderSalesList() {
-    // Simulación de datos de Ventas para que la interfaz se vea llena.
-    const sales = [
-        { id: 1, client_name: "Juan Pérez", amount: 250.00, category_name: "Corte Básico", created_at: "2025-11-21 14:30" },
-        { id: 2, client_name: "María López", amount: 120.75, category_name: "Productos", created_at: "2025-11-21 11:15" },
-        // ...
-    ];
-    
-    if (!sales || sales.length === 0) {
-        salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';
-        return;
+    try {
+        const { data: sales, error } = await supabase
+            .from('ventas')
+            .select(`
+                id,
+                amount,
+                created_at,
+                clientes (name),       
+                categorias (name)      
+            `)
+            .order('created_at', { ascending: false })
+            .limit(10); 
+
+        if (error) throw error;
+
+        if (!sales || sales.length === 0) {
+            salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';
+            return;
+        }
+
+        // Mapeo y Renderizado con manejo de nulos (?. y ??)
+        salesListBody.innerHTML = sales.map(sale => {
+            
+            // Usamos el operador de encadenamiento opcional (?.) y el operador de coalescencia nula (??)
+            const clientName = sale.clientes?.name ?? 'Cliente Desconocido';
+            const categoryName = sale.categorias?.name ?? 'Sin Categoría';
+            const dateDisplay = new Date(sale.created_at).toLocaleString();
+
+            return `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 whitespace-nowrap text-sm text-gray-900">${clientName}</td>
+                    <td class="p-4 whitespace-nowrap text-sm font-semibold text-green-600">$${parseFloat(sale.amount).toFixed(2)}</td>
+                    <td class="p-4 whitespace-nowrap text-sm text-gray-500">${categoryName}</td>
+                    <td class="p-4 whitespace-nowrap text-sm text-gray-500">${dateDisplay}</td>
+                    <td class="p-4 whitespace-nowrap text-sm font-medium">
+                        <button data-sale-id="${sale.id}" class="edit-sale-btn text-indigo-600 hover:text-indigo-900 text-sm">
+                            Editar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        salesListBody.querySelectorAll('.edit-sale-btn').forEach(btn => {
+            btn.addEventListener('click', handleEditSale);
+        });
+
+    } catch (error) {
+        console.error('Error al cargar lista de ventas:', error);
+        salesListBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-500">Error al cargar ventas. Revise RLS.</td></tr>';
     }
-
-    salesListBody.innerHTML = sales.map(sale => `
-        <tr class="hover:bg-gray-50">
-            <td class="p-4 whitespace-nowrap text-sm text-gray-900">${sale.client_name}</td>
-            <td class="p-4 whitespace-nowrap text-sm font-semibold text-green-600">$${sale.amount.toFixed(2)}</td>
-            <td class="p-4 whitespace-nowrap text-sm text-gray-500">${sale.category_name}</td>
-            <td class="p-4 whitespace-nowrap text-sm text-gray-500">${sale.created_at}</td>
-            <td class="p-4 whitespace-nowrap text-sm font-medium">
-                <button data-sale-id="${sale.id}" class="edit-sale-btn text-indigo-600 hover:text-indigo-900 text-sm">
-                    Editar
-                </button>
-            </td>
-        </tr>
-    `).join('');
-
-    salesListBody.querySelectorAll('.edit-sale-btn').forEach(btn => {
-        btn.addEventListener('click', handleEditSale);
-    });
 }
 
 
