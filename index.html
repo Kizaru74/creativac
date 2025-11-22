@@ -3,86 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creativac - Dashboard de Ventas y Deudas</title>
-    
-    <link rel="stylesheet" href="./style.css"> 
+    <title>Sistema de Gestión de Deudas y Ventas</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./src/index.css">
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50 min-h-screen">
 
-    <div id="auth-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-gray-50 flex items-center justify-center hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm">
-            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Iniciar Sesión</h2>
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Iniciar Sesión</h2>
             <form id="login-form">
                 <div class="mb-4">
-                    <label for="login-identifier" class="block text-sm font-medium text-gray-700">Usuario o Email</label>
-                    <input type="text" id="login-identifier" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <label for="login-identifier" class="block text-sm font-medium text-gray-700">Nombre de Usuario o Email</label>
+                    <input type="text" id="login-identifier" required class="mt-1 p-2 w-full border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 <div class="mb-6">
                     <label for="login-password" class="block text-sm font-medium text-gray-700">Contraseña</label>
-                    <input type="password" id="login-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="password" id="login-password" required class="mt-1 p-2 w-full border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition duration-150">
+                <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     Acceder
                 </button>
             </form>
         </div>
     </div>
 
-    <div id="app-container" class="hidden min-h-screen">
+    <div id="app-container" class="hidden">
         
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-gray-900">Dashboard de Creativac 📊</h1>
-                <div>
-                    <button id="openProfileModalBtn" class="text-gray-600 hover:text-indigo-600 mr-4">👤 Perfil</button>
-                    <button id="logoutBtn" class="bg-red-500 text-white py-1 px-3 rounded-md text-sm hover:bg-red-600">
-                        Cerrar Sesión
+        <header class="bg-white shadow-md sticky top-0 z-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-900">Dashboard de Ventas y Deudas 💸</h1>
+                <div class="space-x-3">
+                    <button id="addProductAdminBtn" class="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300">
+                        📦 Admin Productos
+                    </button>
+                    <button id="openProfileModalBtn" class="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        👤 Mi Perfil
+                    </button>
+                    <button id="logoutBtn" class="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                        Salir
                     </button>
                 </div>
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                
-                <div class="bg-white overflow-hidden shadow rounded-lg p-5">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Ventas Totales (Últimas 10)</dt>
-                    <dd id="total-sales" class="mt-1 text-3xl font-semibold text-gray-900">$0.00</dd>
-                </div>
-
-                <div class="bg-white overflow-hidden shadow rounded-lg p-5">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Deuda Pendiente Total</dt>
-                    <dd id="total-debt" class="mt-1 text-3xl font-semibold text-red-600">$0.00</dd>
-                </div>
-
-                <div class="bg-white overflow-hidden shadow rounded-lg p-5">
-                    <dt class="text-sm font-medium text-gray-500 truncate">Clientes con Deuda</dt>
-                    <dd id="debtor-count" class="mt-1 text-3xl font-semibold text-yellow-600">0</dd>
-                </div>
-            </div>
-
-            <div class="flex space-x-4 mb-8">
-                <button id="addSaleBtn" class="bg-green-600 text-white py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition">
-                    ➕ Registrar Nueva Venta
-                </button>
-                <button id="updateDebtBtn" class="bg-blue-600 text-white py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition">
-                    💰 Registrar Abono
-                </button>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-                    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">Deudas Pendientes</h3>
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <section class="mb-10">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">📊 Resumen General</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-indigo-500">
+                        <p class="text-sm font-medium text-gray-500">Ventas Totales (Acumulado)</p>
+                        <p id="total-sales" class="mt-1 text-3xl font-extrabold text-gray-900">...</p>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-red-500">
+                        <p class="text-sm font-medium text-gray-500">Deuda Pendiente Total</p>
+                        <p id="total-debt" class="mt-1 text-3xl font-extrabold text-red-600">...</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-yellow-500">
+                        <p class="text-sm font-medium text-gray-500">Clientes con Deuda</p>
+                        <p id="debtor-count" class="mt-1 text-3xl font-extrabold text-gray-900">...</p>
+                    </div>
+                </div>
+            </section>
+        
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+                <div class="lg:col-span-1">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">🚀 Acciones Rápidas</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-lg space-y-4">
+                        <button id="addSaleBtn" class="w-full py-3 px-4 text-base font-semibold rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition">
+                            ➕ Registrar Nueva Venta/Cargo
+                        </button>
+                        <button id="updateDebtBtn" class="w-full py-3 px-4 text-base font-semibold rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition">
+                            💵 Registrar Abono / Ajustar Deuda
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4">🚨 Deudas Pendientes (Top)</h2>
+                    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr class="bg-gray-50">
+                            <thead class="bg-gray-50">
+                                <tr>
                                     <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Cliente</th>
-                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Deuda</th>
+                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Deuda Actual</th>
                                     <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Última Actualización</th>
                                     <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Acción</th>
                                 </tr>
@@ -92,50 +96,54 @@
                         </table>
                     </div>
                 </div>
+            </section>
 
-                <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-                    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">📜 Últimas 10 Ventas Registradas</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                </thead>
-                            <tbody id="sales-list" class="bg-white divide-y divide-gray-200">
-                                </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <div class="lg:col-span-2 bg-white shadow overflow-hidden sm:rounded-lg mt-6">
-                    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">🗄️ Administración de Categorías</h3>
-                        <button class="bg-gray-200 text-gray-800 py-1 px-3 rounded-md text-sm hover:bg-gray-300">
-                            + Nueva Categoría
-                        </button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr class="bg-gray-50">
-                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Nombre de Categoría</th>
-                                    <th class="p-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Acción</th>
-                                </tr>
+            <section>
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">📜 Últimas 10 Ventas Registradas</h2>
+                <div class="bg-white rounded-lg shadow-lg overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             </thead>
-                            <tbody id="admin-categories-list" class="bg-white divide-y divide-gray-200">
-                                </tbody>
-                        </table>
-                    </div>
+                        <tbody id="sales-list" class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
                 </div>
-
-            </div>
-
+            </section>
         </main>
     </div>
+    
+    <div id="user-profile-modal" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-900">👤 Mi Perfil y Seguridad</h3>
+                <button id="closeProfileModal" class="text-gray-400 hover:text-gray-600">✖️</button>
+            </div>
+            
+            <form id="profile-update-form" class="p-6 space-y-4">
+                <p class="text-sm text-gray-600">Email (No editable): <strong id="profile-email-display">Cargando...</strong></p>
+                
+                <div>
+                    <label for="profile-username-input" class="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
+                    <input type="text" id="profile-username-input" required class="mt-1 p-2 w-full border rounded-md" minlength="3">
+                </div>
 
-    <div id="add-sale-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                <h4 class="text-md font-semibold pt-3 border-t">Cambiar Contraseña</h4>
+                
+                <div>
+                    <label for="profile-new-password" class="block text-sm font-medium text-gray-700">Nueva Contraseña (mín. 6 chars)</label>
+                    <input type="password" id="profile-new-password" class="mt-1 p-2 w-full border rounded-md" minlength="6">
+                </div>
+                
+                <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700">
+                    Guardar Cambios
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="add-sale-modal" class="fixed inset-0 z-30 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
-            <h3 class="text-lg font-semibold mb-4">Registrar Nueva Venta</h3>
+            <h3 class="text-lg font-semibold mb-4">➕ Registrar Nueva Venta/Cargo</h3>
             
             <button id="close-add-sale-modal" class="absolute top-3 right-3 text-gray-500 hover:text-gray-900 text-2xl">
                 &times;
@@ -169,17 +177,17 @@
                 </div>
 
                 <button type="submit" 
-                        class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
-                    Guardar Venta
+                        class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                    ➕ Registrar Venta/Cargo
                 </button>
             </form>
 
         </div>
     </div>
-
-    <div id="update-debt-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    
+    <div id="update-debt-modal" class="fixed inset-0 z-30 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
-            <h3 class="text-lg font-semibold mb-4">Registrar Abono o Pagar Deuda</h3>
+            <h3 class="text-lg font-semibold mb-4">💵 Registrar Abono / Ajustar Deuda</h3>
             
             <button id="close-update-debt-modal" class="absolute top-3 right-3 text-gray-500 hover:text-gray-900 text-2xl">
                 &times;
@@ -201,39 +209,33 @@
             </form>
         </div>
     </div>
-    
-    <div id="user-profile-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 relative">
-            <h3 class="text-lg font-semibold mb-4">Ajustes de Perfil</h3>
-            
-            <button id="closeProfileModal" class="absolute top-3 right-3 text-gray-500 hover:text-gray-900 text-2xl">
-                &times;
-            </button>
-            
-            <form id="profile-update-form" class="space-y-4">
-                <div class="text-sm font-medium text-gray-700">Email: <span id="profile-email-display" class="font-bold"></span></div>
-                
-                <div>
-                    <label for="profile-username-input" class="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
-                    <input type="text" id="profile-username-input" required 
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                </div>
-                
-                <div>
-                    <label for="profile-new-password" class="block text-sm font-medium text-gray-700">Nueva Contraseña (Mín. 6)</label>
-                    <input type="password" id="profile-new-password" placeholder="Dejar vacío si no quieres cambiarla"
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                </div>
-                
-                <button type="submit" 
-                        class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                    Guardar Cambios
-                </button>
-            </form>
+
+    <div id="client-sales-detail-modal" class="fixed inset-0 z-40 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+            <h3 class="text-xl font-bold">Detalle de Ventas del Cliente</h3>
+            <p>Este modal está listo para ser llenado con las ventas específicas del cliente.</p>
         </div>
     </div>
 
+    <div id="edit-sale-modal" class="fixed inset-0 z-30 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+            <h3 class="text-xl font-bold">Editar Venta</h3>
+            <p>Este modal está listo para el formulario de edición.</p>
+        </div>
+    </div>
 
-    <script type="module" src="/main.js"></script>
+    <div id="product-admin-modal" class="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-900">📦 Administración de Productos y Categorías</h3>
+                <button id="close-product-admin-modal" class="text-gray-400 hover:text-gray-600">✖️</button>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">Aquí puedes añadir, editar o eliminar productos y categorías.</p>
+                </div>
+        </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
 </body>
 </html>
