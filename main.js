@@ -369,48 +369,49 @@ async function loadDashboardData() {
 }
 
 
-// main.js - Código Actualizado
-
-// ... (Todas las secciones 1, 2, 3 y 4 de tu main.js van aquí, sin cambios) ...
-
 // ----------------------------------------------------------------------
 // 5. INICIALIZACIÓN Y LISTENERS DE EVENTOS (Conexión de Botones)
 // ----------------------------------------------------------------------
 
-// 🥳 FUNCIÓN CRÍTICA: DELEGADO DE EVENTOS
+// 🥳 FUNCIÓN CRÍTICA: DELEGADO DE EVENTOS (Para botones generados dinámicamente)
 document.addEventListener('click', (e) => {
-    // 1. Manejo del botón de DETALLE DE DEUDAS (generado dinámicamente)
+    // Manejo del botón de DETALLE DE DEUDAS (quick-edit-debt-btn)
     if (e.target.classList.contains('quick-edit-debt-btn')) {
         e.preventDefault();
         
-        // Obtener datos del cliente del botón
         const clientId = e.target.dataset.clientId;
         const debtAmount = e.target.dataset.debtAmount;
 
-        // Aquí iría la lógica para cargar los detalles de venta de ese cliente
-        // Por ahora, solo abrimos un modal de ejemplo para confirmar que funciona
         console.log(`Clic en Detalle para Cliente ID: ${clientId}, Deuda: ${debtAmount}`);
         
-        // Asumiendo que tienes un modal específico para editar deuda:
-        showModal('update-debt-modal'); // Reutilizamos el modal de abonos por simplicidad
+        // Abre el modal de abonos/detalles
+        showModal('update-debt-modal'); 
     }
-    
-    // 2. Aquí puedes añadir más delegados para botones generados dinámicamente si es necesario.
 });
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Conexión de botones fijos (no generados dinámicamente):
+    // Conectar botones de Modales (Perfil y Cerrar)
     const openProfileModalBtn = document.getElementById('openProfileModalBtn');
     const closeProfileModal = document.getElementById('closeProfileModal');
+    
+    // Conectar botones de Acciones Rápidas (Botones Fijos)
     const addSaleBtn = document.getElementById('addSaleBtn');
     const updateDebtBtn = document.getElementById('updateDebtBtn');
+
+    // Conexiones para cerrar modales (si tienes los IDs 'close-add-sale-modal', etc.)
+    document.getElementById('close-add-sale-modal')?.addEventListener('click', () => {
+        hideModal('add-sale-modal');
+    });
+    document.getElementById('close-update-debt-modal')?.addEventListener('click', () => {
+        hideModal('update-debt-modal');
+    });
 
     // Listeners de Modales de Perfil
     openProfileModalBtn?.addEventListener('click', loadUserProfile);
     closeProfileModal?.addEventListener('click', () => hideModal('user-profile-modal'));
 
-    // Listeners de Acciones Rápidas (Botones Fijos)
+    // Listeners de Acciones Rápidas (Abre Modales)
     addSaleBtn?.addEventListener('click', () => showModal('add-sale-modal'));
     updateDebtBtn?.addEventListener('click', () => showModal('update-debt-modal'));
     
