@@ -128,14 +128,16 @@ async function loadDashboardData() {
     await loadClientsForDashboard(); 
 }
 
+
+
 async function loadTotals() {
     const totalClientsElement = document.getElementById('total-clients');
     const totalSalesElement = document.getElementById('total-sales');
     const totalDebtElement = document.getElementById('total-debt');
-
+    
     if (!totalClientsElement || !totalSalesElement || !totalDebtElement) return;
 
-    // --- 1. Conteo de clientes (ya funcionando) ---
+    // 1. Conteo de clientes (ya funcionando)
     const { count: clientCount, error: clientError } = await supabase
         .from('clientes')
         .select('client_id', { count: 'exact', head: true });
@@ -146,42 +148,36 @@ async function loadTotals() {
          totalClientsElement.textContent = 'Error';
     }
     
-    // --- 2. Carga de Ventas Totales desde la vista 'ventas_totales' ---
-    // Usamos .limit(1) y array access para ser más robustos que .single()
-    const { data: salesData, error: salesError } = await supabase
-        .from('ventas_totales')
-        .select('total_ventas')
-        .limit(1); 
+    // 2. CÁLCULO DE VENTAS Y DEUDA TOTAL
+    // Usaremos la vista de ventas que ya hemos traído en loadDebtsTable, 
+    // pero la traeremos aquí de forma ligera para los totales.
+    const { data: sales, error: salesError } = await supabase
+        .from('ventas')
+        .select('total_amount, paid_amount');
 
-    let totalSales = 0;
-    
     if (salesError) {
-        // El error 406 cae aquí
-        console.error('Error al cargar ventas totales. (406/RLS):', salesError.message);
-    } else if (salesData && salesData.length > 0 && salesData[0].total_ventas) {
-        // Aseguramos que data[0] existe antes de intentar leerlo
-        totalSales = parseFloat(salesData[0].total_ventas) || 0;
+        console.error('Error al cargar ventas para totales:', salesError);
+        totalSalesElement.textContent = 'Error';
+        totalDebtElement.textContent = 'Error';
+        return;
     }
-    totalSalesElement.textContent = formatCurrency(totalSales);
-    
-    // --- 3. Cálculo de Deuda Total Pendiente ---
-    // Sumamos la columna 'debt' de todos los clientes
-    const { data: clientDebtData, error: debtError } = await supabase
-        .from('clientes')
-        .select('debt'); 
 
-    let totalDebt = 0;
-    if (!debtError && clientDebtData) {
-        totalDebt = clientDebtData.reduce((sum, client) => sum + (parseFloat(client.debt) || 0), 0);
-    }
-    
-    const finalDebtDisplay = Math.max(0, totalDebt);
-    totalDebtElement.textContent = formatCurrency(totalDebt);
+    let totalSalesSum = 0;
+    let totalPaidSum = 0;
 
-    // Mantenemos la advertencia genérica si hay un error no fatal (como el 406, si continúa)
-    if (salesError || debtError) {
-        console.warn('Advertencia: Error al cargar totales. Revise RLS/vistas.');
-    }
+    sales.forEach(sale => {
+        const total = parseFloat(sale.total_amount) || 0;
+        const paid = parseFloat(sale.paid_amount) || 0;
+        
+        totalSalesSum += total;
+        totalPaidSum += paid;
+    });
+
+    const calculatedTotalDebt = totalSalesSum - totalPaidSum;
+
+    // 3. Actualizar el Dashboard
+    totalSalesElement.textContent = formatCurrency(totalSalesSum);
+    totalDebtElement.textContent = formatCurrency(calculatedTotalDebt);
 }
 
 async function loadDebtsTable() {
