@@ -1,0 +1,32 @@
+Con estos cambios, el flujo de tu venta será:
+
+- El usuario selecciona el cliente.
+- El usuario selecciona el producto/paquete (aunque no afecta al costo, es para el registro).
+- El usuario ingresa el precio total de la venta en el nuevo campo.
+- El usuario ingresa el monto pagado.
+- El código calcula la deuda (Precio Total - Monto Pagado) y registra todo en Supabase.
+
+ //cambios en dashboard 26-11-2025
+
+    He implementado todas las correcciones necesarias, asumiendo la siguiente estructura de claves primarias:
+    clientes.client_id
+    ventas.venta_id (en lugar de id)
+    productos.producto_id (en lugar de id)
+    Uso de la tabla ventas_productos (detalle de venta).
+    Inclusión de payment_method en la inserción de pagos.
+//cambios en dashboard 26-11-2025-3:25
+
+
+¡Excelente! 🎉 Me alegra mucho escuchar eso.
+
+¡Excelente! 🎉 Me alegra mucho escuchar eso.
+
+Fue una batalla dura contra la ambigüedad de la Clave Foránea (PGRST201) y la corrupción de datos (22P02), pero al final, el cambio a un filtro de datos en JavaScript fue la solución más robusta para asegurar que la aplicación funcione incluso con posibles errores en la base de datos.
+
+Resumen de las Correcciones Finales
+
+La parte clave que hizo funcionar tu dashboard fue la implementación de la función loadDebtsTable que realiza lo siguiente:
+
+    Resolvió la Ambigüedad de la FK: Usamos el nombre de restricción explícito (ventas_client_id_fkey) para que Supabase sepa qué relación seguir (el error PGRST201).
+
+    Resolvió el Error de Datos (22P02): El código ahora trae todas las ventas y luego filtra la deuda en el navegador (.filter(sale => total > paid)). Esto evita que un valor no numérico en tu columna paid_amount rompa la consulta de la base de datos.
