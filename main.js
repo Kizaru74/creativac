@@ -190,7 +190,7 @@ async function loadDebtsTable() {
     
     tableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-500">Cargando deudas...</td></tr>';
     
-    // Usamos la sintaxis explícita: target_table!constraint_name(column)
+// CORRECCIÓN CLAVE: Usamos 'client_id(name)' en lugar del nombre FKEY generado
     const { data: allSales, error } = await supabase
         .from('ventas')
         .select(`
@@ -198,7 +198,7 @@ async function loadDebtsTable() {
             total_amount, 
             paid_amount,
             created_at,
-            clientes!ventas_client_id_fkey (name) // <-- CORRECCIÓN CLAVE
+clientes!ventas_client_id_fkey (name)
         `)
         .order('created_at', { ascending: false });
 
@@ -225,10 +225,10 @@ async function loadDebtsTable() {
         const paid = parseFloat(debt.paid_amount) || 0; 
         const debtAmount = total - paid; 
         
-        // Accedemos usando el alias que definimos: 'clientes'
-        const clientName = debt.clientes ? debt.clientes.name : 'Cliente Desconocido'; // <-- ACCESO CORREGIDO
+     // CORRECCIÓN: Acceder al nombre usando el alias explícito 'clientes!ventas_client_id_fkey'
+        const clientName = debt['clientes!ventas_client_id_fkey']?.name || 'Cliente Desconocido'; // ✅ CORRECCIÓN
         const date = new Date(debt.created_at).toLocaleDateString();
-
+        
         return `
             <tr>
                 <td class="px-6 py-4 whitespace-nowrap">${clientName} (Venta #${debt.venta_id})</td>
@@ -242,6 +242,14 @@ async function loadDebtsTable() {
             </tr>
         `;
     }).join('');
+
+    // AÑADIR ESTE BLOQUE DE LISTENERS AL FINAL DE loadDebtsTable:
+    document.querySelectorAll('.pay-debt-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const ventaId = e.currentTarget.dataset.saleId;
+            openPaymentModal(ventaId); // Llama a la función que abre el modal
+        });
+    });
 }
 
 
@@ -576,6 +584,123 @@ async function handleNewProduct(e) {
     }
 }
 
+// main.js - Nueva función para abrir el modal de pago
+async function openPaymentModal(ventaId) {
+    if (!ventaId) return;
+
+    const { data: sale, error } = await supabase
+        .from('ventas')
+        .select(`
+            total_amount, 
+            paid_amount,
+            client_id,
+            ventas_client_id_fkey (name) 
+        `)
+        .eq('venta_id', ventaId)
+        .single();
+
+    if (error || !sale) {
+        console.error('Error al cargar datos de venta para pago:', error);
+        alert('No se pudo cargar la información de la deuda.');
+        return;
+    }
+
+    const total = parseFloat(sale.total_amount) || 0;
+    const paid = parseFloat(sale.paid_amount) || 0; 
+    const currentDebt = total - paid;
+    
+    // Si ya está totalmente pagado, no abrir
+    if (currentDebt <= 0) {
+        alert('Esta venta ya no tiene deuda pendiente.');
+        return;
+    }
+
+    // Llenar el modal de pago
+    document.getElementById('payment-venta-id').value = ventaId;
+    document.getElementById('payment-client-id').value = sale.client_id;
+    document.getElementById('payment-client-name').textContent = sale.ventas_client_id_fkey?.name || 'Cliente Desconocido';
+    document.getElementById('payment-current-debt').textContent = formatCurrency(currentDebt);
+    
+    // Limitar el input al monto de la deuda actual
+    const paymentAmountInput = document.getElementById('payment-amount');
+    paymentAmountInput.setAttribute('max', currentDebt.toFixed(2));
+    paymentAmountInput.value = currentDebt.toFixed(2); // Sugerir el pago total
+
+    openModal('payment-modal');
+}
+
+// main.js - Nueva función para manejar el registro del pago/abono
+
+async function handlePayment(e) {
+    e.preventDefault();
+    
+    const venta_id = document.getElementById('payment-venta-id').value;
+    const client_id = document.getElementById('payment-client-id').value;
+    const amount = parseFloat(document.getElementById('payment-amount').value);
+    const payment_method = document.getElementById('payment-method').value;
+    const currentDebtDisplay = document.getElementById('payment-current-debt').textContent;
+
+    if (!venta_id || !client_id || amount <= 0) {
+        alert('Datos incompletos o monto inválido.');
+        return;
+    }
+    
+    // Buscamos la venta para actualizar el paid_amount
+    const { data: currentSale, error: saleFetchError } = await supabase
+        .from('ventas')
+        .select('total_amount, paid_amount')
+        .eq('venta_id', venta_id)
+        .single();
+    
+    if (saleFetchError) {
+        console.error('Error al obtener venta para actualizar:', saleFetchError);
+        alert('Error al obtener datos de venta.');
+        return;
+    }
+
+    const total = parseFloat(currentSale.total_amount) || 0;
+    const paid = parseFloat(currentSale.paid_amount) || 0;
+    const remainingDebt = total - paid;
+    
+    // Validación: No permitir pagar más de la deuda restante
+    if (amount > remainingDebt) {
+        alert(`El monto del abono (${formatCurrency(amount)}) supera la deuda pendiente (${currentDebtDisplay}).`);
+        return;
+    }
+
+    const newPaidAmount = paid + amount;
+
+    try {
+        // 1. REGISTRO DEL PAGO en la tabla 'pagos'
+        const { error: paymentError } = await supabase
+            .from('pagos')
+            .insert([{
+                venta_id: venta_id,
+                client_id: client_id,
+                amount: amount,
+                metodo_pago: payment_method,
+            }]);
+        
+        if (paymentError) throw paymentError;
+
+        // 2. ACTUALIZACIÓN DE LA VENTA en la tabla 'ventas'
+        const { error: updateError } = await supabase
+            .from('ventas')
+            .update({ paid_amount: newPaidAmount })
+            .eq('venta_id', venta_id);
+
+        if (updateError) throw updateError;
+        
+        alert(`¡Abono de ${formatCurrency(amount)} registrado exitosamente!`);
+        closeModal('payment-modal');
+        loadDashboardData(); // Recargar el dashboard y la tabla de deudas
+        
+    } catch (error) {
+        console.error('Error al registrar abono:', error);
+        alert(`Fallo el registro del abono. Error: ${error.message}`);
+    }
+}
+
 // FUNCIÓN CORREGIDA PARA VENTA ÚNICA CON DOBLE SELECT
 async function handleNewSale(e) {
     e.preventDefault();
@@ -680,14 +805,14 @@ async function handleNewSale(e) {
         // ----------------------------------------------------------------
         
         if (paid_amount > 0) {
-            const { error: paymentError } = await supabase
-                .from('pagos')
-                .insert([{
-                    venta_id: new_venta_id,
-                    amount: paid_amount,
-                    metodo_pago: payment_method,
-                    client_id: client_id
-                }]);
+const { error: paymentError } = await supabase
+        .from('pagos')
+        .insert([{
+            venta_id: new_venta_id,
+            amount: paid_amount,
+            client_id: client_id,
+            note: `Método: ${payment_method}` // ✅ CORRECCIÓN: Usar 'note'
+        }]);
             
             if (paymentError) {
                 console.error('Error al registrar pago inicial:', paymentError);
@@ -830,6 +955,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Formulario de Nuevo Producto
     document.getElementById('new-product-form')?.addEventListener('submit', handleNewProduct); 
+
+// Nuevo Listener para el formulario de pago
+    document.getElementById('payment-form')?.addEventListener('submit', handlePayment);
 
     // 1. Listener para abrir Nueva Venta
     document.getElementById('open-new-sale-modal')?.addEventListener('click', async () => { 

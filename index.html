@@ -288,6 +288,48 @@
         </div>
     </div>
     
+<div id="payment-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Registrar Abono</h3>
+            <button data-close-modal="payment-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                &times;
+            </button>
+        </div>
+        <form id="payment-form">
+            <input type="hidden" id="payment-venta-id" value="">
+            <input type="hidden" id="payment-client-id" value="">
+
+            <div class="mb-4 p-3 border rounded-lg bg-yellow-50">
+                <p class="text-sm font-semibold text-gray-700">Cliente:</p>
+                <p id="payment-client-name" class="text-lg font-bold text-gray-900 mb-2">Cargando...</p>
+                
+                <p class="text-sm font-semibold text-gray-700">Deuda Pendiente:</p>
+                <p id="payment-current-debt" class="text-2xl font-bold text-red-600">$0.00</p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Monto del Abono ($)</label>
+                <input type="number" id="payment-amount" min="0.01" step="0.01" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
+                <select id="payment-method" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md">
+                Registrar Abono
+            </button>
+        </form>
+    </div>
+</div>
+    
     <script type="module" src="main.js"></script>
 </body>
 </html>
