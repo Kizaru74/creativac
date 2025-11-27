@@ -355,6 +355,7 @@ async function loadAdminProductsList() {
         return;
     }
 
+    // MODIFICACIÓN: Añadido el botón Eliminar
     tableBody.innerHTML = products.map(product => `
         <tr>
             <td class="px-6 py-4 whitespace-nowrap font-medium">${product.name}</td>
@@ -364,14 +365,25 @@ async function loadAdminProductsList() {
                 <button class="text-indigo-600 hover:text-indigo-800 text-sm edit-product-btn" data-product-id="${product.producto_id}">
                     <i class="fas fa-edit"></i> Editar
                 </button>
+                <button class="text-red-600 hover:text-red-800 text-sm delete-product-btn ml-3" data-product-id="${product.producto_id}">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
             </td>
         </tr>
     `).join('');
     
+    // Configuración de Listeners para Editar y Eliminar
     document.querySelectorAll('.edit-product-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const productId = e.currentTarget.dataset.productId;
-            console.log("Abrir edición para producto:", productId);
+            openEditProductModal(productId); // Llama a la nueva función de edición
+        });
+    });
+    
+    document.querySelectorAll('.delete-product-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.dataset.productId;
+            handleDeleteProduct(productId); // Llama a la nueva función de eliminación
         });
     });
 }
@@ -411,6 +423,118 @@ async function handleNewClient(e) {
     }
 }
 
+// Función auxiliar para cargar datos del producto y abrir el modal
+async function openEditProductModal(productId) {
+    if (!productId) return;
+
+    // 1. Cargar datos del producto
+    const { data: product, error } = await supabase
+        .from('productos')
+        .select('*')
+        .eq('producto_id', productId)
+        .single();
+
+    if (error) {
+        console.error('Error al cargar producto para edición:', error);
+        alert(`Error al cargar producto: ${error.message}`);
+        return;
+    }
+
+    // 2. Llenar el formulario de Edición (Reusando el modal 'new-product-modal')
+    const form = document.getElementById('new-product-form');
+    
+    // Asume que el modal tiene un H2/H1 con el ID 'modal-title-product' para el título
+    document.getElementById('modal-title-product').textContent = `Editar Producto: ${product.name}`;
+    
+    document.getElementById('new-product-name').value = product.name;
+    document.getElementById('new-product-price').value = product.price;
+    document.getElementById('new-product-type').value = product.type;
+    document.getElementById('new-product-description').value = product.description || '';
+
+    // 3. Reconfigurar el formulario para la edición
+    if (form) {
+        form.dataset.editingId = productId;
+        // Quitar listener de creación y poner listener de edición
+        form.removeEventListener('submit', handleNewProduct);
+        form.addEventListener('submit', handleEditProduct); 
+    }
+    
+    openModal('new-product-modal'); // Reusamos el modal
+}
+
+// Función para manejar la actualización del producto
+async function handleEditProduct(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const productId = form.dataset.editingId; // Obtenemos el ID del producto
+    
+    const name = document.getElementById('new-product-name').value.trim();
+    const price = parseFloat(document.getElementById('new-product-price').value);
+    const type = document.getElementById('new-product-type').value; 
+    const description = document.getElementById('new-product-description').value.trim();
+
+    if (!productId || !name || isNaN(price) || price < 0) {
+        alert('Datos incompletos o inválidos para la edición.');
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('productos')
+            .update({ 
+                name: name, 
+                price: price,
+                type: type, 
+                description: description || null,
+            })
+            .eq('producto_id', productId); 
+
+        if (error) throw error;
+
+        alert(`¡${name} actualizado exitosamente!`);
+        closeModal('new-product-modal');
+        loadAdminProductsList(); 
+        
+        // Resetear el formulario para volver a la funcionalidad de CREAR al cerrar
+        form.removeEventListener('submit', handleEditProduct);
+        form.addEventListener('submit', handleNewProduct); 
+        form.removeAttribute('data-editing-id');
+        document.getElementById('modal-title-product').textContent = 'Registrar Nuevo Producto';
+        
+    } catch (error) {
+        console.error('Error al editar producto:', error);
+        alert(`Fallo la edición del producto. Error: ${error.message}`);
+    }
+}
+
+// Función para manejar la eliminación del producto
+async function handleDeleteProduct(productId) {
+    if (!productId) return;
+
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción es irreversible y podría afectar ventas históricas.')) {
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('productos')
+            .delete()
+            .eq('producto_id', productId);
+
+        if (error) throw error;
+
+        alert('Producto eliminado exitosamente.');
+        loadAdminProductsList(); // Recargar la lista
+        
+    } catch (error) {
+        console.error('Error al eliminar producto:', error);
+        alert(`Fallo la eliminación del producto. Error: ${error.message}`);
+    }
+}
+
+// main.js - Sección 7. LÓGICA DE FORMULARIOS
+
 async function handleNewProduct(e) {
     e.preventDefault();
     
@@ -418,18 +542,7 @@ async function handleNewProduct(e) {
     const price = parseFloat(document.getElementById('new-product-price').value);
     const type = document.getElementById('new-product-type').value; 
     const description = document.getElementById('new-product-description').value.trim();
-
-    if (!name || isNaN(price) || price < 0) {
-        alert('Por favor, ingrese un nombre válido y un precio mayor o igual a cero.');
-        return;
-    }
-
-    // Si es un paquete, puedes pedir un producto principal aquí, si no, se inserta con parent_product null
-    let parent_product_name = null; 
-    if (type === 'PACKAGE') {
-        // Para simplificar, asumimos que el parent_product se ingresa manualmente o se deja en NULL
-    }
-
+    // ... (otras validaciones) ...
 
     try {
         const { error } = await supabase
@@ -439,15 +552,24 @@ async function handleNewProduct(e) {
                 price: price,
                 type: type, 
                 description: description || null,
-                parent_product: parent_product_name // Se inserta null si es MAIN o si no se especificó.
+                parent_product: null // Se inserta null si es MAIN o si no se especificó.
             }]);
 
         if (error) throw error;
 
         alert(`¡${name} registrado exitosamente!`);
+        
+        // *****************************************************************
+        // <--- UBICACIÓN DE LA CORRECCIÓN: Después del éxito, antes de cerrar --->
+        const titleElement = document.getElementById('modal-title-product');
+        if (titleElement) {
+             titleElement.textContent = 'Registrar Nuevo Producto';
+        }
+        // *****************************************************************
+        
         closeModal('new-product-modal');
         loadAdminProductsList();
-        allProducts = []; // Forzar recarga de productos en la próxima venta
+        allProducts = []; 
     } catch (error) {
         console.error('Error al registrar producto:', error);
         alert(`Fallo el registro del producto. Error: ${error.message}`);
