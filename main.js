@@ -332,7 +332,8 @@ async function loadProductsData() {
     allProducts = items; // Almacenamos todos los productos globalmente
 }
 
-// main.js - Función loadAdminClientsList
+// Funcion loadAdminClientsList
+// main.js - Reemplaza la función loadAdminClientsList completa (aprox. línea 440)
 
 async function loadAdminClientsList() {
     const tableBody = document.getElementById('admin-clients-table-body');
@@ -340,18 +341,20 @@ async function loadAdminClientsList() {
     
     tableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-500">Cargando clientes...</td></tr>';
     
-    // Traemos todos los clientes, activos e inactivos, para poder habilitarlos
     const { data: clients, error } = await supabase
         .from('clientes')
         .select('*') 
         .order('name', { ascending: true });
 
     if (error) {
-        // ... (manejo de error) ...
+        console.error('Error al cargar clientes:', error);
+        tableBody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-red-500">Error: ${error.message}</td></tr>`;
+        return;
     }
     
     if (clients.length === 0) {
-        // ... (sin clientes) ...
+        tableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-500">No hay clientes registrados.</td></tr>';
+        return;
     }
 
     tableBody.innerHTML = clients.map(client => {
@@ -359,7 +362,16 @@ async function loadAdminClientsList() {
         const statusColor = client.is_active ? 'text-green-600' : 'text-red-600';
         const actionText = client.is_active ? 'Inhabilitar' : 'Habilitar';
         const actionColor = client.is_active ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800';
-        
+
+        // ➡️ Mostramos el botón de Borrado Definitivo SIEMPRE (solicitud del usuario)
+        const deleteButton = `
+            <button class="text-gray-400 hover:text-red-500 text-sm delete-client-perm-btn ml-3" 
+                    data-client-id="${client.client_id}" 
+                    data-client-name="${client.name}">
+                <i class="fas fa-trash"></i> Borrar Definitivo
+            </button>
+        `; 
+
         return `
             <tr>
                 <td class="px-6 py-4 whitespace-nowrap font-medium">${client.name}</td>
@@ -372,29 +384,130 @@ async function loadAdminClientsList() {
                     <button class="${actionColor} text-sm toggle-active-btn ml-3" data-client-id="${client.client_id}" data-is-active="${client.is_active}">
                         <i class="fas fa-toggle-on"></i> ${actionText}
                     </button>
+                    ${deleteButton} 
                 </td>
             </tr>
         `;
     }).join('');
     
-    // ⚠️ ATENCIÓN: Debes añadir el listener para el nuevo botón `toggle-active-btn`
+    // ----------------------------------------------------------------
+    // ✅ LISTENERS CORREGIDOS (Bloque Único y Completo)
+    // ----------------------------------------------------------------
+
+    // 1. Listener para Editar
     document.querySelectorAll('.edit-client-btn').forEach(btn => {
-        // ... (listener para editar) ...
+        btn.addEventListener('click', (e) => {
+            const clientId = e.currentTarget.dataset.clientId;
+            openEditClientModal(clientId);
+        });
     });
-    
+
+    // 2. Listener para Inhabilitar/Habilitar
     document.querySelectorAll('.toggle-active-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const clientId = e.currentTarget.dataset.clientId;
-            const isActive = e.currentTarget.dataset.isActive === 'true'; // Convertir a booleano
-            handleToggleClientActive(clientId, isActive); // Llama a la nueva función
+            const isActive = e.currentTarget.dataset.isActive === 'true'; 
+            handleToggleClientActive(clientId, isActive);
         });
     });
-}
 
+    // 3. Listener para Borrado Definitivo (Ahora en la función correcta)
+    document.querySelectorAll('.delete-client-perm-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const clientId = e.currentTarget.dataset.clientId;
+            const clientName = e.currentTarget.dataset.clientName;
+            handlePermanentDeleteClient(clientId, clientName);
+        });
+    });
+
+} // <--- La función termina aquí correctamente
+
+
+// main.js - Función handlePermanentDeleteClient (Borrado Manual Completo)
+
+async function handlePermanentDeleteClient(clientId, clientName) {
+    if (!clientId) return;
+
+    if (!confirm(`🚨 ALERTA CRÍTICA: ¿Estás SEGURO de que deseas eliminar permanentemente a ${clientName} Y TODO SU HISTORIAL? Esta acción es IRREVERSIBLE y borrará ventas, pagos y el detalle de productos.`)) {
+        return;
+    }
+
+    try {
+        // --- 1. OBTENER IDs DE VENTAS ---
+        const { data: sales, error: fetchSalesError } = await supabase
+            .from('ventas')
+            .select('venta_id')
+            .eq('client_id', clientId);
+        if (fetchSalesError) throw fetchSalesError;
+
+        const saleIds = sales.map(s => s.venta_id);
+
+       // --- 2. LIMPIAR DETALLE DE PRODUCTOS (ventas_productos) ---
+if (saleIds.length > 0) {
+    console.log("Limpiando detalles de productos...");
+    // ➡️ ASEGÚRATE DE QUE 'ventas_productos' ESTÉ ESCRITO CORRECTAMENTE
+    const { error: productosError } = await supabase.from('ventas_productos') 
+        .delete()
+        .in('venta_id', saleIds);
+    if (productosError) throw productosError;
+        }
+
+
+        // --- 3. LIMPIAR PAGOS POR VENTA (Soluciona el último error 23503) ---
+        // Elimina los pagos que referencian a las ventas.
+        if (saleIds.length > 0) {
+            console.log("Limpiando pagos por venta...");
+            const { error: pagosVentasError } = await supabase.from('pagos')
+                .delete()
+                .in('venta_id', saleIds); 
+            if (pagosVentasError) throw pagosVentasError;
+        }
+
+        // --- 4. LIMPIAR PAGOS POR CLIENTE ---
+        // Elimina cualquier pago que solo se haya asociado al cliente (pagos generales).
+        console.log("Limpiando pagos por cliente...");
+        const { error: pagosClientError } = await supabase.from('pagos')
+            .delete()
+            .eq('client_id', clientId);
+        if (pagosClientError) throw pagosClientError;
+        
+
+        // --- 5. ELIMINAR VENTAS ---
+        // Ahora que los pagos y productos ya no las referencian, se pueden eliminar.
+        console.log("Eliminando ventas...");
+        const { error: ventasError } = await supabase.from('ventas')
+            .delete()
+            .eq('client_id', clientId);
+        if (ventasError) throw ventasError;
+
+
+        // --- 6. ELIMINAR EL CLIENTE ---
+        console.log("Eliminando cliente...");
+        const { error: clientError } = await supabase.from('clientes')
+            .delete()
+            .eq('client_id', clientId);
+        if (clientError) throw clientError;
+
+
+        // 7. ÉXITO
+        alert(`Cliente ${clientName} y todo su historial financiero fueron eliminados permanentemente.`);
+        
+        loadAdminClientsList(); 
+        loadClientsForSelect(); 
+        loadDashboardData();
+        
+    } catch (error) {
+        // 8. MANEJO DE ERROR
+        console.error('Error al ejecutar el borrado en cascada:', error);
+        alert(`Fallo la eliminación total del cliente. Por favor, revisa la consola para ver el error. Mensaje: ${error.message}`);
+    }
+}
 
 // ====================================================================
 // 6. LÓGICA DE ADMINISTRACIÓN DE PRODUCTOS (Sin cambios)
 // ====================================================================
+
+
 
 async function loadAdminProductsList() {
     const tableBody = document.getElementById('admin-products-table-body'); 
@@ -436,20 +549,13 @@ async function loadAdminProductsList() {
         </tr>
     `).join('');
     
-    // Configuración de Listeners para Editar y Eliminar
-    document.querySelectorAll('.edit-product-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const productId = e.currentTarget.dataset.productId;
-            openEditProductModal(productId); // Llama a la nueva función de edición
-        });
-    });
-    
     document.querySelectorAll('.delete-product-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const productId = e.currentTarget.dataset.productId;
             handleDeleteProduct(productId); // Llama a la nueva función de eliminación
         });
     });
+
 }
 
 // ===================================================================
