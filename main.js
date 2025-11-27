@@ -128,7 +128,7 @@ async function loadDashboardData() {
     await loadClientsForDashboard(); 
 }
 
-
+// main.js - Función loadTotals (Aprox. Línea 140)
 
 async function loadTotals() {
     const totalClientsElement = document.getElementById('total-clients');
@@ -149,8 +149,10 @@ async function loadTotals() {
     }
     
     // 2. CÁLCULO DE VENTAS Y DEUDA TOTAL
-    // Usaremos la vista de ventas que ya hemos traído en loadDebtsTable, 
-    // pero la traeremos aquí de forma ligera para los totales.
+    // Restablecer los elementos a $0.00 antes de la carga (Solución a datos fantasma)
+    totalSalesElement.textContent = formatCurrency(0);
+    totalDebtElement.textContent = formatCurrency(0); 
+
     const { data: sales, error: salesError } = await supabase
         .from('ventas')
         .select('total_amount, paid_amount');
@@ -162,19 +164,21 @@ async function loadTotals() {
         return;
     }
 
-    let totalDebt = 0;
     let totalSalesSum = 0;
     let totalPaidSum = 0;
 
-    sales.forEach(sale => {
-        const total = parseFloat(sale.total_amount) || 0;
-        const paid = parseFloat(sale.paid_amount) || 0;
-        
-        totalDebt += (total - paid);
-        totalSalesSum += total;
-        totalPaidSum += paid;
-    });
-
+    // Usamos el reduce para asegurar que los valores sean tratados como números
+    if (sales && sales.length > 0) {
+         totalSalesSum = sales.reduce((sum, sale) => {
+            return sum + (parseFloat(sale.total_amount) || 0);
+         }, 0);
+         
+         totalPaidSum = sales.reduce((sum, sale) => {
+            return sum + (parseFloat(sale.paid_amount) || 0);
+         }, 0);
+    }
+    
+    // Si la BD está vacía, ambas sumas serán 0.
     const calculatedTotalDebt = totalSalesSum - totalPaidSum;
 
     // 3. Actualizar el Dashboard
@@ -988,8 +992,8 @@ const { error: paymentError } = await supabase
             venta_id: new_venta_id,
             amount: paid_amount,
             client_id: client_id,
-            note: `Método: ${payment_method}` // ✅ CORRECCIÓN: Usar 'note'
-        }]);
+            metodo_pago: payment_method,
+                }]);
             
             if (paymentError) {
                 console.error('Error al registrar pago inicial:', paymentError);
