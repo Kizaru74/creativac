@@ -162,6 +162,7 @@ async function loadTotals() {
         return;
     }
 
+    let totalDebt = 0;
     let totalSalesSum = 0;
     let totalPaidSum = 0;
 
@@ -169,6 +170,7 @@ async function loadTotals() {
         const total = parseFloat(sale.total_amount) || 0;
         const paid = parseFloat(sale.paid_amount) || 0;
         
+        totalDebt += (total - paid);
         totalSalesSum += total;
         totalPaidSum += paid;
     });
@@ -422,74 +424,24 @@ async function loadAdminClientsList() {
 
 } // <--- La función termina aquí correctamente
 
-
-// main.js - Función handlePermanentDeleteClient (Borrado Manual Completo)
+// main.js - Función handlePermanentDeleteClient (Versión RPC)
 
 async function handlePermanentDeleteClient(clientId, clientName) {
     if (!clientId) return;
 
-    if (!confirm(`🚨 ALERTA CRÍTICA: ¿Estás SEGURO de que deseas eliminar permanentemente a ${clientName} Y TODO SU HISTORIAL? Esta acción es IRREVERSIBLE y borrará ventas, pagos y el detalle de productos.`)) {
+    if (!confirm(`🚨 ALERTA CRÍTICA: ¿Estás SEGURO de que deseas eliminar permanentemente a ${clientName} Y TODO SU HISTORIAL? Esta acción es IRREVERSIBLE y se realizará de forma atómica.`)) {
         return;
     }
 
     try {
-        // --- 1. OBTENER IDs DE VENTAS ---
-        const { data: sales, error: fetchSalesError } = await supabase
-            .from('ventas')
-            .select('venta_id')
-            .eq('client_id', clientId);
-        if (fetchSalesError) throw fetchSalesError;
+        // LLAMADA RPC: Ejecuta la función SQL de borrado en cascada en el servidor
+        const { error } = await supabase.rpc('delete_client_cascade', { 
+            client_id_to_delete: clientId 
+        });
 
-        const saleIds = sales.map(s => s.venta_id);
+        if (error) throw error;
 
-       // --- 2. LIMPIAR DETALLE DE PRODUCTOS (ventas_productos) ---
-if (saleIds.length > 0) {
-    console.log("Limpiando detalles de productos...");
-    // ➡️ ASEGÚRATE DE QUE 'ventas_productos' ESTÉ ESCRITO CORRECTAMENTE
-    const { error: productosError } = await supabase.from('ventas_productos') 
-        .delete()
-        .in('venta_id', saleIds);
-    if (productosError) throw productosError;
-        }
-
-
-        // --- 3. LIMPIAR PAGOS POR VENTA (Soluciona el último error 23503) ---
-        // Elimina los pagos que referencian a las ventas.
-        if (saleIds.length > 0) {
-            console.log("Limpiando pagos por venta...");
-            const { error: pagosVentasError } = await supabase.from('pagos')
-                .delete()
-                .in('venta_id', saleIds); 
-            if (pagosVentasError) throw pagosVentasError;
-        }
-
-        // --- 4. LIMPIAR PAGOS POR CLIENTE ---
-        // Elimina cualquier pago que solo se haya asociado al cliente (pagos generales).
-        console.log("Limpiando pagos por cliente...");
-        const { error: pagosClientError } = await supabase.from('pagos')
-            .delete()
-            .eq('client_id', clientId);
-        if (pagosClientError) throw pagosClientError;
-        
-
-        // --- 5. ELIMINAR VENTAS ---
-        // Ahora que los pagos y productos ya no las referencian, se pueden eliminar.
-        console.log("Eliminando ventas...");
-        const { error: ventasError } = await supabase.from('ventas')
-            .delete()
-            .eq('client_id', clientId);
-        if (ventasError) throw ventasError;
-
-
-        // --- 6. ELIMINAR EL CLIENTE ---
-        console.log("Eliminando cliente...");
-        const { error: clientError } = await supabase.from('clientes')
-            .delete()
-            .eq('client_id', clientId);
-        if (clientError) throw clientError;
-
-
-        // 7. ÉXITO
+        // 6. ÉXITO
         alert(`Cliente ${clientName} y todo su historial financiero fueron eliminados permanentemente.`);
         
         loadAdminClientsList(); 
@@ -497,9 +449,8 @@ if (saleIds.length > 0) {
         loadDashboardData();
         
     } catch (error) {
-        // 8. MANEJO DE ERROR
-        console.error('Error al ejecutar el borrado en cascada:', error);
-        alert(`Fallo la eliminación total del cliente. Por favor, revisa la consola para ver el error. Mensaje: ${error.message}`);
+        console.error('Error al ejecutar el borrado RPC en cascada:', error);
+        alert(`Fallo la eliminación total del cliente. Error: ${error.message}`);
     }
 }
 
