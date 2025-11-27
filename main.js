@@ -295,7 +295,8 @@ async function loadClientsForSelect() {
 
     const { data: clients, error } = await supabase
         .from('clientes')
-        .select('client_id, name') 
+        .select('client_id, name')
+        .eq('is_active', true) 
         .order('name', { ascending: true });
 
     if (error) {
@@ -329,6 +330,65 @@ async function loadProductsData() {
     }
     
     allProducts = items; // Almacenamos todos los productos globalmente
+}
+
+// main.js - Función loadAdminClientsList
+
+async function loadAdminClientsList() {
+    const tableBody = document.getElementById('admin-clients-table-body');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-500">Cargando clientes...</td></tr>';
+    
+    // Traemos todos los clientes, activos e inactivos, para poder habilitarlos
+    const { data: clients, error } = await supabase
+        .from('clientes')
+        .select('*') 
+        .order('name', { ascending: true });
+
+    if (error) {
+        // ... (manejo de error) ...
+    }
+    
+    if (clients.length === 0) {
+        // ... (sin clientes) ...
+    }
+
+    tableBody.innerHTML = clients.map(client => {
+        const statusText = client.is_active ? 'Activo' : 'Inactivo';
+        const statusColor = client.is_active ? 'text-green-600' : 'text-red-600';
+        const actionText = client.is_active ? 'Inhabilitar' : 'Habilitar';
+        const actionColor = client.is_active ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800';
+        
+        return `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap font-medium">${client.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${client.phone || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="${statusColor} font-semibold">${statusText}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <button class="text-indigo-600 hover:text-indigo-800 text-sm edit-client-btn" data-client-id="${client.client_id}">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="${actionColor} text-sm toggle-active-btn ml-3" data-client-id="${client.client_id}" data-is-active="${client.is_active}">
+                        <i class="fas fa-toggle-on"></i> ${actionText}
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    // ⚠️ ATENCIÓN: Debes añadir el listener para el nuevo botón `toggle-active-btn`
+    document.querySelectorAll('.edit-client-btn').forEach(btn => {
+        // ... (listener para editar) ...
+    });
+    
+    document.querySelectorAll('.toggle-active-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const clientId = e.currentTarget.dataset.clientId;
+            const isActive = e.currentTarget.dataset.isActive === 'true'; // Convertir a booleano
+            handleToggleClientActive(clientId, isActive); // Llama a la nueva función
+        });
+    });
 }
 
 
@@ -424,6 +484,70 @@ async function handleNewClient(e) {
     } catch (error) {
         console.error('Error al registrar cliente:', error);
         alert(`Fallo el registro del cliente. Error: ${error.message}`);
+    }
+}
+
+// main.js - Nueva función para abrir el modal de edición de cliente
+
+async function openEditClientModal(clientId) {
+    if (!clientId) return;
+
+    // 1. Cargar datos del cliente
+    const { data: client, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('client_id', clientId)
+        .single();
+
+    if (error) {
+        console.error('Error al cargar cliente para edición:', error);
+        alert(`Error al cargar cliente: ${error.message}`);
+        return;
+    }
+
+    // 2. Llenar el formulario
+    document.getElementById('edit-client-id').value = client.client_id;
+    document.getElementById('edit-client-name').value = client.name;
+    document.getElementById('edit-client-phone').value = client.phone || '';
+    document.getElementById('edit-client-modal-title').textContent = `Editar Cliente: ${client.name}`;
+
+    openModal('edit-client-modal');
+}
+
+// main.js - Nueva función para manejar el guardado de cambios del cliente
+
+async function handleEditClient(e) {
+    e.preventDefault();
+    
+    const clientId = document.getElementById('edit-client-id').value;
+    const name = document.getElementById('edit-client-name').value.trim();
+    const phone = document.getElementById('edit-client-phone').value.trim();
+
+    if (!clientId || !name) {
+        alert('Nombre del cliente es obligatorio.');
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('clientes')
+            .update({ 
+                name: name, 
+                phone: phone || null,
+            })
+            .eq('client_id', clientId); 
+
+        if (error) throw error;
+
+        alert(`¡Cliente ${name} actualizado exitosamente!`);
+        closeModal('edit-client-modal');
+        // Recargar la lista de administración y los selects
+        loadAdminClientsList(); 
+        loadClientsForSelect(); 
+        
+    } catch (error) {
+        console.error('Error al editar cliente:', error);
+        alert(`Fallo la edición del cliente. Error: ${error.message}`);
     }
 }
 
@@ -831,6 +955,35 @@ const { error: paymentError } = await supabase
     }
 }
 
+// main.js - Nueva función para manejar el cambio de estado (Activo/Inactivo)
+
+async function handleToggleClientActive(clientId, currentlyActive) {
+    if (!clientId) return;
+    
+    const newStatus = !currentlyActive;
+    const action = newStatus ? 'habilitar' : 'inhabilitar';
+
+    if (!confirm(`¿Estás seguro de que deseas ${action} a este cliente?`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('clientes')
+            .update({ is_active: newStatus })
+            .eq('client_id', clientId);
+
+        if (error) throw error;
+
+        alert(`Cliente ${newStatus ? 'habilitado' : 'inhabilitado'} exitosamente.`);
+        loadAdminClientsList(); // Recargar la lista de administración
+        loadClientsForSelect(); // Recargar el select de venta
+        
+    } catch (error) {
+        console.error(`Error al ${action} cliente:`, error);
+        alert(`Fallo al ${action} cliente. Error: ${error.message}`);
+    }
+}
 
 // ===================================================================
 // 8. LÓGICA DE CÁLCULO DE VENTA Y FILTRADO DINÁMICO
@@ -943,6 +1096,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
     document.getElementById('logout-button')?.addEventListener('click', handleLogout); 
 
+// Nuevo Listener para el formulario de edición de cliente
+    document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
+
     // Formulario de Nueva Venta 
     document.getElementById('new-sale-form')?.addEventListener('submit', handleNewSale);
     
@@ -1009,6 +1165,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Listener para abrir el modal de registro de producto
     document.getElementById('open-new-product-modal')?.addEventListener('click', () => {
         openModal('new-product-modal');
+    });
+
+    // Nuevo Listener para abrir la Administración de Clientes
+    document.getElementById('open-admin-clients-modal')?.addEventListener('click', async (e) => {
+        e.preventDefault(); 
+        await loadAdminClientsList(); 
+        openModal('admin-clients-modal'); // <-- ¡Este ID debe coincidir con el modal!
     });
 
     // ----------------------------------------------------------------
