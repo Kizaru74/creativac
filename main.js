@@ -254,7 +254,6 @@ clientes!ventas_client_id_fkey (name)
     });
 }
 
-
 // Función para cargar clientes en la tabla del dashboard (para no dejarla vacía)
 async function loadClientsForDashboard() {
     const tableBody = document.getElementById('clients-table-body'); 
@@ -292,6 +291,37 @@ async function loadClientsForDashboard() {
 // ====================================================================
 // 5. LÓGICA DE CARGA PARA SELECTS (Nueva Venta)
 // ====================================================================
+
+// main.js - Nueva Función de Utilidad (Aprox. Línea 335)
+async function loadParentProductsForSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return; 
+
+    select.innerHTML = '<option value="" disabled selected>Cargando Principales...</option>';
+    select.disabled = true;
+
+    // Asegura que allProducts esté cargado
+    if (allProducts.length === 0) {
+        try {
+            await loadProductsData(); 
+        } catch (e) {
+            select.innerHTML = '<option value="" disabled selected>Error al cargar Principales</option>';
+            return;
+        }
+    }
+
+    const mainProducts = allProducts.filter(p => p.type === 'MAIN');
+
+    select.innerHTML = '<option value="null" selected>Ninguno (Producto Principal)</option>';
+    select.disabled = false;
+    
+    mainProducts.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.name; // Usamos el nombre como valor para la columna parent_product
+        option.textContent = product.name;
+        select.appendChild(option);
+    });
+}
 
 async function loadClientsForSelect() {
     const select = document.getElementById('sale-client-select');
@@ -336,6 +366,67 @@ async function loadProductsData() {
     }
     
     allProducts = items; // Almacenamos todos los productos globalmente
+}
+
+// main.js - Nueva Función de Utilidad
+function toggleParentProductField() {
+    const typeSelect = document.getElementById('new-product-type');
+    const parentContainer = document.getElementById('parent-product-container');
+    
+    if (!typeSelect || !parentContainer) return;
+    
+    // Muestra el campo Padre solo si el Tipo es 'Paquete'
+    if (typeSelect.value === 'PACKAGE') {
+        parentContainer.style.display = 'block';
+    } else {
+        parentContainer.style.display = 'none';
+        // Opcional: Resetear el valor cuando se oculta
+        document.getElementById('new-product-parent-select').value = 'null';
+    }
+}
+
+// main.js - Nueva Función de Utilidad
+function updateSubproductSelect(selectedMainProductName) {
+    const subproductSelect = document.getElementById('subproduct-select');
+    if (!subproductSelect) return;
+
+    // Limpia y habilita el select de subproductos
+    subproductSelect.innerHTML = '';
+    subproductSelect.disabled = false;
+    
+    // Filtra los productos que son PACKAGE y cuyo parent_product coincide con el nombre seleccionado
+    const subproducts = allProducts.filter(
+        p => p.type === 'PACKAGE' && p.parent_product === selectedMainProductName
+    );
+
+    // Si no hay subproductos para este MAIN, solo habilita la opción de "Ninguno"
+    if (subproducts.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No hay Paquetes/Subcategorías disponibles';
+        option.disabled = true;
+        subproductSelect.appendChild(option);
+        subproductSelect.disabled = true; // Deshabilita si no hay opciones
+        return;
+    }
+
+    // Opción por defecto para seleccionar
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Seleccione Paquete/Subcategoría';
+    defaultOption.disabled = true;
+    defaultOption.selected = true;
+    subproductSelect.appendChild(defaultOption);
+
+    // Llena con los subproductos filtrados
+    subproducts.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.name;
+        // Almacenar el precio en un atributo data para usarlo en el cálculo
+        option.setAttribute('data-price', p.price); 
+        option.textContent = `${p.name} ($${p.price.toFixed(2)})`;
+        subproductSelect.appendChild(option);
+    });
 }
 
 // Funcion loadAdminClientsList
@@ -731,7 +822,24 @@ async function handleNewProduct(e) {
     const price = parseFloat(document.getElementById('new-product-price').value);
     const type = document.getElementById('new-product-type').value; 
     const description = document.getElementById('new-product-description').value.trim();
-    // ... (otras validaciones) ...
+    // 🆕 CAPTURAR EL PRODUCTO PADRE
+    const parent_product_val = document.getElementById('new-product-parent-select')?.value;
+    
+    // Determinar el valor de parent_product (null si es MAIN o si se eligió 'Ninguno')
+    let parentProduct = null;
+    // Solo asignamos si es PACKAGE y el valor no es 'null' (Ninguno)
+    if (type === 'PACKAGE' && parent_product_val && parent_product_val !== 'null') {
+        parentProduct = parent_product_val; 
+    }
+    
+    if (!name || isNaN(price) || price < 0) {
+        alert('Nombre y Precio Base son obligatorios.');
+        return;
+    }
+    if (type === 'PACKAGE' && parentProduct === null) {
+        alert('Por favor, selecciona un Producto Principal (Padre) para este Paquete.');
+        return;
+    }
 
     try {
         const { error } = await supabase
@@ -741,24 +849,21 @@ async function handleNewProduct(e) {
                 price: price,
                 type: type, 
                 description: description || null,
-                parent_product: null // Se inserta null si es MAIN o si no se especificó.
+                parent_product: parentProduct // 🆕 USAR EL VALOR DEL PADRE
             }]);
 
         if (error) throw error;
 
         alert(`¡${name} registrado exitosamente!`);
         
-        // *****************************************************************
-        // <--- UBICACIÓN DE LA CORRECCIÓN: Después del éxito, antes de cerrar --->
         const titleElement = document.getElementById('modal-title-product');
         if (titleElement) {
              titleElement.textContent = 'Registrar Nuevo Producto';
         }
-        // *****************************************************************
         
         closeModal('new-product-modal');
         loadAdminProductsList();
-        allProducts = []; 
+        allProducts = []; // Forzar recarga de productos para los selects
     } catch (error) {
         console.error('Error al registrar producto:', error);
         alert(`Fallo el registro del producto. Error: ${error.message}`);
@@ -1111,7 +1216,6 @@ function filterSubproducts() {
     calculateSaleTotal(); // Calcula el total con el precio base o el primer paquete
 }
 
-
 // Función para calcular el total de la venta (adaptada a doble select)
 function calculateSaleTotal() {
     const subproductSelect = document.getElementById('subproduct-select'); 
@@ -1146,12 +1250,11 @@ function calculateSaleTotal() {
     if (debtDisplay) debtDisplay.textContent = formatCurrency(debt);
 }
 
-
 // ===================================================================
 // 9. EVENT LISTENERS
 // ===================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
+// 🆕 Listener para el cambio de Tipo de producto (muestra/oculta el Padre)
+document.getElementById('new-product-type')?.addEventListener('change', toggleParentProductField);
     
     // Auth Listeners
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
@@ -1224,9 +1327,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // 4. Listener para abrir el modal de registro de producto
-    document.getElementById('open-new-product-modal')?.addEventListener('click', () => {
-        openModal('new-product-modal');
-    });
+document.getElementById('open-new-product-modal')?.addEventListener('click', async () => {
+    await loadProductsData(); // Asegurar que allProducts esté cargado
+    await loadParentProductsForSelect('new-product-parent-select'); // 🆕 Cargar select de padres
+    toggleParentProductField(); // 🆕 Inicializar el estado de ocultar/mostrar
+    openModal('new-product-modal');
+});
 
     // Nuevo Listener para abrir la Administración de Clientes
     document.getElementById('open-admin-clients-modal')?.addEventListener('click', async (e) => {
@@ -1234,6 +1340,17 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadAdminClientsList(); 
         openModal('admin-clients-modal'); // <-- ¡Este ID debe coincidir con el modal!
     });
+
+    // ----------------------------------------------------------------
+// 🆕 LÓGICA DE FILTRADO DE PRODUCTOS EN MODAL DE VENTA
+// ----------------------------------------------------------------
+document.getElementById('main-product-select')?.addEventListener('change', (e) => {
+    const selectedMainProductName = e.target.value;
+    updateSubproductSelect(selectedMainProductName);
+});
+
+// Nota: También debes asegurarte de que el listener para new-product-type change esté allí:
+document.getElementById('new-product-type')?.addEventListener('change', toggleParentProductField);
 
     // ----------------------------------------------------------------
     // LÓGICA DE CIERRE DE MODALES
@@ -1269,4 +1386,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Carga de datos inicial del dashboard ---
     checkUserSession(); 
-});
