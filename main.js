@@ -37,15 +37,25 @@ function formatDate(dateString) {
 
 // ✅ CORREGIDO: Se adjunta a window para que sea global
 window.openModal = function(modalId) { 
-    document.getElementById(modalId).classList.remove('hidden');
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        // 1. Añadimos 'flex' para activar items-center y justify-center
+        modal.classList.add('flex'); 
+        
+        // 2. Removemos 'hidden' para mostrar el modal
+        modal.classList.remove('hidden');
+    }
 }
 
 // ✅ CORREGIDO: Se adjunta a window para que sea global y se añade el cierre de llaves faltante
 window.closeModal = function(modalId) { 
     const modal = document.getElementById(modalId);
     if (modal) {
+        // 1. Añadimos 'hidden' para ocultar el modal
         modal.classList.add('hidden');
-        // El código interno que estaba cortado sigue funcionando aquí
+        
+        // 2. Removemos 'flex' para limpiar el estilo del modal oculto
+        modal.classList.remove('flex');
     }
 }
 
