@@ -348,8 +348,13 @@ function updateSaleTableDisplay() {
         row.className = 'hover:bg-gray-50';
         row.dataset.index = index; 
         
+        // ✅ CÓDIGO CORREGIDO PARA MOSTRAR EL NOMBRE DEL PADRE ENTRE PARÉNTESIS
+        const displayName = (item.parent_product_name && item.parent_product_name !== item.name)
+            ? `${item.name} (${item.parent_product_name})` // Muestra: Paquete (Padre)
+            : item.name;
+
         row.innerHTML = `
-            <td class="px-6 py-3 text-sm font-medium text-gray-900">${item.name}</td>
+            <td class="px-6 py-3 text-sm font-medium text-gray-900">${displayName}</td>
             <td class="px-6 py-3 text-sm text-gray-500">${formatCurrency(item.price)}</td>
             <td class="px-6 py-3 text-sm text-gray-500">${item.quantity}</td>
             <td class="px-6 py-3 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
@@ -362,6 +367,9 @@ function updateSaleTableDisplay() {
         `;
         container.appendChild(row);
     });
+    
+    // 🔥 IMPORTANTE: Llama a la actualización de totales aquí para asegurar que se ejecute.
+    calculateGrandTotal(); 
 }
 
 function addItemToSaleTable(item) {
@@ -402,6 +410,7 @@ window.removeItemFromSale = function(index) {
 function handleAddProductToSale(e) {
     e.preventDefault();
 
+    const mainSelect = document.getElementById('product-main-select'); // ⬅️ Nuevo
     const subSelect = document.getElementById('subproduct-select');   
     const quantityInput = document.getElementById('product-quantity'); 
     const priceInput = document.getElementById('product-unit-price'); 
@@ -409,8 +418,10 @@ function handleAddProductToSale(e) {
     const productId = subSelect?.value;
     const name = subSelect?.selectedOptions[0]?.textContent;
     const quantity = parseFloat(quantityInput?.value);
-    // IMPORTANTE: Aquí lee el valor ACTUAL del input, que puede ser el default o el que ajustó el usuario.
     const price = parseFloat(priceInput?.value); 
+    
+    // ✅ CAPTURAR NOMBRE DEL PADRE: Obtenemos el texto de la opción principal seleccionada
+    const mainProductName = mainSelect?.selectedOptions[0]?.textContent?.trim() ?? null; 
 
     if (!productId || productId === '') {
         alert('Por favor, selecciona un Paquete/Subcategoría o Precio Base.');
@@ -429,15 +440,22 @@ function handleAddProductToSale(e) {
 
     const newItem = {
         product_id: productId,
+        // Limpiamos el nombre del subproducto
         name: name.split('(')[0].trim().replace('[Precio Base]', '').trim(), 
         quantity: quantity,
         price: price,
-        subtotal: subtotal
+        subtotal: subtotal,
+        // ✅ AGREGAMOS EL NOMBRE DEL PADRE AL ITEM
+        parent_product_name: mainProductName 
     };
 
     currentSaleItems.push(newItem);
-    addItemToSaleTable(newItem);
+    
+    // Nota: Si usas addItemToSaleTable(newItem), debes modificarla también.
+    // Lo más seguro es usar la función de renderizado completo:
+    updateSaleTableDisplay(); 
 
+    // Limpieza de inputs
     document.getElementById('product-main-select').value = '';
     subSelect.innerHTML = '<option value="" disabled selected>Seleccione Principal primero</option>';
     subSelect.disabled = true;
