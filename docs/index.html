@@ -17,7 +17,7 @@
             line-height: 1; /* Para centrar el '+' */
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-ARA655i3.js"></script>
+  <script type="module" crossorigin src="./assets/index-gkrwzILF.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     
@@ -108,6 +108,7 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead>
                         <tr>
+                        
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CLIENTE</th>
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FECHA VENTA</th>
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MONTO VENTA</th>
@@ -141,7 +142,7 @@
     </div>
  
 <div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 max-h-screen overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
         
         <div class="flex justify-between items-center border-b pb-3 mb-4">
             <h3 class="text-xl font-bold">Registrar Nueva Venta</h3>
@@ -152,47 +153,83 @@
 
         <form id="new-sale-form" class="space-y-4">
             
-            <div class="mb-4">
-                <label for="client-select" class="block text-gray-700 text-sm font-bold mb-2">Cliente</label>
-                <select id="client-select" name="client_id" class="w-full p-2 border rounded">
-                    <option value="">Cargando clientes...</option>
-                </select>
-            </div>
-            
-            <h4 class="text-lg font-bold">Agregar Producto</h4>
-            <div class="flex space-x-2 items-end mb-4"> 
-                
-                <div class="grid grid-cols-4 gap-3 flex-grow">
-                    <div>
-                        <label for="product-main-select" class="block text-gray-700 text-xs font-bold mb-1">Producto Principal</label>
-                        <select id="product-main-select" name="product_main_id" class="w-full p-2 border rounded text-sm">
-                            <option value="">Seleccione Produc...</option>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                <div class="space-y-4">
+                    
+                    <div class="mb-4">
+                        <label for="client-select" class="block text-gray-700 text-sm font-bold mb-2">Cliente</label>
+                        <select id="client-select" name="client_id" class="w-full p-2 border rounded">
+                            <option value="">Cargando clientes...</option>
                         </select>
                     </div>
-
-                    <div>
-                        <label for="subproduct-select" class="block text-gray-700 text-xs font-bold mb-1">Paquete/Subcategoría</label>
-                        <select id="subproduct-select" name="product_package_id" class="w-full p-2 border rounded text-sm">
-                            <option value="">Seleccione Subcat...</option>
-                        </select>
+                    
+                    <h4 class="text-lg font-bold">Agregar Producto</h4>
+                    <div class="flex space-x-2 items-end mb-4"> 
+                        <div class="grid grid-cols-4 gap-3 flex-grow">
+                            <div>
+                                <label for="product-main-select" class="block text-gray-700 text-xs font-bold mb-1">Producto</label>
+                                <select id="product-main-select" name="product_main_id" class="w-full p-2 border rounded text-sm">
+                                    <option value="">Seleccione Produc...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="subproduct-select" class="block text-gray-700 text-xs font-bold mb-1">Paquete</label>
+                                <select id="subproduct-select" name="product_package_id" class="w-full p-2 border rounded text-sm">
+                                    <option value="">Seleccione Subcat...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="product-quantity" class="block text-gray-700 text-xs font-bold mb-1">Cantidad</label>
+                                <input type="number" id="product-quantity" class="w-full p-2 border rounded text-sm" value="1" min="1" required>
+                            </div>
+                            <div>
+                                <label for="product-unit-price" class="block text-gray-700 text-xs font-bold mb-1">Precio Unitario</label>
+                                <input type="number" step="0.01" id="product-unit-price" class="w-full p-2 border rounded text-sm bg-gray-50" value="0.00">
+                            </div>
+                        </div>
+                        <button type="button" id="add-product-btn" class="bg-green-500 text-white p-2 rounded-lg w-10 h-10 flex items-center justify-center hover:bg-green-600 text-xl font-bold flex-shrink-0">
+                            <i class="fas fa-plus"></i>
+                        </button>
                     </div>
 
+                    <div class="mb-4 pt-2">
+                        <label for="sale-description" class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
+                        <textarea id="sale-description" name="sale_description" rows="3" class="w-full p-2 border rounded resize-y" placeholder="Ej: Pago con dos tarjetas, entrega a domicilio, etc."></textarea>
+                    </div>
+
+                </div>
+
+                <div class="space-y-4">
+                    
                     <div>
-                        <label for="product-quantity" class="block text-gray-700 text-xs font-bold mb-1">Cantidad</label>
-                        <input type="number" id="product-quantity" class="w-full p-2 border rounded text-sm" value="1" min="1" required>
+                        <label for="paid-amount" class="block text-gray-700 text-sm font-bold mb-2">Monto Pagado</label>
+                        <input type="number" step="0.01" id="paid-amount" class="w-full p-2 border rounded font-bold text-blue-600" value="0.00" required>
                     </div>
                     
                     <div>
-                        <label for="product-unit-price" class="block text-gray-700 text-xs font-bold mb-1">Precio Unitario</label>
-                        <input type="number" step="0.01" id="product-unit-price" class="w-full p-2 border rounded text-sm bg-gray-50" value="0.00">
+                        <label for="payment-method" class="block text-gray-700 text-sm font-bold mb-2">Método de Pago</label>
+                        <select id="payment-method" class="w-full p-2 border rounded" required>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Transferencia">Transferencia</option>
+                            <option value="Deuda">Deuda/Crédito</option>
+                        </select>
                     </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 pt-4 border-t">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Total de la Venta</label>
+                            <input type="text" id="total-amount" class="w-full p-2 border rounded bg-gray-100 font-bold text-green-600" value="0.00" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Saldo Pendiente</label>
+                            <input type="text" id="remaining-balance" class="w-full p-2 border rounded bg-gray-100 text-red-600 font-bold" value="0.00" readonly>
+                        </div>
+                    </div>
+                    
                 </div>
-                <button type="button" id="add-product-btn" class="bg-green-500 text-white p-2 rounded-lg w-10 h-10 flex items-center justify-center hover:bg-green-600 text-xl font-bold flex-shrink-0">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-            
-            <div class="max-h-60 overflow-y-auto border rounded-lg">
+            </div> <div class="max-h-60 overflow-y-auto border rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50 sticky top-0">
                         <tr>
@@ -209,45 +246,13 @@
                 </table>
             </div>
 
-            <div class="mb-4 pt-2">
-                <label for="sale-description" class="block text-gray-700 text-sm font-bold mb-2">Descripción</label>
-                <textarea id="sale-description" name="sale_description" rows="3" class="w-full p-2 border rounded resize-y" placeholder="Ej: Pago con dos tarjetas, entrega a domicilio, etc."></textarea>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4">
-                
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Total de la Venta</label>
-                    <input type="text" id="total-amount" class="w-full p-2 border rounded bg-gray-100 font-bold text-green-600" value="0.00" readonly>
-                </div>
-
-                <div>
-                    <label for="paid-amount" class="block text-gray-700 text-sm font-bold mb-2">Monto Pagado</label>
-                    <input type="number" step="0.01" id="paid-amount" class="w-full p-2 border rounded font-bold text-blue-600" value="0.00" required>
-                </div>
-                
-                <div>
-                    <label for="payment-method" class="block text-gray-700 text-sm font-bold mb-2">Método de Pago</label>
-                    <select id="payment-method" class="w-full p-2 border rounded" required>
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Tarjeta">Tarjeta</option>
-                        <option value="Transferencia">Transferencia</option>
-                        <option value="Deuda">Deuda/Crédito</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Saldo Pendiente</label>
-                    <input type="text" id="remaining-balance" class="w-full p-2 border rounded bg-gray-100 text-red-600 font-bold" value="0.00" readonly>
-                </div>
-            </div>
-
             <div class="flex justify-end pt-2">
                 <button type="submit" id="submit-sale-btn" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 font-bold text-base">
                     Registrar Venta
                 </button>
             </div>
         </form>
+        
     </div>
 </div>
 
@@ -329,8 +334,8 @@
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
                 <select id="new-product-type" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                    <option value="MAIN">Producto Principal</option>
-                    <option value="PACKAGE">Paquete/Subcategoría</option>
+                    <option value="MAIN">Producto</option>
+                    <option value="PACKAGE">Paquete</option>
                 </select>
             </div>
 
@@ -341,7 +346,7 @@
                 <select id="parent-product-select" name="parent-product-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
                     <option value="" disabled selected>Seleccione Producto Principal</option>
                 </select>
-                <p class="mt-1 text-xs text-gray-500">Seleccione el producto MAIN al que pertenece este Paquete/Subcategoría.</p>
+                <p class="mt-1 text-xs text-gray-500">Seleccione el producto MAIN al que pertenece este Paquete.</p>
             </div>
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md transition duration-150 ease-in-out">
                 Guardar Producto
@@ -470,8 +475,8 @@
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
                 <select id="edit-product-type" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                    <option value="MAIN">Producto Principal</option>
-                    <option value="PACKAGE">Paquete/Subcategoría</option>
+                    <option value="MAIN">Producto</option>
+                    <option value="PACKAGE">Paquete</option>
                 </select>
             </div>
             
@@ -480,9 +485,9 @@
                     Producto Principal (Padre)
                 </label>
                 <select id="edit-parent-product-select" name="edit-parent-product-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
-                    <option value="" disabled selected>Seleccione Producto Principal</option>
+                    <option value="" disabled selected>Seleccione Producto</option>
                 </select>
-                <p class="mt-1 text-xs text-gray-500">Seleccione el producto MAIN al que pertenece este Paquete/Subcategoría.</p>
+                <p class="mt-1 text-xs text-gray-500">Seleccione el producto MAIN al que pertenece este Paquete.</p>
             </div>
 
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md">

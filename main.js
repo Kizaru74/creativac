@@ -255,7 +255,7 @@ async function loadParentProductsForSelect(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
 
-    select.innerHTML = '<option value="" disabled selected>Seleccione Producto Principal</option>';
+    select.innerHTML = '<option value="" disabled selected>Seleccione Producto</option>';
     
     mainProducts.forEach(product => {
         const option = document.createElement('option');
@@ -434,7 +434,7 @@ function handleAddProductToSale(e) {
     const mainProductName = mainSelect?.selectedOptions[0]?.textContent?.trim() ?? null; 
 
     if (!productId || productId === '') {
-        alert('Por favor, selecciona un Paquete/Subcategoría o Precio Base.');
+        alert('Por favor, selecciona un Paquete o Precio Base.');
         return;
     }
     if (isNaN(quantity) || quantity <= 0) {
