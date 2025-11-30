@@ -123,11 +123,13 @@ async function loadTotals() {
 }
 
 async function loadDebts() {
+    // 1. LIMITAR A 5 REGISTROS
     const { data, error } = await supabase
         .from('ventas')
         .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name)')
-        .gt('saldo_pendiente', 0)
-        .order('created_at', { ascending: false });
+        .gt('saldo_pendiente', 0.01) // Usamos 0.01 para mayor precisión
+        .order('created_at', { ascending: false })
+        .limit(5); // ⬅️ Limitamos a 5 deudas recientes
 
     if (error) {
         console.error('Error al cargar tabla de deudas:', error);
@@ -147,26 +149,35 @@ async function loadDebts() {
         const clientName = debt.clientes?.name || 'Cliente Desconocido';
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
+        
+        // 2. y 3. REEMPLAZAR BOTÓN 'PAGAR' por 'DETALLES' y 'PAGAR'
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-sm text-black font-bold">${clientName}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatDate(debt.created_at)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(debt.total_amount)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debt.saldo_pendiente)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button data-debt-id="${debt.venta_id}" data-client-name="${clientName}" data-debt-amount="${debt.saldo_pendiente}" class="text-indigo-600 hover:text-indigo-900 pay-debt-btn">Pagar</button>
+                
+                <button 
+                    onclick="openSaleDetailModal(${debt.venta_id})" 
+                    class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100 mr-2"
+                >
+                    Detalles
+                </button>
+                
+                <button 
+                    onclick="openSaleDetailModal(${debt.venta_id})" 
+                    class="text-green-600 hover:text-green-900 font-semibold text-xs py-1 px-2 rounded bg-green-100"
+                >
+                    Pagar
+                </button>
             </td>
         `;
         container.appendChild(row);
     });
-
-    document.querySelectorAll('.pay-debt-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const debtId = e.target.dataset.debtId;
-            const clientName = e.target.dataset.clientName;
-            const debtAmount = parseFloat(e.target.dataset.debtAmount);
-            openPaymentModal(debtId, clientName, debtAmount);
-        });
-    });
+    
+    // ELIMINAMOS el código document.querySelectorAll('.pay-debt-btn').forEach(...)
+    // porque ahora usamos 'onclick' directo, lo cual es más eficiente para elementos dinámicos.
 }
 
 async function loadDashboardData() {
@@ -440,21 +451,24 @@ function handleAddProductToSale(e) {
 // ====================================================================
 
 async function handleNewSale(e) {
-   e.preventDefault();
+    e.preventDefault();
 
     const client_id = document.getElementById('client-select')?.value ?? null;
-    const total_amount_str = document.getElementById('total-amount')?.value ?? '0';
+    
+    // Capturamos el monto pagado (ACEPTA '0' o vacío)
     const paid_amount_str = document.getElementById('paid-amount')?.value ?? '0'; 
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
-    
-    // ✅ REVERSIÓN: Captura de la descripción (ya que la columna ahora existe en Supabase)
     const sale_description = document.getElementById('sale-description')?.value.trim() ?? null;
     
-    const total_amount = parseFloat(total_amount_str);
+    const sale_details_array = currentSaleItems; 
+    
+    // ✅ CORRECCIÓN CLAVE: Calcular el total_amount a partir de los artículos del carrito
+    const total_amount = sale_details_array.reduce((sum, item) => sum + item.subtotal, 0); 
+    
     const paid_amount = parseFloat(paid_amount_str);
     const saldo_pendiente = total_amount - paid_amount; 
 
-    const sale_details_array = currentSaleItems; 
+    // --- Validaciones ---
 
     if (!client_id) {
         alert('Por favor, selecciona un cliente.');
@@ -468,15 +482,18 @@ async function handleNewSale(e) {
         alert('El monto pagado no puede ser mayor que el total de la venta.');
         return;
     }
+    // Si paid_amount es 0, no entra en ninguna alerta y continúa.
 
     try {
+        // 1. REGISTRAR VENTA (Tabla 'ventas')
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
                 client_id: client_id,
-                total_amount: total_amount,
-                paid_amount: paid_amount,
+                total_amount: total_amount, // ✅ Usamos el total calculado
+                paid_amount: paid_amount, // ✅ Puede ser 0
                 saldo_pendiente: saldo_pendiente,
+                // ✅ Tu código original ya está usando metodo_pago y description
                 metodo_pago: payment_method, 
                 description: sale_description, 
             }])
@@ -490,6 +507,7 @@ async function handleNewSale(e) {
 
         const new_venta_id = saleData[0].venta_id;
 
+        // 2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = sale_details_array.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
@@ -508,6 +526,7 @@ async function handleNewSale(e) {
             alert(`Venta registrada (ID: ${new_venta_id}), pero falló el registro de detalles: ${detailError.message}`);
         }
 
+        // 3. REGISTRAR PAGO (Tabla 'pagos') - SOLO SI paid_amount > 0
         if (paid_amount > 0) {
             const { error: paymentError } = await supabase
                 .from('pagos')
@@ -524,6 +543,7 @@ async function handleNewSale(e) {
             }
         }
 
+        // 4. LIMPIAR Y RECARGAR
         alert('Venta, detalles y pago (si aplica) registrados exitosamente.');
         closeModal('new-sale-modal');
         await loadDashboardData(); 
@@ -534,6 +554,8 @@ async function handleNewSale(e) {
     } finally {
         currentSaleItems = []; 
         updateSaleTableDisplay();
+        // Nota: Asegúrate de limpiar también los campos del formulario si es necesario
+        document.getElementById('new-sale-form').reset();
     }
 }
 
