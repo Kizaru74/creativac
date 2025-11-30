@@ -7,8 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* Estilo para el fondo oscuro de la modal */
         .modal-overlay {
             background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Ajuste para el tamaño del botón "+" en la modal de venta */
+        #add-product-btn {
+            line-height: 1; /* Para centrar el '+' */
         }
     </style>
 </head>
@@ -51,6 +57,10 @@
                 <button id="open-admin-clients-modal" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">
                 <i class="fas fa-users-cog"></i> Administrar Clientes
                 </button>
+
+<button onclick="openModal('admin-sales-modal'); loadSalesList();" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out">
+    <i class="fas fa-file-invoice-dollar mr-2"></i> Admin Ventas
+</button>
 
                 <button id="open-admin-products-modal" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">
                     <i class="fas fa-box"></i> Productos
@@ -97,14 +107,15 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead>
                         <tr>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CLIENTE</th>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MONTO DEUDA</th>
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FECHA VENTA</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CLIENTE</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MONTO VENTA</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SALDO PENDIENTE</th>
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACCIONES</th>
                         </tr>
                     </thead>
-                    <tbody id="debts-table-body" class="bg-white divide-y divide-gray-200">
-                        <tr><td colspan="4" class="p-3 text-center text-gray-500">Cargando deudas...</td></tr>
+                    <tbody id="debt-table-body" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="5" class="p-3 text-center text-gray-500">Cargando deudas...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -128,82 +139,119 @@
         </div>
     </div>
  
-    <div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-auto p-6">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-bold">Registrar Nueva Venta</h3>
-                <button data-close-modal="new-sale-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
-                    &times;
+<div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 max-h-screen overflow-y-auto">
+        
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Registrar Nueva Venta</h3>
+            <button data-close-modal="new-sale-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                &times;
+            </button>
+        </div>
+
+        <form id="new-sale-form" class="space-y-4">
+            
+            <div class="mb-4">
+                <label for="client-select" class="block text-gray-700 text-sm font-bold mb-2">Cliente</label>
+                <select id="client-select" name="client_id" class="w-full p-2 border rounded">
+                    <option value="">Cargando clientes...</option>
+                </select>
+            </div>
+            
+            <h4 class="text-lg font-bold">Agregar Producto</h4>
+            <div class="flex space-x-2 items-end mb-4"> 
+                
+                <div class="grid grid-cols-4 gap-3 flex-grow">
+                    <div>
+                        <label for="product-main-select" class="block text-gray-700 text-xs font-bold mb-1">Producto Principal</label>
+                        <select id="product-main-select" name="product_main_id" class="w-full p-2 border rounded text-sm">
+                            <option value="">Seleccione Produc...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="subproduct-select" class="block text-gray-700 text-xs font-bold mb-1">Paquete/Subcategoría</label>
+                        <select id="subproduct-select" name="product_package_id" class="w-full p-2 border rounded text-sm">
+                            <option value="">Seleccione Subcat...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="product-quantity" class="block text-gray-700 text-xs font-bold mb-1">Cantidad</label>
+                        <input type="number" id="product-quantity" class="w-full p-2 border rounded text-sm" value="1" min="1" required>
+                    </div>
+                    
+                    <div>
+                        <label for="product-unit-price" class="block text-gray-700 text-xs font-bold mb-1">Precio Unitario</label>
+                        <input type="number" step="0.01" id="product-unit-price" class="w-full p-2 border rounded text-sm bg-gray-50" value="0.00">
+                    </div>
+                </div>
+                <button type="button" id="add-product-btn" class="bg-green-500 text-white p-2 rounded-lg w-10 h-10 flex items-center justify-center hover:bg-green-600 text-xl font-bold flex-shrink-0">
+                    <i class="fas fa-plus"></i>
                 </button>
             </div>
-            <form id="new-sale-form">
-                <div class="grid grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                        <select id="sale-client-select" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                            <option value="" disabled selected>Seleccionando...</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Monto Pagado ($)</label>
-                        <input type="number" id="sale-payment-amount" value="0.00" min="0" step="0.01" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
-                        <select id="sale-payment-method" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Transferencia">Transferencia</option>
-                            <option value="Tarjeta">Tarjeta</option>
-                            <option value="Otro">Otro</option>
-                        </select>
-                    </div>
-                </div>
+            
+            <div class="max-h-60 overflow-y-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cant</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th class="px-6 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="sale-items-container" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mb-4 pt-2">
+                <label for="sale-description" class="block text-gray-700 text-sm font-bold mb-2">Descripción / Notas de la Venta (Opcional)</label>
+                <textarea id="sale-description" name="sale_description" rows="3" class="w-full p-2 border rounded resize-y" placeholder="Ej: Pago con dos tarjetas, entrega a domicilio, etc."></textarea>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
                 
-                <h4 class="text-lg font-semibold text-gray-800 my-4 border-t pt-4">Productos</h4>
-                
-                <div class="space-y-4">
-                    <div class="grid grid-cols-4 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Producto Principal</label>
-                            <select id="main-product-select" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                                <option value="" disabled selected>Cargando productos...</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Paquete/Subcategoría</label>
-                            <select id="subproduct-select" class="w-full border-gray-300 rounded-md shadow-sm p-2" required disabled>
-                                <option value="" data-price="0" disabled selected>Seleccione Principal primero</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-                            <input type="number" id="sale-quantity" value="1" min="1" step="1" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Precio Unitario</label>
-                            <input type="number" id="sale-price" value="0.00" min="0" step="0.01" class="w-full border-gray-300 rounded-md shadow-sm p-2">
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-6 flex justify-between items-center p-3 bg-gray-50 rounded-md border">
-                    <div>
-                        <p class="text-md font-semibold text-gray-800">Total Venta: <span id="sale-total-amount" class="text-green-600 font-bold">$0.00</span></p>
-                    </div>
-                    <div>
-                        <p class="text-md font-semibold text-gray-800">Deuda (Pendiente): <span id="sale-debt-display" class="text-red-600 font-bold">$0.00</span></p>
-                    </div>
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Total de la Venta</label>
+                    <input type="text" id="total-amount" class="w-full p-2 border rounded bg-gray-100 font-bold text-xl" value="0.00" readonly>
                 </div>
 
-                <div class="mt-6">
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-md">
-                        Guardar Venta
-                    </button>
+                <div>
+                    <label for="paid-amount" class="block text-gray-700 text-sm font-bold mb-2">Monto Pagado</label>
+                    <input type="number" step="0.01" id="paid-amount" class="w-full p-2 border rounded" value="0.00" required>
                 </div>
-            </form>
-        </div>
+                
+                <div>
+                    <label for="payment-method" class="block text-gray-700 text-sm font-bold mb-2">Método de Pago</label>
+                    <select id="payment-method" class="w-full p-2 border rounded" required>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Tarjeta">Tarjeta</option>
+                        <option value="Transferencia">Transferencia</option>
+                        <option value="Deuda">Deuda/Crédito</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Saldo Pendiente</label>
+                    <input type="text" id="remaining-balance" class="w-full p-2 border rounded bg-gray-100 font-bold text-xl" value="0.00" readonly>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button type="submit" id="submit-sale-btn" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 font-bold text-base">
+                    Registrar Venta
+                </button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+
+<div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
                 <h3 class="text-xl font-bold">Registrar Nuevo Cliente</h3>
@@ -227,6 +275,8 @@
         </div>
     </div>
     
+
+
 <div id="admin-products-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto p-6"> 
         <div class="flex justify-between items-center border-b pb-3 mb-4">
@@ -246,62 +296,58 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NOMBRE</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TIPO</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRECIO</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRECIO BASE</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PADRE</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACCIONES</th>
                     </tr>
                 </thead>
-                <tbody id="admin-products-table-body" class="bg-white divide-y divide-gray-200">
+                <tbody id="products-table-body" class="bg-white divide-y divide-gray-200">
                     </tbody>
             </table>
         </div>
         </div>
 </div>
     
-    <div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 id="modal-title-product" class="text-xl font-bold">Registrar Nuevo Producto</h3>
-                <button data-close-modal="new-product-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
-                    &times;
-                </button>
-            </div>
-            <form id="new-product-form">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                    <input type="text" id="new-product-name" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Precio</label>
-                    <input type="number" id="new-product-price" min="0" step="0.01" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                    <select id="new-product-type" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                        <option value="MAIN">Producto Principal</option>
-                        <option value="PACKAGE">Paquete/Subcategoría</option>
-                    </select>
-                </div>
-                
-                <div id="parent-product-container" style="display:none;" class="mb-4">
-                    <label for="new-product-parent-select" class="block text-sm font-medium text-gray-700 mb-1">
-                        Producto Principal (Padre)
-                    </label>
-                    
-                    <select id="new-product-parent-select" name="new-product-parent-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
-                        <option value="null" selected>Ninguno (Producto Principal)</option>
-                    </select>
-                    <p class="mt-1 text-xs text-gray-500">Seleccione el producto MAIN al que pertenece este Paquete/Subcategoría.</p>
-                </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Descripción (Opcional)</label>
-                    <textarea id="new-product-description" rows="2" class="w-full border-gray-300 rounded-md shadow-sm p-2"></textarea>
-                </div>
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-md">
-                    Guardar Producto
-                </button>
-            </form>
+<div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Registrar Nuevo Producto</h3>
+            <button data-close-modal="new-product-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                &times;
+            </button>
         </div>
+        <form id="new-product-form" class="mt-4">
+            <div class="mb-4">
+                <label for="new-product-name" class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input type="text" id="new-product-name" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+            </div>
+            <div class="mb-4">
+                <label for="new-product-price" class="block text-sm font-medium text-gray-700 mb-1">Precio Unitario</label>
+                <input type="number" step="0.01" id="new-product-price" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select id="new-product-type" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+                    <option value="MAIN">Producto Principal</option>
+                    <option value="PACKAGE">Paquete/Subcategoría</option>
+                </select>
+            </div>
+
+            <div id="parent-product-container" class="mb-6 hidden">
+                <label for="parent-product-select" class="block text-sm font-medium text-gray-700 mb-1">
+                    Producto Principal (Padre)
+                </label>
+                <select id="parent-product-select" name="parent-product-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                    <option value="" disabled selected>Seleccione Producto Principal</option>
+                </select>
+                <p class="mt-1 text-xs text-gray-500">Seleccione el producto MAIN al que pertenece este Paquete/Subcategoría.</p>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md transition duration-150 ease-in-out">
+                Guardar Producto
+            </button>
+        </form>
     </div>
+</div>
     
 <div id="payment-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6">
@@ -320,7 +366,7 @@
                 <p id="payment-client-name" class="text-lg font-bold text-gray-900 mb-2">Cargando...</p>
                 
                 <p class="text-sm font-semibold text-gray-700">Deuda Pendiente:</p>
-                <p id="payment-current-debt" class="text-2xl font-bold text-red-600">$0.00</p>
+                <p id="payment-debt-amount" class="text-2xl font-bold text-red-600">$0.00</p>
             </div>
 
             <div class="mb-4">
@@ -330,7 +376,7 @@
 
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
-                <select id="payment-method" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+                <select id="payment-method-debt" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
                     <option value="Efectivo">Efectivo</option>
                     <option value="Transferencia">Transferencia</option>
                     <option value="Tarjeta">Tarjeta</option>
@@ -365,6 +411,10 @@
                 <label for="edit-client-phone" class="block text-sm font-medium text-gray-700">Teléfono (Opcional)</label>
                 <input type="tel" id="edit-client-phone" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
             </div>
+             <div class="mb-6">
+                <label for="edit-client-email" class="block text-sm font-medium text-gray-700">Email (Opcional)</label>
+                <input type="email" id="edit-client-email" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+            </div>
             
             <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md">
                 Guardar Cambios
@@ -396,6 +446,143 @@
             </table>
         </div>
         
+    </div>
+</div>
+
+<div id="edit-product-modal" class="modal-overlay hidden fixed inset-0 z-[70] items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Editar Producto/Paquete</h3>
+            <button data-close-modal="edit-product-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                &times;
+            </button>
+        </div>
+        <form id="edit-product-form">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input type="text" id="edit-product-name" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                <input type="number" id="edit-product-price" min="0" step="0.01" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select id="edit-product-type" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+                    <option value="MAIN">Producto Principal</option>
+                    <option value="PACKAGE">Paquete/Subcategoría</option>
+                </select>
+            </div>
+            
+            <div id="edit-parent-product-container" class="mb-6 hidden">
+                <label for="edit-parent-product-select" class="block text-sm font-medium text-gray-700 mb-1">
+                    Producto Principal (Padre)
+                </label>
+                <select id="edit-parent-product-select" name="edit-parent-product-select" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                    <option value="" disabled selected>Seleccione Producto Principal</option>
+                </select>
+                <p class="mt-1 text-xs text-gray-500">Seleccione el producto MAIN al que pertenece este Paquete/Subcategoría.</p>
+            </div>
+
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-md">
+                Guardar Cambios
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="admin-sales-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Administración de Ventas</h3>
+            <button data-close-modal="admin-sales-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                &times;
+            </button>
+        </div>
+        
+        <div class="mb-4">
+            <input type="text" id="sales-search" placeholder="Buscar por Cliente o ID de Venta..." class="w-full border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+
+        <div class="max-h-96 overflow-y-auto overflow-x-hidden border rounded-lg">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0"> 
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID VENTA</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CLIENTE</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FECHA</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">TOTAL</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SALDO</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="sales-list-body" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<div id="sale-detail-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Detalle de Venta <span id="detail-sale-id">#</span></h3>
+            <button data-close-modal="sale-detail-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                &times;
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
+            <div>
+                <p class="font-semibold">Cliente:</p>
+                <p id="detail-client-name" class="ml-2"></p>
+                <p class="font-semibold mt-2">Descripción:</p>
+                <p id="detail-description" class="ml-2 italic text-gray-600"></p>
+            </div>
+            <div class="text-right">
+                <p class="font-semibold">Total: <span id="detail-total-amount" class="text-lg text-indigo-700"></span></p>
+                <p class="font-semibold">Pagado: <span id="detail-paid-amount" class="text-lg text-green-700"></span></p>
+                <p class="font-semibold">Saldo Pendiente: <span id="detail-saldo-pendiente" class="text-xl text-red-600 font-extrabold"></span></p>
+            </div>
+        </div>
+
+        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Productos Vendidos</h4>
+        <div class="max-h-48 overflow-y-auto border rounded-lg mb-4">
+            <table class="min-w-full divide-y divide-gray-200">
+                <tbody id="detail-products-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+            </table>
+        </div>
+
+        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Historial de Pagos</h4>
+        <div class="max-h-32 overflow-y-auto border rounded-lg mb-4">
+            <table class="min-w-full divide-y divide-gray-200">
+                <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+            </table>
+        </div>
+
+        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
+        <form id="register-payment-form" class="flex gap-4 items-end">
+            <input type="hidden" id="payment-sale-id">
+            <div class="flex-grow">
+                <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
+<input type="number" step="0.01" id="abono-amount" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+            </div>
+            <div>
+                <label for="payment-method-abono" class="block text-sm font-medium text-gray-700">Método</label>
+                <select id="payment-method-abono" class="w-full border-gray-300 rounded-md shadow-sm p-2">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Transferencia</option>
+                </select>
+            </div>
+            <button type="submit" id="submit-abono-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                Abonar
+            </button>
+        </form>
+
     </div>
 </div>
 
