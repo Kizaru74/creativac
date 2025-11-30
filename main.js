@@ -148,8 +148,8 @@ async function loadDebts() {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-black font-bold">${clientName}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatDate(debt.created_at)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${clientName}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(debt.total_amount)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debt.saldo_pendiente)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
