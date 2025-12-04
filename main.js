@@ -4,22 +4,23 @@
 
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
-let supabase;
+
+let supabase; // Declaramos la variable
+
+// ✅ CORRECCIÓN CRÍTICA: Inicializar Supabase directamente, fuera del try/catch.
+if (window.supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} else {
+    console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
+    supabase = null; // Asignar null para que las llamadas subsiguientes puedan manejarlo sin crash
+}
+
 let allProducts = []; 
 let currentSaleItems = []; 
 let editingClientId = null;
 let editingProductId = null;
 let debtToPayId = null;
-
-try {
-    if (!window.supabase) {
-        throw new Error("Librería Supabase no encontrada.");
-    }
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
-} catch (e) {
-    console.error("Error Fatal: Supabase no inicializó.", e);
-    document.getElementById('auth-container').style.display = 'flex';
-}
+let allClientsMap = {}; // ✅ DEBE ESTAR AQUÍ
 
 // ====================================================================
 // 2. UTILIDADES Y MANEJO DE MODALES
@@ -35,26 +36,28 @@ function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString('es-MX', options);
 }
 
-// ✅ CORREGIDO: Se adjunta a window para que sea global
+function getMonthDateRange(monthString) {
+    if (!monthString) return { start: null, end: null };
+    const [year, month] = monthString.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1); 
+    const start = startDate.toISOString().substring(0, 10);
+    const end = endDate.toISOString().substring(0, 10); 
+    return { start, end };
+}
+
 window.openModal = function(modalId) { 
     const modal = document.getElementById(modalId);
     if (modal) {
-        // 1. Añadimos 'flex' para activar items-center y justify-center
         modal.classList.add('flex'); 
-        
-        // 2. Removemos 'hidden' para mostrar el modal
         modal.classList.remove('hidden');
     }
 }
 
-// ✅ CORREGIDO: Se adjunta a window para que sea global y se añade el cierre de llaves faltante
 window.closeModal = function(modalId) { 
     const modal = document.getElementById(modalId);
     if (modal) {
-        // 1. Añadimos 'hidden' para ocultar el modal
         modal.classList.add('hidden');
-        
-        // 2. Removemos 'flex' para limpiar el estilo del modal oculto
         modal.classList.remove('flex');
     }
 }
@@ -68,8 +71,13 @@ async function checkUserSession() {
     const { data: { user } } = await supabase.auth.getUser();
 
     const authContainer = document.getElementById('auth-container');
-    const mainContent = document.getElementById('main-app-content');
+    const mainContent = document.getElementById('dashboard-container'); 
     
+    if (!authContainer || !mainContent) {
+        console.error("Error: Los contenedores 'auth-container' o 'dashboard-container' no se encontraron en el HTML.");
+        return; 
+    }
+
     if (user) {
         authContainer.classList.add('hidden');
         mainContent.classList.remove('hidden');
@@ -104,18 +112,41 @@ async function handleLogout() {
 // ====================================================================
 
 async function loadTotals() {
-    const { data: salesData, error: salesError } = await supabase
+    const filterInput = document.getElementById('sales-month-filter');
+    const filterStatus = document.getElementById('filter-status');
+    const monthFilterValue = filterInput?.value;
+    const { start: startDate, end: endDate } = getMonthDateRange(monthFilterValue);
+
+    let salesQuery = supabase
         .from('ventas')
         .select('total_amount');
+
+    let statusText = 'Total histórico';
+
+    if (startDate && endDate) {
+        salesQuery = salesQuery
+            .gte('created_at', startDate)
+            .lt('created_at', endDate);
+        
+        const reportMonthYear = new Date(startDate).toLocaleDateString('es-ES', { 
+            year: 'numeric', 
+            month: 'long' 
+        });
+        statusText = `Total del mes de ${reportMonthYear}`; 
+    }
+
+    const { data: salesData, error: salesError } = await salesQuery;
 
     if (salesError) {
         console.error('Error al cargar ventas:', salesError);
         document.getElementById('total-sales').textContent = formatCurrency(0);
+        if (filterStatus) filterStatus.textContent = 'Error al cargar';
         return;
     }
 
     const totalSales = salesData.reduce((sum, sale) => sum + sale.total_amount, 0);
     document.getElementById('total-sales').textContent = formatCurrency(totalSales);
+    if (filterStatus) filterStatus.textContent = statusText;
 
     const { data: debtData, error: debtError } = await supabase
         .from('ventas')
@@ -133,25 +164,27 @@ async function loadTotals() {
 }
 
 async function loadDebts() {
-    // 1. LIMITAR A 5 REGISTROS
     const { data, error } = await supabase
         .from('ventas')
         .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name)')
-        .gt('saldo_pendiente', 0.01) // Usamos 0.01 para mayor precisión
+        .gt('saldo_pendiente', 0.01) 
         .order('created_at', { ascending: false })
-        .limit(5); // ⬅️ Limitamos a 5 deudas recientes
+        .limit(5); 
 
     if (error) {
         console.error('Error al cargar tabla de deudas:', error);
         return;
     }
 
-    const container = document.getElementById('debt-table-body');
+    const container = document.getElementById('debt-sales-body'); 
     if (!container) return; 
     container.innerHTML = '';
+    
+    const noDebtMessage = document.getElementById('no-debt-message');
+    if (noDebtMessage) noDebtMessage.classList.add('hidden');
 
     if (data.length === 0) {
-        container.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No hay deudas pendientes.</td></tr>';
+        if (noDebtMessage) noDebtMessage.classList.remove('hidden');
         return;
     }
 
@@ -160,43 +193,75 @@ async function loadDebts() {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         
-        // 2. y 3. REEMPLAZAR BOTÓN 'PAGAR' por 'DETALLES' y 'PAGAR'
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-black font-bold">${clientName}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatDate(debt.created_at)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(debt.total_amount)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${debt.venta_id}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debt.saldo_pendiente)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                
                 <button 
                     onclick="openSaleDetailModal(${debt.venta_id})" 
-                    class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100 mr-2"
+                    class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
                 >
-                    Detalles
-                </button>
-                
-                <button 
-                    onclick="openSaleDetailModal(${debt.venta_id})" 
-                    class="text-green-600 hover:text-green-900 font-semibold text-xs py-1 px-2 rounded bg-green-100"
-                >
-                    Pagar
+                    Detalles/Pagar
                 </button>
             </td>
         `;
         container.appendChild(row);
     });
-    
-    // ELIMINAMOS el código document.querySelectorAll('.pay-debt-btn').forEach(...)
-    // porque ahora usamos 'onclick' directo, lo cual es más eficiente para elementos dinámicos.
+}
+
+async function loadRecentSales() {
+    const { data, error } = await supabase
+        .from('ventas')
+        .select(`venta_id, created_at, total_amount, saldo_pendiente, clientes(name), description`)
+        .order('created_at', { ascending: false })
+        .limit(10); 
+
+    if (error) {
+        console.error('Error al cargar ventas recientes:', error);
+        return;
+    }
+
+    const container = document.getElementById('recent-sales-body');
+    const noSalesMessage = document.getElementById('no-sales-message');
+    if (!container) return; 
+    container.innerHTML = '';
+    if (noSalesMessage) noSalesMessage.classList.add('hidden');
+
+    if (data.length === 0) {
+        if (noSalesMessage) noSalesMessage.classList.remove('hidden');
+        return;
+    }
+
+    data.forEach(sale => {
+        const clientName = sale.clientes?.name || 'Cliente Desconocido';
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.venta_id}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(sale.created_at)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formatCurrency(sale.total_amount)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${sale.saldo_pendiente > 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(sale.saldo_pendiente)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button onclick="openSaleDetailModal(${sale.venta_id})" class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100">
+                    Detalles
+                </button>
+            </td>
+        `;
+        container.appendChild(row);
+    });
 }
 
 async function loadDashboardData() {
     await loadTotals();
     await loadDebts();
-    // Pre-carga de datos para admin modales y selects
-    await loadClientsTable(); // Ahora carga el dashboard y el modal
-    await loadProductsData(); // Carga la lista global de productos
-    await loadProductsTable(); // Muestra la tabla de admin
+    await loadRecentSales(); 
+    await loadClientsTable(); 
+    await loadProductsData(); 
+    await loadProductsTable(); 
+    await loadClientsForSale(); 
 }
 
 // ====================================================================
@@ -211,8 +276,7 @@ async function loadClientsForSale() {
 
     const { data, error } = await supabase
         .from('clientes')
-        .select('client_id, name')
-        .eq('is_active', true) 
+        .select('client_id, name') 
         .order('name', { ascending: true });
 
     if (error) {
@@ -237,6 +301,12 @@ async function loadClientsForSale() {
 }
 
 async function loadProductsData() {
+   if (!supabase) {
+        console.warn("Supabase no inicializado. No se pudieron cargar los productos.");
+        return; 
+    }
+
+    // ✅ CORRECCIÓN: Se consulta 'producto_id' y se elimina 'cost_price'
     const { data, error } = await supabase
         .from('productos')
         .select('producto_id, name, type, price, parent_product'); 
@@ -249,124 +319,208 @@ async function loadProductsData() {
     allProducts = data || [];
 }
 
-async function loadParentProductsForSelect(selectId) {
-    const mainProducts = allProducts.filter(p => p.type === 'MAIN');
 
-    const select = document.getElementById(selectId);
-    if (!select) return;
+function handleChangeProductForSale() {
+    const mainSelect = document.getElementById('product-main-select');
+    const subSelect = document.getElementById('subproduct-select');
+    const priceInput = document.getElementById('product-unit-price');
+    
+    // Verificación de existencia de elementos y datos
+    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') return;
 
-    select.innerHTML = '<option value="" disabled selected>Seleccione Producto</option>';
+    const productId = mainSelect.value;
+    
+    // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
+    subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
+    subSelect.disabled = true; 
+    priceInput.value = '0.00';
+    
+    if (!productId) {
+        return; 
+    }
+
+    // 2. Búsqueda robusta del producto seleccionado (Producto Base)
+    const selectedProduct = allProducts.find(p => String(p.producto_id) === String(productId));
+    
+    if (!selectedProduct) {
+        console.warn(`Producto principal con ID ${productId} no encontrado.`);
+        return;
+    }
+    
+    // 3. Establecer el precio por defecto (el del producto principal)
+    updatePriceField(productId);
+    
+    // 4. Filtrar y buscar los subproductos (paquetes)
+    const subProducts = allProducts.filter(p => 
+        // a) El tipo debe ser 'PACKAGE'
+        p.type && p.type.trim().toUpperCase() === 'PACKAGE' && 
+        // b) DEBE tener un parent_product no nulo
+        p.parent_product &&
+        // c) Comparación estricta de IDs (ambas forzadas a String)
+        String(p.parent_product) === String(productId) 
+    );
+    
+    if (subProducts.length > 0) {
+        // 5. Si hay subproductos: Habilitar el selector y cargarlo
+        subSelect.disabled = false; // ⬅️ HABILITA EL SELECTOR
+        
+        subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
+        
+        subProducts.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.producto_id;
+            // Si formatCurrency existe, úsala; si no, usa el precio directo
+            const priceDisplay = (typeof formatCurrency === 'function') ? formatCurrency(sub.price) : `$${sub.price.toFixed(2)}`;
+            
+            option.textContent = `${sub.name} (${priceDisplay})`; 
+            subSelect.appendChild(option);
+        });
+    }
+}
+
+async function loadMainProductsForSaleSelect() {
+    const select = document.getElementById('product-main-select');
+    const subSelect = document.getElementById('subproduct-select');
+    const priceInput = document.getElementById('product-unit-price');
+
+    if (!select || !subSelect || !priceInput) return;
+
+    // ✅ Filtro corregido: Busca 'MAIN'
+    const mainProducts = allProducts.filter(p => p.type && p.type.trim().toUpperCase() === 'MAIN');
+
+    subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
+    priceInput.value = '0.00';
+    subSelect.disabled = true;
+
+    if (mainProducts.length === 0) {
+        select.innerHTML = '<option value="" disabled selected>❌ No hay Productos Base (Tipo: MAIN)</option>';
+        return;
+    }
+    
+    select.innerHTML = '<option value="" disabled selected>Seleccione Producto Base</option>';
     
     mainProducts.forEach(product => {
         const option = document.createElement('option');
-        option.value = product.name; 
-        option.textContent = product.name;
+        option.value = product.producto_id;
+        option.textContent = `${product.name}`;
         select.appendChild(option);
     });
 }
 
-// ====================================================================
-// 6. LÓGICA DE PRODUCTOS DINÁMICOS EN VENTA
-// ====================================================================
+// Asume que 'allProducts' contiene todos los productos cargados
+async function loadParentProductsForSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
 
-function updateSubproductSelect(selectedMainProductName) {
-    const subproductSelect = document.getElementById('subproduct-select'); 
-    const priceInput = document.getElementById('product-unit-price'); 
-    
-    if (!subproductSelect || !priceInput) return;
-
-    subproductSelect.innerHTML = '';
-    subproductSelect.disabled = true; 
-    
-    const subproducts = allProducts.filter(
-        p => p.type === 'PACKAGE' && p.parent_product === selectedMainProductName
+    // Filtra solo los productos principales (MAIN)
+    const mainProducts = allProducts.filter(p => 
+        p.type && p.type.trim().toUpperCase() === 'MAIN'
     );
-    
-    let mainProductAsPriceBase = allProducts.find(item => 
-        item.name === selectedMainProductName && item.type === 'MAIN'
-    );
-    
-    subproductSelect.innerHTML = '<option value="" data-price="0" disabled selected>Seleccione un Paquete/Base</option>';
 
-    if (subproducts.length > 0) {
-        subproducts.forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.producto_id; 
-            option.textContent = `${item.name} (Paquete) - ${formatCurrency(item.price)}`;
-            option.dataset.price = item.price; 
-            subproductSelect.appendChild(option);
-        });
+    // 1. Limpiar y añadir la opción por defecto
+    select.innerHTML = '<option value="" disabled selected>Seleccione Producto Principal</option>';
+
+    if (mainProducts.length === 0) {
+        select.innerHTML = '<option value="" disabled selected>❌ No hay Productos Base (Tipo: MAIN)</option>';
+        return;
     }
     
-    if (mainProductAsPriceBase) {
+    // 2. Llenar el select con los productos filtrados
+    mainProducts.forEach(product => {
         const option = document.createElement('option');
-        option.value = mainProductAsPriceBase.producto_id;
-        option.textContent = `[Precio Base] - ${formatCurrency(mainProductAsPriceBase.price)}`;
-        option.dataset.price = mainProductAsPriceBase.price; 
-        subproductSelect.appendChild(option);
-        
-        if (subproducts.length === 0) {
-            subproductSelect.value = mainProductAsPriceBase.producto_id;
-            priceInput.value = mainProductAsPriceBase.price.toFixed(2);
-        } else {
-             priceInput.value = '0.00';
-        }
-    } else {
-        priceInput.value = '0.00';
-    }
+        option.value = product.producto_id;
+        option.textContent = `${product.name} ($${product.price.toFixed(2)})`;
+        select.appendChild(option);
+    });
+}
 
-    subproductSelect.disabled = false;
+function loadPackageProductsForSelect(mainProductId) {
+    const select = document.getElementById('subproduct-select');
+    if (!select) return;
+
+    const packageProducts = allProducts.filter(p => p.type === 'PACKAGE' && p.parent_product == mainProductId);
+
+    select.innerHTML = '<option value="" selected>Sin Paquete</option>';
+    
+    if (packageProducts.length > 0) {
+        select.disabled = false;
+        packageProducts.forEach(product => {
+            const option = document.createElement('option');
+            option.value = product.producto_id;
+            option.textContent = `${product.name} - ${formatCurrency(product.price)}`;
+            select.appendChild(option);
+        });
+    } else {
+        select.disabled = true;
+    }
+}
+
+/**
+ * Función auxiliar para actualizar el campo de precio unitario.
+ * @param {string} productId - La ID del producto (base o paquete) para obtener el precio.
+ */
+function updatePriceField(productId) {
+    const priceInput = document.getElementById('product-unit-price');
+    
+    // Búsqueda robusta del producto (sea principal o paquete)
+    const productData = allProducts.find(p => String(p.producto_id) === String(productId)); 
+    
+    if (priceInput) {
+        if (productData && productData.price !== undefined) {
+            priceInput.value = productData.price.toFixed(2);
+        } else {
+            priceInput.value = '0.00';
+        }
+    }
 }
 
 
 // ====================================================================
-// 7. LÓGICA DE VENTA MULTI-ITEM
+// 6. LÓGICA DE VENTA MULTI-ITEM
 // ====================================================================
 
 function calculateGrandTotal() {
-    const totalAmountInput = document.getElementById('total-amount');
-    const paidAmountInput = document.getElementById('paid-amount');
-    const balanceInput = document.getElementById('remaining-balance');
-
     const grandTotal = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
     
-    if (totalAmountInput) {
-        totalAmountInput.value = grandTotal.toFixed(2);
-    }
+    const totalInput = document.getElementById('total-amount');
+    if (totalInput) totalInput.value = grandTotal.toFixed(2); 
     
-    const paidAmount = parseFloat(paidAmountInput?.value) || 0;
-    const remainingBalance = Math.max(0, grandTotal - paidAmount);
+    updatePaymentDebtStatus(grandTotal); 
     
-    if (balanceInput) {
-        balanceInput.value = remainingBalance.toFixed(2);
-    }
+    const submitBtn = document.getElementById('submit-sale-btn');
+
+if (currentSaleItems.length > 0) {
+    // Si hay productos en el carrito, habilitar el botón
+    submitBtn?.removeAttribute('disabled');
+} else {
+    // Si el carrito está vacío, deshabilitar el botón
+    submitBtn?.setAttribute('disabled', 'true');
+}
+    
+    return grandTotal;
 }
 
 function updateSaleTableDisplay() {
-    const container = document.getElementById('sale-items-container');
+    const container = document.getElementById('sale-items-container'); 
     if (!container) return;
     
     container.innerHTML = '';
 
     if (currentSaleItems.length === 0) {
         container.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>';
+        
+        calculateGrandTotal();
         return;
     }
     
     currentSaleItems.forEach((item, index) => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
-        row.dataset.index = index; 
-        
-        // ✅ CÓDIGO CORREGIDO PARA MOSTRAR EL NOMBRE DEL PADRE ENTRE PARÉNTESIS
-        const displayName = (item.parent_product_name && item.parent_product_name !== item.name)
-            ? `${item.name} (${item.parent_product_name})` // Muestra: Paquete (Padre)
-            : item.name;
 
         row.innerHTML = `
-            <td class="px-6 py-3 text-sm font-medium text-gray-900">${displayName}</td>
+            <td class="px-6 py-3 text-sm font-medium text-gray-900">${item.name}</td>
             <td class="px-6 py-3 text-sm text-gray-500">${formatCurrency(item.price)}</td>
-            <td class="px-6 py-3 text-sm text-gray-500">${item.quantity}</td>
+            <td class="px-6 py-3 text-sm text-gray-500 text-center">${item.quantity}</td>
             <td class="px-6 py-3 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
             <td class="px-6 py-3 text-right text-sm font-medium">
                 <button type="button" onclick="removeItemFromSale(${index})" 
@@ -378,101 +532,135 @@ function updateSaleTableDisplay() {
         container.appendChild(row);
     });
     
-    // 🔥 IMPORTANTE: Llama a la actualización de totales aquí para asegurar que se ejecute.
     calculateGrandTotal(); 
-}
-
-function addItemToSaleTable(item) {
-    const container = document.getElementById('sale-items-container');
-    if (!container) return;
-
-    if (currentSaleItems.length === 1) { 
-        container.innerHTML = '';
-    }
-
-    const row = document.createElement('tr');
-    row.className = 'hover:bg-gray-50';
-    row.dataset.index = currentSaleItems.length - 1; 
-
-    row.innerHTML = `
-        <td class="px-6 py-3 text-sm font-medium text-gray-900">${item.name}</td>
-        <td class="px-6 py-3 text-sm text-gray-500">${formatCurrency(item.price)}</td>
-        <td class="px-6 py-3 text-sm text-gray-500">${item.quantity}</td>
-        <td class="px-6 py-3 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
-        <td class="px-6 py-3 text-right text-sm font-medium">
-            <button type="button" onclick="removeItemFromSale(${row.dataset.index})" 
-                    class="text-red-600 hover:text-red-900">
-                <i class="fas fa-times-circle"></i>
-            </button>
-        </td>
-    `;
-    container.appendChild(row);
-
-    calculateGrandTotal();
 }
 
 window.removeItemFromSale = function(index) {
     currentSaleItems.splice(index, 1);
     updateSaleTableDisplay();
-    calculateGrandTotal();
 }
 
 function handleAddProductToSale(e) {
     e.preventDefault();
 
-    const mainSelect = document.getElementById('product-main-select'); // ⬅️ Nuevo
-    const subSelect = document.getElementById('subproduct-select');   
+    const mainSelect = document.getElementById('product-main-select');
+    const subSelect = document.getElementById('subproduct-select');
     const quantityInput = document.getElementById('product-quantity'); 
-    const priceInput = document.getElementById('product-unit-price'); 
-
-    const productId = subSelect?.value;
-    const name = subSelect?.selectedOptions[0]?.textContent;
-    const quantity = parseFloat(quantityInput?.value);
-    const price = parseFloat(priceInput?.value); 
     
-    // ✅ CAPTURAR NOMBRE DEL PADRE: Obtenemos el texto de la opción principal seleccionada
-    const mainProductName = mainSelect?.selectedOptions[0]?.textContent?.trim() ?? null; 
+    // 1. Obtener IDs y Cantidad (Aquí no hay cambios, solo leer el valor del DOM)
+    // Usaremos String() en el punto de uso para la corrección
+    const mainProductId = mainSelect?.value;
+    const subProductId = subSelect?.value;
+    const quantity = parseFloat(quantityInput?.value);
 
-    if (!productId || productId === '') {
-        alert('Por favor, selecciona un Paquete o Precio Base.');
+    // Determinar la ID que define el PRECIO y la que se registra en el carrito
+    let productIdToCharge = subProductId;
+    if (!productIdToCharge) {
+        productIdToCharge = mainProductId;
+    }
+    
+    // 🛑 CORRECCIÓN 1: Forzar productIdToCharge a String para la búsqueda.
+    const searchId = String(productIdToCharge); 
+    
+    // Producto que establece el precio (puede ser MAIN o PACKAGE)
+    // 🛑 CORRECCIÓN 2: Usar igualdad estricta (===) y String() en ambos lados.
+    const productToCharge = allProducts.find(p => String(p.producto_id) === searchId); 
+
+    // --- Validaciones ---
+    if (!productToCharge) {
+        alert('Por favor, selecciona un Producto o Paquete válido.');
         return;
     }
     if (isNaN(quantity) || quantity <= 0) {
         alert('La cantidad debe ser mayor a cero.');
         return;
     }
-    if (isNaN(price) || price < 0) {
-        alert('El precio debe ser un valor válido.');
-        return;
-    }
 
+    // 2. CONSTRUCCIÓN DEL NOMBRE DE VISUALIZACIÓN (CRÍTICO)
+    let nameDisplay = productToCharge.name; 
+
+    if (subProductId) {
+        // Si hay una subcategoría, buscamos el padre para concatenar el nombre
+        // 🛑 CORRECCIÓN 3: Usar igualdad estricta (===) y String() en ambos lados.
+        const mainProductData = allProducts.find(p => String(p.producto_id) === String(mainProductId));
+        
+        if (mainProductData) {
+            // Formato: "Producto Padre (Subcategoría)"
+            nameDisplay = `${mainProductData.name} (${productToCharge.name})`;
+        }
+    }
+    // ------------------------------------------------------------------------
+
+    const price = productToCharge.price;
     const subtotal = quantity * price;
 
     const newItem = {
-        product_id: productId,
-        // Limpiamos el nombre del subproducto
-        name: name.split('(')[0].trim().replace('[Precio Base]', '').trim(), 
+        // 🛑 CORRECCIÓN 4: Asegurar que la ID que entra al carrito sea un String limpio.
+        product_id: searchId,           // Usamos searchId que ya es String(ID)
+        name: nameDisplay,             
         quantity: quantity,
         price: price,
         subtotal: subtotal,
-        // ✅ AGREGAMOS EL NOMBRE DEL PADRE AL ITEM
-        parent_product_name: mainProductName 
     };
 
-    currentSaleItems.push(newItem);
+    // 3. Lógica de agregar-actualizar el carrito
+    // 🛑 CORRECCIÓN 5: Usar igualdad estricta (===) para encontrar el item existente.
+    const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchId);
+
+    if (existingIndex > -1) { 
+        currentSaleItems[existingIndex].quantity += quantity;
+        currentSaleItems[existingIndex].subtotal += subtotal;
+    } else {
+        currentSaleItems.push(newItem);
+    }
     
-    // Nota: Si usas addItemToSaleTable(newItem), debes modificarla también.
-    // Lo más seguro es usar la función de renderizado completo:
     updateSaleTableDisplay(); 
 
     // Limpieza de inputs
-    document.getElementById('product-main-select').value = '';
-    subSelect.innerHTML = '<option value="" disabled selected>Seleccione Principal primero</option>';
-    subSelect.disabled = true;
+    mainSelect.value = '';
+    subSelect.value = '';
     quantityInput.value = '1';
-    priceInput.value = '0.00';
+    updatePriceField(null); 
+    loadMainProductsForSaleSelect(); // Recargar selectores
 }
 
+// ====================================================================
+// 7. MANEJO DEL PAGO Y LA DEUDA 
+// ====================================================================
+
+function updatePaymentDebtStatus(totalAmount = null) {
+    const paidAmountInput = document.getElementById('paid-amount');
+    const paymentMethodSelect = document.getElementById('payment-method');
+    const totalInput = document.getElementById('total-amount');
+    
+    const currentTotal = totalAmount || parseFloat(totalInput?.value) || 0;
+    
+    const paymentMethod = paymentMethodSelect?.value;
+    let paidAmount = parseFloat(paidAmountInput?.value) || 0;
+
+    if (paymentMethod === 'Deuda') {
+        paidAmount = 0;
+        if (paidAmountInput) {
+            paidAmountInput.value = '0.00';
+            paidAmountInput.readOnly = true;
+        }
+    } else {
+        if (paidAmountInput) paidAmountInput.readOnly = false;
+        if (paidAmount > currentTotal) {
+            paidAmount = currentTotal;
+            if (paidAmountInput) paidAmountInput.value = currentTotal.toFixed(2);
+        }
+    }
+    
+    const remainingDebt = Math.max(0, currentTotal - paidAmount);
+    
+    const remainingBalanceInput = document.getElementById('remaining-balance');
+    if (remainingBalanceInput) remainingBalanceInput.value = remainingDebt.toFixed(2);
+
+    if (paidAmountInput && paymentMethod !== 'Deuda') {
+        paidAmountInput.setAttribute('max', currentTotal.toFixed(2));
+    }
+}
 
 // ====================================================================
 // 8. MANEJO DE FORMULARIO DE NUEVA VENTA (TRANSACCIONAL)
@@ -482,35 +670,52 @@ async function handleNewSale(e) {
     e.preventDefault();
 
     const client_id = document.getElementById('client-select')?.value ?? null;
-    
-    // Capturamos el monto pagado (ACEPTA '0' o vacío)
-    const paid_amount_str = document.getElementById('paid-amount')?.value ?? '0'; 
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-description')?.value.trim() ?? null;
+    const paid_amount_str = document.getElementById('paid-amount')?.value ?? '0'; 
+    let paid_amount = parseFloat(paid_amount_str);
     
-    const sale_details_array = currentSaleItems; 
+    const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
-    // ✅ CORRECCIÓN CLAVE: Calcular el total_amount a partir de los artículos del carrito
-    const total_amount = sale_details_array.reduce((sum, item) => sum + item.subtotal, 0); 
+    if (payment_method === 'Deuda') {
+        paid_amount = 0;
+    }
     
-    const paid_amount = parseFloat(paid_amount_str);
     const saldo_pendiente = total_amount - paid_amount; 
 
     // --- Validaciones ---
-
     if (!client_id) {
         alert('Por favor, selecciona un cliente.');
         return;
     }
-    if (sale_details_array.length === 0) {
+    if (currentSaleItems.length === 0) {
         alert('Debes agregar al menos un producto a la venta.');
         return;
     }
-    if (paid_amount > total_amount) {
-        alert('El monto pagado no puede ser mayor que el total de la venta.');
+    // ✅ CORRECCIÓN 1: Permite ventas en $0.00, solo bloquea montos negativos.
+    if (total_amount < 0) {
+        alert('El total de la venta no puede ser negativo.');
         return;
     }
-    // Si paid_amount es 0, no entra en ninguna alerta y continúa.
+    
+    // Si la venta es de $0.00, forzamos el saldo a cero y el pago a cero para evitar problemas de lógica.
+    let final_paid_amount = paid_amount;
+    let final_saldo_pendiente = saldo_pendiente;
+
+    if (total_amount === 0) {
+        final_paid_amount = 0;
+        final_saldo_pendiente = 0;
+    }
+
+    if (payment_method !== 'Deuda' && (final_paid_amount < 0 || final_paid_amount > total_amount)) {
+         alert('El monto pagado es inválido.');
+         return;
+    }
+
+    if (final_saldo_pendiente > 0.01 && payment_method !== 'Deuda' && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar registrando esta cantidad como deuda?`)) {
+        return;
+    }
+
 
     try {
         // 1. REGISTRAR VENTA (Tabla 'ventas')
@@ -518,12 +723,12 @@ async function handleNewSale(e) {
             .from('ventas')
             .insert([{
                 client_id: client_id,
-                total_amount: total_amount, // ✅ Usamos el total calculado
-                paid_amount: paid_amount, // ✅ Puede ser 0
-                saldo_pendiente: saldo_pendiente,
-                // ✅ Tu código original ya está usando metodo_pago y description
-                metodo_pago: payment_method, 
-                description: sale_description, 
+                total_amount: total_amount, 
+                paid_amount: final_paid_amount, // Usa el monto ajustado
+                saldo_pendiente: final_saldo_pendiente, // Usa el saldo ajustado
+                metodo_pago: payment_method,
+                description: sale_description,
+                // NO SE INSERTA PROFIT
             }])
             .select('venta_id'); 
 
@@ -536,7 +741,8 @@ async function handleNewSale(e) {
         const new_venta_id = saleData[0].venta_id;
 
         // 2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
-        const detailsToInsert = sale_details_array.map(item => ({
+        // ... (Este bloque queda igual) ...
+        const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
             name: item.name,
@@ -554,13 +760,13 @@ async function handleNewSale(e) {
             alert(`Venta registrada (ID: ${new_venta_id}), pero falló el registro de detalles: ${detailError.message}`);
         }
 
-        // 3. REGISTRAR PAGO (Tabla 'pagos') - SOLO SI paid_amount > 0
-        if (paid_amount > 0) {
+        // 3. REGISTRAR PAGO (Tabla 'pagos') - SOLO SI final_paid_amount > 0
+        if (final_paid_amount > 0) { // Usa final_paid_amount
             const { error: paymentError } = await supabase
                 .from('pagos')
                 .insert([{
                     venta_id: new_venta_id,
-                    amount: paid_amount,
+                    amount: final_paid_amount,
                     client_id: client_id,
                     metodo_pago: payment_method,
                 }]);
@@ -570,10 +776,10 @@ async function handleNewSale(e) {
                 alert(`Advertencia: El pago inicial falló. ${paymentError.message}`);
             }
         }
-
+         
         // 4. LIMPIAR Y RECARGAR
-        alert('Venta, detalles y pago (si aplica) registrados exitosamente.');
-        closeModal('new-sale-modal');
+        alert('Venta registrada exitosamente.');
+        closeModal('new-sale-modal'); // <-- Verifique que 'new-sale-modal' sea el ID correcto
         await loadDashboardData(); 
 
     } catch (error) {
@@ -582,484 +788,254 @@ async function handleNewSale(e) {
     } finally {
         currentSaleItems = []; 
         updateSaleTableDisplay();
-        // Nota: Asegúrate de limpiar también los campos del formulario si es necesario
         document.getElementById('new-sale-form').reset();
     }
 }
-
 
 // ====================================================================
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
 
+
 async function loadClientsTable() {
-    const { data, error } = await supabase
-        .from('clientes')
-        .select('client_id, name, telefono')
-        .order('name', { ascending: true });
+    // 🚨 CORRECCIÓN: Usar la ID real del HTML
+    const container = document.getElementById('clients-list-body');
+    if (!container) {
+        console.error("Contenedor de clientes ('clients-list-body') no encontrado.");
+        return; 
+    }
 
-    if (error) {
-        console.error('Error al cargar clientes:', error);
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
         return;
     }
 
-    // 🔥 CORRECCIÓN: Ahora actualiza la tabla del Dashboard y la del Modal de Administración
-    const dashboardContainer = document.getElementById('clients-table-body');
-    const adminContainer = document.getElementById('admin-clients-table-body');
+    try {
+        // 1. Obtener datos de Supabase
+        const { data, error } = await supabase
+            .from('clientes')
+            .select('client_id, name, telefono')
+            .order('name', { ascending: true });
 
-    const containers = [dashboardContainer, adminContainer].filter(c => c);
-
-    if (containers.length === 0) return;
-
-    // Limpiar ambos contenedores
-    containers.forEach(c => c.innerHTML = '');
-
-    if (data.length === 0) {
-        const noDataRow = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500 italic">No hay clientes registrados.</td></tr>';
-        containers.forEach(c => c.innerHTML = noDataRow);
-        return;
-    }
-
-    data.forEach(client => {
-        const rowHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${client.telefono || 'N/A'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button data-client-id="${client.client_id}" class="text-indigo-600 hover:text-indigo-900 edit-client-btn mr-2">Editar</button>
-                <button data-client-id="${client.client_id}" class="text-red-600 hover:text-red-900 delete-client-btn">Eliminar</button>
-            </td>
-        `;
+        if (error) {
+            console.error('Error al cargar clientes:', error.message);
+            return;
+        }
         
-        containers.forEach(container => {
-             const row = document.createElement('tr');
-             row.className = 'hover:bg-gray-50';
-             row.innerHTML = rowHTML;
-             container.appendChild(row);
+        // 2. Almacenar datos globalmente
+        allClients = data; 
+        
+        // 3. Limpiar y Renderizar
+        container.innerHTML = '';
+
+        data.forEach(client => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.client_id}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || 'N/A'}</td>
+                
+                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                    <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
+                            data-client-id="${client.client_id}">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" class="delete-client-btn text-red-600 hover:text-red-900" 
+                            data-client-id="${client.client_id}">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </td>
+            `;
+            container.appendChild(row);
         });
-    });
+
+    } catch (e) {
+        console.error('Error inesperado en loadClientsTable:', e);
+    }
 }
 
 async function handleNewClient(e) {
     e.preventDefault();
-    const nombre = document.getElementById('new-client-name').value;
-    const telefono = document.getElementById('new-client-phone').value;
+    const name = document.getElementById('name').value;
+    const phone = document.getElementById('phone').value;
 
     const { error } = await supabase
         .from('clientes')
-        .insert([{ name: nombre, telefono, is_active: true }]);
+        .insert([{ name, telefono: phone, is_active: true }]);
 
     if (error) {
         alert('Error al registrar cliente: ' + error.message);
     } else {
         alert('Cliente registrado exitosamente.');
-        closeModal('new-client-modal');
+        
+        await loadAndRenderClients(); // Recargar la lista de clientes
+        closeModal('modal-new-client');
+        document.getElementById('client-form').reset();
         await loadClientsTable(); 
-        await loadClientsForSale();
+        await loadClientsForSale(); 
     }
 }
 
-async function openEditClientModal(clientId) {
-    const { data, error } = await supabase
-        .from('clientes')
-        .select('name, telefono')
-        .eq('client_id', clientId)
-        .single();
-
-    if (error || !data) {
-        alert('Error al cargar datos del cliente para editar: ' + (error?.message || 'No encontrado'));
+function handleEditClientClick(clientId) {
+    // Asumimos que tienes un array global 'allClients' con los datos.
+    const clientToEdit = allClients.find(c => String(c.client_id) === String(clientId));
+    
+    if (!clientToEdit) {
+        alert('Error: Cliente no encontrado en los datos cargados.');
         return;
     }
-    
-    editingClientId = clientId;
-    document.getElementById('edit-client-name').value = data.name;
-    document.getElementById('edit-client-phone').value = data.telefono || '';
-    
+
+    // 1. Carga los datos en los campos del modal de edición
+    document.getElementById('edit-client-id').value = clientToEdit.client_id;
+    document.getElementById('edit-client-name').value = clientToEdit.name || '';
+    // Asume que el campo en Supabase se llama 'telefono'
+    document.getElementById('edit-client-phone').value = clientToEdit.telefono || ''; 
+
+    // 2. Abre el modal dedicado a la edición
     openModal('edit-client-modal');
 }
 
 async function handleEditClient(e) {
     e.preventDefault();
-    if (!editingClientId) return;
+    
+    // 1. Obtener los valores del formulario de edición
+    const clientId = document.getElementById('edit-client-id').value;
+    const name = document.getElementById('edit-client-name').value.trim();
+    const phone = document.getElementById('edit-client-phone').value.trim();
 
-    const nombre = document.getElementById('edit-client-name').value;
-    const telefono = document.getElementById('edit-client-phone').value;
+    if (!clientId) {
+        alert("Error de Edición: No se pudo obtener la ID del cliente.");
+        return;
+    }
 
+    // 2. Ejecutar la actualización en Supabase
     const { error } = await supabase
         .from('clientes')
-        .update({ name: nombre, telefono })
-        .eq('client_id', editingClientId);
+        .update({ name: name, telefono: phone }) // El objeto con los datos a actualizar
+        .eq('client_id', clientId); // 🛑 CRÍTICO: La condición WHERE para actualizar solo este cliente
 
     if (error) {
         alert('Error al actualizar cliente: ' + error.message);
     } else {
         alert('Cliente actualizado exitosamente.');
+        
+        // 3. Limpieza y recarga
+        document.getElementById('edit-client-form').reset();
         closeModal('edit-client-modal');
-        await loadClientsTable();
-        await loadClientsForSale();
-    }
-}
-
-async function handlePermanentDeleteClient(clientId) {
-    if (!confirm('ADVERTENCIA: ¿Estás seguro de ELIMINAR PERMANENTEMENTE este cliente? Se borrarán todas sus ventas, pagos y deudas relacionadas.')) {
-        return;
-    }
-    
-    // Asumiendo que existe un RPC 'delete_client_cascade' en Supabase
-    const { error } = await supabase.rpc('delete_client_cascade', { client_to_delete_id: clientId });
-
-    if (error) {
-        alert('Error al eliminar cliente: ' + error.message + ' Asegúrate de tener configurado el RPC `delete_client_cascade`.');
-    } else {
-        alert('Cliente y todos sus registros relacionados eliminados exitosamente.');
-        await loadClientsTable();
-        await loadClientsForSale();
-        await loadDashboardData();
-    }
-}
-
-// main.js: Función window.loadSalesList - CORREGIDA
-window.loadSalesList = async function() {
-    const salesListBody = document.getElementById('sales-list-body');
-    salesListBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center">Cargando ventas...</td></tr>';
-
-    // Obtener todas las ventas y la información del cliente asociado
-    const { data: ventas, error } = await supabase
-        .from('ventas')
-        .select(`
-            venta_id, 
-            created_at, 
-            total_amount, 
-            saldo_pendiente, 
-            clientes ( name ) // Usando 'clientes'
-        `)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error('Error al cargar la lista de ventas:', error);
-        salesListBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-red-500">Error al cargar las ventas.</td></tr>';
-        return;
-    }
-
-    salesListBody.innerHTML = '';
-    
-    // Si no hay ventas, mostramos un mensaje
-    if (ventas.length === 0) {
-        salesListBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay ventas registradas.</td></tr>';
-        return; 
-    }
-
-    ventas.forEach(venta => {
-        // ⚠️ IMPORTANTE: 'row' DEBE DEFINIRSE AQUÍ
-        const row = salesListBody.insertRow(); 
         
-        // Formatear fecha y moneda
-        const date = new Date(venta.created_at).toLocaleDateString();
-        const total = venta.total_amount.toFixed(2);
-        const saldo = venta.saldo_pendiente.toFixed(2);
-        const clientName = venta.clientes.name;
-
-        row.className = `cursor-pointer hover:bg-gray-100 ${venta.saldo_pendiente > 0 ? 'bg-yellow-50' : ''}`;
-        row.setAttribute('data-venta-id', venta.venta_id);
-        
-        row.innerHTML = `
-            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${venta.venta_id}</td>
-            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900">${clientName}</td>
-            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">${date}</td>
-            <td class="px-6 py-3 whitespace-nowrap text-sm font-bold text-right">$${total}</td>
-            <td class="px-6 py-3 whitespace-nowrap text-sm font-bold text-right text-red-600">$${saldo}</td>
-            <td class="px-6 py-3 whitespace-nowrap text-sm text-center">
-                <button onclick="openSaleDetailModal(${venta.venta_id})" class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs">Ver Detalle</button>
-            </td>
-        `;
-    }); // <-- Aquí termina el alcance de 'row'
-
-    // Agregar el listener para búsqueda
-    document.getElementById('sales-search').onkeyup = function() {
-        filterSalesList(this.value);
-    };
+        // Asumiendo que estas funciones existen para recargar la UI
+        await loadClientsTable(); 
+        await loadClientsForSale(); 
+    }
 }
 
-//Función window.openSaleDetailModal - CORREGIDA Y LIMPIA
-
-window.openSaleDetailModal = async function(ventaId) {
-    // 1. Consulta la Venta y sus relaciones (Detalles, Pagos y Cliente)
-    const { data: venta, error } = await supabase
-        .from('ventas')
-        .select(`
-            *, 
-            clientes ( name ),
-            detalle_ventas ( name, quantity, price, subtotal ),
-            pagos ( created_at, amount, metodo_pago )
-        `) // <-- ¡La consulta SELECT debe ir sin comentarios internos!
-        .eq('venta_id', ventaId)
-        .single();
-
-    if (error || !venta) {
-        console.error('Error al cargar detalle de venta:', error);
-        alert('No se pudo cargar el detalle de la venta.');
-        return;
-    }
-
-    // Usamos formatCurrency (o una función similar) para el formato de moneda
-    const format = (amount) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
-
-    // 2. Rellenar los encabezados (Cliente, Descripción, Totales)
-    document.getElementById('detail-sale-id').textContent = `#${venta.venta_id}`;
-    document.getElementById('detail-client-name').textContent = venta.clientes.name;
-    document.getElementById('detail-description').textContent = venta.description || 'Sin descripción';
-    
-    document.getElementById('detail-total-amount').textContent = format(venta.total_amount);
-    document.getElementById('detail-paid-amount').textContent = format(venta.paid_amount);
-    document.getElementById('detail-saldo-pendiente').textContent = format(venta.saldo_pendiente);
-    
-    // 3. Rellenar Productos
-    const productsBody = document.getElementById('detail-products-body');
-    productsBody.innerHTML = '';
-    venta.detalle_ventas.forEach(item => {
-        productsBody.innerHTML += `
-            <tr>
-                <td class="px-6 py-2 whitespace-nowrap">${item.name}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-center">${item.quantity}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-right">${format(item.price)}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-right font-semibold">${format(item.subtotal)}</td>
-            </tr>
-        `;
-    });
-    
-    // 4. Rellenar Pagos
-    const paymentsBody = document.getElementById('detail-payments-body');
-    paymentsBody.innerHTML = '';
-    if (venta.pagos.length === 0) {
-        paymentsBody.innerHTML = '<tr><td colspan="3" class="px-6 py-2 text-center text-gray-500">No hay abonos registrados.</td></tr>';
-    } else {
-        // Ordenar pagos por fecha (el más reciente primero)
-        venta.pagos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        
-        venta.pagos.forEach(pago => {
-            const date = new Date(pago.created_at).toLocaleDateString('es-MX', { 
-                year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-            });
-            paymentsBody.innerHTML += `
-                <tr>
-                    <td class="px-6 py-2 whitespace-nowrap">${date}</td>
-                    <td class="px-6 py-2 whitespace-nowrap text-right font-semibold text-green-700">${format(pago.amount)}</td>
-                    <td class="px-6 py-2 whitespace-nowrap text-center">${pago.metodo_pago}</td>
-                </tr>
-            `;
-        });
-    }
-
-    // 5. Configurar formulario de Abono
-    document.getElementById('payment-sale-id').value = venta.venta_id;
-    document.getElementById('abono-amount').value = '';
-    
-    // Limitar el monto máximo a abonar al saldo pendiente
-    document.getElementById('abono-amount').setAttribute('max', venta.saldo_pendiente);
-
-    // Deshabilitar botón si ya está pagado
-    document.getElementById('submit-abono-btn').disabled = venta.saldo_pendiente <= 0.01;
-    document.getElementById('submit-abono-btn').textContent = venta.saldo_pendiente <= 0.01 ? 'Saldada' : 'Abonar';
-
-
-    openModal('sale-detail-modal');
-}
-
-async function openSaleDetailModal(ventaId) {
-    const { data: venta, error } = await supabase
-        .from('ventas')
-        .select(`
-            *, 
-            clients ( name ), 
-            detalle_ventas ( name, quantity, price, subtotal ),
-            pagos ( created_at, amount, metodo_pago )
-        `)
-        .eq('venta_id', ventaId)
-        .single();
-
-    if (error || !venta) {
-        console.error('Error al cargar detalle de venta:', error);
-        alert('No se pudo cargar el detalle de la venta.');
-        return;
-    }
-
-    // 1. Rellenar los encabezados
-    document.getElementById('detail-sale-id').textContent = `#${venta.venta_id}`;
-    document.getElementById('detail-client-name').textContent = venta.clients.name;
-    document.getElementById('detail-description').textContent = venta.description || 'Sin descripción';
-    
-    document.getElementById('detail-total-amount').textContent = `$${venta.total_amount.toFixed(2)}`;
-    document.getElementById('detail-paid-amount').textContent = `$${venta.paid_amount.toFixed(2)}`;
-    document.getElementById('detail-saldo-pendiente').textContent = `$${venta.saldo_pendiente.toFixed(2)}`;
-    
-    // 2. Rellenar Productos
-    const productsBody = document.getElementById('detail-products-body');
-    productsBody.innerHTML = '';
-    venta.detalle_ventas.forEach(item => {
-        productsBody.innerHTML += `
-            <tr>
-                <td class="px-6 py-2 whitespace-nowrap">${item.name}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-center">${item.quantity}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-right">$${item.price.toFixed(2)}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-right font-semibold">$${item.subtotal.toFixed(2)}</td>
-            </tr>
-        `;
-    });
-    
-    // 3. Rellenar Pagos
-    const paymentsBody = document.getElementById('detail-payments-body');
-    paymentsBody.innerHTML = '';
-    if (venta.pagos.length === 0) {
-        paymentsBody.innerHTML = '<tr><td colspan="3" class="px-6 py-2 text-center text-gray-500">No hay abonos registrados.</td></tr>';
-    } else {
-        venta.pagos.forEach(pago => {
-            const date = new Date(pago.created_at).toLocaleDateString('es-MX', { 
-                year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-            });
-            paymentsBody.innerHTML += `
-                <tr>
-                    <td class="px-6 py-2 whitespace-nowrap">${date}</td>
-                    <td class="px-6 py-2 whitespace-nowrap text-right font-semibold text-green-700">$${pago.amount.toFixed(2)}</td>
-                    <td class="px-6 py-2 whitespace-nowrap text-center">${pago.metodo_pago}</td>
-                </tr>
-            `;
-        });
-    }
-
-    // 4. Configurar formulario de Abono
-    document.getElementById('payment-sale-id').value = venta.venta_id;
-    document.getElementById('payment-amount').value = '';
-    document.getElementById('submit-abono-btn').disabled = venta.saldo_pendiente <= 0;
-    document.getElementById('submit-abono-btn').textContent = venta.saldo_pendiente <= 0 ? 'Pagado' : 'Abonar';
-
-
-    openModal('sale-detail-modal');
-}
-
-function filterSalesList(searchTerm) {
-    const rows = document.getElementById('sales-list-body').querySelectorAll('tr');
-    const term = searchTerm.toLowerCase();
-
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        if (text.includes(term)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-// Listener para el formulario de abono
-document.getElementById('register-payment-form')?.addEventListener('submit', handleRegisterPayment);
-
-async function handleRegisterPayment(e) {
+async function handleEditProduct(e) {
     e.preventDefault();
 
-    const venta_id = document.getElementById('payment-sale-id').value;
-    // ✅ CAMBIO DE ID: Usamos 'abono-amount'
-    const amountStr = document.getElementById('abono-amount').value.trim(); 
-    const metodo_pago = document.getElementById('payment-method-abono').value;
-
-    const amount = parseFloat(amountStr);
-    
-    const formatCurrency = (amount) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
-
-
-    // 1. VALIDACIÓN DEL MONTO
-    if (amountStr === '' || isNaN(amount) || amount <= 0) { 
-        alert('Por favor, ingresa un monto válido para el abono (mayor a cero).');
+    // 'editingProductId' debe haber sido establecido en handleEditProductClick
+    if (!supabase || !editingProductId) {
+        alert('Error: Supabase no está disponible o el ID del producto a editar es desconocido.');
         return;
     }
 
-    // 2. Obtener los datos actuales de la venta
-    const { data: ventaActual, error: fetchError } = await supabase
-        .from('ventas')
-        .select('total_amount, paid_amount, saldo_pendiente, client_id')
-        .eq('venta_id', venta_id)
-        .single();
+    // 1. Obtener valores del formulario de edición
+    const nameInput = document.getElementById('edit-product-name');
+    const typeInput = document.getElementById('edit-product-type'); 
+    const priceInput = document.getElementById('edit-sale-price'); 
+    
+    // Si usaste la función loadProductDataToForm, esta parte ya está cargada
+    const name = nameInput.value.trim();
+    const type = typeInput.value; 
+    const price = parseFloat(priceInput.value);
+    
+    // El valor por defecto es NULL para el campo padre
+    let parentProductId = null; 
 
-    if (fetchError || !ventaActual) {
-        alert('Error al obtener datos de la venta para el abono.');
+    // 2. Validación de precio
+    if (isNaN(price) || price < 0 || priceInput.value.trim() === '') {
+        alert('El precio de venta debe ser un número válido (mayor o igual a cero).');
         return;
     }
 
-    if (ventaActual.saldo_pendiente <= 0.01) {
-        alert('Esta venta ya está saldada.');
-        return;
-    }
-    
-    // 3. Validar y limitar el monto al saldo pendiente
-    const saldoPendiente = ventaActual.saldo_pendiente;
-    
-    if (amount > saldoPendiente) {
-        alert(`Advertencia: El abono excede el saldo pendiente. Solo se aplicará el monto restante: ${formatCurrency(saldoPendiente)}.`);
-    }
-    
-    const amountToPay = Math.min(amount, saldoPendiente);
-
-    // 4. Calcular nuevos saldos
-    const newPaidAmount = ventaActual.paid_amount + amountToPay;
-    const newSaldoPendiente = ventaActual.total_amount - newPaidAmount;
-
-    // 5. Registrar el pago (abono)
-    const { error: paymentError } = await supabase
-        .from('pagos')
-        .insert([{
-            venta_id: venta_id,
-            amount: amountToPay,
-            client_id: ventaActual.client_id,
-            metodo_pago: metodo_pago,
-        }]);
-
-    if (paymentError) {
-        alert('Error al registrar el abono: ' + paymentError.message);
-        return;
+    // 3. Lógica para Paquetes (necesaria para manejar el campo parent_product)
+    if (type === 'PACKAGE') {
+        const parentSelect = document.getElementById('edit-parent-product-select');
+        // Obtenemos la ID del producto principal seleccionado
+        parentProductId = parentSelect?.value || null; 
+        
+        if (!parentProductId) {
+            alert('Los paquetes deben tener un Producto Principal asociado. Seleccione uno de la lista.');
+            return;
+        }
     }
 
-    // 6. Actualizar la tabla 'ventas'
-    const { error: updateError } = await supabase
-        .from('ventas')
-        .update({
-            paid_amount: newPaidAmount,
-            saldo_pendiente: newSaldoPendiente,
-        })
-        .eq('venta_id', venta_id);
+    // 4. Objeto de datos a actualizar
+    const productData = { 
+        name: name, 
+        type: type, 
+        price: price, 
+        // CRÍTICO: Usamos el campo correcto 'parent_product'
+        parent_product: parentProductId 
+    };
 
-    if (updateError) {
-        alert('Advertencia: El abono se registró, pero falló la actualización del saldo en la venta. Contacte soporte.');
+    // 5. Actualización en la base de datos
+    const { error } = await supabase
+        .from('productos')
+        .update(productData)
+        // CRÍTICO: Usamos el ID global para saber QUÉ producto actualizar
+        .eq('producto_id', editingProductId); // Asegúrate de que 'producto_id' es el nombre de la PK
+
+    // 6. Manejo de respuesta
+    if (error) {
+        console.error('Error de Supabase al actualizar producto:', error.message);
+        alert('Error al actualizar producto: ' + error.message);
     } else {
-        alert(`Abono de ${formatCurrency(amountToPay)} registrado exitosamente.`);
+        alert('Producto actualizado exitosamente.');
+        
+        // Limpieza y recarga
+        closeModal('modal-edit-product'); 
+        editingProductId = null; // Reseteamos la ID global
+        document.getElementById('edit-product-form')?.reset(); 
+        
+        await loadProductsData();
+        await loadAndRenderProducts();
     }
-
-    // 7. Recargar y cerrar modales
-    closeModal('sale-detail-modal');
-    await loadSalesList(); 
-    openModal('admin-sales-modal');
-    await loadDashboardData();
 }
+
 
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
 
-function toggleParentProductField() {
-    const type = document.getElementById('new-product-type')?.value;
-    const parentContainer = document.getElementById('parent-product-container');
-    
-    if (!parentContainer) return;
 
-    if (type === 'PACKAGE') {
-        parentContainer.classList.remove('hidden');
-        loadParentProductsForSelect('parent-product-select'); 
+// ✅ FUNCIÓN DE VISIBILIDAD FALTANTE PARA EL CAMPO PADRE
+function toggleParentProductField() {
+    const typeSelect = document.getElementById('new-product-type'); 
+    const parentContainer = document.getElementById('parent-product-container');
+    const parentSelect = document.getElementById('parent-product-select');
+
+    if (!typeSelect || !parentContainer || !parentSelect) return;
+
+    if (typeSelect.value === 'PACKAGE') {
+        // Mostrar el contenedor y hacerlo requerido
+        parentContainer.classList.remove('hidden'); 
+        parentContainer.classList.add('block');
+        parentSelect.setAttribute('required', 'required');
     } else {
+        // Ocultar el contenedor y remover el requerimiento
         parentContainer.classList.add('hidden');
+        parentContainer.classList.remove('block');
+        parentSelect.removeAttribute('required');
+        parentSelect.value = ''; // Limpiar el valor seleccionado
     }
 }
 
 async function loadProductsTable() {
-    await loadProductsData(); // Asegurar que 'allProducts' se cargue antes de dibujar.
-
-    const container = document.getElementById('products-table-body');
+    await loadProductsData(); 
+    
+    // ✅ ID de la tabla de productos usado en el HTML
+    const container = document.getElementById('products-table-body'); 
     if (!container) return;
     container.innerHTML = '';
     
@@ -1074,9 +1050,9 @@ async function loadProductsTable() {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.producto_id}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.type}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.parent_product || 'N/A'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formatCurrency(product.price)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button data-product-id="${product.producto_id}" class="text-indigo-600 hover:text-indigo-900 edit-product-btn mr-2">Editar</button>
@@ -1085,193 +1061,338 @@ async function loadProductsTable() {
         `;
         container.appendChild(row);
     });
+
+    // ✅ CORRECCIÓN: Adjuntar Event Listeners después de dibujar la tabla (Soluciona modales rotos)
+    document.querySelectorAll('.edit-product-btn').forEach(button => {
+        button.onclick = () => {
+            const productId = button.getAttribute('data-product-id');
+            openEditProductModal(productId); 
+        };
+    });
+
+    document.querySelectorAll('.delete-product-btn').forEach(button => {
+        button.onclick = () => {
+            const productId = button.getAttribute('data-product-id');
+            handleDeleteProduct(productId); 
+        };
+    });
 }
 
+// main.js - Función para manejar el guardado de un nuevo producto
 async function handleNewProduct(e) {
     e.preventDefault();
-    const name = document.getElementById('new-product-name').value;
-    const price = parseFloat(document.getElementById('new-product-price').value);
-    const type = document.getElementById('new-product-type').value;
-    const parentProduct = document.getElementById('parent-product-select').value || null;
 
-    if (type === 'PACKAGE' && !parentProduct) {
-        alert('Los paquetes deben tener un Producto Principal asociado.');
-        return;
-    }
-    
-if (isNaN(price) || price < 0) { 
-        alert('El precio debe ser un número válido (mayor o igual a cero).');
+    if (!supabase) {
+        alert('Error de conexión: Supabase no está disponible.');
         return;
     }
 
-    const { error } = await supabase
-        .from('productos')
-        .insert([{ name, price, type, parent_product: parentProduct }]);
-
-    if (error) {
-        alert('Error al registrar producto: ' + error.message);
-    } else {
-        alert('Producto registrado exitosamente.');
-        closeModal('new-product-modal');
-        await loadProductsData(); 
-        await loadProductsTable();
-    }
-}
-
-async function openEditProductModal(productId) {
-    if (!productId) return;
-
-    // 1. Cargar datos del producto
-    const { data: product, error } = await supabase
-        .from('productos')
-        .select('*')
-        .eq('producto_id', productId)
-        .single();
-
-    if (error) {
-        console.error('Error al cargar producto para edición:', error);
-        alert(`Error al cargar producto: ${error.message}`);
+    // 2. Obtener elementos del formulario y verificar su existencia
+    const nameInput = document.getElementById('new-product-name');
+    const typeInput = document.getElementById('new-product-type'); 
+    
+    // ✅ CORRECCIÓN CLAVE: Usar 'new-product-price' que es el ID en tu HTML
+    const priceInput = document.getElementById('new-product-price'); 
+    
+    // 🛑 VERIFICACIÓN: Si falta alguno de estos elementos, el script se detiene aquí.
+    if (!nameInput || !typeInput || !priceInput) {
+        // Este error ya no debería dispararse si el HTML está cargado y los IDs son correctos
+        console.error("Error FATAL: No se encontraron todos los campos del formulario en el DOM. Verifique los IDs.");
+        alert("Error al intentar guardar el producto. Verifique los IDs en la consola.");
         return;
     }
 
-    // 2. Llenar el formulario de Edición (Reusando el modal 'new-product-modal')
-    const form = document.getElementById('new-product-form');
-    
-    // Asume que el modal tiene un H2/H1 con el ID 'modal-title-product' para el título
-    document.getElementById('modal-title-product').textContent = `Editar Producto: ${product.name}`;
-    
-    document.getElementById('new-product-name').value = product.name;
-    document.getElementById('new-product-price').value = product.price;
-    document.getElementById('new-product-type').value = product.type;
-    document.getElementById('new-product-description').value = product.description || '';
+    // Ahora que sabemos que existen, leemos sus valores
+    const name = nameInput.value.trim();
+    const type = typeInput.value; 
+    const price = parseFloat(priceInput.value);
+    let parentProductId = null;
 
-    // 3. Reconfigurar el formulario para la edición
-    if (form) {
-        form.dataset.editingId = productId;
-        // Quitar listener de creación y poner listener de edición
-        form.removeEventListener('submit', handleNewProduct);
-        form.addEventListener('submit', handleEditProduct); 
+    // 3. Validación de precio
+    if (isNaN(price) || price < 0 || priceInput.value.trim() === '') {
+        alert('El precio unitario debe ser un número válido (mayor o igual a cero).');
+        return;
     }
-}
 
-
-async function handleEditProduct(e) {
-    e.preventDefault();
-    if (!editingProductId) return;
-
-    const name = document.getElementById('edit-product-name').value;
-    const price = parseFloat(document.getElementById('edit-product-price').value);
-    const type = document.getElementById('edit-product-type').value;
-    
-    let parentProduct = null;
-    if (type === 'PACKAGE') {
-        parentProduct = document.getElementById('edit-parent-product-select').value;
-        if (!parentProduct) {
-            alert('Los paquetes deben tener un Producto Principal asociado.');
+    // 4. Lógica y validación para Paquetes (se mantiene igual, asumiendo que tienes el selector padre)
+if (type === 'PACKAGE') {
+        const parentSelect = document.getElementById('parent-product-select');
+        parentProductId = parentSelect?.value || null; // 1. Asignación correcta
+        
+        if (!parentProductId) {
+            alert('Los paquetes deben tener un Producto Principal asociado. Seleccione uno de la lista.');
             return;
         }
     }
 
-    // ✅ CORRECCIÓN: Permite precios mayores o iguales a cero en la edición.
-    if (isNaN(price) || price < 0) { 
-        alert('El precio debe ser un número válido (mayor o igual a cero).');
-        return;
-    }
-
+    // 5. Inserción en la base de datos (se mantiene igual)
     const { error } = await supabase
         .from('productos')
-        .update({ name, price, type, parent_product: parentProduct })
-        .eq('producto_id', editingProductId);
+        .insert([{ 
+            name: name, 
+            type: type, 
+            price: price, 
+           parent_product: parentProductId        }]);
 
+    // 6. Manejo de respuesta (se mantiene igual)
     if (error) {
-        alert('Error al actualizar producto: ' + error.message);
+        console.error('Error de Supabase al registrar producto:', error.message);
+        alert('Error al registrar producto: ' + error.message);
     } else {
-        alert('Producto actualizado exitosamente.');
-        closeModal('edit-product-modal');
+        alert('Producto registrado exitosamente.');
+        
+        // Cerrar el modal correcto y resetear el formulario
+        closeModal('modal-register-product'); 
+        document.getElementById('new-product-form')?.reset(); 
+        
         await loadProductsData();
-        await loadProductsTable();
+        await loadAndRenderProducts();
     }
 }
 
-async function handleDeleteProduct(productId) {
-    if (!confirm('¿Estás seguro de eliminar este producto? Esto podría causar errores si está vinculado a ventas existentes.')) {
+function loadProductDataToForm(productId) {
+    // 1. Encontrar el producto en el array global
+    // Usamos String() para manejar inconsistencias de tipo entre number/string
+    const productToEdit = allProducts.find(p => String(p.producto_id) === String(productId));
+
+    if (!productToEdit) {
+        alert('Error: Producto no encontrado para edición.');
         return;
     }
     
+    // 2. Rellenar los campos del formulario
+    document.getElementById('product-id').value = productToEdit.producto_id;
+    document.getElementById('edit-product-name').value = productToEdit.name;
+    document.getElementById('edit-product-type').value = productToEdit.type;
+    
+    // Usamos el ID del HTML 'edit-sale-price' que detecté en tu snippet
+    document.getElementById('edit-sale-price').value = productToEdit.price || 0; 
+    
+    // 3. Lógica para el campo de Padre (si es Paquete)
+    const parentContainer = document.getElementById('edit-parent-product-container');
+    if (productToEdit.type === 'PACKAGE') {
+        parentContainer.classList.remove('hidden');
+        // Debes tener una función para cargar la lista de productos padres en ese selector
+        loadParentProductsForSelect('edit-parent-product-select'); 
+        // Selecciona la ID del padre que ya tiene guardada
+        document.getElementById('edit-parent-product-select').value = productToEdit.parent_product; 
+    } else {
+        parentContainer.classList.add('hidden');
+    }
+
+    // 4. Actualizar el título
+    document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
+}
+
+function handleEditProductClick(productId) {
+    editingProductId = productId; // Guarda la ID en la variable global
+    loadProductDataToForm(productId); // Carga los datos en el formulario
+    openModal('modal-edit-product'); // Abre el modal de edición
+}
+
+// Variable global para guardar la ID del producto a eliminar
+let deletingProductId = null; 
+
+function handleDeleteProductClick(productId) {
+    deletingProductId = productId; // Guarda la ID globalmente
+    
+    // 1. Mostrar el nombre del producto en el modal (si tienes un elemento para ello)
+    const productToDelete = allProducts.find(p => String(p.producto_id) === String(productId));
+    if (productToDelete) {
+        document.getElementById('delete-product-name-placeholder').textContent = productToDelete.name;
+    }
+
+    openModal('modal-delete-confirmation'); // Abre el modal de confirmación
+}
+
+async function confirmDeleteProduct() {
+    if (!deletingProductId) return;
+
     const { error } = await supabase
         .from('productos')
         .delete()
-        .eq('producto_id', productId);
+        .eq('producto_id', deletingProductId); // Usa la columna ID correcta
 
     if (error) {
+        console.error('Error al eliminar producto:', error.message);
         alert('Error al eliminar producto: ' + error.message);
     } else {
         alert('Producto eliminado exitosamente.');
+        closeModal('modal-delete-confirmation'); 
+        deletingProductId = null;
+        
+        // Recargar los datos y la interfaz
         await loadProductsData();
-        await loadProductsTable();
+        await loadAndRenderProducts();
     }
 }
 
+
+// Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
+let clientToDeleteId = null; 
+// Asumimos que también tienes el array global 'allClients'
+
+function handleDeleteClientClick(clientId) {
+    clientToDeleteId = clientId; // Guarda la ID globalmente
+    
+    // 1. Busca el cliente en el array global
+    const clientToDelete = allClients.find(c => String(c.client_id) === String(clientId));
+    
+    // 2. Muestra el nombre del cliente en el modal (si el elemento existe)
+    if (clientToDelete) {
+        // 🚨 CRÍTICO: Asegúrate de que el modal de confirmación contenga un <span> con este ID
+        const namePlaceholder = document.getElementById('delete-client-name-placeholder');
+        if (namePlaceholder) {
+            namePlaceholder.textContent = clientToDelete.name;
+        }
+    }
+
+    // 3. Abre el modal de confirmación
+    // CRÍTICO: Reemplaza 'modal-delete-confirmation' con la ID real de tu modal
+    openModal('client-delete-confirmation'); 
+}
+
+async function confirmDeleteClient() {
+    const clientId = clientToDeleteId;
+
+    if (!clientId) return;
+
+    // Ejecuta la eliminación en Supabase
+    const { error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('client_id', clientId); // CRÍTICO: Elimina por client_id
+
+    if (error) {
+        alert('Error al eliminar cliente: ' + error.message);
+    } else {
+        alert('Cliente eliminado exitosamente.');
+        closeModal('client-delete-confirmation');
+        clientToDeleteId = null; // Limpiar la ID
+        await loadClientsTable(); // Recargar la tabla
+        await loadClientsForSale();
+    }
+}
+// CRÍTICO: Asegúrate de que el botón de confirmación tenga su listener
+document.getElementById('confirm-delete-client-btn')?.addEventListener('click', confirmDeleteClient);
 
 // ====================================================================
-// 11. MANEJO DE PAGOS DE DEUDAS
+// 11. DETALLE Y ABONO DE VENTA 
 // ====================================================================
 
-function openPaymentModal(debtId, clientName, debtAmount) {
-    debtToPayId = debtId;
-    
-    document.getElementById('payment-client-name').textContent = clientName;
-    document.getElementById('payment-debt-amount').textContent = formatCurrency(debtAmount);
-    document.getElementById('payment-amount').value = debtAmount.toFixed(2);
-    document.getElementById('payment-amount').max = debtAmount.toFixed(2);
-    
-   window.openModal = function(modalId) { 
-    document.getElementById(modalId).classList.remove('hidden');
-}
-}
-
-async function handlePayment(e) {
-    e.preventDefault();
-    if (!debtToPayId) return;
-
-    const paymentAmount = parseFloat(document.getElementById('payment-amount').value);
-    const metodoPago = document.getElementById('payment-method-debt').value;
-    const debtAmountText = document.getElementById('payment-debt-amount').textContent;
-    // Función de utilidad para limpiar el formato de moneda y obtener el número
-    const maxDebt = parseFloat(debtAmountText.replace(/[^0-9.]/g, '')); 
-
-    if (isNaN(paymentAmount) || paymentAmount <= 0) {
-        alert('El monto del pago debe ser mayor a cero.');
-        return;
-    }
-    if (paymentAmount > maxDebt) {
-        alert('El monto del pago no puede ser mayor que el saldo pendiente.');
-        return;
-    }
-
-    // 1. Obtener la venta para el client_id
-    const { data: saleData, error: saleError } = await supabase
+window.openSaleDetailModal = async function(ventaId) {
+    const { data: venta, error } = await supabase
         .from('ventas')
-        .select('client_id, saldo_pendiente, paid_amount')
-        .eq('venta_id', debtToPayId)
+        .select(`
+            *, 
+            clientes(name, telefono), 
+            detalle_ventas(*), 
+            pagos(*)
+        `)
+        .eq('venta_id', ventaId)
         .single();
 
-    if (saleError || !saleData) {
-        alert('Error al obtener datos de la deuda: ' + (saleError?.message || 'Desconocido'));
+    if (error || !venta) {
+        console.error('Error al cargar detalles de la venta:', error);
+        alert('Error al cargar detalles de la venta.');
         return;
     }
 
-    const newSaldoPendiente = saleData.saldo_pendiente - paymentAmount;
-    const newPaidAmount = saleData.paid_amount + paymentAmount;
+    document.getElementById('detail-sale-id').textContent = `#${venta.venta_id}`;
+    document.getElementById('detail-client-name').textContent = venta.clientes?.name || 'N/A';
+    document.getElementById('detail-date').textContent = formatDate(venta.created_at);
+    document.getElementById('detail-total-amount').textContent = formatCurrency(venta.total_amount);
+    document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(venta.saldo_pendiente);
+    document.getElementById('detail-comments').textContent = venta.description || 'Sin comentarios';
 
-    // 2. Insertar el pago
+    const productsBody = document.getElementById('detail-items-body');
+    productsBody.innerHTML = '';
+    venta.detalle_ventas.forEach(item => {
+        productsBody.innerHTML += `
+            <tr>
+                <td class="px-6 py-2 whitespace-nowrap">${item.name}</td>
+                <td class="px-6 py-2 whitespace-nowrap text-center">${item.quantity}</td>
+                <td class="px-6 py-2 whitespace-nowrap text-right">${formatCurrency(item.price)}</td>
+                <td class="px-6 py-2 whitespace-nowrap text-right font-semibold">${formatCurrency(item.subtotal)}</td>
+            </tr>
+        `;
+    });
+
+    const paymentsBody = document.getElementById('detail-payments-body');
+    paymentsBody.innerHTML = '';
+    
+    venta.pagos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    if (venta.pagos.length === 0) {
+        paymentsBody.innerHTML = '<tr><td colspan="3" class="px-6 py-2 text-center text-gray-500">No hay abonos registrados.</td></tr>';
+    } else {
+        venta.pagos.forEach(pago => {
+            const date = new Date(pago.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            paymentsBody.innerHTML += `
+                <tr>
+                    <td class="px-6 py-2 whitespace-nowrap">${date}</td>
+                    <td class="px-6 py-2 whitespace-nowrap text-right font-semibold text-green-700">${formatCurrency(pago.amount)}</td>
+                    <td class="px-6 py-2 whitespace-nowrap text-center">${pago.metodo_pago}</td>
+                </tr>
+            `;
+        });
+    }
+
+    document.getElementById('payment-sale-id').value = venta.venta_id;
+    document.getElementById('abono-amount').value = '';
+    
+    const abonoInput = document.getElementById('abono-amount');
+    if (abonoInput) {
+        abonoInput.setAttribute('max', venta.saldo_pendiente.toFixed(2));
+        abonoInput.setAttribute('placeholder', `Máx ${formatCurrency(venta.saldo_pendiente)}`);
+    }
+
+    const submitBtn = document.getElementById('submit-abono-btn');
+    if (submitBtn) {
+        submitBtn.disabled = venta.saldo_pendiente <= 0.01;
+        submitBtn.textContent = venta.saldo_pendiente <= 0.01 ? 'Pagado' : 'Abonar';
+    }
+
+    openModal('modal-detail-sale');
+}
+
+async function handleRegisterPayment(e) {
+    e.preventDefault();
+    const venta_id = document.getElementById('payment-sale-id').value;
+    const amountStr = document.getElementById('abono-amount').value.trim();
+    const metodo_pago = document.getElementById('payment-method-abono').value;
+    const paymentAmount = parseFloat(amountStr);
+
+    if (amountStr === '' || isNaN(paymentAmount) || paymentAmount <= 0) {
+        alert('Por favor, ingresa un monto válido para el abono (mayor a cero).');
+        return;
+    }
+
+    const { data: ventaActual, error: fetchError } = await supabase
+        .from('ventas')
+        .select('saldo_pendiente, client_id')
+        .eq('venta_id', venta_id)
+        .single();
+    
+    if (fetchError || !ventaActual) {
+        alert('Error al obtener la venta para abonar.');
+        return;
+    }
+
+    if (paymentAmount > ventaActual.saldo_pendiente) {
+        alert(`El abono excede el saldo pendiente (${formatCurrency(ventaActual.saldo_pendiente)}). Ajuste el monto.`);
+        return;
+    }
+
+    const newSaldoPendiente = ventaActual.saldo_pendiente - paymentAmount;
+
     const { error: paymentError } = await supabase
         .from('pagos')
-        .insert([{
-            venta_id: debtToPayId,
-            client_id: saleData.client_id,
-            amount: paymentAmount,
-            metodo_pago: metodoPago,
+        .insert([{ 
+            venta_id: venta_id, 
+            client_id: ventaActual.client_id, 
+            amount: paymentAmount, 
+            metodo_pago: metodo_pago 
         }]);
 
     if (paymentError) {
@@ -1279,180 +1400,597 @@ async function handlePayment(e) {
         return;
     }
 
-    // 3. Actualizar la venta (saldo y monto pagado)
     const { error: updateError } = await supabase
         .from('ventas')
-        .update({ 
-            saldo_pendiente: newSaldoPendiente, 
-            paid_amount: newPaidAmount 
-        })
-        .eq('venta_id', debtToPayId);
+        .update({ saldo_pendiente: newSaldoPendiente })
+        .eq('venta_id', venta_id);
 
     if (updateError) {
-        alert('Pago registrado, pero falló la actualización del saldo. Contacte soporte.');
+        alert('Abono registrado, pero falló la actualización del saldo. Contacte soporte.');
         console.error('Error al actualizar venta:', updateError);
         return;
     }
-
-    alert('Pago registrado y saldo actualizado exitosamente.');
+    
+    alert('Abono registrado y saldo actualizado exitosamente.');
+    
+    closeModal('modal-detail-sale');
+    await loadDashboardData(); 
 }
 
 
 // ====================================================================
-// 12. LISTENERS DE EVENTOS (SETUP INICIAL - COMPLETO)
+// 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    checkUserSession(); 
+async function loadMonthlySalesReport() {
+    const selector = document.getElementById('report-month-selector');
+    const monthlyReportBody = document.getElementById('monthly-sales-report-body');
+    const totalSalesSpan = document.getElementById('report-total-sales');
+    const noDataMessage = document.getElementById('monthly-report-no-data');
+
+    // Lógica para obtener startDate y endDate...
+    const selectedMonthYear = selector ? selector.value : null;
+    let startDate, endDate;
+
+    if (selectedMonthYear) {
+        const [year, month] = selectedMonthYear.split('-').map(Number);
+        startDate = new Date(year, month - 1, 1); 
+        endDate = new Date(year, month, 0); 
+        endDate.setHours(23, 59, 59, 999);
+    } else {
+        const now = new Date();
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    const isoStartDate = startDate.toISOString();
+    const isoEndDate = endDate.toISOString();
+
+    // 2. CONSULTA A SUPABASE (SINTAXIS CORREGIDA)
+    const { data: sales, error } = await supabase
+        .from('ventas')
+        .select(`
+            venta_id, 
+            created_at, 
+            client_id, 
+            total_amount, 
+            saldo_pendiente, 
+            metodo_pago, 
+            description
+        `) // ✅ Comentario removido del string de consulta
+        .gte('created_at', isoStartDate) 
+        .lte('created_at', isoEndDate)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error al cargar reporte de ventas:', error.message);
+        alert('Error al cargar reporte de ventas. Consulte la consola.');
+        monthlyReportBody.innerHTML = '';
+        totalSalesSpan.textContent = '$0.00';
+        noDataMessage.classList.remove('hidden');
+        return;
+    }
+
+    // 3. CÁLCULO DE TOTALES Y RENDERIZADO
+    let grandTotal = 0;
+    monthlyReportBody.innerHTML = ''; 
+
+    if (sales && sales.length > 0) {
+        noDataMessage.classList.add('hidden');
+
+        sales.forEach(sale => {
+            grandTotal += sale.total_amount;
+            
+            const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+
+            // CRÍTICO: Buscar el nombre del cliente en el mapa
+            const clientName = allClientsMap[sale.client_id] || 'N/A'; 
+
+            const row = monthlyReportBody.insertRow();
+            row.className = 'hover:bg-gray-50';
+
+            row.innerHTML = `
+                <td class="px-3 py-3 whitespace-nowrap">${sale.venta_id}</td>
+                <td class="px-3 py-3 whitespace-nowrap">${saleDate}</td>
+                <td class="px-3 py-3 whitespace-nowrap">${clientName}</td>
+                <td class="px-3 py-3 whitespace-nowrap font-semibold">${formatCurrency(sale.total_amount)}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-red-600">${formatCurrency(sale.saldo_pendiente)}</td>
+                <td class="px-3 py-3 whitespace-nowrap">${sale.metodo_pago}</td>
+                <td class="px-3 py-3 whitespace-nowrap">${sale.description || '-'}</td>
+            `;
+        });
+    } else {
+        noDataMessage.classList.remove('hidden');
+    }
+
+    totalSalesSpan.textContent = formatCurrency(grandTotal);
+}
+
+function initializeMonthSelector() {
+    const selector = document.getElementById('report-month-selector');
+    if (!selector) {
+        // No hacer nada si el selector no se encuentra en el HTML
+        return; 
+    }
+
+    selector.innerHTML = ''; // Limpiar opciones existentes
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0 (Enero) a 11 (Diciembre)
     
+    // Nombres de los meses en español
+    const monthNames = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    // Generar opciones para los últimos 12 meses (incluyendo el actual)
+    for (let i = 0; i < 12; i++) {
+        // Calcular el mes pasado (restar i meses al mes actual)
+        // Usamos el día 1 para evitar problemas con meses que tienen menos de 31 días
+        const date = new Date(currentYear, currentMonth - i, 1);
+        const year = date.getFullYear();
+        const monthIndex = date.getMonth();
+        
+        // Formato del 'value' para JavaScript/Supabase: YYYY-MM (ej: 2025-11)
+        // Se usa padStart(2, '0') para asegurar que el mes tenga dos dígitos (01, 02, etc.)
+        const monthValue = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+        const monthLabel = `${monthNames[monthIndex]} ${year}`;
+
+        const option = document.createElement('option');
+        option.value = monthValue;
+        option.textContent = monthLabel;
+        
+        // Seleccionar el mes actual por defecto (cuando i es 0)
+        if (i === 0) {
+            option.selected = true;
+        }
+        
+        selector.appendChild(option);
+    }
+}
+
+// ====================================================================
+// UTILIDADES/CARGAS
+// ====================================================================
+
+async function loadAllClientsMap() {
+        const { data: clients, error } = await supabase
+        .from('clientes') // ✅ ESTO DEBE SER 'clientes'
+        .select('client_id, name');
+
+    if (error) {
+        console.error("Error al cargar datos de clientes para el mapa:", error);
+        return;
+    }
+
+    allClientsMap = clients.reduce((map, client) => {
+        map[client.client_id] = client.name;
+        return map;
+    }, {});
+}
+
+async function loadAndRenderClients() {
+    const clientsListBody = document.getElementById('clients-list-body');
+    const controlsContainer = document.getElementById('clients-list-controls');
+    const toggleButton = document.getElementById('toggle-clients-list');
+    const countSummary = document.getElementById('client-count-summary');
+    
+    // Obtener todos los clientes (se usa la misma tabla 'clientes' corregida)
+    const { data: clients, error } = await supabase
+        .from('clientes')
+        .select('client_id, name, phone')
+        .order('client_id', { ascending: false }); // Mostrar los más nuevos primero
+
+    if (error) {
+        console.error('Error al cargar clientes:', error.message);
+        return;
+    }
+
+    clientsListBody.innerHTML = '';
+    const MAX_SHOWN = 10;
+    const totalClients = clients.length;
+    let isExpanded = false;
+
+    // Lógica de Renderizado
+    clients.forEach((client, index) => {
+        // Solo mostrar si el índice es menor a MAX_SHOWN O si la lista está expandida
+        const isHidden = !isExpanded && index >= MAX_SHOWN;
+        
+        const row = clientsListBody.insertRow();
+        row.className = isHidden ? 'hidden' : 'hover:bg-gray-50';
+        row.dataset.clientId = client.client_id;
+
+        row.innerHTML = `
+            <td class="px-3 py-2 whitespace-nowrap">${client.client_id}</td>
+            <td class="px-3 py-2 whitespace-nowrap font-medium">${client.name}</td>
+            <td class="px-3 py-2 whitespace-nowrap">${client.phone || '-'}</td>
+            <td class="px-3 py-2 whitespace-nowrap">
+                <button data-client-id="${client.client_id}" class="edit-client-btn text-blue-600 hover:text-blue-800 text-sm mr-2">Editar</button>
+                <button data-client-id="${client.client_id}" class="delete-client-btn text-red-600 hover:text-red-800 text-sm">Eliminar</button>
+            </td>
+        `;
+    });
+
+    // Lógica de Colapsado/Paginación
+    if (totalClients > MAX_SHOWN) {
+        controlsContainer.classList.remove('hidden');
+        countSummary.textContent = `Mostrando ${MAX_SHOWN} de ${totalClients} clientes.`;
+
+        // Colapsar/Expandir
+        const toggleList = () => {
+            isExpanded = !isExpanded;
+            const rows = clientsListBody.querySelectorAll('tr');
+            
+            rows.forEach((row, index) => {
+                if (index >= MAX_SHOWN) {
+                    row.classList.toggle('hidden', !isExpanded);
+                }
+            });
+
+            toggleButton.textContent = isExpanded ? 'Mostrar menos' : `Mostrar los ${totalClients - MAX_SHOWN} restantes`;
+            countSummary.textContent = isExpanded 
+                ? `Mostrando todos (${totalClients}) clientes.` 
+                : `Mostrando ${MAX_SHOWN} de ${totalClients} clientes.`;
+        };
+
+        // Asignar el listener al botón de colapsar
+        toggleButton.onclick = toggleList;
+        toggleList(); // Inicia colapsado a 10
+    } else {
+        controlsContainer.classList.add('hidden');
+    }
+}
+
+/**
+ * Dibuja la tabla de productos de administración basándose en el array global 'allProducts'.
+ * CORRECCIÓN: Usa 'products-table-body' como ID del contenedor.
+ */
+async function loadAndRenderProducts() {
+    // ✅ CRÍTICO: Usamos la ID correcta confirmada por ti
+    const tableBody = document.getElementById('products-table-body');
+    
+    if (!tableBody) {
+        console.error("Error: No se encontró el <tbody> con ID 'products-table-body'.");
+        return;
+    }
+
+    tableBody.innerHTML = ''; // 1. Limpiar la tabla
+
+    if (allProducts.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No hay productos registrados.</td></tr>';
+        return;
+    }
+
+    allProducts.forEach(producto => {
+        let parentName = '';
+        
+        // CORRECCIÓN DE DATOS ANTIGUOS: Verifica si es paquete y procede a buscar.
+        if (producto.type === 'PACKAGE') { 
+            
+            // 🛑 CORRECCIÓN CLAVE: La búsqueda usa String() para evitar el error de tipo de ID
+            if (producto.parent_product) {
+                const parentProduct = allProducts.find(p => 
+                    String(p.producto_id) === String(producto.parent_product)
+                );
+                
+                // Si lo encuentra, muestra el nombre. Si no, significa que la ID antigua no existe.
+                parentName = parentProduct 
+                             ? `<span class="text-xs text-gray-500 ml-1">(Padre: ${parentProduct.name})</span>` 
+                             : '<span class="text-xs text-red-500 ml-1">(ID Padre No Válida/Eliminada)</span>'; 
+            } else {
+                 parentName = '<span class="text-xs text-red-500 ml-1">(Sin Padre Asociado)</span>';
+            }
+        }
+
+        const productTypeDisplay = producto.type === 'PACKAGE' ? 'Paquete/Servicio' : 'Producto Individual';
+        const productPriceDisplay = producto.price ? parseFloat(producto.price).toFixed(2) : '0.00';
+        
+        const row = tableBody.insertRow();
+        row.className = 'hover:bg-gray-50';
+
+        row.innerHTML = `
+            <td class="px-3 py-2 whitespace-nowrap">${producto.producto_id}</td>
+            <td class="px-3 py-2 whitespace-nowrap font-medium">
+                ${producto.name} ${parentName}
+            </td>
+            <td class="px-3 py-2 whitespace-nowrap">${productTypeDisplay}</td>
+            <td class="px-3 py-2 whitespace-nowrap">$${productPriceDisplay}</td>
+            <td class="px-3 py-2 whitespace-nowrap">
+                <button data-product-id="${producto.producto_id}" class="edit-product-btn text-blue-600 hover:text-blue-800 text-sm mr-2">Editar</button>
+                <button data-product-id="${producto.producto_id}" class="delete-product-btn text-red-600 hover:text-red-800 text-sm">Eliminar</button>
+            </td>
+        `;
+    });
+}
+
+// ====================================================================
+// 13. LISTENERS DE EVENTOS (SETUP INICIAL - COMPLETO)
+// ====================================================================
+
+document.addEventListener('DOMContentLoaded', async () => { // ✅ CORRECCIÓN: Se añade 'async'
+    checkUserSession();
+    await loadProductsData();
+    await loadAllClientsMap(); //carga la lista en reporte mensual
+
+    // Listener para el botón de abrir el modal de nueva venta
+    document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => { 
+    try {
+        // Asumiendo que el formulario tiene la ID 'new-sale-form'
+        document.getElementById('new-sale-form')?.reset(); 
+        
+        await loadClientsForSale(); 
+        await loadProductsData();
+        
+        // Carga los productos MAIN en el selector de venta
+        loadMainProductsForSaleSelect(); 
+        
+        currentSaleItems = []; 
+        updateSaleTableDisplay(); 
+        
+        document.getElementById('total-amount').value = '0.00';
+        document.getElementById('paid-amount').value = '0.00';
+        document.getElementById('remaining-balance').value = '0.00';
+
+        openModal('new-sale-modal'); 
+    } catch (error) {
+        console.error('Error al cargar datos del modal de venta:', error);
+        alert('Error al cargar los datos. Revise la consola (F12).');
+    }
+    });
+
+    // --- Cierre de Modales Universal (Botones 'X') ---
+    document.querySelectorAll('[data-close-modal]').forEach(button => {
+    button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const modalId = button.getAttribute('data-close-modal');
+        closeModal(modalId);
+    });
+    });
+
+        // --- Listeners de PAGO ---
+    document.getElementById('new-sale-form')?.addEventListener('submit', handleNewSale); 
+    document.getElementById('paid-amount')?.addEventListener('input', () => updatePaymentDebtStatus());
+    document.getElementById('payment-method')?.addEventListener('change', () => updatePaymentDebtStatus());
+
+    //Boton añadir producto a la venta
+    document.getElementById('add-product-btn')?.addEventListener('click', handleAddProductToSale);
+
+    //Listener reporte mensual
+    initializeMonthSelector(); // ✅ LLAMADA A LA FUNCIÓN RECIÉN CREADA
+    loadMainProductsForSaleSelect(); // (O la función que cargue los productos de venta)
+
+    // Listeners del reporte
+    document.getElementById('report-month-selector')?.addEventListener('change', loadMonthlySalesReport);
+    loadMonthlySalesReport(); // Cargar la data inicial del mes actual al inicio
+
     // --- Autenticación ---
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
-    document.getElementById('logout-button')?.addEventListener('click', handleLogout); // Corregido ID
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
 
-    // --- Listeners de MODAL DE VENTA ---
-    document.getElementById('open-new-sale-modal')?.addEventListener('click', async () => { 
-        try {
-            await loadClientsForSale(); 
-            await loadProductsData();
-            await loadParentProductsForSelect('product-main-select'); 
-            
-            currentSaleItems = []; 
-            updateSaleTableDisplay(); 
-            
-            document.getElementById('total-amount').value = '0.00';
-            document.getElementById('paid-amount').value = '0.00';
-            document.getElementById('remaining-balance').value = '0.00';
+    // --- Listeners de DASHBOARD (Filtro y Reporte) ---
+    document.getElementById('sales-month-filter')?.addEventListener('change', () => {
+        loadDashboardData(); 
+    });
 
-            openModal('new-sale-modal'); 
-        } catch (error) {
-            console.error('Error al cargar datos de selects:', error);
-            alert('Error al cargar los datos. Revise la consola (F12).');
+    //Reseteo de filtro de ventas
+    document.getElementById('reset-sales-filter')?.addEventListener('click', () => {
+        const filterInput = document.getElementById('sales-month-filter');
+        if (filterInput) {
+            filterInput.value = ''; 
         }
+        loadDashboardData(); 
+    });
+    
+    //Listener reportes de mes
+    document.getElementById('open-monthly-report-btn')?.addEventListener('click', () => {
+        loadMonthlySalesReport(); 
+        openModal('modal-monthly-report');
     });
 
-    document.getElementById('new-sale-form')?.addEventListener('submit', handleNewSale);
-    document.getElementById('add-product-btn')?.addEventListener('click', handleAddProductToSale);
-    document.getElementById('paid-amount')?.addEventListener('input', calculateGrandTotal);
+    //Admin clientes
+ document.getElementById('admin-clients-btn')?.addEventListener('click', () => {
+    openModal('modal-admin-clients'); // Abre el modal principal
+    loadAndRenderClients(); // Carga la lista de clientes
+});
+
+// --- Listeners de MODAL CLIENTES (BLOQUE CORREGIDO) ---
+document.getElementById('open-register-client-modal-btn')?.addEventListener('click', () => {
+    document.getElementById('client-modal-title').textContent = 'Registrar Nuevo Cliente';
     
-    document.getElementById('product-main-select')?.addEventListener('change', (e) => {
-        const selectedMainProductName = e.target.value;
-        updateSubproductSelect(selectedMainProductName);
-    });
+    // ✅ CRÍTICO: Usar la ID correcta 'new-client-form'
+    const form = document.getElementById('new-client-form'); 
     
-    document.getElementById('subproduct-select')?.addEventListener('change', () => {
-        const subSelect = document.getElementById('subproduct-select');
-        const priceInput = document.getElementById('product-unit-price');
-        const selectedPrice = parseFloat(subSelect?.selectedOptions[0]?.dataset.price) || 0;
+    // Usar optional chaining para evitar el crash si el formulario no se encuentra
+    form?.reset(); 
+    form?.removeEventListener('submit', handleEditClient);
+    form?.addEventListener('submit', handleNewClient);
+    
+    editingClientId = null;
+    openModal('modal-register-client');
+});
+
+// ✅ CRÍTICO: El listener de envío debe apuntar a la ID correcta.
+document.getElementById('new-client-form')?.addEventListener('submit', handleNewClient);
+
+// ------------------------------------
+// --- LISTENERS DE MODAL PRODUCTOS ---
+// ------------------------------------
+
+// Listener para el botón principal (Abre la LISTA/ADMINISTRACIÓN)
+document.getElementById('open-admin-products-modal')?.addEventListener('click', async () => {
+    try {
+        // 1. Cargar los datos globales antes de mostrar la tabla (CRÍTICO)
+        await loadProductsData();
         
-        if (priceInput) {
-            priceInput.value = selectedPrice.toFixed(2);
+        // 2. Renderizar la tabla (Asumiendo que esta función existe)
+        await loadAndRenderProducts(); 
+        
+        // 3. Abrir el modal de ADMINISTRACIÓN (La Lista, ID correcta)
+        openModal('admin-products-modal'); 
+
+    } catch (error) {
+        console.error('Error al cargar la administración de productos:', error);
+        alert('Error al cargar la lista de productos.');
+    }
+});
+
+// Listener para abrir el FORMULARIO DE REGISTRO desde el modal de administración
+document.getElementById('open-product-modal-btn')?.addEventListener('click', () => {
+    // 1. Cierra el modal de la lista
+    closeModal('admin-products-modal'); // <-- ¡AÑADIR ESTA LÍNEA!
+    
+    // 2. Resetea el formulario y la visibilidad al abrir
+    document.getElementById('new-product-form')?.reset();
+    toggleParentProductField(); 
+    
+    // 3. Abre el modal de REGISTRO
+    openModal('modal-register-product'); 
+});
+// Listener para TIPO DE PRODUCTO: Muestra/Oculta el campo padre y carga datos
+document.getElementById('new-product-type')?.addEventListener('change', (e) => {
+    toggleParentProductField();
+    if (e.target.value === 'PACKAGE') {
+        loadParentProductsForSelect('parent-product-select'); 
+    }
+});
+
+// Listener para el envío del formulario (Guardar Producto)
+document.getElementById('new-product-form')?.addEventListener('submit', handleNewProduct);
+
+// ====================================================================
+// ✅ NUEVO: DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA
+// ====================================================================
+
+// Adjuntamos el listener al <tbody>, que es estático
+document.getElementById('products-table-body')?.addEventListener('click', (e) => {
+    
+    // Solo procesar clics en botones
+    if (!e.target.hasAttribute('data-product-id')) return;
+    
+    const productId = e.target.getAttribute('data-product-id');
+
+    // 1. Botón de Edición
+    if (e.target.classList.contains('edit-product-btn')) {
+        e.preventDefault();
+        // Asumiendo que esta es la función que tienes o necesitas crear
+        handleEditProductClick(productId); 
+    }
+    
+    // 2. Botón de Eliminación
+    if (e.target.classList.contains('delete-product-btn')) {
+        e.preventDefault();
+        // Asumiendo que esta es la función que tienes o necesitas crear
+        handleDeleteProductClick(productId); 
+    }
+});
+
+// ====================================================================
+// DELEGACIÓN DE EVENTOS PARA CLIENTES (EDITAR/ELIMINAR)
+// ====================================================================
+
+// 🚨 CORRECCIÓN: Cambiar el ID para que coincida con el HTML
+document.getElementById('clients-list-body')?.addEventListener('click', (e) => { 
+    
+    const button = e.target.closest('[data-client-id]');
+    if (!button) return;
+    
+    const clientId = button.getAttribute('data-client-id');
+
+    // Edición
+    if (button.classList.contains('edit-client-btn')) {
+        e.preventDefault();
+        handleEditClientClick(clientId); 
+    }
+    
+    // Eliminación
+    if (button.classList.contains('delete-client-btn')) {
+        e.preventDefault();
+        handleDeleteClientClick(clientId); 
+    }
+});
+
+// Y el listener de envío del formulario de edición también debe estar presente:
+document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
+
+// --------------------------------------
+// --- Apertura/Cierre de Modales Universal ---
+// --------------------------------------
+
+// Cierre universal al hacer clic fuera
+document.addEventListener('click', (event) => {
+    const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+    openModals.forEach(modal => {
+        if (event.target === modal) {
+            closeModal(modal.id);
         }
     });
+});
 
-
-    // --- Listeners de MODAL DE CLIENTES ---
-    document.getElementById('open-admin-clients-modal')?.addEventListener('click', () => {
-        loadClientsTable();
-        openModal('admin-clients-modal');
+// Apertura universal para botones con data-open-modal
+document.querySelectorAll('[data-open-modal]').forEach(button => {
+    button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const modalId = button.getAttribute('data-open-modal');
+        openModal(modalId); 
     });
+});
+
+
+
+// ====================================================================
+// ✅ Productos (EDITAR/ELIMINAR)
+// ====================================================================
+
+// Adjuntamos el listener al <tbody>, que es estático
+document.getElementById('products-table-body')?.addEventListener('click', (e) => {
     
-    document.getElementById('open-new-client-modal')?.addEventListener('click', () => {
-        openModal('new-client-modal');
-    });
+    // Solo procesar clics en botones
+    if (!e.target.hasAttribute('data-product-id')) return;
     
-    document.getElementById('new-client-form')?.addEventListener('submit', handleNewClient);
-    document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
+    const productId = e.target.getAttribute('data-product-id');
+
+    // 1. Botón de Edición
+    if (e.target.classList.contains('edit-product-btn')) {
+        e.preventDefault();
+        handleEditProductClick(productId); // Llama a la nueva función
+    }
     
-    // 🔥 CORRECCIÓN: Event Listener para la tabla del Dashboard (ya estaba)
-    document.getElementById('clients-table-body')?.addEventListener('click', (e) => {
-        const target = e.target;
-        if (target.classList.contains('edit-client-btn')) {
-            openEditClientModal(target.dataset.clientId);
-        } else if (target.classList.contains('delete-client-btn')) {
-            handlePermanentDeleteClient(target.dataset.clientId);
-        }
-    });
-    
-    // 🔥 ADICIÓN: Event Listener para la tabla del Modal de Administración
-    document.getElementById('admin-clients-table-body')?.addEventListener('click', (e) => {
-        const target = e.target;
-        if (target.classList.contains('edit-client-btn')) {
-            openEditClientModal(target.dataset.clientId);
-        } else if (target.classList.contains('delete-client-btn')) {
-            handlePermanentDeleteClient(target.dataset.clientId);
-        }
-    });
+    // 2. Botón de Eliminación
+    if (e.target.classList.contains('delete-product-btn')) {
+        e.preventDefault();
+        handleDeleteProductClick(productId); // Llama a la nueva función
+    }
+});
 
+// Listener para el botón de confirmación de eliminación (del modal)
+document.getElementById('confirm-delete-btn')?.addEventListener('click', confirmDeleteProduct);
 
-    // --- Listeners de MODAL DE PRODUCTOS ---
-    document.getElementById('open-admin-products-modal')?.addEventListener('click', async () => {
-        await loadProductsData(); 
-        await loadProductsTable();
-        openModal('admin-products-modal');
-    });
-    
-    document.getElementById('open-new-product-modal')?.addEventListener('click', async () => {
-        await loadProductsData(); 
-        await loadParentProductsForSelect('parent-product-select');
-        toggleParentProductField();
-        openModal('new-product-modal');
-    });
+document.getElementById('edit-product-form')?.addEventListener('submit', handleEditProduct);
 
-    document.getElementById('new-product-form')?.addEventListener('submit', handleNewProduct);
-    document.getElementById('edit-product-form')?.addEventListener('submit', handleEditProduct);
-    document.getElementById('new-product-type')?.addEventListener('change', toggleParentProductField);
+// Listener para el cambio del Producto Base (El que falla)
+document.getElementById('product-main-select')?.addEventListener('change', handleChangeProductForSale);
 
-    document.getElementById('products-table-body')?.addEventListener('click', (e) => {
-        const target = e.target;
-        if (target.classList.contains('edit-product-btn')) {
-            openEditProductModal(target.dataset.productId);
-        } else if (target.classList.contains('delete-product-btn')) {
-            handleDeleteProduct(target.dataset.productId);
-        }
-    });
-    
-    document.getElementById('edit-product-type')?.addEventListener('change', async (e) => {
-        const type = e.target.value;
-        const editParentContainer = document.getElementById('edit-parent-product-container');
-        if (type === 'PACKAGE') {
-            editParentContainer?.classList.remove('hidden');
-            await loadParentProductsForSelect('edit-parent-product-select');
-        } else {
-            editParentContainer?.classList.add('hidden');
-        }
-    });
+// Listener para el cambio del Paquete (Asegura que el precio se actualice al seleccionar un paquete)
+document.getElementById('subproduct-select')?.addEventListener('change', (e) => {
+    updatePriceField(e.target.value); 
+});
 
-
-    // --- Listener de MODAL DE PAGO ---
-    document.getElementById('payment-form')?.addEventListener('submit', handlePayment);
-
-
-    // --- Cierre de Modales Universal ---
-    document.querySelectorAll('[data-close-modal]').forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            const modalId = button.getAttribute('data-close-modal');
-            closeModal(modalId);
-        });
-    });
-
-    document.addEventListener('click', (event) => {
+// Cierre con la tecla Escape
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
         const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
-        openModals.forEach(modal => {
-            if (event.target === modal) {
-                closeModal(modal.id);
-            }
-        });
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
-            const topModal = openModals[openModals.length - 1]; 
-            
-            if (topModal) {
-                closeModal(topModal.id);
-            }
+        const topModal = openModals[openModals.length - 1]; 
+        
+        if (topModal) {
+            closeModal(topModal.id);
         }
-    });
+    }
+});
 });
