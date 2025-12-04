@@ -5,7 +5,15 @@
 const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
 
-let supabase; // Declaramos la variable
+let supabase;
+let allProducts = []; 
+let currentSaleItems = []; 
+let editingClientId = null;
+let editingProductId = null;
+let debtToPayId = null;
+let allClients = []; // 👈 ¡AÑADIR ESTA LÍNEA!
+let allClientsMap = {};
+
 
 // ✅ CORRECCIÓN CRÍTICA: Inicializar Supabase directamente, fuera del try/catch.
 if (window.supabase) {
@@ -14,14 +22,6 @@ if (window.supabase) {
     console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
     supabase = null; // Asignar null para que las llamadas subsiguientes puedan manejarlo sin crash
 }
-
-let allProducts = []; 
-let currentSaleItems = []; 
-let editingClientId = null;
-let editingProductId = null;
-let debtToPayId = null;
-let allClients = []; // 👈 ¡ESTA ES LA LÍNEA CRÍTICA QUE FALTABA!
-let allClientsMap = {};
 
 // ====================================================================
 // 2. UTILIDADES Y MANEJO DE MODALES
@@ -320,7 +320,6 @@ async function loadProductsData() {
     allProducts = data || [];
 }
 
-
 function handleChangeProductForSale() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
@@ -456,10 +455,6 @@ function loadPackageProductsForSelect(mainProductId) {
     }
 }
 
-/**
- * Función auxiliar para actualizar el campo de precio unitario.
- * @param {string} productId - La ID del producto (base o paquete) para obtener el precio.
- */
 function updatePriceField(productId) {
     const priceInput = document.getElementById('product-unit-price');
     
@@ -663,6 +658,121 @@ function updatePaymentDebtStatus(totalAmount = null) {
     }
 }
 
+//Ventas a credito
+async function getClientSalesSummary(clientId) {
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return { totalVentas: 0, deudaNeta: 0 };
+    }
+
+    try {
+        // =========================================================
+        // 1. Sumar todas las ventas a crédito para este cliente
+        // =========================================================
+        
+        // 🚨 CORRECCIÓN CRÍTICA: Usar 'total_amount'
+        const { data: salesData, error: salesError } = await supabase
+            .from('ventas')
+            .select('total_amount') // <-- CAMBIO AQUÍ: total_venta -> total_amount
+            .eq('client_id', clientId)
+            // 💡 Puedes agregar un filtro si no todas las ventas son a crédito
+            // .neq('estado', 'PAGADA'); 
+        
+        if (salesError) throw salesError;
+        
+        // Sumar todos los montos. Usamos el nombre de columna corregido.
+        const totalVentas = salesData.reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
+        
+        
+        // =========================================================
+        // 2. Sumar todos los abonos realizados por este cliente
+        // =========================================================
+        
+        // Asumimos que la tabla 'abonos' y la columna 'monto_abono' están correctas.
+        const { data: abonosData, error: abonosError } = await supabase
+            .from('abonos')
+            .select('monto_abono')
+            .eq('client_id', clientId);
+            
+        if (abonosError) throw abonosError;
+        
+        const totalAbonos = abonosData.reduce((sum, item) => sum + parseFloat(item.monto_abono || 0), 0);
+
+        // =========================================================
+        // 3. Calcular la deuda neta
+        // =========================================================
+        
+        const deudaNeta = totalVentas - totalAbonos;
+        
+        return {
+            totalVentas: parseFloat(totalVentas.toFixed(2)),
+            deudaNeta: parseFloat((deudaNeta > 0 ? deudaNeta : 0).toFixed(2)) 
+        };
+
+    } catch (e) {
+        console.error("Error al obtener el resumen de ventas del cliente:", e.message || e);
+        return { totalVentas: 0, deudaNeta: 0 };
+    }
+}
+
+async function handleRecordAbono(e) {
+    e.preventDefault();
+
+    const clientId = document.getElementById('abono-client-id').value;
+    const amount = document.getElementById('abono-amount').value;
+    const method = document.getElementById('abono-method').value;
+
+    const amountNum = parseFloat(amount);
+
+    if (amountNum <= 0 || isNaN(amountNum)) {
+        alert('Por favor, ingrese un monto válido mayor a cero.');
+        return;
+    }
+
+    if (!supabase) return alert('Error: Supabase no está conectado.');
+
+    try {
+        const { error } = await supabase
+            .from('abonos')
+            .insert({
+                client_id: clientId,
+                monto_abono: amountNum,
+                metodo_pago: method 
+                // fecha_abono se genera automáticamente en SQL
+            });
+
+        if (error) throw error;
+
+        alert('✅ Abono registrado con éxito.');
+        
+        // Cierra el modal y recarga la tabla para actualizar la deuda
+        closeModal('abono-client-modal');
+        await loadClientsTable(); 
+
+    } catch (e) {
+        console.error("Error al registrar el abono:", e);
+        alert('Error al registrar el abono: ' + e.message);
+    }
+}
+
+function handleAbonoClick(clientId) {
+    // Buscar los datos del cliente en la lista global
+    const client = allClients.find(c => c.client_id == clientId);
+
+    if (!client) {
+        alert('Cliente no encontrado.');
+        return;
+    }
+
+    // 1. Llenar los campos del modal
+    document.getElementById('abono-client-id').value = clientId;
+    document.getElementById('abono-client-name-display').textContent = client.name;
+    document.getElementById('abono-amount').value = ''; // Limpiar el monto
+    
+    // 2. Abrir el modal
+    openModal('abono-client-modal');
+}
+
 // ====================================================================
 // 8. MANEJO DE FORMULARIO DE NUEVA VENTA (TRANSACCIONAL)
 // ====================================================================
@@ -797,54 +907,73 @@ async function handleNewSale(e) {
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
 
-
+/**
+ * Carga los clientes desde Supabase, calcula su resumen financiero (ventas/deuda)
+ * y renderiza la tabla.
+ */
 async function loadClientsTable() {
-    // 🚨 CORRECCIÓN: Usar la ID real del HTML
-    const container = document.getElementById('clients-list-body');
-    if (!container) {
-        console.error("Contenedor de clientes ('clients-list-body') no encontrado.");
-        return; 
-    }
-
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
     }
 
+    const container = document.getElementById('clients-list-body');
+    if (!container) {
+        console.error("Contenedor de clientes ('clients-list-body') no encontrado.");
+        return;
+    }
+
     try {
-        // 1. Obtener datos de Supabase
-        const { data, error } = await supabase
+        // 1. Obtener la lista base de clientes
+        const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono')
             .order('name', { ascending: true });
 
-        if (error) {
-            console.error('Error al cargar clientes:', error.message);
-            return;
-        }
+        if (clientsError) throw clientsError;
+
+        allClients = clients;
         
-        // 2. Almacenar datos globalmente
-        allClients = data; 
-        
+        // 2. Ejecutar las consultas de resumen de ventas/deuda en paralelo
+        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
+        const summaries = await Promise.all(summaryPromises);
+
         // 3. Limpiar y Renderizar
         container.innerHTML = '';
 
-        data.forEach(client => {
+        clients.forEach((client, index) => {
+            const summary = summaries[index];
+            
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50';
+            
+            // 🚨 CRÍTICO: Asegurarse de usar BACKTICKS (`` ` ``) para que las expresiones ${...} funcionen.
             row.innerHTML = `
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.client_id}</td>
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
                 <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || 'N/A'}</td>
+                
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    $${summary.totalVentas.toFixed(2)}
+                </td>
+                
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold 
+                    ${summary.deudaNeta > 0 ? 'text-red-600' : 'text-green-600'}">
+                    $${summary.deudaNeta.toFixed(2)}
+                </td>
                 
                 <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
                     <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
                             data-client-id="${client.client_id}">
                         <i class="fas fa-edit"></i> Editar
                     </button>
-                    <button type="button" class="delete-client-btn text-red-600 hover:text-red-900" 
+                    <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
                             data-client-id="${client.client_id}">
                         <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                    <button type="button" class="abono-client-btn text-green-600 hover:text-green-900" 
+                            data-client-id="${client.client_id}">
+                        <i class="fas fa-money-bill-wave"></i> Abonar
                     </button>
                 </td>
             `;
@@ -852,7 +981,7 @@ async function loadClientsTable() {
         });
 
     } catch (e) {
-        console.error('Error inesperado en loadClientsTable:', e);
+        console.error('Error inesperado al cargar clientes:', e.message || e);
     }
 }
 
@@ -1034,10 +1163,7 @@ function toggleParentProductField() {
 
 async function loadProductsTable() {
     await loadProductsData(); 
-    
-    // ✅ ID de la tabla de productos usado en el HTML
-    const container = document.getElementById('products-table-body'); 
-    if (!container) return;
+        if (!container) return;
     container.innerHTML = '';
     
     const products = allProducts; 
@@ -1649,12 +1775,7 @@ async function loadAndRenderClients() {
     }
 }
 
-/**
- * Dibuja la tabla de productos de administración basándose en el array global 'allProducts'.
- * CORRECCIÓN: Usa 'products-table-body' como ID del contenedor.
- */
 async function loadAndRenderProducts() {
-    // ✅ CRÍTICO: Usamos la ID correcta confirmada por ti
     const tableBody = document.getElementById('products-table-body');
     
     if (!tableBody) {
@@ -1715,10 +1836,37 @@ async function loadAndRenderProducts() {
 // 13. LISTENERS DE EVENTOS (SETUP INICIAL - COMPLETO)
 // ====================================================================
 
-document.addEventListener('DOMContentLoaded', async () => { // ✅ CORRECCIÓN: Se añade 'async'
+// ====================================================================
+// ✅ NUEVO BLOQUE CRÍTICO DE INICIALIZACIÓN
+// ====================================================================
+
+document.addEventListener('DOMContentLoaded', async () => { 
+
+    // 1. 🚨 MUEVE LA INICIALIZACIÓN DE SUPABASE AQUÍ
+    if (window.supabase) {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+        console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
+        return; // Detener la ejecución del resto del código si falla
+    }
+
+    // 2. Continúa con tus llamadas iniciales
     checkUserSession();
     await loadProductsData();
-    await loadAllClientsMap(); //carga la lista en reporte mensual
+    await loadAllClientsMap();
+    
+    // 3. LISTENERS DE EVENTOS Y OTRAS INICIALIZACIONES
+    // --------------------------------------------------
+    
+    // Listener para el botón de abrir el modal de nueva venta
+    document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => { 
+    // ... el resto de la función...
+    });
+    
+    // --- Cierre de Modales Universal (Botones 'X') ---
+    document.querySelectorAll('[data-close-modal]').forEach(button => {
+    // ...
+    });
 
     // Listener para el botón de abrir el modal de nueva venta
     document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => { 
@@ -1893,27 +2041,34 @@ document.getElementById('products-table-body')?.addEventListener('click', (e) =>
 });
 
 // ====================================================================
-// DELEGACIÓN DE EVENTOS PARA CLIENTES (EDITAR/ELIMINAR)
+// DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
 // ====================================================================
-
-// 🚨 CORRECCIÓN: Cambiar el ID para que coincida con el HTML
 document.getElementById('clients-list-body')?.addEventListener('click', (e) => { 
     
-    const button = e.target.closest('[data-client-id]');
-    if (!button) return;
-    
-    const clientId = button.getAttribute('data-client-id');
+    // Encuentra el botón más cercano que fue clickeado
+    const button = e.target.closest('button');
 
-    // Edición
-    if (button.classList.contains('edit-client-btn')) {
-        e.preventDefault();
-        handleEditClientClick(clientId); 
-    }
-    
-    // Eliminación
-    if (button.classList.contains('delete-client-btn')) {
-        e.preventDefault();
-        handleDeleteClientClick(clientId); 
+    if (button) {
+        // 🛑 SOLUCIÓN CRÍTICA: Detiene el comportamiento predeterminado (ej. recarga de página)
+        e.preventDefault(); 
+        
+        const clientId = button.getAttribute('data-client-id');
+
+        // Manejar cada tipo de botón
+        if (button.classList.contains('edit-client-btn')) {
+            // Asegúrate que esta función es ASÍNCRONA (async)
+            handleEditClientClick(clientId);
+        }
+
+        if (button.classList.contains('delete-client-btn')) {
+            handleDeleteClientClick(clientId);
+        }
+
+        // El botón de abono también requiere un handler
+        if (button.classList.contains('abono-client-btn')) {
+            // Asegúrate que esta función es ASÍNCRONA (async)
+            handleAbonoClick(clientId);
+        }
     }
 });
 
@@ -1943,32 +2098,9 @@ document.querySelectorAll('[data-open-modal]').forEach(button => {
     });
 });
 
-
-
 // ====================================================================
 // ✅ Productos (EDITAR/ELIMINAR)
 // ====================================================================
-
-// Adjuntamos el listener al <tbody>, que es estático
-document.getElementById('products-table-body')?.addEventListener('click', (e) => {
-    
-    // Solo procesar clics en botones
-    if (!e.target.hasAttribute('data-product-id')) return;
-    
-    const productId = e.target.getAttribute('data-product-id');
-
-    // 1. Botón de Edición
-    if (e.target.classList.contains('edit-product-btn')) {
-        e.preventDefault();
-        handleEditProductClick(productId); // Llama a la nueva función
-    }
-    
-    // 2. Botón de Eliminación
-    if (e.target.classList.contains('delete-product-btn')) {
-        e.preventDefault();
-        handleDeleteProductClick(productId); // Llama a la nueva función
-    }
-});
 
 // Listener para el botón de confirmación de eliminación (del modal)
 document.getElementById('confirm-delete-btn')?.addEventListener('click', confirmDeleteProduct);
@@ -1982,6 +2114,9 @@ document.getElementById('product-main-select')?.addEventListener('change', handl
 document.getElementById('subproduct-select')?.addEventListener('change', (e) => {
     updatePriceField(e.target.value); 
 });
+
+// Listener para el envío del formulario de registro de abonos
+document.getElementById('abono-client-form')?.addEventListener('submit', handleRecordAbono);
 
 // Cierre con la tecla Escape
 document.addEventListener('keydown', (event) => {
