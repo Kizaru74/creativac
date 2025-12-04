@@ -20,7 +20,8 @@ let currentSaleItems = [];
 let editingClientId = null;
 let editingProductId = null;
 let debtToPayId = null;
-let allClientsMap = {}; // ✅ DEBE ESTAR AQUÍ
+let allClients = []; // 👈 ¡ESTA ES LA LÍNEA CRÍTICA QUE FALTABA!
+let allClientsMap = {};
 
 // ====================================================================
 // 2. UTILIDADES Y MANEJO DE MODALES
