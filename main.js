@@ -1407,7 +1407,7 @@ document.getElementById('confirm-delete-client-btn')?.addEventListener('click', 
 // 11. DETALLE Y ABONO DE VENTA 
 // ====================================================================
 
-window.openSaleDetailModal = async function(ventaId) {
+async function handleViewSaleDetails(ventaId) {
     const { data: venta, error } = await supabase
         .from('ventas')
         .select(`
@@ -1480,7 +1480,7 @@ window.openSaleDetailModal = async function(ventaId) {
         submitBtn.textContent = venta.saldo_pendiente <= 0.01 ? 'Pagado' : 'Abonar';
     }
 
-    openModal('modal-detail-sale');
+    openModal('modal-detail-sale'); // Asegúrate de que esta llamada final se mantenga
 }
 
 async function handleRegisterPayment(e) {
@@ -1574,7 +1574,7 @@ async function loadMonthlySalesReport() {
     const isoStartDate = startDate.toISOString();
     const isoEndDate = endDate.toISOString();
 
-    // 2. CONSULTA A SUPABASE (SINTAXIS CORREGIDA)
+    // 2. CONSULTA A SUPABASE 
     const { data: sales, error } = await supabase
         .from('ventas')
         .select(`
@@ -1585,7 +1585,7 @@ async function loadMonthlySalesReport() {
             saldo_pendiente, 
             metodo_pago, 
             description
-        `) // ✅ Comentario removido del string de consulta
+        `)
         .gte('created_at', isoStartDate) 
         .lte('created_at', isoEndDate)
         .order('created_at', { ascending: false });
@@ -1608,7 +1608,7 @@ async function loadMonthlySalesReport() {
 
         sales.forEach(sale => {
             grandTotal += sale.total_amount;
-            
+             
             const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
                 year: 'numeric',
                 month: 'short',
@@ -1616,6 +1616,7 @@ async function loadMonthlySalesReport() {
             });
 
             // CRÍTICO: Buscar el nombre del cliente en el mapa
+            // Asumo que tienes la variable global allClientsMap cargada
             const clientName = allClientsMap[sale.client_id] || 'N/A'; 
 
             const row = monthlyReportBody.insertRow();
@@ -1629,7 +1630,16 @@ async function loadMonthlySalesReport() {
                 <td class="px-3 py-3 whitespace-nowrap text-red-600">${formatCurrency(sale.saldo_pendiente)}</td>
                 <td class="px-3 py-3 whitespace-nowrap">${sale.metodo_pago}</td>
                 <td class="px-3 py-3 whitespace-nowrap">${sale.description || '-'}</td>
-            `;
+
+                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                        data-venta-id="${sale.venta_id}"  
+                        class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+                    >
+                        Detalles
+                    </button>
+                </td>
+                `;
         });
     } else {
         noDataMessage.classList.remove('hidden');
@@ -1949,6 +1959,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAndRenderClients(); // Carga la lista de clientes
 });
 
+// Este listener ahora llamará a tu función renombrada
+monthlySalesModal?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('view-sale-details-btn')) {
+        const ventaId = e.target.getAttribute('data-venta-id');
+        handleViewSaleDetails(ventaId); // 👈 ¡La conexión se hace aquí!
+    }
+});
+
 // --- Listeners de MODAL CLIENTES (BLOQUE CORREGIDO) ---
 document.getElementById('open-register-client-modal-btn')?.addEventListener('click', () => {
     document.getElementById('client-modal-title').textContent = 'Registrar Nuevo Cliente';
@@ -2014,7 +2032,7 @@ document.getElementById('new-product-type')?.addEventListener('change', (e) => {
 document.getElementById('new-product-form')?.addEventListener('submit', handleNewProduct);
 
 // ====================================================================
-// ✅ NUEVO: DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA
+// ✅ EVENTOS PRODUCTOS
 // ====================================================================
 
 // Adjuntamos el listener al <tbody>, que es estático
