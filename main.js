@@ -263,7 +263,7 @@ async function loadDashboardData() {
     await loadTotals();
     await loadDebts();
     await loadRecentSales(); 
-    await loadClientsTable(); 
+    //await loadClientsTable();
     await loadProductsData(); 
     await loadProductsTable(); 
     await loadClientsForSale(); 
@@ -987,6 +987,52 @@ async function loadClientsTable() {
     } catch (e) {
         console.error('Error inesperado al cargar clientes:', e.message || e);
     }
+
+    // Nueva variable para controlar si se renderizan los botones
+    const showActions = mode === 'gestion'; 
+
+    // 3. Limpiar y Renderizar
+    container.innerHTML = '';
+    
+    clients.forEach((client, index) => {
+        // ... (resto del código de resumen/cálculos) ...
+
+        let actionCell = '';
+
+        if (showActions) {
+            // Esta celda solo se renderiza si estamos en 'modo gestión'
+            actionCell = `
+                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                    <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
+                                data-client-id="${client.client_id}">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
+                                data-client-id="${client.client_id}">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                    <button type="button" class="abono-client-btn text-green-600 hover:text-green-900" 
+                                data-client-id="${client.client_id}">
+                        <i class="fas fa-money-bill-wave"></i> Abonar
+                    </button>
+                </td>
+            `;
+        } else {
+            // Celda alternativa si no hay botones de acción (ej. un botón de 'Seleccionar')
+            // Podrías poner aquí un botón 'Seleccionar' si es para ventas
+             actionCell = `<td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium"></td>`; 
+        }
+
+        row.innerHTML = `
+            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.client_id}</td>
+            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
+            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || 'N/A'}</td>
+            ${actionCell} 
+        `;
+        container.appendChild(row);
+    });
+
+
 }
 
 async function handleNewClient(e) {
@@ -1006,8 +1052,8 @@ async function handleNewClient(e) {
         await loadAndRenderClients(); // Recargar la lista de clientes
         closeModal('modal-new-client');
         document.getElementById('client-form').reset();
-        await loadClientsTable(); 
-        await loadClientsForSale(); 
+        await loadClientsTable('gestion'); 
+        await loadClientsTable('seleccion'); // o simplemente loadClientsTable() si el default es 'gestion' 
     }
 }
 
