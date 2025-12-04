@@ -1032,7 +1032,6 @@ async function loadClientsTable() {
         container.appendChild(row);
     });
 
-
 }
 
 async function handleNewClient(e) {
@@ -1052,8 +1051,7 @@ async function handleNewClient(e) {
         await loadAndRenderClients(); // Recargar la lista de clientes
         closeModal('modal-new-client');
         document.getElementById('client-form').reset();
-        await loadClientsTable('gestion'); 
-        await loadClientsTable('seleccion'); // o simplemente loadClientsTable() si el default es 'gestion' 
+        await loadClientsTable(); 
     }
 }
 
