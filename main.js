@@ -1162,10 +1162,16 @@ function toggleParentProductField() {
 }
 
 async function loadProductsTable() {
-    await loadProductsData(); 
-        if (!container) return;
-    container.innerHTML = '';
+    // ⚠️ CORRECCIÓN CRÍTICA: Definir la variable 'container'
+    const container = document.getElementById('products-table-body');
     
+    // Ahora 'container' ya existe
+    if (!container) return; // Si no existe (no estamos en la vista de productos), salimos.
+
+    await loadProductsData(); 
+    
+    container.innerHTML = '';
+     
     const products = allProducts; 
 
     if (products.length === 0) {
@@ -1959,11 +1965,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAndRenderClients(); // Carga la lista de clientes
 });
 
-// Este listener ahora llamará a tu función renombrada
+
+// Busca el ID del modal de reporte mensual en tu HTML.
+const monthlySalesModal = document.getElementById('modal-monthly-report'); 
+
+// Este listener ahora se inicializará correctamente
 monthlySalesModal?.addEventListener('click', (e) => {
     if (e.target.classList.contains('view-sale-details-btn')) {
         const ventaId = e.target.getAttribute('data-venta-id');
-        handleViewSaleDetails(ventaId); // 👈 ¡La conexión se hace aquí!
+        handleViewSaleDetails(ventaId);
     }
 });
 
