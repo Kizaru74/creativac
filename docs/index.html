@@ -17,7 +17,7 @@
             line-height: 1; /* Para centrar el '+' */
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-DNmzHWi-.js"></script>
+  <script type="module" crossorigin src="./assets/index-BnuxIxc8.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     
@@ -138,16 +138,14 @@
                         <p id="no-debt-message" class="text-center text-gray-500 mt-4 hidden">No hay deudas pendientes.</p>
                     </div>
                 </div>
-            </div>
-            
-
+            </div> 
         </main>
     </div>
 
     <div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-auto p-6">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-2xl font-bold text-gray-800">Registrar Nueva Venta</h3>
+                <h3 class="file-invoice-dollar text-2xl font-bold text-gray-800">Registrar Nueva Venta</h3>
                 <button data-close-modal="new-sale-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
                     &times;
                 </button>
@@ -180,17 +178,21 @@
             </select>
              </div>
                 
-                        <div>
-                            <label for="product-unit-price" class="block text-sm font-medium text-gray-700">Precio Unitario</label>
-                            <input type="text" id="product-unit-price" value="0.00" class="w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-200" readonly>
-                        </div>
+<div><label for="product-unit-price" class="block text-sm font-medium text-gray-700">Precio Unitario</label>
+    <input 
+        type="number" 
+        step="0.01" 
+        min="0.00"  id="product-unit-price" 
+        value="0.00" 
+        required
+        class="w-full border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+    >
+</div>
 
-                        <div>
-                            <label for="product-quantity" class="block text-sm font-medium text-gray-700">Cantidad</label>
-                            <input type="number" id="product-quantity" value="1" min="1" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                        </div>
-                        
-                        <button type="button" id="add-product-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-md h-10">
+                 <div>
+                 <label for="product-quantity" class="block text-sm font-medium text-gray-700">Cantidad</label>
+                 <input type="number" id="product-quantity" value="1" min="1" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+                </div><button type="button" id="add-product-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-md h-10">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
@@ -754,6 +756,43 @@
     </div>
 </div>
 
+<div id="modal-sale-details" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 overflow-y-auto" onclick="closeModal('modal-sale-details')">
+    <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-auto mt-20 p-6" onclick="event.stopPropagation()">
+        
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Detalles y Edición de Venta</h3>
+        <button type="button" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600" onclick="closeModal('modal-sale-details')">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <form id="sale-details-form" onsubmit="event.preventDefault(); handleUpdateSalePrice()">
+            
+            <input type="hidden" id="sale-edit-transaction-id" value="">
+            
+            <div class="mb-4">
+                <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Precio Total de Venta</label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span class="text-gray-500 sm:text-sm">$</span>
+                    </div>
+                    <input type="number" step="0.01" min="0.01" id="sale-edit-price" 
+                           class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md p-2" 
+                           placeholder="0.00" required>
+                </div>
+            </div>
+            
+            <p class="text-sm text-gray-500 mb-4">Solo se puede editar el monto total de las ventas registradas con precio cero.</p>
+
+            <div class="mt-4 flex justify-end">
+                <button type="button" class="mr-3 inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" onclick="closeModal('modal-sale-details')">
+                    Cancelar
+                </button>
+                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
+                    Guardar Nuevo Precio
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
