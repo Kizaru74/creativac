@@ -1186,7 +1186,7 @@ async function handleViewClientDebt(clientId) {
     }
     
     // Guardar la ID del cliente que estamos viendo. Es crucial para recargar el reporte después de una edición.
-    viewingClientId = clientId; 
+    viewingClientId = clientId;
     
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     if (!client) return;
@@ -1250,15 +1250,13 @@ async function handleViewClientDebt(clientId) {
             const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
             
             if (t.type === 'cargo_venta' && amountIsZero) {
-                 // 🛑 CRÍTICO: El botón llama a handleViewSaleDetails para abrir el modal de edición.
-                 actionButton = `
-                    <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')" 
-                            class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
-                        Añadir Precio
-                    </button>
-                 `;
-            }
-            
+     actionButton = `
+        <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')"
+                class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
+            Añadir Precio
+        </button>
+     `;
+}
             // 5. Renderizado de la Fila
             htmlContent += `
                 <tr>
