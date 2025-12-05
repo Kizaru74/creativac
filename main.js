@@ -1262,7 +1262,8 @@ async function handleViewSaleDetails(transactionId, clientId) {
         const editSection = document.getElementById('sale-edit-section');
         const amountIsZero = Math.abs(parseFloat(sale.total_amount)) < 0.01;
         
-        if (amountIsZero && sale.saldo_pendiente > 0 && items.length > 0) {
+        if (amountIsZero && items.length > 0) {
+            // Si la venta total es CERO y tiene ítems, se puede editar.
             editSection.classList.remove('hidden');
             const firstItem = items[0]; 
             
