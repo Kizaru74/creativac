@@ -262,8 +262,8 @@ async function loadRecentSales() {
 async function loadDashboardData() {
     await loadTotals();
     await loadDebts();
-    await loadRecentSales(); 
-    //await loadClientsTable();
+    await loadRecentSales();
+    await loadClientsTable('gestion'); 
     await loadProductsData(); 
     await loadProductsTable(); 
     await loadClientsForSale(); 
@@ -915,7 +915,7 @@ async function handleNewSale(e) {
  * Carga los clientes desde Supabase, calcula su resumen financiero (ventas/deuda)
  * y renderiza la tabla.
  */
-async function loadClientsTable() {
+async function loadClientsTable(mode = 'gestion') {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
@@ -927,6 +927,9 @@ async function loadClientsTable() {
         return;
     }
 
+    // 💡 La clave para el control de botones
+    const showActions = mode === 'gestion';
+
     try {
         // 1. Obtener la lista base de clientes
         const { data: clients, error: clientsError } = await supabase
@@ -936,9 +939,11 @@ async function loadClientsTable() {
 
         if (clientsError) throw clientsError;
 
-        allClients = clients;
+        // Se asume que allClients es una variable global
+        allClients = clients; 
         
         // 2. Ejecutar las consultas de resumen de ventas/deuda en paralelo
+        // Asume que getClientSalesSummary y formatCurrency existen
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
@@ -950,8 +955,34 @@ async function loadClientsTable() {
             
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50';
+
+            // 🛠️ Celda de Acciones Condicional
+            let actionCell = '';
+
+            if (showActions) {
+                // Modo 'gestion': Muestra los botones de Editar, Eliminar, Abonar
+                actionCell = `
+                    <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                        <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
+                                        data-client-id="${client.client_id}">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
+                                        data-client-id="${client.client_id}">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                        <button type="button" class="abono-client-btn text-green-600 hover:text-green-900" 
+                                        data-client-id="${client.client_id}">
+                            <i class="fas fa-money-bill-wave"></i> Abonar
+                        </button>
+                    </td>
+                `;
+            } else {
+                // Modo 'seleccion' o cualquier otro: Puedes poner un botón de selección o dejar la celda vacía.
+                // Aquí se deja una celda vacía para mantener la estructura de la tabla
+                actionCell = `<td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium"></td>`; 
+            }
             
-            // 🚨 CRÍTICO: Asegurarse de usar BACKTICKS (`` ` ``) para que las expresiones ${...} funcionen.
             row.innerHTML = `
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.client_id}</td>
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
@@ -966,20 +997,7 @@ async function loadClientsTable() {
                     $${summary.deudaNeta.toFixed(2)}
                 </td>
                 
-                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
-                            data-client-id="${client.client_id}">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
-                            data-client-id="${client.client_id}">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
-                    <button type="button" class="abono-client-btn text-green-600 hover:text-green-900" 
-                            data-client-id="${client.client_id}">
-                        <i class="fas fa-money-bill-wave"></i> Abonar
-                    </button>
-                </td>
+                ${actionCell} 
             `;
             container.appendChild(row);
         });
@@ -987,53 +1005,7 @@ async function loadClientsTable() {
     } catch (e) {
         console.error('Error inesperado al cargar clientes:', e.message || e);
     }
-
-    // Nueva variable para controlar si se renderizan los botones
-    const showActions = mode === 'gestion'; 
-
-    // 3. Limpiar y Renderizar
-    container.innerHTML = '';
-    
-    clients.forEach((client, index) => {
-        // ... (resto del código de resumen/cálculos) ...
-
-        let actionCell = '';
-
-        if (showActions) {
-            // Esta celda solo se renderiza si estamos en 'modo gestión'
-            actionCell = `
-                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
-                                data-client-id="${client.client_id}">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
-                                data-client-id="${client.client_id}">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
-                    <button type="button" class="abono-client-btn text-green-600 hover:text-green-900" 
-                                data-client-id="${client.client_id}">
-                        <i class="fas fa-money-bill-wave"></i> Abonar
-                    </button>
-                </td>
-            `;
-        } else {
-            // Celda alternativa si no hay botones de acción (ej. un botón de 'Seleccionar')
-            // Podrías poner aquí un botón 'Seleccionar' si es para ventas
-             actionCell = `<td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium"></td>`; 
-        }
-
-        row.innerHTML = `
-            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.client_id}</td>
-            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
-            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || 'N/A'}</td>
-            ${actionCell} 
-        `;
-        container.appendChild(row);
-    });
-
 }
-
 async function handleNewClient(e) {
     e.preventDefault();
     const name = document.getElementById('name').value;
