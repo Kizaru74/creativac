@@ -1173,6 +1173,7 @@ async function handleViewSaleDetails(transactionId, clientId) {
         return;
     }
     
+    // Verificación de seguridad
     if (!clientId || clientId === 'undefined') {
         console.error("handleViewSaleDetails: El argumento clientId es inválido o undefined.");
         alert("Error interno: No se pudo cargar el ID del cliente asociado. Intente recargar la lista.");
@@ -1184,27 +1185,28 @@ async function handleViewSaleDetails(transactionId, clientId) {
     
     try {
         // =======================================================
-        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO (PGRST116 CORREGIDO)
+        // 1. CARGA DE LA TRANSACCIÓN (PGRST116 CORREGIDO)
         // =======================================================
         const { data: transactions, error: transError } = await supabase
             .from('transacciones_deuda')
             .select(`transaction_id, amount, created_at`) 
             .eq('transaction_id', transactionId);
-            // 🛑 ¡.single() ha sido ELIMINADO para prevenir el error PGRST116!
 
         if (transError || !transactions || transactions.length === 0) {
             console.error("Error o Transacción no encontrada en transacciones_deuda:", transError);
-            alert("Error: La transacción no existe o no se pudo cargar.");
+            // 🛑 Si ves PGRST116 aquí, es que la venta 40 no existe en transacciones_deuda.
+            alert("Advertencia: La transacción (ID: " + transactionId + ") no existe en el registro de deuda. Verifique la base de datos.");
             return;
         }
 
-        const transaction = transactions[0]; // Tomamos el primer (y único esperado) resultado.
+        const transaction = transactions[0]; 
 
         // =======================================================
-        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (VERIFICAR RLS Y NOMBRE)
+        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (ERROR 404 CORREGIDO)
         // =======================================================
         const { data: items, error: itemsError } = await supabase
-            .from('detalle_venta') 
+            // 🛑 CORREGIDO: Cambiado de 'detalle_venta' a 'detalle_ventas'
+            .from('detalle_ventas') 
             .select(`
                 quantity,
                 precio_unitario,
@@ -1214,10 +1216,9 @@ async function handleViewSaleDetails(transactionId, clientId) {
 
         if (itemsError) {
             console.error("Error al cargar ítems de la venta:", itemsError);
-            alert("Advertencia: No se pudieron cargar los productos de la venta. Verifique la tabla 'detalle_venta' y sus políticas RLS (Error 404).");
+            // Si ves el 404 ahora, el problema es RLS o el nombre de la relación 'productos'.
+            alert("Error al cargar los productos de la venta. Verifique políticas RLS en 'detalle_ventas'.");
         }
-        
-        // ... (El resto del código de inyección de datos y lógica de edición permanece igual)
         
         // =======================================================
         // 3. INYECCIÓN DE DATOS
@@ -1234,7 +1235,6 @@ async function handleViewSaleDetails(transactionId, clientId) {
         const itemsBody = document.getElementById('detail-items-body');
         itemsBody.innerHTML = ''; 
         
-        // Usamos items || [] para que el forEach no falle si items es null (por el error 404)
         (items || []).forEach(item => { 
             const subtotal = item.quantity * item.precio_unitario;
 
