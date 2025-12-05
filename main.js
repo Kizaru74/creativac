@@ -990,6 +990,22 @@ async function handleNewSale(e) {
     }
 }
 
+
+function openPostSalePriceModal(ventaId, detalleVentaId, clientId, itemName) {
+    // 1. Asignar IDs a los campos ocultos
+    document.getElementById('edit-venta-id').value = ventaId;
+    document.getElementById('edit-detalle-venta-id').value = detalleVentaId;
+    document.getElementById('edit-client-id').value = clientId;
+
+    // 2. Mostrar nombres y limpiar precio
+    document.getElementById('edit-item-name-display').textContent = itemName;
+    document.getElementById('edit-venta-id-display').textContent = ventaId;
+    document.getElementById('new-unit-price').value = '0.00'; 
+    
+    // 3. Abrir el modal
+    openModal('modal-edit-sale-item');
+}
+
 // ====================================================================
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
@@ -2073,10 +2089,6 @@ async function loadAndRenderProducts() {
 }
 
 // ====================================================================
-// 13. LISTENERS DE EVENTOS (SETUP INICIAL - COMPLETO)
-// ====================================================================
-
-// ====================================================================
 // ✅ NUEVO BLOQUE CRÍTICO DE INICIALIZACIÓN
 // ====================================================================
 
@@ -2205,7 +2217,9 @@ monthlySalesModal?.addEventListener('click', (e) => {
     }
 });
 
-// --- Listeners de MODAL CLIENTES (BLOQUE CORREGIDO) ---
+// -----------------------------------------------
+//  Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
+// -----------------------------------------------
 document.getElementById('open-register-client-modal-btn')?.addEventListener('click', () => {
     document.getElementById('client-modal-title').textContent = 'Registrar Nuevo Cliente';
     
@@ -2223,6 +2237,23 @@ document.getElementById('open-register-client-modal-btn')?.addEventListener('cli
 
 // ✅ CRÍTICO: El listener de envío debe apuntar a la ID correcta.
 document.getElementById('new-client-form')?.addEventListener('submit', handleNewClient);
+
+// Listener para el envío del formulario de edición de precio post-venta
+document.getElementById('post-sale-price-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Obtener los valores del formulario
+    const ventaId = document.getElementById('edit-venta-id').value;
+    const detalleVentaId = document.getElementById('edit-detalle-venta-id').value;
+    const clientId = document.getElementById('edit-client-id').value;
+    const newPrice = parseFloat(document.getElementById('new-unit-price').value);
+
+    // Llamar a la función que actualiza la BD
+    await handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newPrice);
+    
+    // Cerrar el modal después de la operación (la función ya lo hace, pero es buena práctica)
+    closeModal('modal-edit-sale-item');
+});
 
 // ------------------------------------
 // --- LISTENERS DE MODAL PRODUCTOS ---
@@ -2337,9 +2368,6 @@ document.getElementById('open-abono-from-report-btn')?.addEventListener('click',
     // Se asume que 'openAbonoModal' existe y toma el viewingClientId (definido en main.js)
     openAbonoModal(viewingClientId); 
 });
-
-
-
 
 // --------------------------------------
 // --- Apertura/Cierre de Modales Universal ---
