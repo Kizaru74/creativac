@@ -1184,6 +1184,104 @@ async function handleViewSaleDetails(transactionId, clientId) {
     
     try {
         // =======================================================
+        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO (PGRST116 CORREGIDO)
+        // =======================================================
+        const { data: transactions, error: transError } = await supabase
+            .from('transacciones_deuda')
+            .select(`transaction_id, amount, created_at`) 
+            .eq('transaction_id', transactionId);
+            // 🛑 ¡.single() ha sido ELIMINADO para prevenir el error PGRST116!
+
+        if (transError || !transactions || transactions.length === 0) {
+            console.error("Error o Transacción no encontrada en transacciones_deuda:", transError);
+            alert("Error: La transacción no existe o no se pudo cargar.");
+            return;
+        }
+
+        const transaction = transactions[0]; // Tomamos el primer (y único esperado) resultado.
+
+        // =======================================================
+        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (VERIFICAR RLS Y NOMBRE)
+        // =======================================================
+        const { data: items, error: itemsError } = await supabase
+            .from('detalle_venta') 
+            .select(`
+                quantity,
+                precio_unitario,
+                productos (name) 
+            `)
+            .eq('transaction_id', transactionId);
+
+        if (itemsError) {
+            console.error("Error al cargar ítems de la venta:", itemsError);
+            alert("Advertencia: No se pudieron cargar los productos de la venta. Verifique la tabla 'detalle_venta' y sus políticas RLS (Error 404).");
+        }
+        
+        // ... (El resto del código de inyección de datos y lógica de edición permanece igual)
+        
+        // =======================================================
+        // 3. INYECCIÓN DE DATOS
+        // =======================================================
+        
+        document.getElementById('detail-sale-id').textContent = `#${transaction.transaction_id}`;
+        document.getElementById('detail-client-name').textContent = client ? client.name : 'N/A';
+        document.getElementById('detail-date').textContent = formatDate(transaction.created_at);
+        document.getElementById('detail-total-amount').textContent = formatCurrency(transaction.amount); 
+        document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(transaction.amount); 
+        document.getElementById('detail-comments').textContent = 'Sin comentarios.'; 
+        
+        // Inyectar ítems de la venta (Tabla de Productos)
+        const itemsBody = document.getElementById('detail-items-body');
+        itemsBody.innerHTML = ''; 
+        
+        // Usamos items || [] para que el forEach no falle si items es null (por el error 404)
+        (items || []).forEach(item => { 
+            const subtotal = item.quantity * item.precio_unitario;
+
+            itemsBody.innerHTML += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-3">${item.productos.name}</td>
+                    <td class="px-6 py-3 text-center">${item.quantity}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(item.precio_unitario)}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(subtotal)}</td>
+                </tr>
+            `;
+        });
+        
+        // =======================================================
+        // 4. LÓGICA DE EDICIÓN CONDICIONAL
+        // =======================================================
+        const editSection = document.getElementById('sale-edit-section');
+        const amountIsZero = Math.abs(parseFloat(transaction.amount)) < 0.01; 
+        
+        if (amountIsZero) {
+            editSection.classList.remove('hidden');
+            document.getElementById('sale-edit-transaction-id').value = transaction.transaction_id;
+            document.getElementById('sale-edit-price').value = transaction.amount.toFixed(2); 
+        } else {
+            editSection.classList.add('hidden');
+        }
+
+        // 5. Abrir el modal CORRECTO
+        openModal('modal-detail-sale'); 
+
+    } catch (e) {
+        console.error('Error al iniciar la edición de venta:', e);
+        alert('Hubo un error al iniciar la edición.');
+    }
+}
+    
+    if (!clientId || clientId === 'undefined') {
+        console.error("handleViewSaleDetails: El argumento clientId es inválido o undefined.");
+        alert("Error interno: No se pudo cargar el ID del cliente asociado. Intente recargar la lista.");
+        return;
+    }
+    
+    viewingClientId = clientId; 
+    const client = allClients.find(c => c.client_id.toString() === clientId.toString());
+    
+    try {
+        // =======================================================
         // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO (CORREGIDO)
         // =======================================================
         const { data: transaction, error: transError } = await supabase
