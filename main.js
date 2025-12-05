@@ -2169,30 +2169,28 @@ document.getElementById('products-table-body')?.addEventListener('click', (e) =>
 // ====================================================================
 // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
 // ====================================================================
-document.getElementById('clients-list-body')?.addEventListener('click', (e) => { 
+document.getElementById('clients-list-body')?.addEventListener('click', async (e) => { // ✅ CORRECCIÓN: Agregar 'async'
     
     // Encuentra el botón más cercano que fue clickeado
     const button = e.target.closest('button');
 
     if (button) {
-        // 🛑 SOLUCIÓN CRÍTICA: Detiene el comportamiento predeterminado (ej. recarga de página)
         e.preventDefault(); 
         
         const clientId = button.getAttribute('data-client-id');
 
         // Manejar cada tipo de botón
         if (button.classList.contains('edit-client-btn')) {
-            // Asegúrate que esta función es ASÍNCRONA (async)
-            handleEditClientClick(clientId);
+            await handleEditClientClick(clientId); // Si esta es async
         }
 
         if (button.classList.contains('delete-client-btn')) {
             handleDeleteClientClick(clientId);
         }
 
-        // 🚨 NUEVA LÓGICA: Botón para ver el reporte de deuda
-        if (button.classList.contains('view-debt-btn')) { // <--- Usando la nueva clase
-            await handleViewClientDebt(clientId); // <--- Nueva función asíncrona
+        // El botón de abono ahora llama al reporte de deuda (que es async)
+        if (button.classList.contains('view-debt-btn')) { 
+            await handleViewClientDebt(clientId); // ✅ Ahora funciona correctamente
         }
     }
 });
