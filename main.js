@@ -1078,7 +1078,10 @@ async function handleViewClientDebt(clientId) {
         let htmlContent = '';
         
         transactions.forEach(t => {
+            // 1. Declaración Única
             const isDebt = t.type === 'cargo_venta'; 
+            
+            // console.log("Transacción cargada:", t); // Línea de debugging (puedes borrar o comentar)
             
             if (isDebt) {
                 currentDebt += t.amount;
@@ -1086,11 +1089,6 @@ async function handleViewClientDebt(clientId) {
                 currentDebt -= t.amount; 
             }
 
-            // 🛑 AÑADE ESTA LÍNEA AQUÍ
-        console.log("Transacción cargada:", t); 
-        
-        const isDebt = t.type === 'cargo_venta';
-        
             const displayDebt = Math.max(0, currentDebt);
 
             let typeLabel = '';
@@ -1112,9 +1110,12 @@ async function handleViewClientDebt(clientId) {
                     typeLabel = 'Movimiento';
             }
 
-            // 🛑 AÑADIR BOTÓN DE EDICIÓN SI ES VENTA A $0.00
+            // 🛑 LÓGICA DE DETECCIÓN DE BOTÓN (CORREGIDA)
             let actionButton = '';
-            if (t.type === 'cargo_venta' && t.amount === 0) {
+            // Usamos Math.abs(amount) < 0.01 para manejar errores de coma flotante (montos muy cercanos a cero)
+            const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
+            
+            if (t.type === 'cargo_venta' && amountIsZero) {
                  actionButton = `
                     <button onclick="handleOpenEditSaleItem('${t.transaction_id}', '${clientId}')" 
                             class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
