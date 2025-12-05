@@ -917,7 +917,8 @@ let viewingClientId = null;
 async function handleViewClientDebt(clientId) {
     if (!supabase) return;
     
-    viewingClientId = clientId; // Guarda el ID para usarlo en la función de abonar
+    // Asumo que 'viewingClientId' es una variable global definida.
+    viewingClientId = clientId; 
     
     // 1. Obtener los datos del cliente
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
@@ -925,17 +926,17 @@ async function handleViewClientDebt(clientId) {
 
     // 2. Obtener todas las transacciones (ventas y abonos)
     try {
+        // NOTA: Es importante que la vista SQL haya sido creada exitosamente.
         const { data: transactions, error } = await supabase
-            .from('transacciones_deuda') // 💡 Asume que tienes una vista/tabla que consolida Ventas y Abonos
+            .from('transacciones_deuda') 
             .select(`
-                id, created_at, type, amount, sale_id
+                transaction_id, created_at, type, amount, client_id
             `)
             .eq('client_id', clientId)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
         
-        // Asume que tienes un contenedor para el nombre del cliente y la tabla de transacciones en tu modal
         const container = document.getElementById('client-transactions-body');
         const totalDebtElement = document.getElementById('client-report-total-debt');
         
@@ -946,19 +947,36 @@ async function handleViewClientDebt(clientId) {
         let htmlContent = '';
         
         transactions.forEach(t => {
-            const isDebt = t.type === 'sale'; // Asume 'sale' aumenta la deuda
+            // Un cargo suma a la deuda (Deuda = total_amount)
+            const isDebt = t.type === 'cargo_venta'; 
             
             if (isDebt) {
                 currentDebt += t.amount;
             } else {
-                currentDebt -= t.amount;
+                // Un abono inicial o posterior siempre resta (Pago inicial o Abono)
+                currentDebt -= t.amount; 
+            }
+            
+            // 💡 CONVERSIÓN DEL TIPO DE TRANSACCIÓN PARA MOSTRAR
+            let typeLabel = '';
+            switch (t.type) {
+                case 'cargo_venta':
+                    typeLabel = 'Venta (Cargo)';
+                    break;
+                case 'abono_inicial':
+                    typeLabel = 'Pago Inicial';
+                    break;
+                case 'abono_posterior':
+                    typeLabel = 'Abono';
+                    break;
+                default:
+                    typeLabel = 'Movimiento';
             }
             
             htmlContent += `
                 <tr>
                     <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
-                    <td class="px-3 py-2 text-sm">${t.type === 'sale' ? 'Venta' : 'Abono'}</td>
-                    <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
+                    <td class="px-3 py-2 text-sm">${typeLabel}</td> <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
                         ${formatCurrency(t.amount)}
                     </td>
                     <td class="px-3 py-2 text-sm">${formatCurrency(currentDebt)}</td>
@@ -972,7 +990,6 @@ async function handleViewClientDebt(clientId) {
         totalDebtElement.textContent = formatCurrency(currentDebt);
         totalDebtElement.className = `font-bold ${currentDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
         
-        // Abre el modal de reporte (debes crear el HTML con esta ID)
         openModal('modal-client-debt-report'); 
 
     } catch (e) {
