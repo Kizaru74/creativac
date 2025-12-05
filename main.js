@@ -1078,46 +1078,93 @@ async function handleViewSaleDetails(transactionId, clientId) {
         console.error("Supabase no está inicializado.");
         return;
     }
-
-// 🛑 LÍNEA DE DEBUG CRÍTICA
-    console.log("Intentando cargar Transacción ID:", transactionId);
+    
+    // Asignar el ID del cliente globalmente (para recargar el reporte después)
     viewingClientId = clientId; 
+    const client = allClients.find(c => c.client_id.toString() === clientId.toString());
 
     try {
-        // 1. Cargar la transacción de deuda específica usando el ID
-        const { data: transaction, error } = await supabase
+        // =======================================================
+        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO
+        // =======================================================
+        const { data: transaction, error: transError } = await supabase
             .from('transacciones_deuda')
-            // Solo necesitamos la ID y el monto (amount) para prellenar el formulario de edición
-            .select(`transaction_id, amount`) 
+            .select(`transaction_id, amount, created_at`) 
             .eq('transaction_id', transactionId)
             .single(); 
 
-        if (error || !transaction) {
-            console.error("Error al cargar detalles de la venta:", error);
-            alert("Error al cargar detalles de la venta.");
+        // =======================================================
+        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (Para la tabla de productos)
+        // ASUMIMOS que la tabla de ítems de venta se llama 'detalle_venta'
+        // =======================================================
+        const { data: items, error: itemsError } = await supabase
+            .from('detalle_venta') 
+            .select(`
+                quantity,
+                precio_unitario,
+                productos (name) 
+            `)
+            .eq('transaction_id', transactionId);
+
+        if (transError || itemsError || !transaction) {
+            console.error("Error al cargar detalles de la venta:", transError || itemsError);
+            alert("Error al cargar detalles de la venta. Verifique que la transacción no haya sido eliminada.");
             return;
         }
 
-        // 2. Pre-cargar los valores en el modal 'modal-sale-details'
-        // Estos IDs (sale-edit-transaction-id y sale-edit-price) deben existir en tu HTML.
+        // =======================================================
+        // 3. INYECCIÓN DE DATOS EN EL MODAL 'modal-detail-sale'
+        // =======================================================
         
-        const transactionIdInput = document.getElementById('sale-edit-transaction-id');
-        const priceInput = document.getElementById('sale-edit-price');
+        // Datos de encabezado
+        document.getElementById('detail-sale-id').textContent = `#${transaction.transaction_id}`;
+        document.getElementById('detail-client-name').textContent = client ? client.name : 'N/A';
+        document.getElementById('detail-date').textContent = new Date(transaction.created_at).toLocaleDateString();
+        
+        // Montos (Nota: el saldo pendiente se debe calcular dinámicamente en una función separada o al cargar la deuda, aquí solo mostramos el monto de la venta)
+        document.getElementById('detail-total-amount').textContent = formatCurrency(transaction.amount); 
+        // Inicialmente asumimos que el saldo pendiente es el monto total si no hay pagos.
+        document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(transaction.amount); 
 
-        if (!transactionIdInput || !priceInput) {
-            console.error("IDs de formulario de edición de venta no encontradas en el DOM.");
-            alert("Error interno: Faltan campos del formulario de edición.");
-            return;
+        // Inyectar ítems de la venta (Tabla de Productos)
+        const itemsBody = document.getElementById('detail-items-body');
+        itemsBody.innerHTML = ''; // Limpiar la tabla
+        let totalSubtotal = 0;
+        
+        items.forEach(item => {
+            const subtotal = item.quantity * item.precio_unitario;
+            totalSubtotal += subtotal;
+
+            itemsBody.innerHTML += `
+                <tr>
+                    <td class="px-6 py-3">${item.productos.name}</td>
+                    <td class="px-6 py-3 text-center">${item.quantity}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(item.precio_unitario)}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(subtotal)}</td>
+                </tr>
+            `;
+        });
+        
+        // =======================================================
+        // 4. LÓGICA DE EDICIÓN CONDICIONAL
+        // =======================================================
+        const editSection = document.getElementById('sale-edit-section');
+        const amountIsZero = Math.abs(parseFloat(transaction.amount)) < 0.01; 
+        
+        if (amountIsZero) {
+            // Mostrar la sección de edición
+            editSection.classList.remove('hidden');
+            
+            // Llenar el formulario de edición (con el valor actual, que es 0.00)
+            document.getElementById('sale-edit-transaction-id').value = transaction.transaction_id;
+            document.getElementById('sale-edit-price').value = transaction.amount.toFixed(2); 
+        } else {
+            // Ocultar la sección si ya tiene un precio asignado
+            editSection.classList.add('hidden');
         }
 
-        // Asignar el ID de la transacción al campo oculto
-        transactionIdInput.value = transaction.transaction_id;
-        
-        // Asignar el monto actual al campo de precio (formateado a 2 decimales)
-        priceInput.value = transaction.amount.toFixed(2); 
-
-        // 3. Abrir el modal de detalles/edición
-        openModal('modal-sale-details');
+        // 5. Abrir el modal CORRECTO
+        openModal('modal-detail-sale');
 
     } catch (e) {
         console.error('Error al iniciar la edición de venta:', e);
