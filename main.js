@@ -1133,14 +1133,19 @@ async function handleViewSaleDetails(transactionId, clientId) {
 let viewingClientId = null; 
 
 async function handleViewClientDebt(clientId) {
-    if (!supabase) return;
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
     
+    // Guardar la ID del cliente que estamos viendo. Es crucial para recargar el reporte después de una edición.
     viewingClientId = clientId; 
+    
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     if (!client) return;
 
     try {
-        // 1. Obtener transacciones en orden ASCENDENTE
+        // 1. Obtener transacciones en orden ASCENDENTE (para calcular el saldo cronológicamente)
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select(`
@@ -1160,10 +1165,8 @@ async function handleViewClientDebt(clientId) {
         let htmlContent = '';
         
         transactions.forEach(t => {
-            // 1. Declaración Única
+            // 2. Cálculo de la deuda
             const isDebt = t.type === 'cargo_venta'; 
-            
-            // console.log("Transacción cargada:", t); // Línea de debugging (puedes borrar o comentar)
             
             if (isDebt) {
                 currentDebt += t.amount;
@@ -1171,8 +1174,10 @@ async function handleViewClientDebt(clientId) {
                 currentDebt -= t.amount; 
             }
 
-            const displayDebt = Math.max(0, currentDebt);
+            // El saldo actual después de esta transacción
+            const displayDebt = currentDebt; 
 
+            // 3. Etiquetado y Descripción
             let typeLabel = '';
             let typeDescription = '';
             switch (t.type) {
@@ -1192,20 +1197,22 @@ async function handleViewClientDebt(clientId) {
                     typeLabel = 'Movimiento';
             }
 
-            // 🛑 LÓGICA DE DETECCIÓN DE BOTÓN (CORREGIDA)
+            // 4. Lógica del Botón "Añadir Precio" (Edición)
             let actionButton = '';
-            // Usamos Math.abs(amount) < 0.01 para manejar errores de coma flotante (montos muy cercanos a cero)
+            // Usamos una detección robusta de monto cero para manejar problemas de coma flotante.
             const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
             
             if (t.type === 'cargo_venta' && amountIsZero) {
-     actionButton = `
-        <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')" // <--- ¡Esta línea es clave!
-                class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
-            Añadir Precio
-        </button>
-     `;
-}
-}
+                 // 🛑 CRÍTICO: El botón llama a handleViewSaleDetails para abrir el modal de edición.
+                 actionButton = `
+                    <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')" 
+                            class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
+                        Añadir Precio
+                    </button>
+                 `;
+            }
+            
+            // 5. Renderizado de la Fila
             htmlContent += `
                 <tr>
                     <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
@@ -1218,6 +1225,7 @@ async function handleViewClientDebt(clientId) {
             `;
         });
 
+        // 6. Actualización del Modal
         document.getElementById('client-report-name').textContent = client.name;
         container.innerHTML = htmlContent;
         
