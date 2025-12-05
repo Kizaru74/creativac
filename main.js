@@ -1182,9 +1182,7 @@ async function handleViewSaleDetails(transactionId, clientId) {
     viewingClientId = clientId;
 
     try {
-        // =======================================================
         // 1. CARGA DE LA VENTA PRINCIPAL (Tabla 'ventas')
-        // =======================================================
         const { data: sale, error: saleError } = await supabase
             .from('ventas')
             .select(`venta_id, total_amount, saldo_pendiente, created_at, description`)
@@ -1197,15 +1195,12 @@ async function handleViewSaleDetails(transactionId, clientId) {
             return;
         }
 
-        // =======================================================
         // 2. CARGA DE ÍTEMS DE VENTA (Tabla 'detalle_ventas')
-        // =======================================================
         const { data: items, error: itemsError } = await supabase
             .from('detalle_ventas')
-            // ✅ CORREGIDO: Usamos detalle_id (singular)
+            // ✅ CORREGIDO: detalle_id (singular)
             .select(`detalle_id, quantity, price, subtotal, productos(name)`) 
             .eq('venta_id', transactionId) 
-            // ✅ CORREGIDO: Usamos detalle_id para ordenar
             .order('detalle_id', { ascending: true }); 
 
         if (itemsError) throw itemsError;
@@ -1215,7 +1210,8 @@ async function handleViewSaleDetails(transactionId, clientId) {
         // =======================================================
         const { data: payments, error: paymentsError } = await supabase
             .from('pagos')
-            .select(`amount, payment_method, created_at`)
+            // 🛑 CORREGIDO: Usamos metodo_pago en lugar de payment_method
+            .select(`amount, metodo_pago, created_at`) 
             .eq('venta_id', transactionId)
             .order('created_at', { ascending: true });
 
@@ -1256,15 +1252,13 @@ async function handleViewSaleDetails(transactionId, clientId) {
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-3">${formatDate(payment.created_at)}</td>
                         <td class="px-6 py-3 text-right font-semibold text-green-600">${formatCurrency(payment.amount)}</td>
-                        <td class="px-6 py-3 text-center">${payment.payment_method}</td>
-                    </tr>
+                        <td class="px-6 py-3 text-center">${payment.metodo_pago}</td>  
+                        </tr>
                 `;
             });
         }
 
-        // =======================================================
         // 5. LÓGICA DE EDICIÓN CONDICIONAL PARA VENTAS CERO
-        // =======================================================
         const editSection = document.getElementById('sale-edit-section');
         const amountIsZero = Math.abs(parseFloat(sale.total_amount)) < 0.01;
         
@@ -1272,7 +1266,6 @@ async function handleViewSaleDetails(transactionId, clientId) {
             editSection.classList.remove('hidden');
             const firstItem = items[0]; 
             
-            // ✅ CORREGIDO: Pasamos el detalle_id (singular)
             document.getElementById('sale-edit-transaction-id').value = `${sale.venta_id}|${firstItem.detalle_id}|${clientId}`;
             document.getElementById('sale-edit-price').value = firstItem.price.toFixed(2);
         } else {
@@ -1283,7 +1276,7 @@ async function handleViewSaleDetails(transactionId, clientId) {
 
     } catch (e) {
         console.error('Error al cargar detalles de venta:', e);
-        // Si hay otro error, se mostrará la alerta genérica.
+        // Si hay otro error (por ejemplo RLS), se mostrará la alerta.
         alert('Hubo un error al cargar los detalles de la venta.');
     }
 }
