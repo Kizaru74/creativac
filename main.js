@@ -965,7 +965,7 @@ async function handleViewClientDebt(clientId) {
                 transaction_id, created_at, type, amount, client_id
             `)
             .eq('client_id', clientId)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: true });
 
         if (error) throw error;
         
