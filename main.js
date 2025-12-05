@@ -263,7 +263,7 @@ async function loadDashboardData() {
     await loadTotals();
     await loadDebts();
     await loadRecentSales();
-    await loadClientsTable('gestion'); 
+    await loadClientsTable('gestion');
     await loadProductsData(); 
     await loadProductsTable(); 
     await loadClientsForSale(); 
@@ -911,10 +911,6 @@ async function handleNewSale(e) {
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
 
-/**
- * Carga los clientes desde Supabase, calcula su resumen financiero (ventas/deuda)
- * y renderiza la tabla.
- */
 async function loadClientsTable(mode = 'gestion') {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
@@ -1379,7 +1375,6 @@ async function confirmDeleteProduct() {
         await loadAndRenderProducts();
     }
 }
-
 
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
@@ -1979,10 +1974,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         openModal('modal-monthly-report');
     });
 
-    //Admin clientes
- document.getElementById('admin-clients-btn')?.addEventListener('click', () => {
-    openModal('modal-admin-clients'); // Abre el modal principal
-    loadAndRenderClients(); // Carga la lista de clientes
+// Admin clientes
+document.getElementById('admin-clients-btn')?.addEventListener('click', async () => {
+    // 1. Abre el modal principal
+    openModal('modal-admin-clients'); 
+    
+    // 2. ✅ CORRECCIÓN: Llama directamente a la función de tabla en MODO 'gestion'
+    //    Esto asegura que los botones de acción (Editar/Eliminar/Abonar) se muestren.
+    await loadClientsTable('gestion'); 
 });
 
 
