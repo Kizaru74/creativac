@@ -1199,11 +1199,12 @@ async function handleViewClientDebt(clientId) {
             
             if (t.type === 'cargo_venta' && amountIsZero) {
      actionButton = `
-        <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')" // 🛑 CAMBIO AQUÍ
+        <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')" // <--- ¡Esta línea es clave!
                 class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
             Añadir Precio
         </button>
      `;
+}
 }
             htmlContent += `
                 <tr>
@@ -1751,82 +1752,6 @@ document.getElementById('confirm-delete-client-btn')?.addEventListener('click', 
 // ====================================================================
 // 11. DETALLE Y ABONO DE VENTA 
 // ====================================================================
-
-async function handleViewSaleDetails(ventaId) {
-    const { data: venta, error } = await supabase
-        .from('ventas')
-        .select(`
-            *, 
-            clientes(name, telefono), 
-            detalle_ventas(*), 
-            pagos(*)
-        `)
-        .eq('venta_id', ventaId)
-        .single();
-
-    if (error || !venta) {
-        console.error('Error al cargar detalles de la venta:', error);
-        alert('Error al cargar detalles de la venta.');
-        return;
-    }
-
-    document.getElementById('detail-sale-id').textContent = `#${venta.venta_id}`;
-    document.getElementById('detail-client-name').textContent = venta.clientes?.name || 'N/A';
-    document.getElementById('detail-date').textContent = formatDate(venta.created_at);
-    document.getElementById('detail-total-amount').textContent = formatCurrency(venta.total_amount);
-    document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(venta.saldo_pendiente);
-    document.getElementById('detail-comments').textContent = venta.description || 'Sin comentarios';
-
-    const productsBody = document.getElementById('detail-items-body');
-    productsBody.innerHTML = '';
-    venta.detalle_ventas.forEach(item => {
-        productsBody.innerHTML += `
-            <tr>
-                <td class="px-6 py-2 whitespace-nowrap">${item.name}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-center">${item.quantity}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-right">${formatCurrency(item.price)}</td>
-                <td class="px-6 py-2 whitespace-nowrap text-right font-semibold">${formatCurrency(item.subtotal)}</td>
-            </tr>
-        `;
-    });
-
-    const paymentsBody = document.getElementById('detail-payments-body');
-    paymentsBody.innerHTML = '';
-    
-    venta.pagos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
-    if (venta.pagos.length === 0) {
-        paymentsBody.innerHTML = '<tr><td colspan="3" class="px-6 py-2 text-center text-gray-500">No hay abonos registrados.</td></tr>';
-    } else {
-        venta.pagos.forEach(pago => {
-            const date = new Date(pago.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            paymentsBody.innerHTML += `
-                <tr>
-                    <td class="px-6 py-2 whitespace-nowrap">${date}</td>
-                    <td class="px-6 py-2 whitespace-nowrap text-right font-semibold text-green-700">${formatCurrency(pago.amount)}</td>
-                    <td class="px-6 py-2 whitespace-nowrap text-center">${pago.metodo_pago}</td>
-                </tr>
-            `;
-        });
-    }
-
-    document.getElementById('payment-sale-id').value = venta.venta_id;
-    document.getElementById('abono-amount').value = '';
-    
-    const abonoInput = document.getElementById('abono-amount');
-    if (abonoInput) {
-        abonoInput.setAttribute('max', venta.saldo_pendiente.toFixed(2));
-        abonoInput.setAttribute('placeholder', `Máx ${formatCurrency(venta.saldo_pendiente)}`);
-    }
-
-    const submitBtn = document.getElementById('submit-abono-btn');
-    if (submitBtn) {
-        submitBtn.disabled = venta.saldo_pendiente <= 0.01;
-        submitBtn.textContent = venta.saldo_pendiente <= 0.01 ? 'Pagado' : 'Abonar';
-    }
-
-    openModal('modal-detail-sale'); // Asegúrate de que esta llamada final se mantenga
-}
 
 async function handleRegisterPayment(e) {
     e.preventDefault();
