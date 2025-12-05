@@ -1652,41 +1652,34 @@ function handleDeleteClientClick(clientId) {
 // Se asume que clientToDeleteId está declarada globalmente y fue asignada por handleDeleteClientClick
 
 async function confirmDeleteClient() {
-    
-    // 🛑 CRÍTICO: Usar la variable correcta y verificar que no sea nula.
     const idToDelete = clientToDeleteId; 
-    
+
     if (!idToDelete) {
         alert("Error de Eliminación: ID del cliente no encontrada.");
         return;
     }
-    
-    // 1. Ejecutar el borrado en Supabase
+
+    // 🛑 CAMBIO CLAVE: Usar .delete() para borrado físico
     const { error } = await supabase
         .from('clientes')
-        .delete()
-        // ✅ CORRECCIÓN: Usa la ID guardada para eliminación
+        .delete() // <--- ¡Aseguramos la eliminación permanente!
         .eq('client_id', idToDelete); 
 
-    // 2. 🚨 PASO CRÍTICO: VERIFICAR SI HUBO UN ERROR DE SUPABASE
     if (error) {
         // Si el error es una violación de clave foránea (deuda pendiente)
-        if (error.code === '23503') { // Código estándar de PostgreSQL para FK Violation
-            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados.');
+        if (error.code === '23503') {
+            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados. Primero debe eliminar esas transacciones.');
         } else {
             alert('❌ Error desconocido al eliminar cliente: ' + error.message);
         }
-        // CRÍTICO: Asegúrate de usar la ID correcta de tu modal de confirmación
         closeModal('client-delete-confirmation'); 
         return; 
     }
 
-    // 3. Éxito: Notificación y Recarga
-    alert('✅ Cliente eliminado exitosamente.');
+    alert('✅ Cliente eliminado definitivamente.');
     closeModal('client-delete-confirmation'); 
     
-    // 4. Limpieza de la variable y recarga de la lista
-    clientToDeleteId = null; // Limpiamos la ID una vez terminada la operación
+    clientToDeleteId = null; 
     await loadClientsTable('gestion'); 
 }
 
