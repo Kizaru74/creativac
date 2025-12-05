@@ -755,15 +755,16 @@
     </div>
 </div>
 
-<div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6" onclick="event.stopPropagation()">
+<div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 relative">
+        
         <div class="flex justify-between items-center border-b pb-3 mb-4">
             <h3 class="text-xl font-bold">Detalle de Venta: <span id="detail-sale-id">#N/A</span></h3>
-            <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-600 text-2xl" onclick="closeModal('modal-detail-sale')">
+            <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-600 text-2xl">
                 &times;
             </button>
         </div>
-         
+        
         <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
             <p><strong>Cliente:</strong> <span id="detail-client-name">N/A</span></p>
             <p><strong>Fecha:</strong> <span id="detail-date">N/A</span></p>
@@ -772,34 +773,8 @@
         </div>
         <p class="mb-4 text-sm"><strong>Comentarios:</strong> <span id="detail-comments">Sin comentarios.</span></p>
 
-        <div id="sale-edit-section" class="border border-red-200 bg-red-50 p-4 rounded-lg mb-4 hidden">
-            <h4 class="text-lg font-bold text-red-700 mb-3">Asignar/Editar Monto Total de la Deuda</h4>
-            
-            <form id="sale-details-form" onsubmit="event.preventDefault(); handleUpdateSalePrice()">
-                
-                <input type="hidden" id="sale-edit-transaction-id" value="">
-                
-                <div class="flex items-end gap-3">
-                    <div class="flex-grow">
-                        <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto Total</label>
-                        <div class="mt-1 relative rounded-md shadow-sm">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-500 sm:text-lg font-bold">$</span>
-                            </div>
-                            <input type="number" step="0.01" min="0.01" id="sale-edit-price" 
-                                class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-8 pr-12 sm:text-sm border-gray-300 rounded-md p-2" 
-                                placeholder="0.00" required>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 h-[40px] transition">
-                        <i class="fas fa-save mr-2"></i> Guardar Monto
-                    </button>
-                </div>
-            </form>
-        </div>
         <h4 class="text-lg font-bold mt-4 mb-2 border-b">Productos Comprados</h4>
-        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4">
+        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead>
                     <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -810,12 +785,12 @@
                     </tr>
                 </thead>
                 <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200 text-sm">
-                </tbody>
+                    </tbody>
             </table>
         </div>
 
         <h4 class="text-lg font-bold mt-4 mb-2 border-b">Historial de Pagos/Abonos</h4>
-        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4">
+        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead>
                     <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -825,10 +800,37 @@
                     </tr>
                 </thead>
                 <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
-                </tbody>
+                    </tbody>
             </table>
         </div>
 
+        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Editar Precio (Solo Ventas Pendientes)</h4>
+        <div id="sale-edit-section" class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded-md hidden">
+            <p class="text-sm text-yellow-800 mb-3">Esta venta se registró con monto cero. Ingrese el precio real a continuación.</p>
+            
+            <div class="flex gap-4 items-end">
+                <input type="hidden" id="sale-edit-transaction-id">
+                
+                <div class="flex-grow">
+                    <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
+                    <input 
+                        type="number" 
+                        step="0.01" 
+                        id="sale-edit-price" 
+                        class="w-full border-gray-300 rounded-md shadow-sm p-2" 
+                        required
+                    >
+                </div>
+                
+                <button 
+                    onclick="handleUpdateSalePrice()" 
+                    type="button" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150"
+                >
+                    Actualizar Precio
+                </button>
+            </div>
+        </div>
         <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
         <form id="register-payment-form" class="flex gap-4 items-end">
             <input type="hidden" id="payment-sale-id">
