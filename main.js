@@ -1252,8 +1252,16 @@ async function handleNewClient(e) {
         alert('Cliente registrado exitosamente.');
         
         await loadAndRenderClients(); // Recargar la lista de clientes
+
+        // 🛑 LÍNEA CORREGIDA: Verifica si el formulario existe antes de resetearlo
+        const clientForm = document.getElementById('client-form');
+        if (clientForm) {
+            clientForm.reset();
+        } else {
+            console.warn("Advertencia: No se encontró el formulario 'client-form' para resetear.");
+        }
+        
         closeModal('modal-new-client');
-        document.getElementById('client-form').reset();
         await loadClientsTable(); 
     }
 }
