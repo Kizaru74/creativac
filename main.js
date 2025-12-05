@@ -664,61 +664,43 @@ function updatePaymentDebtStatus(totalAmount = null) {
 
 //Ventas a credito
 async function getClientSalesSummary(clientId) {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return { totalVentas: 0, deudaNeta: 0 };
-    }
-
+    if (!supabase) return { totalVentas: 0, deudaNeta: 0 };
+    
+    // 1. Obtener todas las transacciones del cliente desde la vista consolidada
     try {
-        // =========================================================
-        // 1. Sumar todas las ventas a crédito para este cliente
-        // =========================================================
-        
-        // 🚨 CORRECCIÓN CRÍTICA: Usar 'total_amount'
-        const { data: salesData, error: salesError } = await supabase
-            .from('ventas')
-            .select('total_amount') // <-- CAMBIO AQUÍ: total_venta -> total_amount
-            .eq('client_id', clientId)
-            // 💡 Puedes agregar un filtro si no todas las ventas son a crédito
-            // .neq('estado', 'PAGADA'); 
-        
-        if (salesError) throw salesError;
-        
-        // Sumar todos los montos. Usamos el nombre de columna corregido.
-        const totalVentas = salesData.reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
-        
-        
-        // =========================================================
-        // 2. Sumar todos los abonos realizados por este cliente
-        // =========================================================
-        
-        // Asumimos que la tabla 'abonos' y la columna 'monto_abono' están correctas.
-        const { data: abonosData, error: abonosError } = await supabase
-            .from('abonos')
-            .select('monto_abono')
+        const { data: transactions, error } = await supabase
+            .from('transacciones_deuda') 
+            .select('type, amount')
             .eq('client_id', clientId);
-            
-        if (abonosError) throw abonosError;
-        
-        const totalAbonos = abonosData.reduce((sum, item) => sum + parseFloat(item.monto_abono || 0), 0);
 
-        // =========================================================
-        // 3. Calcular la deuda neta
-        // =========================================================
+        if (error) throw error;
+
+        let totalVentas = 0; // Solo cargos de venta
+        let deudaNeta = 0;   // Saldo acumulado (cargos - abonos)
+
+        transactions.forEach(t => {
+            const isCharge = t.type === 'cargo_venta';
+            
+            if (isCharge) {
+                // Suma el monto total de las ventas (cargos)
+                totalVentas += t.amount;
+                deudaNeta += t.amount;
+            } else {
+                // Resta todos los pagos (iniciales y posteriores)
+                deudaNeta -= t.amount;
+            }
+        });
+
+        // Aseguramos que la deuda no sea negativa si el cliente pagó de más.
+        deudaNeta = Math.max(0, deudaNeta);
         
-        const deudaNeta = totalVentas - totalAbonos;
-        
-        return {
-            totalVentas: parseFloat(totalVentas.toFixed(2)),
-            deudaNeta: parseFloat((deudaNeta > 0 ? deudaNeta : 0).toFixed(2)) 
-        };
+        return { totalVentas, deudaNeta };
 
     } catch (e) {
-        console.error("Error al obtener el resumen de ventas del cliente:", e.message || e);
+        console.error(`Error al obtener resumen del cliente ${clientId}:`, e);
         return { totalVentas: 0, deudaNeta: 0 };
     }
 }
-
 async function handleRecordAbono(e) {
     // Es crucial prevenir el envío por defecto para manejarlo con JavaScript
     e.preventDefault(); 
@@ -949,23 +931,23 @@ let viewingClientId = null;
 async function handleViewClientDebt(clientId) {
     if (!supabase) return;
     
-    // Asumo que 'viewingClientId' es una variable global definida.
-    viewingClientId = clientId; 
+    // 1. Configuración y datos del cliente
+    viewingClientId = clientId; // Guarda el ID para usarlo en la función de abonar
     
-    // 1. Obtener los datos del cliente
+    // Buscar el cliente en el array global
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     if (!client) return;
 
     // 2. Obtener todas las transacciones (ventas y abonos)
     try {
-        // NOTA: Es importante que la vista SQL haya sido creada exitosamente.
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select(`
                 transaction_id, created_at, type, amount, client_id
             `)
             .eq('client_id', clientId)
-            .order('created_at', { ascending: true });
+            // ✅ CRÍTICO: Ordenar ascendente para un cálculo de saldo correcto
+            .order('created_at', { ascending: true }); 
 
         if (error) throw error;
         
@@ -974,7 +956,7 @@ async function handleViewClientDebt(clientId) {
         
         if (!container || !totalDebtElement) return;
         
-        // 3. Renderizar las transacciones
+        // 3. Renderizar las transacciones y calcular el saldo
         let currentDebt = 0;
         let htmlContent = '';
         
@@ -985,42 +967,42 @@ async function handleViewClientDebt(clientId) {
             if (isDebt) {
                 currentDebt += t.amount;
             } else {
-                // Un abono inicial o posterior siempre resta (Pago inicial o Abono)
+                // Un abono (inicial o posterior) siempre resta
                 currentDebt -= t.amount; 
             }
 
-            // OPTE POR NO MOSTRAR NEGATIVOS SI ES DEUDA
+            // ✅ Lógica de NO NEGATIVOS para el saldo acumulado en la tabla
             const displayDebt = Math.max(0, currentDebt);
 
-            htmlContent += `
-                <tr>
-                    <td class="px-3 py-2 text-sm">${formatCurrency(displayDebt)}</td> 
-                </tr>
-            `;
-            
             // 💡 CONVERSIÓN DEL TIPO DE TRANSACCIÓN PARA MOSTRAR
             let typeLabel = '';
+            let typeDescription = '';
             switch (t.type) {
                 case 'cargo_venta':
                     typeLabel = 'Venta (Cargo)';
+                    typeDescription = 'Venta que generó deuda.';
                     break;
                 case 'abono_inicial':
                     typeLabel = 'Pago Inicial';
+                    typeDescription = 'Pago realizado al momento de la venta.';
                     break;
                 case 'abono_posterior':
                     typeLabel = 'Abono';
+                    typeDescription = 'Pago posterior a la venta.';
                     break;
                 default:
                     typeLabel = 'Movimiento';
             }
             
+            // Generación de la fila HTML
             htmlContent += `
                 <tr>
                     <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
-                    <td class="px-3 py-2 text-sm">${typeLabel}</td> <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
+                    <td class="px-3 py-2 text-sm" title="${typeDescription}">${typeLabel}</td>
+                    <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
                         ${formatCurrency(t.amount)}
                     </td>
-                    <td class="px-3 py-2 text-sm">${formatCurrency(currentDebt)}</td>
+                    <td class="px-3 py-2 text-sm font-semibold">${formatCurrency(displayDebt)}</td>
                 </tr>
             `;
         });
@@ -1028,8 +1010,12 @@ async function handleViewClientDebt(clientId) {
         // 4. Mostrar el reporte y abrir el modal
         document.getElementById('client-report-name').textContent = client.name;
         container.innerHTML = htmlContent;
-        totalDebtElement.textContent = formatCurrency(currentDebt);
-        totalDebtElement.className = `font-bold ${currentDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
+        
+        // Mostrar la deuda final del cliente (usando el valor sin Math.max, que puede ser negativo si pagó de más)
+        const finalDebt = currentDebt; 
+        totalDebtElement.textContent = formatCurrency(finalDebt);
+        // Si es mayor a 0 es deuda, si es 0 o menos, está a paz.
+        totalDebtElement.className = `font-bold ${finalDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
         
         openModal('modal-client-debt-report'); 
 
@@ -1038,7 +1024,6 @@ async function handleViewClientDebt(clientId) {
         alert('Hubo un error al cargar el reporte de deuda del cliente.');
     }
 }
-
 
 async function loadClientsTable(mode = 'gestion') {
     if (!supabase) {
@@ -1131,6 +1116,7 @@ async function loadClientsTable(mode = 'gestion') {
         console.error('Error inesperado al cargar clientes:', e.message || e);
     }
 }
+
 async function handleNewClient(e) {
     e.preventDefault();
     const name = document.getElementById('name').value;
