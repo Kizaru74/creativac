@@ -1173,63 +1173,63 @@ async function handleViewSaleDetails(transactionId, clientId) {
         return;
     }
     
-    // 🛑 VERIFICACIÓN DE SEGURIDAD: Previene el error 'clientId is undefined'
     if (!clientId || clientId === 'undefined') {
         console.error("handleViewSaleDetails: El argumento clientId es inválido o undefined.");
         alert("Error interno: No se pudo cargar el ID del cliente asociado. Intente recargar la lista.");
         return;
     }
     
-    // Asignar el ID del cliente globalmente (para recargar el reporte después)
     viewingClientId = clientId; 
-    
-    // Búsqueda del cliente localmente
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     
     try {
         // =======================================================
-        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO (para edición y totales)
+        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO (CORREGIDO)
         // =======================================================
         const { data: transaction, error: transError } = await supabase
             .from('transacciones_deuda')
-            .select(`transaction_id, amount, created_at, comments`) 
+            // ✅ CORREGIDO: Eliminada la columna 'comments' que no existe
+            .select(`transaction_id, amount, created_at`) 
             .eq('transaction_id', transactionId)
             .single(); 
 
         // =======================================================
-        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (Tabla de Productos Comprados)
-        // ASUMIMOS la relación 'detalle_venta' -> 'productos'
+        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (VERIFICAR RLS Y NOMBRE)
         // =======================================================
         const { data: items, error: itemsError } = await supabase
             .from('detalle_venta') 
             .select(`
                 quantity,
                 precio_unitario,
-                productos (name)
+                productos (name) 
             `)
             .eq('transaction_id', transactionId);
 
+        // Si transError ocurre aquí, el error es el 404 de detalle_venta.
         if (transError || itemsError || !transaction) {
             console.error("Error al cargar detalles de la venta:", transError || itemsError);
-            alert("Error al cargar detalles de la venta. Verifique que la ID exista.");
+            // Mostrar un mensaje de error más específico para el 404
+            if (itemsError && itemsError.code === '404') {
+                alert("Error de configuración: No se encontró la tabla 'detalle_venta' o la política de RLS no permite leerla.");
+            }
             return;
         }
 
         // =======================================================
-        // 3. INYECCIÓN DE DATOS EN EL MODAL 'modal-detail-sale'
+        // 3. INYECCIÓN DE DATOS
         // =======================================================
         
-        // Encabezados y datos generales
         document.getElementById('detail-sale-id').textContent = `#${transaction.transaction_id}`;
         document.getElementById('detail-client-name').textContent = client ? client.name : 'N/A';
         document.getElementById('detail-date').textContent = formatDate(transaction.created_at);
         document.getElementById('detail-total-amount').textContent = formatCurrency(transaction.amount); 
-        document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(transaction.amount); // Simplificado
-        document.getElementById('detail-comments').textContent = transaction.comments || 'Sin comentarios.';
+        document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(transaction.amount); 
+        // ✅ CORREGIDO: Como 'comments' ya no se selecciona, se usa un fallback seguro:
+        document.getElementById('detail-comments').textContent = 'Sin comentarios.'; 
         
         // Inyectar ítems de la venta (Tabla de Productos)
         const itemsBody = document.getElementById('detail-items-body');
-        itemsBody.innerHTML = ''; // Limpiar la tabla
+        itemsBody.innerHTML = ''; 
         
         items.forEach(item => {
             const subtotal = item.quantity * item.precio_unitario;
@@ -1248,18 +1248,13 @@ async function handleViewSaleDetails(transactionId, clientId) {
         // 4. LÓGICA DE EDICIÓN CONDICIONAL
         // =======================================================
         const editSection = document.getElementById('sale-edit-section');
-        // Detección robusta de monto cero
         const amountIsZero = Math.abs(parseFloat(transaction.amount)) < 0.01; 
         
         if (amountIsZero) {
-            // Mostrar la sección de edición si el monto es cero
             editSection.classList.remove('hidden');
-            
-            // Llenar el formulario de edición (IDs cruciales para handleUpdateSalePrice)
             document.getElementById('sale-edit-transaction-id').value = transaction.transaction_id;
             document.getElementById('sale-edit-price').value = transaction.amount.toFixed(2); 
         } else {
-            // Ocultar la sección si ya tiene un precio asignado
             editSection.classList.add('hidden');
         }
 
@@ -1271,7 +1266,6 @@ async function handleViewSaleDetails(transactionId, clientId) {
         alert('Hubo un error al iniciar la edición.');
     }
 }
-
 async function loadClientsTable(mode = 'gestion') {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
