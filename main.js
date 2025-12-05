@@ -1182,10 +1182,13 @@ async function handleViewSaleDetails(transactionId, clientId) {
     viewingClientId = clientId;
 
     try {
+        // =======================================================
         // 1. CARGA DE LA VENTA PRINCIPAL (Tabla 'ventas')
+        // =======================================================
         const { data: sale, error: saleError } = await supabase
             .from('ventas')
-            .select(`venta_id, total_amount, saldo_pendiente, created_at, description`)
+            // 🛑 CAMBIO CLAVE 1: Añadimos 'metodo_pago' para la condición
+            .select(`venta_id, total_amount, saldo_pendiente, created_at, description, metodo_pago`) 
             .eq('venta_id', transactionId)
             .single();
 
@@ -1198,29 +1201,22 @@ async function handleViewSaleDetails(transactionId, clientId) {
         // 2. CARGA DE ÍTEMS DE VENTA (Tabla 'detalle_ventas')
         const { data: items, error: itemsError } = await supabase
             .from('detalle_ventas')
-            // ✅ CORREGIDO: detalle_id (singular)
             .select(`detalle_id, quantity, price, subtotal, productos(name)`) 
             .eq('venta_id', transactionId) 
             .order('detalle_id', { ascending: true }); 
 
         if (itemsError) throw itemsError;
 
-        // =======================================================
         // 3. CARGA DEL HISTORIAL DE PAGOS/ABONOS (Tabla 'pagos')
-        // =======================================================
         const { data: payments, error: paymentsError } = await supabase
             .from('pagos')
-            // 🛑 CORREGIDO: Usamos metodo_pago en lugar de payment_method
             .select(`amount, metodo_pago, created_at`) 
             .eq('venta_id', transactionId)
             .order('created_at', { ascending: true });
 
         if (paymentsError) throw paymentsError;
 
-        // =======================================================
-        // 4. INYECCIÓN DE DATOS EN EL MODAL
-        // =======================================================
-
+        // 4. INYECCIÓN DE DATOS EN EL MODAL (Sin cambios)
         document.getElementById('detail-sale-id').textContent = `#${sale.venta_id}`;
         document.getElementById('detail-client-name').textContent = client.name;
         document.getElementById('detail-date').textContent = formatDate(sale.created_at);
@@ -1253,17 +1249,22 @@ async function handleViewSaleDetails(transactionId, clientId) {
                         <td class="px-6 py-3">${formatDate(payment.created_at)}</td>
                         <td class="px-6 py-3 text-right font-semibold text-green-600">${formatCurrency(payment.amount)}</td>
                         <td class="px-6 py-3 text-center">${payment.metodo_pago}</td>  
-                        </tr>
+                    </tr>
                 `;
             });
         }
 
+        // =======================================================
         // 5. LÓGICA DE EDICIÓN CONDICIONAL PARA VENTAS CERO
+        // =======================================================
         const editSection = document.getElementById('sale-edit-section');
         const amountIsZero = Math.abs(parseFloat(sale.total_amount)) < 0.01;
         
-        if (amountIsZero && items.length > 0) {
-            // Si la venta total es CERO y tiene ítems, se puede editar.
+        // 🛑 CAMBIO CLAVE 2: La sección solo se muestra si:
+        // 1. El monto total es CERO.
+        // 2. El método de pago inicial es 'Deuda'.
+        // 3. La venta tiene ítems.
+        if (amountIsZero && sale.metodo_pago === 'Deuda' && items.length > 0) {
             editSection.classList.remove('hidden');
             const firstItem = items[0]; 
             
@@ -1277,7 +1278,6 @@ async function handleViewSaleDetails(transactionId, clientId) {
 
     } catch (e) {
         console.error('Error al cargar detalles de venta:', e);
-        // Si hay otro error (por ejemplo RLS), se mostrará la alerta.
         alert('Hubo un error al cargar los detalles de la venta.');
     }
 }
