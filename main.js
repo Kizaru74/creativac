@@ -990,7 +990,6 @@ async function handleNewSale(e) {
     }
 }
 
-
 function openPostSalePriceModal(ventaId, detalleVentaId, clientId, itemName) {
     // 1. Asignar IDs a los campos ocultos
     document.getElementById('edit-venta-id').value = ventaId;
@@ -1006,6 +1005,44 @@ function openPostSalePriceModal(ventaId, detalleVentaId, clientId, itemName) {
     openModal('modal-edit-sale-item');
 }
 
+/**
+ * Se ejecuta al hacer clic en "Añadir Precio" para una venta de $0.00.
+ * Obtiene el detalle de la venta y abre el modal de edición.
+ */
+async function handleOpenEditSaleItem(ventaId, clientId) {
+    if (!supabase) return;
+
+    try {
+        // 1. Buscar los ítems de esta venta en detalle_ventas
+        const { data: details, error } = await supabase
+            .from('detalle_ventas')
+            .select('id, name, quantity') // Asumiendo que 'id' es la PK de detalle_ventas
+            .eq('venta_id', ventaId);
+
+        if (error) throw error;
+        
+        if (details.length === 0) {
+            alert('Error: No se encontraron ítems para esta venta. No se puede editar.');
+            return;
+        }
+
+        // 2. Tomar el primer ítem para editar (simplificación)
+        const itemToEdit = details[0]; 
+        
+        // 3. Abrir el modal de edición de precio
+        openPostSalePriceModal(
+            ventaId, 
+            itemToEdit.id, // Este es el detalleVentaId que se actualiza
+            clientId, 
+            `${itemToEdit.name} (${itemToEdit.quantity} und.)` // Nombre para mostrar
+        );
+
+    } catch (e) {
+        console.error('Error al abrir el formulario de edición:', e);
+        alert('No se pudo cargar la información para la edición.');
+    }
+}
+
 // ====================================================================
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
@@ -1016,22 +1053,18 @@ let viewingClientId = null;
 async function handleViewClientDebt(clientId) {
     if (!supabase) return;
     
-    // 1. Configuración y datos del cliente
-    viewingClientId = clientId; // Guarda el ID para usarlo en la función de abonar
-    
-    // Buscar el cliente en el array global
+    viewingClientId = clientId; 
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     if (!client) return;
 
-    // 2. Obtener todas las transacciones (ventas y abonos)
     try {
+        // 1. Obtener transacciones en orden ASCENDENTE
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select(`
                 transaction_id, created_at, type, amount, client_id
             `)
             .eq('client_id', clientId)
-            // ✅ CRÍTICO: Ordenar ascendente para un cálculo de saldo correcto
             .order('created_at', { ascending: true }); 
 
         if (error) throw error;
@@ -1041,25 +1074,20 @@ async function handleViewClientDebt(clientId) {
         
         if (!container || !totalDebtElement) return;
         
-        // 3. Renderizar las transacciones y calcular el saldo
         let currentDebt = 0;
         let htmlContent = '';
         
         transactions.forEach(t => {
-            // Un cargo suma a la deuda (Deuda = total_amount)
             const isDebt = t.type === 'cargo_venta'; 
             
             if (isDebt) {
                 currentDebt += t.amount;
             } else {
-                // Un abono (inicial o posterior) siempre resta
                 currentDebt -= t.amount; 
             }
 
-            // ✅ Lógica de NO NEGATIVOS para el saldo acumulado en la tabla
             const displayDebt = Math.max(0, currentDebt);
 
-            // 💡 CONVERSIÓN DEL TIPO DE TRANSACCIÓN PARA MOSTRAR
             let typeLabel = '';
             let typeDescription = '';
             switch (t.type) {
@@ -1078,12 +1106,22 @@ async function handleViewClientDebt(clientId) {
                 default:
                     typeLabel = 'Movimiento';
             }
+
+            // 🛑 AÑADIR BOTÓN DE EDICIÓN SI ES VENTA A $0.00
+            let actionButton = '';
+            if (t.type === 'cargo_venta' && t.amount === 0) {
+                 actionButton = `
+                    <button onclick="handleOpenEditSaleItem('${t.transaction_id}', '${clientId}')" 
+                            class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
+                        Añadir Precio
+                    </button>
+                 `;
+            }
             
-            // Generación de la fila HTML
             htmlContent += `
                 <tr>
                     <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
-                    <td class="px-3 py-2 text-sm" title="${typeDescription}">${typeLabel}</td>
+                    <td class="px-3 py-2 text-sm" title="${typeDescription}">${typeLabel} ${actionButton}</td>
                     <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
                         ${formatCurrency(t.amount)}
                     </td>
@@ -1092,14 +1130,11 @@ async function handleViewClientDebt(clientId) {
             `;
         });
 
-        // 4. Mostrar el reporte y abrir el modal
         document.getElementById('client-report-name').textContent = client.name;
         container.innerHTML = htmlContent;
         
-        // Mostrar la deuda final del cliente (usando el valor sin Math.max, que puede ser negativo si pagó de más)
         const finalDebt = currentDebt; 
         totalDebtElement.textContent = formatCurrency(finalDebt);
-        // Si es mayor a 0 es deuda, si es 0 o menos, está a paz.
         totalDebtElement.className = `font-bold ${finalDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
         
         openModal('modal-client-debt-report'); 
