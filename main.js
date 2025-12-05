@@ -1081,34 +1081,38 @@ async function handleViewSaleDetails(transactionId, clientId) {
     
     // Asignar el ID del cliente globalmente (para recargar el reporte después)
     viewingClientId = clientId; 
+    
+    // 🛑 Búsqueda del cliente (Usa clientId que se pasó correctamente desde handleViewClientDebt)
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
+    
+    // No detenemos la ejecución si no encontramos el cliente, podemos mostrar 'N/A' si es necesario.
 
     try {
         // =======================================================
-        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO
+        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO (para edición y totales)
         // =======================================================
         const { data: transaction, error: transError } = await supabase
             .from('transacciones_deuda')
-            .select(`transaction_id, amount, created_at`) 
+            // Se asume que transaction_id en 'transacciones_deuda' es igual al ID de la venta
+            .select(`transaction_id, amount, created_at, comments`) 
             .eq('transaction_id', transactionId)
             .single(); 
 
         // =======================================================
-        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (Para la tabla de productos)
-        // ASUMIMOS que la tabla de ítems de venta se llama 'detalle_venta'
+        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (Tabla de Productos Comprados)
         // =======================================================
         const { data: items, error: itemsError } = await supabase
             .from('detalle_venta') 
             .select(`
                 quantity,
                 precio_unitario,
-                productos (name) 
+                productos (name) // Asumiendo que 'productos' es la relación FK
             `)
             .eq('transaction_id', transactionId);
 
         if (transError || itemsError || !transaction) {
             console.error("Error al cargar detalles de la venta:", transError || itemsError);
-            alert("Error al cargar detalles de la venta. Verifique que la transacción no haya sido eliminada.");
+            alert("Error al cargar detalles de la venta. Verifique que la ID exista.");
             return;
         }
 
@@ -1116,27 +1120,24 @@ async function handleViewSaleDetails(transactionId, clientId) {
         // 3. INYECCIÓN DE DATOS EN EL MODAL 'modal-detail-sale'
         // =======================================================
         
-        // Datos de encabezado
+        // Encabezados y datos generales
         document.getElementById('detail-sale-id').textContent = `#${transaction.transaction_id}`;
         document.getElementById('detail-client-name').textContent = client ? client.name : 'N/A';
-        document.getElementById('detail-date').textContent = new Date(transaction.created_at).toLocaleDateString();
-        
-        // Montos (Nota: el saldo pendiente se debe calcular dinámicamente en una función separada o al cargar la deuda, aquí solo mostramos el monto de la venta)
+        document.getElementById('detail-date').textContent = formatDate(transaction.created_at);
         document.getElementById('detail-total-amount').textContent = formatCurrency(transaction.amount); 
-        // Inicialmente asumimos que el saldo pendiente es el monto total si no hay pagos.
+        // El saldo pendiente real es complejo de calcular aquí. Por simplicidad, asumimos el total de la venta, a menos que tengas una función de saldo.
         document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(transaction.amount); 
-
+        document.getElementById('detail-comments').textContent = transaction.comments || 'Sin comentarios.';
+        
         // Inyectar ítems de la venta (Tabla de Productos)
         const itemsBody = document.getElementById('detail-items-body');
         itemsBody.innerHTML = ''; // Limpiar la tabla
-        let totalSubtotal = 0;
         
         items.forEach(item => {
             const subtotal = item.quantity * item.precio_unitario;
-            totalSubtotal += subtotal;
 
             itemsBody.innerHTML += `
-                <tr>
+                <tr class="hover:bg-gray-50">
                     <td class="px-6 py-3">${item.productos.name}</td>
                     <td class="px-6 py-3 text-center">${item.quantity}</td>
                     <td class="px-6 py-3 text-right">${formatCurrency(item.precio_unitario)}</td>
@@ -1145,17 +1146,22 @@ async function handleViewSaleDetails(transactionId, clientId) {
             `;
         });
         
+        // [NOTA: La lógica para la tabla de Abonos (detail-payments-body) debe ser implementada por separado si se requiere]
+        // [NOTA: La lógica para el formulario de Abono (payment-sale-id) debe ser llenada con la ID de la Venta si se requiere]
+
+
         // =======================================================
         // 4. LÓGICA DE EDICIÓN CONDICIONAL
         // =======================================================
         const editSection = document.getElementById('sale-edit-section');
+        // Detección robusta de monto cero
         const amountIsZero = Math.abs(parseFloat(transaction.amount)) < 0.01; 
         
         if (amountIsZero) {
-            // Mostrar la sección de edición
+            // Mostrar la sección de edición si el monto es cero
             editSection.classList.remove('hidden');
             
-            // Llenar el formulario de edición (con el valor actual, que es 0.00)
+            // Llenar el formulario de edición
             document.getElementById('sale-edit-transaction-id').value = transaction.transaction_id;
             document.getElementById('sale-edit-price').value = transaction.amount.toFixed(2); 
         } else {
@@ -1164,7 +1170,7 @@ async function handleViewSaleDetails(transactionId, clientId) {
         }
 
         // 5. Abrir el modal CORRECTO
-        openModal('modal-detail-sale');
+        openModal('modal-detail-sale'); // 🛑 Se abre el modal con la ID correcta
 
     } catch (e) {
         console.error('Error al iniciar la edición de venta:', e);
