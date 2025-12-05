@@ -911,6 +911,77 @@ async function handleNewSale(e) {
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
 
+// Variable global para almacenar el ID del cliente cuya deuda estamos viendo
+let viewingClientId = null; 
+
+async function handleViewClientDebt(clientId) {
+    if (!supabase) return;
+    
+    viewingClientId = clientId; // Guarda el ID para usarlo en la función de abonar
+    
+    // 1. Obtener los datos del cliente
+    const client = allClients.find(c => c.client_id.toString() === clientId.toString());
+    if (!client) return;
+
+    // 2. Obtener todas las transacciones (ventas y abonos)
+    try {
+        const { data: transactions, error } = await supabase
+            .from('transacciones_deuda') // 💡 Asume que tienes una vista/tabla que consolida Ventas y Abonos
+            .select(`
+                id, created_at, type, amount, sale_id
+            `)
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        // Asume que tienes un contenedor para el nombre del cliente y la tabla de transacciones en tu modal
+        const container = document.getElementById('client-transactions-body');
+        const totalDebtElement = document.getElementById('client-report-total-debt');
+        
+        if (!container || !totalDebtElement) return;
+        
+        // 3. Renderizar las transacciones
+        let currentDebt = 0;
+        let htmlContent = '';
+        
+        transactions.forEach(t => {
+            const isDebt = t.type === 'sale'; // Asume 'sale' aumenta la deuda
+            
+            if (isDebt) {
+                currentDebt += t.amount;
+            } else {
+                currentDebt -= t.amount;
+            }
+            
+            htmlContent += `
+                <tr>
+                    <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
+                    <td class="px-3 py-2 text-sm">${t.type === 'sale' ? 'Venta' : 'Abono'}</td>
+                    <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
+                        ${formatCurrency(t.amount)}
+                    </td>
+                    <td class="px-3 py-2 text-sm">${formatCurrency(currentDebt)}</td>
+                </tr>
+            `;
+        });
+
+        // 4. Mostrar el reporte y abrir el modal
+        document.getElementById('client-report-name').textContent = client.name;
+        container.innerHTML = htmlContent;
+        totalDebtElement.textContent = formatCurrency(currentDebt);
+        totalDebtElement.className = `font-bold ${currentDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
+        
+        // Abre el modal de reporte (debes crear el HTML con esta ID)
+        openModal('modal-client-debt-report'); 
+
+    } catch (e) {
+        console.error('Error al cargar el reporte de deuda:', e);
+        alert('Hubo un error al cargar el reporte de deuda del cliente.');
+    }
+}
+
+
 async function loadClientsTable(mode = 'gestion') {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
@@ -967,10 +1038,10 @@ async function loadClientsTable(mode = 'gestion') {
                                         data-client-id="${client.client_id}">
                             <i class="fas fa-trash"></i> Eliminar
                         </button>
-                        <button type="button" class="abono-client-btn text-green-600 hover:text-green-900" 
-                                        data-client-id="${client.client_id}">
-                            <i class="fas fa-money-bill-wave"></i> Abonar
-                        </button>
+                     <button type="button" class="view-debt-btn text-blue-600 hover:text-blue-900" 
+                        data-client-id="${client.client_id}" title="Ver ventas y abonos del cliente">
+                        <i class="fas fa-file-invoice-dollar"></i> Ver Deuda
+                    </button>
                     </td>
                 `;
             } else {
@@ -2119,16 +2190,28 @@ document.getElementById('clients-list-body')?.addEventListener('click', (e) => {
             handleDeleteClientClick(clientId);
         }
 
-        // El botón de abono también requiere un handler
-        if (button.classList.contains('abono-client-btn')) {
-            // Asegúrate que esta función es ASÍNCRONA (async)
-            handleAbonoClick(clientId);
+        // 🚨 NUEVA LÓGICA: Botón para ver el reporte de deuda
+        if (button.classList.contains('view-debt-btn')) { // <--- Usando la nueva clase
+            await handleViewClientDebt(clientId); // <--- Nueva función asíncrona
         }
     }
 });
 
 // Y el listener de envío del formulario de edición también debe estar presente:
 document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
+
+// Listener para abrir el formulario de abono desde el reporte de deuda
+document.getElementById('open-abono-from-report-btn')?.addEventListener('click', () => {
+    // 1. Cierra el modal de reporte
+    closeModal('modal-client-debt-report'); 
+    
+    // 2. Abre el modal de abono y pre-carga el ID del cliente
+    // Se asume que 'openAbonoModal' existe y toma el viewingClientId (definido en main.js)
+    openAbonoModal(viewingClientId); 
+});
+
+
+
 
 // --------------------------------------
 // --- Apertura/Cierre de Modales Universal ---
