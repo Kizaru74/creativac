@@ -1172,102 +1172,117 @@ async function handleViewSaleDetails(transactionId, clientId) {
         console.error("Supabase no está inicializado.");
         return;
     }
-    
-    // Verificación de seguridad
-    if (!clientId || clientId === 'undefined') {
-        console.error("handleViewSaleDetails: El argumento clientId es inválido o undefined.");
-        alert("Error interno: No se pudo cargar el ID del cliente asociado. Intente recargar la lista.");
+
+    const client = allClients.find(c => c.client_id.toString() === clientId.toString());
+    if (!client) {
+        console.error("Cliente no encontrado en allClients.");
+        alert("Error: Cliente no encontrado para esta venta.");
         return;
     }
-    
-    viewingClientId = clientId; 
-    const client = allClients.find(c => c.client_id.toString() === clientId.toString());
-    
+    viewingClientId = clientId;
+
     try {
         // =======================================================
-        // 1. CARGA DE LA TRANSACCIÓN (PGRST116 CORREGIDO)
+        // 1. CARGA DE LA VENTA PRINCIPAL (Tabla 'ventas')
         // =======================================================
-        const { data: transactions, error: transError } = await supabase
-            .from('transacciones_deuda')
-            .select(`transaction_id, amount, created_at`) 
-            .eq('transaction_id', transactionId);
+        const { data: sale, error: saleError } = await supabase
+            .from('ventas')
+            .select(`venta_id, total_amount, saldo_pendiente, created_at, description`)
+            .eq('venta_id', transactionId)
+            .single();
 
-        if (transError || !transactions || transactions.length === 0) {
-            console.error("Error o Transacción no encontrada en transacciones_deuda:", transError);
-            // 🛑 Si ves PGRST116 aquí, es que la venta 40 no existe en transacciones_deuda.
-            alert("Advertencia: La transacción (ID: " + transactionId + ") no existe en el registro de deuda. Verifique la base de datos.");
+        if (saleError || !sale) {
+            console.error("Error al cargar detalles de la venta (Tabla Ventas):", saleError);
+            alert("Error: No se encontró la venta principal (ID: " + transactionId + ") en la tabla 'ventas'.");
             return;
         }
 
-        const transaction = transactions[0]; 
-
         // =======================================================
-        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (ERROR 404 CORREGIDO)
+        // 2. CARGA DE ÍTEMS DE VENTA (Tabla 'detalle_ventas')
         // =======================================================
         const { data: items, error: itemsError } = await supabase
-            // 🛑 CORREGIDO: Cambiado de 'detalle_venta' a 'detalle_ventas'
-            .from('detalle_ventas') 
-            .select(`
-                quantity,
-                precio_unitario,
-                productos (name) 
-            `)
-            .eq('transaction_id', transactionId);
+            .from('detalle_ventas')
+            .select(`id, quantity, price, subtotal, productos(name)`)
+            .eq('venta_id', transactionId) // Asumo que el id de la venta en detalle_ventas es 'venta_id'
+            .order('id', { ascending: true });
 
-        if (itemsError) {
-            console.error("Error al cargar ítems de la venta:", itemsError);
-            // Si ves el 404 ahora, el problema es RLS o el nombre de la relación 'productos'.
-            alert("Error al cargar los productos de la venta. Verifique políticas RLS en 'detalle_ventas'.");
-        }
-        
+        if (itemsError) throw itemsError;
+
         // =======================================================
-        // 3. INYECCIÓN DE DATOS
+        // 3. CARGA DEL HISTORIAL DE PAGOS/ABONOS (Tabla 'pagos')
         // =======================================================
-        
-        document.getElementById('detail-sale-id').textContent = `#${transaction.transaction_id}`;
-        document.getElementById('detail-client-name').textContent = client ? client.name : 'N/A';
-        document.getElementById('detail-date').textContent = formatDate(transaction.created_at);
-        document.getElementById('detail-total-amount').textContent = formatCurrency(transaction.amount); 
-        document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(transaction.amount); 
-        document.getElementById('detail-comments').textContent = 'Sin comentarios.'; 
-        
-        // Inyectar ítems de la venta (Tabla de Productos)
+        const { data: payments, error: paymentsError } = await supabase
+            .from('pagos')
+            .select(`amount, payment_method, created_at`)
+            .eq('venta_id', transactionId)
+            .order('created_at', { ascending: true });
+
+        if (paymentsError) throw paymentsError;
+
+        // =======================================================
+        // 4. INYECCIÓN DE DATOS EN EL MODAL
+        // =======================================================
+
+        document.getElementById('detail-sale-id').textContent = `#${sale.venta_id}`;
+        document.getElementById('detail-client-name').textContent = client.name;
+        document.getElementById('detail-date').textContent = formatDate(sale.created_at);
+        document.getElementById('detail-total-amount').textContent = formatCurrency(sale.total_amount);
+        document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(sale.saldo_pendiente);
+        document.getElementById('detail-comments').textContent = sale.description || 'Sin comentarios.';
+        document.getElementById('payment-sale-id').value = sale.venta_id;
+
         const itemsBody = document.getElementById('detail-items-body');
-        itemsBody.innerHTML = ''; 
-        
-        (items || []).forEach(item => { 
-            const subtotal = item.quantity * item.precio_unitario;
-
+        itemsBody.innerHTML = '';
+        (items || []).forEach(item => {
             itemsBody.innerHTML += `
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-3">${item.productos.name}</td>
+                    <td class="px-6 py-3">${item.productos?.name || 'Producto Desconocido'}</td>
                     <td class="px-6 py-3 text-center">${item.quantity}</td>
-                    <td class="px-6 py-3 text-right">${formatCurrency(item.precio_unitario)}</td>
-                    <td class="px-6 py-3 text-right">${formatCurrency(subtotal)}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(item.price)}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(item.subtotal)}</td>
                 </tr>
             `;
         });
-        
+
+        const paymentsBody = document.getElementById('detail-payments-body');
+        paymentsBody.innerHTML = '';
+        if (payments.length === 0) {
+            paymentsBody.innerHTML = '<tr><td colspan="3" class="px-6 py-3 text-center text-gray-500 italic">No hay pagos registrados para esta venta.</td></tr>';
+        } else {
+            payments.forEach(payment => {
+                paymentsBody.innerHTML += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-3">${formatDate(payment.created_at)}</td>
+                        <td class="px-6 py-3 text-right font-semibold text-green-600">${formatCurrency(payment.amount)}</td>
+                        <td class="px-6 py-3 text-center">${payment.payment_method}</td>
+                    </tr>
+                `;
+            });
+        }
+
         // =======================================================
-        // 4. LÓGICA DE EDICIÓN CONDICIONAL
+        // 5. LÓGICA DE EDICIÓN CONDICIONAL PARA VENTAS CERO
         // =======================================================
         const editSection = document.getElementById('sale-edit-section');
-        const amountIsZero = Math.abs(parseFloat(transaction.amount)) < 0.01; 
+        const amountIsZero = Math.abs(parseFloat(sale.total_amount)) < 0.01;
         
-        if (amountIsZero) {
+        if (amountIsZero && sale.saldo_pendiente > 0 && items.length > 0) {
             editSection.classList.remove('hidden');
-            document.getElementById('sale-edit-transaction-id').value = transaction.transaction_id;
-            document.getElementById('sale-edit-price').value = transaction.amount.toFixed(2); 
+            const firstItem = items[0]; 
+            
+            // CRÍTICO: El botón de "Actualizar Precio" llamará a handleUpdateSalePrice()
+            // y necesitará el venta_id, el detalle_ventas.id, y el client_id
+            document.getElementById('sale-edit-transaction-id').value = `${sale.venta_id}|${firstItem.id}|${clientId}`;
+            document.getElementById('sale-edit-price').value = firstItem.price.toFixed(2);
         } else {
             editSection.classList.add('hidden');
         }
 
-        // 5. Abrir el modal CORRECTO
-        openModal('modal-detail-sale'); 
+        openModal('modal-detail-sale');
 
     } catch (e) {
-        console.error('Error al iniciar la edición de venta:', e);
-        alert('Hubo un error al iniciar la edición.');
+        console.error('Error al cargar detalles de venta:', e);
+        alert('Hubo un error al cargar los detalles de la venta.');
     }
 }
 
