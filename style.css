@@ -23,3 +23,17 @@
 .product-header {
     min-width: 150px;
 }
+
+.truncate-cell {
+    /* Limita el ancho del elemento para que pueda cortarse */
+    max-width: 150px; /* <--- AJUSTA ESTE VALOR SEGÚN EL TAMAÑO DESEADO */
+    
+    /* Evita que el texto salte de línea */
+    white-space: nowrap;
+    
+    /* Oculta el texto que se desborda */
+    overflow: hidden;
+    
+    /* Muestra los puntos suspensivos al final del texto cortado */
+    text-overflow: ellipsis;
+}

@@ -1889,7 +1889,7 @@ async function loadMonthlySalesReport() {
 
         sales.forEach(sale => {
             grandTotal += sale.total_amount;
-             
+            
             const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
                 year: 'numeric',
                 month: 'short',
@@ -1897,12 +1897,14 @@ async function loadMonthlySalesReport() {
             });
 
             // CRÍTICO: Buscar el nombre del cliente en el mapa
-            // Asumo que tienes la variable global allClientsMap cargada
             const clientName = allClientsMap[sale.client_id] || 'N/A'; 
 
             const row = monthlyReportBody.insertRow();
             row.className = 'hover:bg-gray-50';
 
+            // ✅ CAMBIOS CLAVE AQUÍ: Aplicar truncamiento y tooltip a la descripción
+            const descriptionDisplay = sale.description || '-'; 
+            
             row.innerHTML = `
                 <td class="px-3 py-3 whitespace-nowrap">${sale.venta_id}</td>
                 <td class="px-3 py-3 whitespace-nowrap">${saleDate}</td>
@@ -1910,7 +1912,10 @@ async function loadMonthlySalesReport() {
                 <td class="px-3 py-3 whitespace-nowrap font-semibold">${formatCurrency(sale.total_amount)}</td>
                 <td class="px-3 py-3 whitespace-nowrap text-red-600">${formatCurrency(sale.saldo_pendiente)}</td>
                 <td class="px-3 py-3 whitespace-nowrap">${sale.metodo_pago}</td>
-                <td class="px-3 py-3 whitespace-nowrap">${sale.description || '-'}</td>
+                
+                <td class="px-3 py-3 text-sm truncate-cell" title="${descriptionDisplay}">
+                    ${descriptionDisplay}
+                </td>
 
                 <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
                     <button 
@@ -1920,7 +1925,7 @@ async function loadMonthlySalesReport() {
                         Detalles
                     </button>
                 </td>
-                `;
+            `;
         });
     } else {
         noDataMessage.classList.remove('hidden');
