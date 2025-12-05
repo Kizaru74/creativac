@@ -988,6 +988,15 @@ async function handleViewClientDebt(clientId) {
                 // Un abono inicial o posterior siempre resta (Pago inicial o Abono)
                 currentDebt -= t.amount; 
             }
+
+            // OPTE POR NO MOSTRAR NEGATIVOS SI ES DEUDA
+            const displayDebt = Math.max(0, currentDebt);
+
+            htmlContent += `
+                <tr>
+                    <td class="px-3 py-2 text-sm">${formatCurrency(displayDebt)}</td> 
+                </tr>
+            `;
             
             // 💡 CONVERSIÓN DEL TIPO DE TRANSACCIÓN PARA MOSTRAR
             let typeLabel = '';
