@@ -1065,7 +1065,8 @@ async function handleUpdateSalePrice() {
         alert('Precio actualizado exitosamente.');
         
         // 2. Limpieza y Recarga
-        closeModal('modal-sale-details');
+        // 🛑 CORRECCIÓN: Usar la ID del modal correcto.
+        closeModal('modal-detail-sale'); 
         
         // Recarga el reporte de deuda del cliente para mostrar el nuevo balance
         // Usamos la ID global que guardamos en handleViewSaleDetails
@@ -1185,110 +1186,108 @@ async function handleViewSaleDetails(transactionId, clientId) {
 // Variable global para almacenar el ID del cliente cuya deuda estamos viendo
 let viewingClientId = null; 
 
-async function handleViewClientDebt(clientId) {
+async function handleViewSaleDetails(transactionId, clientId) {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
     }
     
-    // Guardar la ID del cliente que estamos viendo. Es crucial para recargar el reporte después de una edición.
-    viewingClientId = clientId;
+    // 🛑 VERIFICACIÓN DE SEGURIDAD: Previene el error 'clientId is undefined'
+    if (!clientId || clientId === 'undefined') {
+        console.error("handleViewSaleDetails: El argumento clientId es inválido o undefined.");
+        alert("Error interno: No se pudo cargar el ID del cliente asociado. Intente recargar la lista.");
+        return;
+    }
     
+    // Asignar el ID del cliente globalmente (para recargar el reporte después)
+    viewingClientId = clientId; 
+    
+    // Búsqueda del cliente localmente
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
-    if (!client) return;
-
+    
     try {
-        // 1. Obtener transacciones en orden ASCENDENTE (para calcular el saldo cronológicamente)
-        const { data: transactions, error } = await supabase
-            .from('transacciones_deuda') 
+        // =======================================================
+        // 1. CARGA DE LA TRANSACCIÓN DE DEUDA Y MONTO (para edición y totales)
+        // =======================================================
+        const { data: transaction, error: transError } = await supabase
+            .from('transacciones_deuda')
+            .select(`transaction_id, amount, created_at, comments`) 
+            .eq('transaction_id', transactionId)
+            .single(); 
+
+        // =======================================================
+        // 2. CARGA DE LOS ÍTEMS DE LA VENTA (Tabla de Productos Comprados)
+        // ASUMIMOS la relación 'detalle_venta' -> 'productos'
+        // =======================================================
+        const { data: items, error: itemsError } = await supabase
+            .from('detalle_venta') 
             .select(`
-                transaction_id, created_at, type, amount, client_id
+                quantity,
+                precio_unitario,
+                productos (name)
             `)
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: true }); 
+            .eq('transaction_id', transactionId);
 
-        if (error) throw error;
-        
-        const container = document.getElementById('client-transactions-body');
-        const totalDebtElement = document.getElementById('client-report-total-debt');
-        
-        if (!container || !totalDebtElement) return;
-        
-        let currentDebt = 0;
-        let htmlContent = '';
-        
-        transactions.forEach(t => {
-            // 2. Cálculo de la deuda
-            const isDebt = t.type === 'cargo_venta'; 
-            
-            if (isDebt) {
-                currentDebt += t.amount;
-            } else {
-                currentDebt -= t.amount; 
-            }
+        if (transError || itemsError || !transaction) {
+            console.error("Error al cargar detalles de la venta:", transError || itemsError);
+            alert("Error al cargar detalles de la venta. Verifique que la ID exista.");
+            return;
+        }
 
-            // El saldo actual después de esta transacción
-            const displayDebt = currentDebt; 
+        // =======================================================
+        // 3. INYECCIÓN DE DATOS EN EL MODAL 'modal-detail-sale'
+        // =======================================================
+        
+        // Encabezados y datos generales
+        document.getElementById('detail-sale-id').textContent = `#${transaction.transaction_id}`;
+        document.getElementById('detail-client-name').textContent = client ? client.name : 'N/A';
+        document.getElementById('detail-date').textContent = formatDate(transaction.created_at);
+        document.getElementById('detail-total-amount').textContent = formatCurrency(transaction.amount); 
+        document.getElementById('detail-saldo-pendiente').textContent = formatCurrency(transaction.amount); // Simplificado
+        document.getElementById('detail-comments').textContent = transaction.comments || 'Sin comentarios.';
+        
+        // Inyectar ítems de la venta (Tabla de Productos)
+        const itemsBody = document.getElementById('detail-items-body');
+        itemsBody.innerHTML = ''; // Limpiar la tabla
+        
+        items.forEach(item => {
+            const subtotal = item.quantity * item.precio_unitario;
 
-            // 3. Etiquetado y Descripción
-            let typeLabel = '';
-            let typeDescription = '';
-            switch (t.type) {
-                case 'cargo_venta':
-                    typeLabel = 'Venta (Cargo)';
-                    typeDescription = 'Venta que generó deuda.';
-                    break;
-                case 'abono_inicial':
-                    typeLabel = 'Pago Inicial';
-                    typeDescription = 'Pago realizado al momento de la venta.';
-                    break;
-                case 'abono_posterior':
-                    typeLabel = 'Abono';
-                    typeDescription = 'Pago posterior a la venta.';
-                    break;
-                default:
-                    typeLabel = 'Movimiento';
-            }
-
-            // 4. Lógica del Botón "Añadir Precio" (Edición)
-            let actionButton = '';
-            // Usamos una detección robusta de monto cero para manejar problemas de coma flotante.
-            const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
-            
-            if (t.type === 'cargo_venta' && amountIsZero) {
-     actionButton = `
-        <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')"
-                class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
-            Añadir Precio
-        </button>
-     `;
-}
-            // 5. Renderizado de la Fila
-            htmlContent += `
-                <tr>
-                    <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
-                    <td class="px-3 py-2 text-sm" title="${typeDescription}">${typeLabel} ${actionButton}</td>
-                    <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
-                        ${formatCurrency(t.amount)}
-                    </td>
-                    <td class="px-3 py-2 text-sm font-semibold">${formatCurrency(displayDebt)}</td>
+            itemsBody.innerHTML += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-3">${item.productos.name}</td>
+                    <td class="px-6 py-3 text-center">${item.quantity}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(item.precio_unitario)}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(subtotal)}</td>
                 </tr>
             `;
         });
+        
+        // =======================================================
+        // 4. LÓGICA DE EDICIÓN CONDICIONAL
+        // =======================================================
+        const editSection = document.getElementById('sale-edit-section');
+        // Detección robusta de monto cero
+        const amountIsZero = Math.abs(parseFloat(transaction.amount)) < 0.01; 
+        
+        if (amountIsZero) {
+            // Mostrar la sección de edición si el monto es cero
+            editSection.classList.remove('hidden');
+            
+            // Llenar el formulario de edición (IDs cruciales para handleUpdateSalePrice)
+            document.getElementById('sale-edit-transaction-id').value = transaction.transaction_id;
+            document.getElementById('sale-edit-price').value = transaction.amount.toFixed(2); 
+        } else {
+            // Ocultar la sección si ya tiene un precio asignado
+            editSection.classList.add('hidden');
+        }
 
-        // 6. Actualización del Modal
-        document.getElementById('client-report-name').textContent = client.name;
-        container.innerHTML = htmlContent;
-        
-        const finalDebt = currentDebt; 
-        totalDebtElement.textContent = formatCurrency(finalDebt);
-        totalDebtElement.className = `font-bold ${finalDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
-        
-        openModal('modal-client-debt-report'); 
+        // 5. Abrir el modal CORRECTO
+        openModal('modal-detail-sale'); 
 
     } catch (e) {
-        console.error('Error al cargar el reporte de deuda:', e);
-        alert('Hubo un error al cargar el reporte de deuda del cliente.');
+        console.error('Error al iniciar la edición de venta:', e);
+        alert('Hubo un error al iniciar la edición.');
     }
 }
 
