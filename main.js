@@ -1934,7 +1934,7 @@ async function loadMonthlySalesReport() {
 
         sales.forEach(sale => {
             grandTotal += sale.total_amount;
-            
+           
             const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
                 year: 'numeric',
                 month: 'short',
@@ -1947,9 +1947,8 @@ async function loadMonthlySalesReport() {
             const row = monthlyReportBody.insertRow();
             row.className = 'hover:bg-gray-50';
 
-            // ✅ CAMBIOS CLAVE AQUÍ: Aplicar truncamiento y tooltip a la descripción
             const descriptionDisplay = sale.description || '-'; 
-            
+           
             row.innerHTML = `
                 <td class="px-3 py-3 whitespace-nowrap">${sale.venta_id}</td>
                 <td class="px-3 py-3 whitespace-nowrap">${saleDate}</td>
@@ -1957,14 +1956,15 @@ async function loadMonthlySalesReport() {
                 <td class="px-3 py-3 whitespace-nowrap font-semibold">${formatCurrency(sale.total_amount)}</td>
                 <td class="px-3 py-3 whitespace-nowrap text-red-600">${formatCurrency(sale.saldo_pendiente)}</td>
                 <td class="px-3 py-3 whitespace-nowrap">${sale.metodo_pago}</td>
-                
+                 
                 <td class="px-3 py-3 text-sm truncate-cell" title="${descriptionDisplay}">
                     ${descriptionDisplay}
                 </td>
 
                 <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
                     <button 
-                        data-venta-id="${sale.venta_id}"  
+                        data-venta-id="${sale.venta_id}" 
+                        data-client-id="${sale.client_id}"  // ⬅️ ¡ESTA ES LA LÍNEA CRÍTICA AÑADIDA!
                         class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
                     >
                         Detalles
@@ -2294,11 +2294,12 @@ document.getElementById('admin-clients-btn')?.addEventListener('click', async ()
 // Busca el ID del modal de reporte mensual en tu HTML.
 const monthlySalesModal = document.getElementById('modal-monthly-report'); 
 
-// Este listener ahora se inicializará correctamente
 monthlySalesModal?.addEventListener('click', (e) => {
     if (e.target.classList.contains('view-sale-details-btn')) {
         const ventaId = e.target.getAttribute('data-venta-id');
-        handleViewSaleDetails(ventaId);
+        const clientId = e.target.getAttribute('data-client-id'); // ✅ LEE LA ID DEL CLIENTE
+        
+        handleViewSaleDetails(ventaId, clientId); // ✅ LLAMA CON AMBOS ARGUMENTOS
     }
 });
 
