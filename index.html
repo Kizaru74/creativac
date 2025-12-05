@@ -302,6 +302,34 @@
                     </tbody>
                 </table>
             </div>
+<h4 class="text-lg font-bold mt-4 mb-2 border-b">Editar Precio (Solo Ventas Pendientes)</h4>
+            <div id="sale-edit-section" class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded-md hidden">
+                <p class="text-sm text-yellow-800 mb-3">Esta venta se registró con monto cero. Ingrese el precio real a continuación.</p>
+                
+                <div class="flex gap-4 items-end">
+                    <input type="hidden" id="sale-edit-transaction-id"> 
+                    
+                    <div class="flex-grow">
+                        <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            id="sale-edit-price" 
+                            class="w-full border-gray-300 rounded-md shadow-sm p-2" 
+                            required
+                        >
+                    </div>
+                    
+                    <button 
+                        onclick="handleUpdateSalePrice()" 
+                        type="button" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150"
+                    >
+                        Actualizar Precio
+                    </button>
+                </div>
+            </div>
+
 
             <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
             <form id="register-payment-form" class="flex gap-4 items-end">
