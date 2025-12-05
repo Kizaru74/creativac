@@ -1661,6 +1661,23 @@ async function handleRegisterPayment(e) {
     await loadDashboardData(); 
 }
 
+function openAbonoModal(clientId) {
+    // 1. Asigna el ID del cliente a una variable global o campo oculto del formulario de abonos.
+    // Esto es CRÍTICO para que handleRecordAbono sepa a quién abonar.
+    debtToPayId = clientId; // Asumiendo que tienes una variable global 'debtToPayId'
+
+    // También puedes usar un campo oculto si prefieres:
+    const clientIdInput = document.getElementById('abono-client-id-input');
+    if (clientIdInput) {
+        clientIdInput.value = clientId;
+    }
+
+    // 2. Limpia cualquier dato anterior
+    document.getElementById('abono-client-form')?.reset();
+    
+    // 3. Abre el modal de abonos
+    openModal('modal-record-abono'); // 💡 Reemplaza con el ID real de tu modal de abonos
+}
 
 // ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
