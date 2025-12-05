@@ -1202,9 +1202,11 @@ async function handleViewSaleDetails(transactionId, clientId) {
         // =======================================================
         const { data: items, error: itemsError } = await supabase
             .from('detalle_ventas')
-            .select(`id, quantity, price, subtotal, productos(name)`)
-            .eq('venta_id', transactionId) // Asumo que el id de la venta en detalle_ventas es 'venta_id'
-            .order('id', { ascending: true });
+            // ✅ CORREGIDO: Usamos detalles_id en lugar de id
+            .select(`detalles_id, quantity, price, subtotal, productos(name)`)
+            .eq('venta_id', transactionId)
+            // ✅ CORREGIDO: Usamos detalles_id para ordenar
+            .order('detalles_id', { ascending: true }); 
 
         if (itemsError) throw itemsError;
 
@@ -1270,9 +1272,8 @@ async function handleViewSaleDetails(transactionId, clientId) {
             editSection.classList.remove('hidden');
             const firstItem = items[0]; 
             
-            // CRÍTICO: El botón de "Actualizar Precio" llamará a handleUpdateSalePrice()
-            // y necesitará el venta_id, el detalle_ventas.id, y el client_id
-            document.getElementById('sale-edit-transaction-id').value = `${sale.venta_id}|${firstItem.id}|${clientId}`;
+            // ✅ CORREGIDO: Pasamos el detalles_id como parte del valor oculto
+            document.getElementById('sale-edit-transaction-id').value = `${sale.venta_id}|${firstItem.detalles_id}|${clientId}`;
             document.getElementById('sale-edit-price').value = firstItem.price.toFixed(2);
         } else {
             editSection.classList.add('hidden');
@@ -1282,6 +1283,7 @@ async function handleViewSaleDetails(transactionId, clientId) {
 
     } catch (e) {
         console.error('Error al cargar detalles de venta:', e);
+        // Si el error es 404 (RLS) en detalle_ventas o pagos, el mensaje será más específico
         alert('Hubo un error al cargar los detalles de la venta.');
     }
 }
