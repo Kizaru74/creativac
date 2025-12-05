@@ -720,42 +720,74 @@ async function getClientSalesSummary(clientId) {
 }
 
 async function handleRecordAbono(e) {
-    e.preventDefault();
+    // Es crucial prevenir el envío por defecto para manejarlo con JavaScript
+    e.preventDefault(); 
+    
+    if (!supabase) return;
 
-    const clientId = document.getElementById('abono-client-id').value;
-    const amount = document.getElementById('abono-amount').value;
-    const method = document.getElementById('abono-method').value;
+    // 1. OBTENER DATOS DEL FORMULARIO
+    // Línea 725 es muy probable que esté aquí:
+    const clientIdInput = document.getElementById('abono-client-id-input');
+    const amountInput = document.getElementById('abono-amount');
+    const methodInput = document.getElementById('abono-method');
+    
+    // Si alguna de estas variables es null (por eso el TypeError),
+    // detén la ejecución y muestra un error.
+    if (!clientIdInput || !amountInput || !methodInput) {
+        console.error("Error FATAL: No se encontraron los campos del formulario de abono. Revise los IDs en el HTML.");
+        alert("Error interno: Faltan campos en el formulario. Contacte soporte.");
+        return;
+    }
+    
+    const client_id = clientIdInput.value;
+    const amount = parseFloat(amountInput.value);
+    const method = methodInput.value;
 
-    const amountNum = parseFloat(amount);
-
-    if (amountNum <= 0 || isNaN(amountNum)) {
-        alert('Por favor, ingrese un monto válido mayor a cero.');
+    if (!client_id || amount <= 0) {
+        alert("Por favor, seleccione un cliente y un monto válido.");
         return;
     }
 
-    if (!supabase) return alert('Error: Supabase no está conectado.');
-
     try {
-        const { error } = await supabase
+        // 2. INSERTAR REGISTRO EN LA TABLA 'abonos'
+        // Esto crea el registro del abono y nos da el ID (abono_id).
+        const { data: abonoData, error: abonoError } = await supabase
             .from('abonos')
+            .insert({ 
+                client_id: client_id, 
+                fecha_abono: new Date().toISOString(),
+                // Se asume que no hay columna 'amount' en 'abonos'
+            })
+            .select('abono_id')
+            .single();
+
+        if (abonoError) throw abonoError;
+
+        const abono_id = abonoData.abono_id;
+
+        // 3. INSERTAR REGISTRO EN LA TABLA 'pagos'
+        // Esto registra el monto y el método, vinculado al 'abono_id'
+        const { error: pagoError } = await supabase
+            .from('pagos')
             .insert({
-                client_id: clientId,
-                monto_abono: amountNum,
-                metodo_pago: method 
-                // fecha_abono se genera automáticamente en SQL
+                abono_id: abono_id, // Usamos el ID devuelto
+                amount: amount,
+                payment_method: method
             });
 
-        if (error) throw error;
+        if (pagoError) throw pagoError;
 
-        alert('✅ Abono registrado con éxito.');
-        
-        // Cierra el modal y recarga la tabla para actualizar la deuda
-        closeModal('abono-client-modal');
-        await loadClientsTable(); 
+        // 4. ÉXITO Y ACTUALIZACIÓN DE LA UI
+        alert('✅ Abono registrado exitosamente.');
+        closeModal('modal-record-abono'); 
+        closeModal('modal-client-debt-report'); // Cierra el modal de reporte también
+
+        // CRÍTICO: Recargar la tabla principal para reflejar el cambio de deuda
+        await loadClientsTable('gestion'); 
 
     } catch (e) {
-        console.error("Error al registrar el abono:", e);
-        alert('Error al registrar el abono: ' + e.message);
+        console.error('Error al registrar abono:', e.message || e);
+        alert('Hubo un error al registrar el abono. Intente nuevamente.');
     }
 }
 
