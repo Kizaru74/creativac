@@ -1079,8 +1079,8 @@ async function handleViewSaleDetails(transactionId, clientId) {
         return;
     }
 
-    // Guardar la ID del cliente globalmente. Necesaria para recargar el reporte después del update.
-    // Asumiendo que 'viewingClientId' es tu variable global.
+// 🛑 LÍNEA DE DEBUG CRÍTICA
+    console.log("Intentando cargar Transacción ID:", transactionId);
     viewingClientId = clientId; 
 
     try {
