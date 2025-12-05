@@ -1086,6 +1086,11 @@ async function handleViewClientDebt(clientId) {
                 currentDebt -= t.amount; 
             }
 
+            // 🛑 AÑADE ESTA LÍNEA AQUÍ
+        console.log("Transacción cargada:", t); 
+        
+        const isDebt = t.type === 'cargo_venta';
+        
             const displayDebt = Math.max(0, currentDebt);
 
             let typeLabel = '';
@@ -1643,14 +1648,24 @@ function handleDeleteClientClick(clientId) {
     openModal('client-delete-confirmation'); 
 }
 
+// Se asume que clientToDeleteId está declarada globalmente y fue asignada por handleDeleteClientClick
+
 async function confirmDeleteClient() {
-    // Se asume que editingClientId tiene el ID del cliente a borrar
+    
+    // 🛑 CRÍTICO: Usar la variable correcta y verificar que no sea nula.
+    const idToDelete = clientToDeleteId; 
+    
+    if (!idToDelete) {
+        alert("Error de Eliminación: ID del cliente no encontrada.");
+        return;
+    }
     
     // 1. Ejecutar el borrado en Supabase
     const { error } = await supabase
         .from('clientes')
         .delete()
-        .eq('client_id', editingClientId); 
+        // ✅ CORRECCIÓN: Usa la ID guardada para eliminación
+        .eq('client_id', idToDelete); 
 
     // 2. 🚨 PASO CRÍTICO: VERIFICAR SI HUBO UN ERROR DE SUPABASE
     if (error) {
@@ -1660,15 +1675,17 @@ async function confirmDeleteClient() {
         } else {
             alert('❌ Error desconocido al eliminar cliente: ' + error.message);
         }
-        closeModal('modal-confirm-delete'); // Cierra el modal y termina la función
-        return; // Detiene la ejecución aquí
+        // CRÍTICO: Asegúrate de usar la ID correcta de tu modal de confirmación
+        closeModal('client-delete-confirmation'); 
+        return; 
     }
 
     // 3. Éxito: Notificación y Recarga
     alert('✅ Cliente eliminado exitosamente.');
-    closeModal('modal-confirm-delete'); 
+    closeModal('client-delete-confirmation'); 
     
-    // 4. Recargar la lista (para verificar que haya desaparecido)
+    // 4. Limpieza de la variable y recarga de la lista
+    clientToDeleteId = null; // Limpiamos la ID una vez terminada la operación
     await loadClientsTable('gestion'); 
 }
 
