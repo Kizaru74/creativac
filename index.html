@@ -137,9 +137,7 @@
                         <p id="no-debt-message" class="text-center text-gray-500 mt-4 hidden">No hay deudas pendientes.</p>
                     </div>
                 </div>
-            </div>
-            
-
+            </div> 
         </main>
     </div>
 
@@ -753,6 +751,54 @@
     </div>
 </div>
 
+<div id="modal-edit-sale-item" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+        
+        <div class="p-6 border-b flex justify-between items-center bg-yellow-50">
+            <h3 class="text-2xl font-semibold text-gray-800">
+                <i class="fas fa-edit mr-2 text-yellow-600"></i> Editar Precio y Generar Deuda
+            </h3>
+            <button onclick="closeModal('modal-edit-sale-item')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="post-sale-price-form">
+            <div class="p-6 space-y-4">
+                
+                <input type="hidden" id="edit-venta-id" name="venta_id">
+                <input type="hidden" id="edit-detalle-venta-id" name="detalle_venta_id">
+                <input type="hidden" id="edit-client-id" name="client_id">
+
+                <p class="text-sm text-gray-600">
+                    Estás a punto de actualizar el precio del producto: 
+                    <span id="edit-item-name-display" class="font-semibold text-indigo-700"></span>
+                    para la Venta #<span id="edit-venta-id-display"></span>.
+                </p>
+                <p class="text-xs text-red-600">
+                    🚨 **Advertencia:** Al guardar, la diferencia de precio se registrará como **DEUDA PENDIENTE**.
+                </p>
+
+                <div>
+                    <label for="new-unit-price" class="block text-sm font-medium text-gray-700">Nuevo Precio Unitario</label>
+                    <input type="number" step="0.01" min="0.01" id="new-unit-price" name="new_unit_price" required
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-yellow-500 focus:border-yellow-500 text-lg">
+                </div>
+            </div>
+            
+            <div class="p-4 border-t bg-gray-50 flex justify-end">
+                <button type="button" onclick="closeModal('modal-edit-sale-item')" 
+                        class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg mr-2 transition duration-150">
+                    Cancelar
+                </button>
+                <button type="submit" 
+                        class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
+                    <i class="fas fa-save mr-2"></i> Guardar y Generar Deuda
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="main.js"></script>

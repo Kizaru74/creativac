@@ -624,6 +624,75 @@ function handleAddProductToSale(e) {
     loadMainProductsForSaleSelect(); // Recargar selectores
 }
 
+async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
+    if (!supabase || isNaN(newUnitPrice) || newUnitPrice <= 0) {
+        alert("El precio debe ser un monto positivo.");
+        return;
+    }
+
+    try {
+        // --- Paso 1: Obtener la cantidad (quantity) del ítem ---
+        const { data: itemData, error: fetchError } = await supabase
+            .from('detalle_ventas')
+            .select('quantity')
+            .eq('id', detalleVentaId) // Asumiendo que 'id' es la PK de detalle_ventas
+            .single();
+
+        if (fetchError || !itemData) throw new Error("No se pudo obtener el detalle del ítem.");
+
+        const quantity = itemData.quantity;
+        const newSubtotal = quantity * newUnitPrice;
+
+        // --- Paso 2: Actualizar el ítem en 'detalle_ventas' ---
+        // Esto cambia el precio y el subtotal de ese producto.
+        const { error: detailUpdateError } = await supabase
+            .from('detalle_ventas')
+            .update({ 
+                price: newUnitPrice,
+                subtotal: newSubtotal 
+            })
+            .eq('id', detalleVentaId);
+
+        if (detailUpdateError) throw detailUpdateError;
+
+        // --- Paso 3: Recalcular el nuevo Total de la Venta ---
+        // Sumar todos los subtotales para obtener el nuevo total_amount
+        const { data: totalsData, error: totalsError } = await supabase
+            .from('detalle_ventas')
+            .select('subtotal')
+            .eq('venta_id', ventaId);
+
+        if (totalsError || !totalsData) throw totalsError;
+
+        const newTotalAmount = totalsData.reduce((sum, item) => sum + item.subtotal, 0);
+
+        // --- Paso 4: Actualizar el registro principal en 'ventas' ---
+        // Como la venta inicial fue de $0.00 (pagado $0.00), todo el nuevo total es saldo pendiente.
+        const newSaldoPendiente = newTotalAmount; 
+        
+        const { error: saleUpdateError } = await supabase
+            .from('ventas')
+            .update({ 
+                total_amount: newTotalAmount,
+                saldo_pendiente: newSaldoPendiente
+            })
+            .eq('venta_id', ventaId);
+
+        if (saleUpdateError) throw saleUpdateError;
+
+        alert(`✅ Deuda de ${formatCurrency(newSaldoPendiente)} registrada exitosamente.`);
+        
+        // Refrescar los datos en la UI:
+        await loadClientsTable('gestion'); // Actualiza el resumen en la tabla principal
+        await handleViewClientDebt(clientId); // Refresca el modal de transacciones
+        // closeModal('modal-edit-sale'); // Cierra tu modal de edición
+
+    } catch (e) {
+        console.error('Error al actualizar precio post-venta:', e);
+        alert(`Error al actualizar la venta: ${e.message}`);
+    }
+}
+
 // ====================================================================
 // 7. MANEJO DEL PAGO Y LA DEUDA 
 // ====================================================================
