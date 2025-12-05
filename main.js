@@ -1043,6 +1043,88 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
     }
 }
 
+async function handleUpdateSalePrice() {
+    const transactionId = document.getElementById('sale-edit-transaction-id').value;
+    const newPrice = parseFloat(document.getElementById('sale-edit-price').value);
+
+    if (!transactionId || isNaN(newPrice) || newPrice <= 0) {
+        alert("Ingrese un precio válido y mayor a cero.");
+        return;
+    }
+
+    // 1. Actualizar la transacción en Supabase
+    // CRÍTICO: El campo que se actualiza es 'amount' en la tabla 'transacciones_deuda'.
+    const { error } = await supabase
+        .from('transacciones_deuda')
+        .update({ amount: newPrice })
+        .eq('transaction_id', transactionId);
+
+    if (error) {
+        alert('Error al actualizar precio: ' + error.message);
+    } else {
+        alert('Precio actualizado exitosamente.');
+        
+        // 2. Limpieza y Recarga
+        closeModal('modal-sale-details');
+        
+        // Recarga el reporte de deuda del cliente para mostrar el nuevo balance
+        // Usamos la ID global que guardamos en handleViewSaleDetails
+        await handleViewClientDebt(viewingClientId); 
+    }
+}
+
+async function handleViewSaleDetails(transactionId, clientId) {
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
+
+    // Guardar la ID del cliente globalmente. Necesaria para recargar el reporte después del update.
+    // Asumiendo que 'viewingClientId' es tu variable global.
+    viewingClientId = clientId; 
+
+    try {
+        // 1. Cargar la transacción de deuda específica usando el ID
+        const { data: transaction, error } = await supabase
+            .from('transacciones_deuda')
+            // Solo necesitamos la ID y el monto (amount) para prellenar el formulario de edición
+            .select(`transaction_id, amount`) 
+            .eq('transaction_id', transactionId)
+            .single(); 
+
+        if (error || !transaction) {
+            console.error("Error al cargar detalles de la venta:", error);
+            alert("Error al cargar detalles de la venta.");
+            return;
+        }
+
+        // 2. Pre-cargar los valores en el modal 'modal-sale-details'
+        // Estos IDs (sale-edit-transaction-id y sale-edit-price) deben existir en tu HTML.
+        
+        const transactionIdInput = document.getElementById('sale-edit-transaction-id');
+        const priceInput = document.getElementById('sale-edit-price');
+
+        if (!transactionIdInput || !priceInput) {
+            console.error("IDs de formulario de edición de venta no encontradas en el DOM.");
+            alert("Error interno: Faltan campos del formulario de edición.");
+            return;
+        }
+
+        // Asignar el ID de la transacción al campo oculto
+        transactionIdInput.value = transaction.transaction_id;
+        
+        // Asignar el monto actual al campo de precio (formateado a 2 decimales)
+        priceInput.value = transaction.amount.toFixed(2); 
+
+        // 3. Abrir el modal de detalles/edición
+        openModal('modal-sale-details');
+
+    } catch (e) {
+        console.error('Error al iniciar la edición de venta:', e);
+        alert('Hubo un error al iniciar la edición.');
+    }
+}
+
 // ====================================================================
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
@@ -1116,14 +1198,13 @@ async function handleViewClientDebt(clientId) {
             const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
             
             if (t.type === 'cargo_venta' && amountIsZero) {
-                 actionButton = `
-                    <button onclick="handleOpenEditSaleItem('${t.transaction_id}', '${clientId}')" 
-                            class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
-                        Añadir Precio
-                    </button>
-                 `;
-            }
-            
+     actionButton = `
+        <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')" // 🛑 CAMBIO AQUÍ
+                class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
+            Añadir Precio
+        </button>
+     `;
+}
             htmlContent += `
                 <tr>
                     <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
@@ -1270,25 +1351,6 @@ async function handleNewClient(e) {
         closeModal('modal-new-client');
         await loadClientsTable(); 
     }
-}
-
-function handleEditClientClick(clientId) {
-    // Asumimos que tienes un array global 'allClients' con los datos.
-    const clientToEdit = allClients.find(c => String(c.client_id) === String(clientId));
-    
-    if (!clientToEdit) {
-        alert('Error: Cliente no encontrado en los datos cargados.');
-        return;
-    }
-
-    // 1. Carga los datos en los campos del modal de edición
-    document.getElementById('edit-client-id').value = clientToEdit.client_id;
-    document.getElementById('edit-client-name').value = clientToEdit.name || '';
-    // Asume que el campo en Supabase se llama 'telefono'
-    document.getElementById('edit-client-phone').value = clientToEdit.telefono || ''; 
-
-    // 2. Abre el modal dedicado a la edición
-    openModal('edit-client-modal');
 }
 
 async function handleEditClient(e) {
