@@ -1401,26 +1401,34 @@ function handleDeleteClientClick(clientId) {
 }
 
 async function confirmDeleteClient() {
-    const clientId = clientToDeleteId;
-
-    if (!clientId) return;
-
-    // Ejecuta la eliminación en Supabase
+    // Se asume que editingClientId tiene el ID del cliente a borrar
+    
+    // 1. Ejecutar el borrado en Supabase
     const { error } = await supabase
         .from('clientes')
         .delete()
-        .eq('client_id', clientId); // CRÍTICO: Elimina por client_id
+        .eq('client_id', editingClientId); 
 
+    // 2. 🚨 PASO CRÍTICO: VERIFICAR SI HUBO UN ERROR DE SUPABASE
     if (error) {
-        alert('Error al eliminar cliente: ' + error.message);
-    } else {
-        alert('Cliente eliminado exitosamente.');
-        closeModal('client-delete-confirmation');
-        clientToDeleteId = null; // Limpiar la ID
-        await loadClientsTable(); // Recargar la tabla
-        await loadClientsForSale();
+        // Si el error es una violación de clave foránea (deuda pendiente)
+        if (error.code === '23503') { // Código estándar de PostgreSQL para FK Violation
+            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados.');
+        } else {
+            alert('❌ Error desconocido al eliminar cliente: ' + error.message);
+        }
+        closeModal('modal-confirm-delete'); // Cierra el modal y termina la función
+        return; // Detiene la ejecución aquí
     }
+
+    // 3. Éxito: Notificación y Recarga
+    alert('✅ Cliente eliminado exitosamente.');
+    closeModal('modal-confirm-delete'); 
+    
+    // 4. Recargar la lista (para verificar que haya desaparecido)
+    await loadClientsTable('gestion'); 
 }
+
 // CRÍTICO: Asegúrate de que el botón de confirmación tenga su listener
 document.getElementById('confirm-delete-client-btn')?.addEventListener('click', confirmDeleteClient);
 
