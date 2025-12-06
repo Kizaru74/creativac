@@ -211,7 +211,7 @@ async function loadDebts() {
                         class="view-debt-btn" 
                         data-client-id="${clientId}" 
                         data-sale-id="${debt.venta_id}" // Si necesitas la venta, mantenla
-                        class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+                        class="text-white hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-blue-700"
                     >
                         Detalles/Pagar
                     </button>
@@ -242,9 +242,9 @@ async function loadRecentSales() {
         // 1. Consulta a Supabase
         const { data, error } = await supabase
             .from('ventas')
-            .select(`venta_id, created_at, total_amount, saldo_pendiente, clientes(name), description`)
+            // 🛑 CORRECCIÓN: Añadimos client_id para poder llamar a handleViewSaleDetails
+            .select(`venta_id, created_at, total_amount, saldo_pendiente, clientes(name, client_id), description`)
             .order('created_at', { ascending: false })
-            // 🛑 CRÍTICO: Cambio de limit(10) a limit(7)
             .limit(7); 
 
         if (error) {
@@ -265,9 +265,11 @@ async function loadRecentSales() {
             return;
         }
 
-        // 3. Renderizado de Filas (con botón preparado para re-enlace)
+        // 3. Renderizado de Filas
         data.forEach(sale => {
             const clientName = sale.clientes?.name || 'Cliente Desconocido';
+            const clientId = sale.clientes?.client_id; // ⬅️ Obtenemos el client_id
+            
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50';
             
@@ -281,7 +283,8 @@ async function loadRecentSales() {
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"> 
                     <button type="button" 
                             class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
-                            data-sale-id="${sale.venta_id}"> 
+                            data-sale-id="${sale.venta_id}"
+                            data-client-id="${clientId}"> // ⬅️ Pasamos el client_id al botón
                         Detalles
                     </button>
                 </td>
@@ -289,11 +292,16 @@ async function loadRecentSales() {
             container.appendChild(row);
         });
 
-        // 4. Re-enlace de Eventos (Solución para el botón 'Detalles')
+        // =======================================================
+        // 🛑 CRÍTICO: RE-ENLACE DE EVENTOS (Llamando a la función correcta)
+        // =======================================================
         container.querySelectorAll('.view-sale-details-btn').forEach(button => {
             button.addEventListener('click', () => {
-                // Llama a tu función que abre el modal
-                openSaleDetailModal(button.dataset.saleId); 
+                const saleId = button.dataset.saleId;
+                const clientId = button.dataset.clientId; // ⬅️ Leemos el client_id
+                
+                // ✅ Llamamos a tu función existente con los dos argumentos
+                handleViewSaleDetails(saleId, clientId); 
             });
         });
 
@@ -306,6 +314,7 @@ function openSaleDetailModal(saleId) {
     console.log('Abriendo modal de detalles para Venta ID:', saleId);
     // Aquí va el código para obtener detalles de la venta y llamar a openModal('sale-details-modal')
 }
+
 async function loadDashboardData() {
     await loadTotals();
     await loadDebts();
