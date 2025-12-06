@@ -1406,10 +1406,11 @@ async function handleNewClient(e) {
 async function handleEditClient(e) {
     e.preventDefault();
     
-    // 1. Obtener los valores del formulario de edición
+    // 1. Obtener los valores del formulario de edición (Añadimos 'address')
     const clientId = document.getElementById('edit-client-id').value;
     const name = document.getElementById('edit-client-name').value.trim();
     const phone = document.getElementById('edit-client-phone').value.trim();
+    const address = document.getElementById('edit-client-address')?.value.trim() || ''; // 🛑 CRÍTICO: Asegúrate de que este ID de campo exista en tu HTML
 
     if (!clientId) {
         alert("Error de Edición: No se pudo obtener la ID del cliente.");
@@ -1419,22 +1420,55 @@ async function handleEditClient(e) {
     // 2. Ejecutar la actualización en Supabase
     const { error } = await supabase
         .from('clientes')
-        .update({ name: name, telefono: phone }) // El objeto con los datos a actualizar
-        .eq('client_id', clientId); // 🛑 CRÍTICO: La condición WHERE para actualizar solo este cliente
+        .update({ 
+            name: name, 
+            telefono: phone, // ✅ Se mantiene 'telefono' (Asumo que esta es la columna correcta)
+            address: address // 🛑 Nuevo campo: Asegúrate que esta columna exista en tu tabla 'clientes'
+        }) 
+        .eq('client_id', clientId); 
 
     if (error) {
+        console.error('Error al actualizar cliente:', error);
         alert('Error al actualizar cliente: ' + error.message);
     } else {
         alert('Cliente actualizado exitosamente.');
         
         // 3. Limpieza y recarga
         document.getElementById('edit-client-form').reset();
-        closeModal('edit-client-modal');
+        closeModal('edit-client-modal'); // ASUMO: Que este es el ID de tu modal de edición
         
-        // Asumiendo que estas funciones existen para recargar la UI
-        await loadClientsTable(); 
-        await loadClientsForSale(); 
+        // 🚀 MEJORA: Recargar todos los datos del dashboard para consistencia
+        await loadDashboardData(); 
     }
+}
+
+// ====================================================================
+// ✅ Clientes (MANEJAR CLIC DE EDICIÓN)
+// ====================================================================
+
+function handleEditClientClick(clientId) {
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
+
+    // Busca el cliente en el array global
+    const client = allClients.find(c => String(c.client_id) === String(clientId));
+    if (!client) {
+        alert("Error: Cliente no encontrado para editar.");
+        return;
+    }
+
+    // 🛑 CRÍTICO: Rellenar los campos del modal de edición
+    // 1. ID OCULTA: Necesaria para el .update() en handleEditClient()
+    document.getElementById('edit-client-id').value = client.client_id;
+    // 2. Campos de Datos
+    document.getElementById('edit-client-name').value = client.name;
+    document.getElementById('edit-client-phone').value = client.telefono || ''; 
+    document.getElementById('edit-client-address').value = client.address || ''; // 🛑 ASUMO que tienes esta columna.
+
+    // ASUMO que el ID de tu modal de edición es 'edit-client-modal'
+    openModal('edit-client-modal'); 
 }
 
 async function handleEditProduct(e) {
@@ -1792,7 +1826,9 @@ async function confirmDeleteClient() {
     closeModal('client-delete-confirmation'); 
     
     clientToDeleteId = null; 
-    await loadClientsTable('gestion'); 
+    
+    // 🛑 CORRECCIÓN: Usar la recarga global de datos
+    await loadDashboardData();
 }
 
 // CRÍTICO: Asegúrate de que el botón de confirmación tenga su listener
