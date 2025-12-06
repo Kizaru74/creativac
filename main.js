@@ -211,7 +211,7 @@ async function loadDebts() {
                         class="view-debt-btn" 
                         data-client-id="${clientId}" 
                         data-sale-id="${debt.venta_id}" // Si necesitas la venta, mantenla
-                        class="text-white hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-blue-700"
+        class="view-debt-btn bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-1 px-2 rounded"
                     >
                         Detalles/Pagar
                     </button>
