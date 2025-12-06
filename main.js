@@ -168,7 +168,7 @@ async function loadDebts() {
     try {
         const { data, error } = await supabase
             .from('ventas')
-            .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name), clientes(client_id)') // 👈 Añadimos client_id para el modal de deuda
+            .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name, client_id)') // 👈 Añadimos client_id para el modal de deuda
             .gt('saldo_pendiente', 0.01) 
             .order('created_at', { ascending: false })
             .limit(5); 
@@ -302,6 +302,10 @@ async function loadRecentSales() {
     }
 }
 
+function openSaleDetailModal(saleId) {
+    console.log('Abriendo modal de detalles para Venta ID:', saleId);
+    // Aquí va el código para obtener detalles de la venta y llamar a openModal('sale-details-modal')
+}
 async function loadDashboardData() {
     await loadTotals();
     await loadDebts();
