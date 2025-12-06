@@ -1369,6 +1369,30 @@ async function loadClientsTable(mode = 'gestion') {
             container.appendChild(row);
         });
 
+        if (showActions) {
+            // Enlazar botón de EDITAR
+            container.querySelectorAll('.edit-client-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    handleEditClientClick(button.dataset.clientId);
+                });
+            });
+
+            // Enlazar botón de ELIMINAR
+            container.querySelectorAll('.delete-client-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    // La propiedad data-client-name ya está siendo agregada en el HTML
+                    handleDeleteClientClick(button.dataset.clientId, button.dataset.clientName); 
+                });
+            });
+            
+            // Enlazar botón de VER DEUDA/VENTA 
+            container.querySelectorAll('.view-debt-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    handleViewClientDebt(button.dataset.clientId); 
+                });
+            });
+        }
+
     } catch (e) {
         console.error('Error inesperado al cargar clientes:', e.message || e);
     }
@@ -1462,15 +1486,16 @@ async function handleEditClient(e) {
     if (error) {
         console.error('Error al actualizar cliente:', error);
         alert('Error al actualizar cliente: ' + error.message);
-    } else {
+} else {
         alert('Cliente actualizado exitosamente.');
         
         // 3. Limpieza y recarga
+        // 🛑 CRÍTICO: Recargar PRIMERO. Esto repinta la tabla con el dato actualizado.
+        await loadDashboardData(); 
+        
+        // Cierra el modal DESPUÉS de que la tabla ya se repintó.
         document.getElementById('edit-client-form').reset();
         closeModal('edit-client-modal'); 
-        
-        // Recarga total para reflejar el cambio en la lista
-        await loadDashboardData(); 
     }
 }
 
