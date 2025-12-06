@@ -212,51 +212,68 @@ async function loadDebts() {
 }
 
 async function loadRecentSales() {
-    const { data, error } = await supabase
-        .from('ventas')
-        .select(`venta_id, created_at, total_amount, saldo_pendiente, clientes(name), description`)
-        .order('created_at', { ascending: false })
-        .limit(10); 
+    try {
+        // 1. Consulta a Supabase
+        const { data, error } = await supabase
+            .from('ventas')
+            .select(`venta_id, created_at, total_amount, saldo_pendiente, clientes(name), description`)
+            .order('created_at', { ascending: false })
+            // 🛑 CRÍTICO: Cambio de limit(10) a limit(7)
+            .limit(7); 
 
-    if (error) {
-        console.error('Error al cargar ventas recientes:', error);
-        return;
+        if (error) {
+            console.error('Error al cargar ventas recientes:', error);
+            return;
+        }
+
+        const container = document.getElementById('recent-sales-body');
+        const noSalesMessage = document.getElementById('no-sales-message');
+        if (!container) return; 
+
+        // 2. Limpieza de Contenedores y Mensajes
+        container.innerHTML = '';
+        if (noSalesMessage) noSalesMessage.classList.add('hidden');
+
+        if (data.length === 0) {
+            if (noSalesMessage) noSalesMessage.classList.remove('hidden');
+            return;
+        }
+
+        // 3. Renderizado de Filas (con botón preparado para re-enlace)
+        data.forEach(sale => {
+            const clientName = sale.clientes?.name || 'Cliente Desconocido';
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.venta_id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(sale.created_at)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formatCurrency(sale.total_amount)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${sale.saldo_pendiente > 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(sale.saldo_pendiente)}</td>
+                
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"> 
+                    <button type="button" 
+                            class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+                            data-sale-id="${sale.venta_id}"> 
+                        Detalles
+                    </button>
+                </td>
+            `;
+            container.appendChild(row);
+        });
+
+        // 4. Re-enlace de Eventos (Solución para el botón 'Detalles')
+        container.querySelectorAll('.view-sale-details-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                // Llama a tu función que abre el modal
+                openSaleDetailModal(button.dataset.saleId); 
+            });
+        });
+
+    } catch (e) {
+        console.error('Error inesperado en loadRecentSales:', e);
     }
-
-    const container = document.getElementById('recent-sales-body');
-    const noSalesMessage = document.getElementById('no-sales-message');
-    if (!container) return; 
-    container.innerHTML = '';
-    if (noSalesMessage) noSalesMessage.classList.add('hidden');
-
-    if (data.length === 0) {
-        if (noSalesMessage) noSalesMessage.classList.remove('hidden');
-        return;
-    }
-
-    data.forEach(sale => {
-        const clientName = sale.clientes?.name || 'Cliente Desconocido';
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        
-       row.innerHTML = `
-    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.venta_id}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(sale.created_at)}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formatCurrency(sale.total_amount)}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold ${sale.saldo_pendiente > 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(sale.saldo_pendiente)}</td>
-    
-    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-        <button
-            data-venta-id="${sale.venta_id}" 
-            class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
-        >
-            Detalles
-        </button>
-    </td>
-`; // 👈 Asegúrate que la comilla de cierre (backtick) esté aquí
-        container.appendChild(row);
-    });
 }
 
 async function loadDashboardData() {
@@ -1818,6 +1835,7 @@ function handleDeleteClientClick(clientId, clientName) {
     // Abre el modal de confirmación
     openModal('client-delete-confirmation'); 
 }
+
 async function confirmDeleteClient() {
     const idToDelete = clientToDeleteId; 
 
