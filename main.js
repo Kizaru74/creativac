@@ -2082,14 +2082,14 @@ async function loadMonthlySalesReport() {
                 <td class="px-3 py-3 whitespace-nowrap text-red-600">${formatCurrency(sale.saldo_pendiente)}</td>
                 <td class="px-3 py-3 whitespace-nowrap">${sale.metodo_pago}</td>
                  
-                <td class="px-3 py-3 text-sm truncate-cell" title="${descriptionDisplay}">
-                    ${descriptionDisplay}
-                </td>
-
+               <td class="px-3 py-3 text-sm truncate-cell">
+                <div class="truncate w-40" title="${descriptionDisplay}">
+                  ${descriptionDisplay}
+                    </div>
                 <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
                     <button 
                         data-venta-id="${sale.venta_id}" 
-                        data-client-id="${sale.client_id}"  // ⬅️ ¡ESTA ES LA LÍNEA CRÍTICA AÑADIDA!
+                        data-client-id="${sale.client_id}"
                         class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
                     >
                         Detalles
