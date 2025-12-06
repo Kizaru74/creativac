@@ -284,7 +284,7 @@ async function loadRecentSales() {
                     <button type="button" 
                             class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
                             data-sale-id="${sale.venta_id}"
-                            data-client-id="${clientId}"> // ⬅️ Pasamos el client_id al botón
+                            data-client-id="${clientId}"> 
                         Detalles
                     </button>
                 </td>
