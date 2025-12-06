@@ -1403,26 +1403,21 @@ async function handleNewClient(e) {
     }
 }
 
-// ====================================================================
-// ✅ Clientes (MANEJAR CLIC DE EDICIÓN)
-// ====================================================================
-
 function handleEditClientClick(clientId) {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
     }
 
-    // Busca el cliente en el array global
     const client = allClients.find(c => String(c.client_id) === String(clientId));
     if (!client) {
         alert("Error: Cliente no encontrado para editar.");
         return;
     }
-
-    // 🛑 CORRECCIÓN: Usar una variable temporal y un 'if' para verificar la existencia del elemento.
-
-    // ID OCULTA (CRÍTICO)
+    
+    // Solo asignamos los campos que existen en el HTML y en la DB
+    
+    // ID Oculta
     const idInput = document.getElementById('edit-client-id');
     if (idInput) idInput.value = client.client_id;
     
@@ -1432,14 +1427,51 @@ function handleEditClientClick(clientId) {
 
     // Teléfono
     const phoneInput = document.getElementById('edit-client-phone');
+    // Usamos client.telefono porque es el nombre de la columna que manejas
     if (phoneInput) phoneInput.value = client.telefono || ''; 
 
-    // Dirección
-    const addressInput = document.getElementById('edit-client-address');
-    if (addressInput) addressInput.value = client.address || ''; 
-
-    // ASUMO que el ID de tu modal de edición es 'edit-client-modal'
+    // Abrir Modal
     openModal('edit-client-modal'); 
+}
+
+async function handleEditClient(e) {
+    e.preventDefault();
+    
+    // 1. Obtener los valores del formulario
+    const clientId = document.getElementById('edit-client-id').value; 
+    const name = document.getElementById('edit-client-name').value.trim();
+    const phone = document.getElementById('edit-client-phone').value.trim();
+    
+    // Ya no se busca 'edit-client-address'
+
+    if (!clientId) {
+        alert("Error de Edición: No se pudo obtener la ID del cliente.");
+        return;
+    }
+
+    // 2. Ejecutar la actualización en Supabase
+    // CRÍTICO: Solo actualizamos 'name' y 'telefono'
+    const { error } = await supabase
+        .from('clientes')
+        .update({ 
+            name: name, 
+            telefono: phone, // Usando el nombre de columna correcto
+        }) 
+        .eq('client_id', clientId); 
+
+    if (error) {
+        console.error('Error al actualizar cliente:', error);
+        alert('Error al actualizar cliente: ' + error.message);
+    } else {
+        alert('Cliente actualizado exitosamente.');
+        
+        // 3. Limpieza y recarga
+        document.getElementById('edit-client-form').reset();
+        closeModal('edit-client-modal'); 
+        
+        // Recarga total para reflejar el cambio en la lista
+        await loadDashboardData(); 
+    }
 }
 
 async function handleEditProduct(e) {
@@ -2462,6 +2494,8 @@ document.getElementById('clients-list-body')?.addEventListener('click', async (e
 
 // Y el listener de envío del formulario de edición también debe estar presente:
 document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
+
+
 
 // Listener para abrir el formulario de abono desde el reporte de deuda
 document.getElementById('open-abono-from-report-btn')?.addEventListener('click', () => {
