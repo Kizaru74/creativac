@@ -165,50 +165,76 @@ async function loadTotals() {
 }
 
 async function loadDebts() {
-    const { data, error } = await supabase
-        .from('ventas')
-        .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name)')
-        .gt('saldo_pendiente', 0.01) 
-        .order('created_at', { ascending: false })
-        .limit(5); 
+    try {
+        const { data, error } = await supabase
+            .from('ventas')
+            .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name), clientes(client_id)') // 👈 Añadimos client_id para el modal de deuda
+            .gt('saldo_pendiente', 0.01) 
+            .order('created_at', { ascending: false })
+            .limit(5); 
 
-    if (error) {
-        console.error('Error al cargar tabla de deudas:', error);
-        return;
-    }
+        if (error) {
+            console.error('Error al cargar tabla de deudas:', error);
+            return;
+        }
 
-    const container = document.getElementById('debt-sales-body'); 
-    if (!container) return; 
-    container.innerHTML = '';
-    
-    const noDebtMessage = document.getElementById('no-debt-message');
-    if (noDebtMessage) noDebtMessage.classList.add('hidden');
-
-    if (data.length === 0) {
-        if (noDebtMessage) noDebtMessage.classList.remove('hidden');
-        return;
-    }
-
-    data.forEach(debt => {
-        const clientName = debt.clientes?.name || 'Cliente Desconocido';
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
+        const container = document.getElementById('debt-sales-body'); 
+        if (!container) return; 
         
-        row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${debt.venta_id}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debt.saldo_pendiente)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button 
-                    onclick="view-debt-btn (${debt.venta_id})" 
-                    class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
-                >
-                    Detalles/Pagar
-                </button>
-            </td>
-        `;
-        container.appendChild(row);
-    });
+        // 1. Limpiar el contenedor antes de dibujar
+        container.innerHTML = '';
+        
+        const noDebtMessage = document.getElementById('no-debt-message');
+        if (noDebtMessage) noDebtMessage.classList.add('hidden');
+
+        if (data.length === 0) {
+            if (noDebtMessage) noDebtMessage.classList.remove('hidden');
+            return;
+        }
+
+        // 2. Renderizar filas (Preparando el botón para el re-enlace)
+        data.forEach(debt => {
+            const clientName = debt.clientes?.name || 'Cliente Desconocido';
+            // Para el modal de deuda, es mejor pasar el client_id
+            const clientId = debt.clientes?.client_id; 
+            
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${debt.venta_id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debt.saldo_pendiente)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                        type="button" 
+                        class="view-debt-btn" 
+                        data-client-id="${clientId}" 
+                        data-sale-id="${debt.venta_id}" // Si necesitas la venta, mantenla
+                        class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+                    >
+                        Detalles/Pagar
+                    </button>
+                </td>
+            `;
+            container.appendChild(row);
+        });
+
+        // =======================================================
+        // 🛑 CRÍTICO: RE-ENLACE DE EVENTOS (Abre el modal de deuda del cliente)
+        // =======================================================
+        container.querySelectorAll('.view-debt-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const clientId = button.dataset.clientId;
+                
+                // ➡️ Esta función debe ser la que abre el modal-client-debt
+                handleViewClientDebt(clientId); 
+            });
+        });
+
+    } catch (e) {
+        console.error('Error inesperado en loadDebts:', e);
+    }
 }
 
 async function loadRecentSales() {
