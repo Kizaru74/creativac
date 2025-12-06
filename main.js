@@ -1333,11 +1333,13 @@ async function loadClientsTable(mode = 'gestion') {
                         <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
                                         data-client-id="${client.client_id}">
                             <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
-                                        data-client-id="${client.client_id}">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
+                
+                <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
+                 data-client-id="${client.client_id}" 
+               data-client-name="${client.name}">
+                 <i class="fas fa-trash"></i> Eliminar
+                </button>
+
                      <button type="button" class="view-debt-btn text-blue-600 hover:text-blue-900" 
                         data-client-id="${client.client_id}" title="Ver ventas y abonos del cliente">
                         <i class="fas fa-file-invoice-dollar"></i> Ver Deuda
@@ -1489,11 +1491,11 @@ async function handleEditClient(e) {
 } else {
         alert('Cliente actualizado exitosamente.');
         
-        // 3. Limpieza y recarga
-        // 🛑 CRÍTICO: Recargar PRIMERO. Esto repinta la tabla con el dato actualizado.
+        // 🛑 ORDEN CORREGIDO: 
+        // 1. Recargar la data (y repintar la tabla) PRIMERO.
         await loadDashboardData(); 
         
-        // Cierra el modal DESPUÉS de que la tabla ya se repintó.
+        // 2. Limpiar el formulario y CERRAR el modal DESPUÉS de que la tabla se actualizó.
         document.getElementById('edit-client-form').reset();
         closeModal('edit-client-modal'); 
     }
@@ -1803,26 +1805,19 @@ async function confirmDeleteProduct() {
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
 
-function handleDeleteClientClick(clientId) {
-    clientToDeleteId = clientId; // Guarda la ID globalmente
+function handleDeleteClientClick(clientId, clientName) { 
+    clientToDeleteId = clientId; 
     
-    // 1. Busca el cliente en el array global
-    const clientToDelete = allClients.find(c => String(c.client_id) === String(clientId));
-    
-    // 2. Muestra el nombre del cliente en el modal (si el elemento existe)
-    if (clientToDelete) {
-        // 🚨 CRÍTICO: Asegúrate de que el modal de confirmación contenga un <span> con este ID
-        const namePlaceholder = document.getElementById('delete-client-name-placeholder');
-        if (namePlaceholder) {
-            namePlaceholder.textContent = clientToDelete.name;
-        }
+    // Muestra el nombre del cliente en el modal (si el elemento existe)
+    const namePlaceholder = document.getElementById('delete-client-name-placeholder');
+    if (namePlaceholder) {
+        // Usa el nombre que se pasó como argumento
+        namePlaceholder.textContent = clientName; 
     }
-
-    // 3. Abre el modal de confirmación
-    // CRÍTICO: Reemplaza 'modal-delete-confirmation' con la ID real de tu modal
+    
+    // Abre el modal de confirmación
     openModal('client-delete-confirmation'); 
 }
-
 async function confirmDeleteClient() {
     const idToDelete = clientToDeleteId; 
 
