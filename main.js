@@ -1403,43 +1403,33 @@ async function handleNewClient(e) {
     }
 }
 
-async function handleEditClient(e) {
-    e.preventDefault();
-    
-    // 1. Obtener los valores del formulario de edición (Añadimos 'address')
-    const clientId = document.getElementById('edit-client-id').value;
-    const name = document.getElementById('edit-client-name').value.trim();
-    const phone = document.getElementById('edit-client-phone').value.trim();
-    const address = document.getElementById('edit-client-address')?.value.trim() || ''; // 🛑 CRÍTICO: Asegúrate de que este ID de campo exista en tu HTML
+// ====================================================================
+// ✅ Clientes (MANEJAR CLIC DE EDICIÓN) - VERSIÓN ROBUSTA
+// ====================================================================
 
-    if (!clientId) {
-        alert("Error de Edición: No se pudo obtener la ID del cliente.");
+function handleEditClientClick(clientId) {
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
         return;
     }
 
-    // 2. Ejecutar la actualización en Supabase
-    const { error } = await supabase
-        .from('clientes')
-        .update({ 
-            name: name, 
-            telefono: phone, // ✅ Se mantiene 'telefono' (Asumo que esta es la columna correcta)
-            address: address // 🛑 Nuevo campo: Asegúrate que esta columna exista en tu tabla 'clientes'
-        }) 
-        .eq('client_id', clientId); 
-
-    if (error) {
-        console.error('Error al actualizar cliente:', error);
-        alert('Error al actualizar cliente: ' + error.message);
-    } else {
-        alert('Cliente actualizado exitosamente.');
-        
-        // 3. Limpieza y recarga
-        document.getElementById('edit-client-form').reset();
-        closeModal('edit-client-modal'); // ASUMO: Que este es el ID de tu modal de edición
-        
-        // 🚀 MEJORA: Recargar todos los datos del dashboard para consistencia
-        await loadDashboardData(); 
+    const client = allClients.find(c => String(c.client_id) === String(clientId));
+    if (!client) {
+        alert("Error: Cliente no encontrado para editar.");
+        return;
     }
+    
+    // 🛑 USAMOS ?.VALUE para evitar el error 'is null' si el ID no existe en el HTML
+    // AÚN DEBES REVISAR TU HTML para corregir los IDs.
+
+    document.getElementById('edit-client-id')?.value = client.client_id;
+    document.getElementById('edit-client-name')?.value = client.name;
+    // Usamos client.telefono ya que tu función de actualización usa 'telefono'
+    document.getElementById('edit-client-phone')?.value = client.telefono || ''; 
+    document.getElementById('edit-client-address')?.value = client.address || ''; 
+
+    // ASUMO que el ID de tu modal de edición es 'edit-client-modal'
+    openModal('edit-client-modal'); 
 }
 
 // ====================================================================
@@ -1795,8 +1785,6 @@ function handleDeleteClientClick(clientId) {
     openModal('client-delete-confirmation'); 
 }
 
-// Se asume que clientToDeleteId está declarada globalmente y fue asignada por handleDeleteClientClick
-
 async function confirmDeleteClient() {
     const idToDelete = clientToDeleteId; 
 
@@ -1805,16 +1793,18 @@ async function confirmDeleteClient() {
         return;
     }
 
-    // 🛑 CAMBIO CLAVE: Usar .delete() para borrado físico
+    // 1. Ejecutar la eliminación en Supabase
     const { error } = await supabase
         .from('clientes')
-        .delete() // <--- ¡Aseguramos la eliminación permanente!
+        .delete() // <--- Eliminación física
         .eq('client_id', idToDelete); 
 
     if (error) {
-        // Si el error es una violación de clave foránea (deuda pendiente)
+        console.error('Error al intentar eliminar el cliente:', error);
+        
+        // 2. Manejo de error específico (Restricción de Clave Foránea)
         if (error.code === '23503') {
-            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados. Primero debe eliminar esas transacciones.');
+            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados. Asegúrate de eliminar el historial del cliente o configurar la eliminación en cascada en Supabase.');
         } else {
             alert('❌ Error desconocido al eliminar cliente: ' + error.message);
         }
@@ -1822,13 +1812,14 @@ async function confirmDeleteClient() {
         return; 
     }
 
+    // 3. Éxito y recarga de datos
     alert('✅ Cliente eliminado definitivamente.');
     closeModal('client-delete-confirmation'); 
     
     clientToDeleteId = null; 
     
-    // 🛑 CORRECCIÓN: Usar la recarga global de datos
-    await loadDashboardData();
+    // 🛑 CRÍTICO: Recargar el dashboard completo para actualizar la lista de clientes
+    await loadDashboardData(); 
 }
 
 // CRÍTICO: Asegúrate de que el botón de confirmación tenga su listener
