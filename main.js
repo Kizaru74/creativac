@@ -1848,10 +1848,8 @@ async function confirmDeleteClient() {
     // 3. Éxito y recarga de datos
     alert('✅ Cliente eliminado definitivamente.');
     closeModal('client-delete-confirmation'); 
-    
     clientToDeleteId = null; 
     
-    // 🛑 CRÍTICO: Recargar el dashboard completo para actualizar la lista de clientes
     await loadDashboardData(); 
 }
 
