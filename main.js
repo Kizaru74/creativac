@@ -1404,7 +1404,7 @@ async function handleNewClient(e) {
 }
 
 // ====================================================================
-// ✅ Clientes (MANEJAR CLIC DE EDICIÓN) - VERSIÓN ROBUSTA
+// ✅ Clientes (MANEJAR CLIC DE EDICIÓN)
 // ====================================================================
 
 function handleEditClientClick(clientId) {
@@ -1437,35 +1437,6 @@ function handleEditClientClick(clientId) {
     // Dirección
     const addressInput = document.getElementById('edit-client-address');
     if (addressInput) addressInput.value = client.address || ''; 
-
-    // ASUMO que el ID de tu modal de edición es 'edit-client-modal'
-    openModal('edit-client-modal'); 
-}
-
-// ====================================================================
-// ✅ Clientes (MANEJAR CLIC DE EDICIÓN)
-// ====================================================================
-
-function handleEditClientClick(clientId) {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
-    // Busca el cliente en el array global
-    const client = allClients.find(c => String(c.client_id) === String(clientId));
-    if (!client) {
-        alert("Error: Cliente no encontrado para editar.");
-        return;
-    }
-
-    // 🛑 CRÍTICO: Rellenar los campos del modal de edición
-    // 1. ID OCULTA: Necesaria para el .update() en handleEditClient()
-    document.getElementById('edit-client-id').value = client.client_id;
-    // 2. Campos de Datos
-    document.getElementById('edit-client-name').value = client.name;
-    document.getElementById('edit-client-phone').value = client.telefono || ''; 
-    document.getElementById('edit-client-address').value = client.address || ''; // 🛑 ASUMO que tienes esta columna.
 
     // ASUMO que el ID de tu modal de edición es 'edit-client-modal'
     openModal('edit-client-modal'); 
