@@ -1413,20 +1413,30 @@ function handleEditClientClick(clientId) {
         return;
     }
 
+    // Busca el cliente en el array global
     const client = allClients.find(c => String(c.client_id) === String(clientId));
     if (!client) {
         alert("Error: Cliente no encontrado para editar.");
         return;
     }
-    
-    // 🛑 USAMOS ?.VALUE para evitar el error 'is null' si el ID no existe en el HTML
-    // AÚN DEBES REVISAR TU HTML para corregir los IDs.
 
-    document.getElementById('edit-client-id')?.value = client.client_id;
-    document.getElementById('edit-client-name')?.value = client.name;
-    // Usamos client.telefono ya que tu función de actualización usa 'telefono'
-    document.getElementById('edit-client-phone')?.value = client.telefono || ''; 
-    document.getElementById('edit-client-address')?.value = client.address || ''; 
+    // 🛑 CORRECCIÓN: Usar una variable temporal y un 'if' para verificar la existencia del elemento.
+
+    // ID OCULTA (CRÍTICO)
+    const idInput = document.getElementById('edit-client-id');
+    if (idInput) idInput.value = client.client_id;
+    
+    // Nombre
+    const nameInput = document.getElementById('edit-client-name');
+    if (nameInput) nameInput.value = client.name;
+
+    // Teléfono
+    const phoneInput = document.getElementById('edit-client-phone');
+    if (phoneInput) phoneInput.value = client.telefono || ''; 
+
+    // Dirección
+    const addressInput = document.getElementById('edit-client-address');
+    if (addressInput) addressInput.value = client.address || ''; 
 
     // ASUMO que el ID de tu modal de edición es 'edit-client-modal'
     openModal('edit-client-modal'); 
