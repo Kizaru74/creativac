@@ -200,7 +200,7 @@ async function loadDebts() {
             <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debt.saldo_pendiente)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button 
-                    onclick="openSaleDetailModal(${debt.venta_id})" 
+                    onclick="view-debt-btn (${debt.venta_id})" 
                     class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
                 >
                     Detalles/Pagar
