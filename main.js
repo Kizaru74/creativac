@@ -2718,11 +2718,13 @@ document.querySelectorAll('[data-open-modal]').forEach(button => {
     });
 });
 
-// Ejemplo de llamada después de que se registra una nueva venta
+// CÓDIGO CORREGIDO (Llama al modal de vista previa)
 if (success) {
     await loadDashboardData(); // Recargar datos
-    // ✅ Llamada a la función de impresión
-    printTicketQZ(newSaleId); 
+    
+    // ✅ LLAMADA AL MODAL DE VISTA PREVIA
+    // El usuario decidirá si imprime desde el modal.
+    showTicketPreviewModal(newSaleId); 
 }
 
 // ====================================================================
