@@ -2085,7 +2085,7 @@ async function loadMonthlySalesReport() {
                <td class="px-3 py-3 text-sm truncate-cell">
                 <div class="truncate w-40" title="${descriptionDisplay}">
                   ${descriptionDisplay}
-                    </div>
+                   < /div>
                 <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
                     <button 
                         data-venta-id="${sale.venta_id}" 
@@ -2146,6 +2146,119 @@ function initializeMonthSelector() {
         }
         
         selector.appendChild(option);
+    }
+}
+
+// Variable global para guardar el ID de la venta en vista previa
+let CURRENT_SALE_ID = null; 
+
+async function showTicketPreviewModal(ventaId) {
+    // 1. Obtener datos de Supabase (reutiliza la consulta de printTicketQZ)
+    const { data: sale, error } = await supabase
+        .from('ventas')
+        .select(`*, clientes(name), detalle_ventas (quantity, price, subtotal, productos(name))`)
+        .eq('venta_id', ventaId)
+        .single();
+    
+    if (error || !sale) return;
+
+    // 2. Formatear como HTML
+    let htmlContent = `
+        <div style="text-align: center; font-family: monospace;">
+            <h3>Creativa CNC</h3>
+            <p>${sale.clientes.name}</p>
+            <hr>
+            <table style="width: 100%; border-collapse: collapse;">
+                ${sale.detalle_ventas.map(item => `
+                    <tr>
+                        <td style="text-align: left;">${item.quantity} ${item.productos.name}</td>
+                        <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
+                    </tr>
+                `).join('')}
+            </table>
+            <hr>
+            <h4 style="text-align: right;">TOTAL: ${formatCurrency(sale.total_amount)}</h4>
+            <p>¡Gracias por su compra!</p>
+        </div>
+    `;
+
+    // 3. Inyectar y mostrar
+    document.getElementById('ticket-preview-content').innerHTML = htmlContent;
+    CURRENT_SALE_ID = ventaId; // Guardar el ID para el botón de imprimir
+    openModal('modal-ticket-preview');
+}
+
+// 4. Función que llama a la impresión real
+function confirmAndPrintTicket(ventaId) {
+    closeModal('modal-ticket-preview');
+    printTicketQZ(ventaId); // Llama a tu función original para el envío crudo
+}
+
+// ====================================================================
+// FUNCIÓN PARA IMPRIMIR TICKET USANDO QZ TRAY
+// ====================================================================
+
+async function printTicketQZ(ventaId) {
+    if (!qz.websocket.isActive()) {
+        // Intenta conectar si no está activo
+        try {
+            await qz.websocket.connect();
+        } catch (e) {
+            console.error('Error al conectar con QZ Tray. Asegúrate de que esté ejecutándose.', e);
+            alert('Error: QZ Tray no está conectado. Por favor, inícialo.');
+            return;
+        }
+    }
+
+    try {
+        // 1. OBTENER DATOS DE SUPABASE
+        const { data: sale, error } = await supabase
+            .from('ventas')
+            .select(`
+                *, 
+                clientes(name), 
+                detalle_ventas (quantity, price, subtotal, productos(name))
+            `)
+            .eq('venta_id', ventaId)
+            .single();
+
+        if (error || !sale) throw new Error('Venta no encontrada.');
+
+        // 2. GENERAR EL CÓDIGO ESC/POS
+        // Generarás un array con comandos que la impresora entiende.
+        let rawData = [];
+
+        // Comandos ESC/POS de ejemplo:
+        rawData.push('\x1B' + '\x40'); // Comando de inicialización de impresora
+        rawData.push('\x1B' + '\x61' + '\x31'); // Comando de alineación central
+        rawData.push('Creativa CNC\n');
+        rawData.push(sale.clientes.name + '\n');
+        rawData.push('\x1B' + '\x61' + '\x30'); // Comando de alineación izquierda
+        rawData.push('----------------------------------------\n');
+        
+        sale.detalle_ventas.forEach(item => {
+            const line = `${item.quantity} ${item.productos.name} @ ${formatCurrency(item.price)} = ${formatCurrency(item.subtotal)}\n`;
+            rawData.push(line);
+        });
+
+        rawData.push('----------------------------------------\n');
+        rawData.push('\x1B' + '\x61' + '\x32'); // Comando de alineación derecha
+        rawData.push(`TOTAL: ${formatCurrency(sale.total_amount)}\n`);
+        
+        rawData.push('\x1B' + '\x61' + '\x31'); // Comando de alineación central
+        rawData.push('¡Gracias por su compra!\n\n');
+        
+        rawData.push('\x1D' + '\x56' + '\x00'); // Comando de corte de papel
+
+        // 3. ENVIAR A QZ TRAY
+        const config = qz.configs.create("YOUR_PRINTER_NAME"); // ⬅️ REEMPLAZA CON EL NOMBRE DE TU IMPRESORA
+        
+        await qz.print(config, rawData);
+        alert(`Ticket #${ventaId} enviado a impresión.`);
+
+    } catch (e) {
+        console.error('Error durante la impresión del ticket:', e);
+        alert('Fallo la impresión. Consulta la consola para más detalles.');
     }
 }
 
@@ -2604,6 +2717,13 @@ document.querySelectorAll('[data-open-modal]').forEach(button => {
         openModal(modalId); 
     });
 });
+
+// Ejemplo de llamada después de que se registra una nueva venta
+if (success) {
+    await loadDashboardData(); // Recargar datos
+    // ✅ Llamada a la función de impresión
+    printTicketQZ(newSaleId); 
+}
 
 // ====================================================================
 // ✅ Productos (EDITAR/ELIMINAR)

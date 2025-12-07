@@ -786,14 +786,23 @@
 
 <div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 relative">
-        
+    
         <div class="flex justify-between items-center border-b pb-3 mb-4">
             <h3 class="text-xl font-bold">Detalle de Venta: <span id="detail-sale-id">#N/A</span></h3>
-            <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-600 text-2xl">
-                &times;
-            </button>
+            
+            <div class="flex items-center space-x-3"> 
+                
+                <button type="button" 
+                        onclick="showTicketPreviewModal(document.getElementById('detail-sale-id').textContent.replace('#', ''))" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-sm transition duration-150 shadow-md">
+                    🖨️ Imprimir Ticket
+                </button>
+
+                <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+                    &times;
+                </button>
+            </div>
         </div>
-        
         <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
             <p><strong>Cliente:</strong> <span id="detail-client-name">N/A</span></p>
             <p><strong>Fecha:</strong> <span id="detail-date">N/A</span></p>
@@ -814,7 +823,7 @@
                     </tr>
                 </thead>
                 <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
+                </tbody>
             </table>
         </div>
 
@@ -829,7 +838,7 @@
                     </tr>
                 </thead>
                 <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
+                </tbody>
             </table>
         </div>
 
@@ -860,6 +869,7 @@
                 </button>
             </div>
         </div>
+        
         <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
         <form id="register-payment-form" class="flex gap-4 items-end">
             <input type="hidden" id="payment-sale-id">
@@ -882,6 +892,7 @@
     </div>
 </div>
 
+<script src="qz-tray.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="main.js"></script>
 </body>
