@@ -2185,7 +2185,7 @@ function generateTextTicket(sale) {
     };
     
     // --- 1. ENCABEZADO DE LA EMPRESA ---
-    let ticket = alignCenter("Creativa CNC") + "\n"; // Usamos alignCenter para centrar
+    let ticket = alignCenter("Creativa Cortes CNC") + "\n"; // Usamos alignCenter para centrar
     ticket += "--------------------------------\n";
     ticket += "\n";
     
@@ -2207,7 +2207,7 @@ function generateTextTicket(sale) {
 
     // --- 3. DETALLE DE PRODUCTOS ---
     // 💡 Usamos espaciado fijo aquí, no espacios literales que pueden fallar
-    ticket += "Producto              Cant.  Total\n";
+    ticket += "Producto             Cant.  Total\n";
     ticket += "--------------------------------\n";
     
     sale.detalle_ventas.forEach(item => {
@@ -2221,6 +2221,7 @@ function generateTextTicket(sale) {
     });
     
     ticket += "--------------------------------\n";
+    ticket += "\n";
     
     // --- 4. TOTALES ---
     const totalAmount = sale.total_amount || 0;
