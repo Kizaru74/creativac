@@ -2165,11 +2165,71 @@ function initializeMonthSelector() {
     }
 }
 
+function generateTextTicket(sale) {
+    const TICKET_WIDTH = 32;
+
+    const alignRight = (label, value) => {
+        const valueStr = formatCurrency(value);
+        const padding = TICKET_WIDTH - label.length - valueStr.length;
+        return label + " ".repeat(padding) + valueStr;
+    };
+
+    // --- 1. ENCABEZADO DE LA EMPRESA ---
+    let ticket = "       Creativa CNC\n";
+    ticket += "--------------------------------\n";
+    ticket += "Tel: 9851001141\n";
+    ticket += "Dirección: Calle 33 x 48 y 46\n";
+    ticket += "Col. Candelaria\n";
+    ticket += "Fecha: " + new Date(sale.created_at).toLocaleDateString('es-MX') + "\n";
+    ticket += "ID Venta: " + sale.venta_id + "\n";
+    ticket += "--------------------------------\n";
+    
+    // --- 2. CLIENTE ---
+    const clientName = sale.clientes?.name || 'Consumidor Final';
+    ticket += "Cliente: " + clientName + "\n";
+    ticket += "================================\n";
+
+    // --- 3. DETALLE DE PRODUCTOS ---
+    ticket += "Producto              Cant.  Total\n";
+    ticket += "--------------------------------\n";
+    
+    sale.detalle_ventas.forEach(item => {
+        const productName = item.productos.name;
+        const prodName = productName.substring(0, 18).padEnd(18, ' ');
+        const quantity = item.quantity.toString().padStart(5, ' ');
+        const subtotal = formatCurrency(item.subtotal).padStart(6, ' ');
+        
+        ticket += `${prodName} ${quantity} ${subtotal}\n`;
+    });
+    
+    ticket += "--------------------------------\n";
+    
+    // --- 4. TOTALES ---
+    const totalAmount = sale.total_amount || 0;
+    const saldoPendiente = sale.saldo_pendiente || 0;
+    const anticipo = totalAmount - saldoPendiente;
+
+    ticket += alignRight("SALDO PENDIENTE:", saldoPendiente) + "\n";
+    ticket += "--------------------------------\n";
+    ticket += alignRight("ANTICIPO:", anticipo) + "\n";
+    ticket += "================================\n";
+    ticket += alignRight("TOTAL:", totalAmount) + "\n";
+    ticket += "================================\n";
+
+
+    // --- 5. PIE DE PÁGINA ---
+    ticket += "\n\n";
+    ticket += "    ¡Gracias por su compra!\n";
+    ticket += "--------------------------------\n";
+
+    return ticket;
+}
+
 // Variable global para guardar el ID de la venta en vista previa
 let CURRENT_SALE_ID = null; 
 
 async function showTicketPreviewModal(ventaId) {
-    // 1. Obtener datos de Supabase (reutiliza la consulta de printTicketQZ)
+    // 1. Obtener datos de Supabase
     const { data: sale, error } = await supabase
         .from('ventas')
         .select(`*, clientes(name), detalle_ventas (quantity, price, subtotal, productos(name))`)
@@ -2178,29 +2238,23 @@ async function showTicketPreviewModal(ventaId) {
     
     if (error || !sale) return;
 
-    // 2. Formatear como HTML
-    let htmlContent = `
-        <div style="text-align: center; font-family: monospace;">
-            <h3>Creativa CNC</h3>
-            <p>${sale.clientes.name}</p>
-            <hr>
-            <table style="width: 100%; border-collapse: collapse;">
-                ${sale.detalle_ventas.map(item => `
-                    <tr>
-                        <td style="text-align: left;">${item.quantity} ${item.productos.name}</td>
-                        <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
-                    </tr>
-                `).join('')}
-            </table>
-            <hr>
-            <h4 style="text-align: right;">TOTAL: ${formatCurrency(sale.total_amount)}</h4>
-            <p>¡Gracias por su compra!</p>
-        </div>
-    `;
+    // 2. Generar el ticket como texto plano formateado
+    const ticketContent = generateTextTicket(sale); 
+    
+    // 3. CRÍTICO: Envolver el contenido en <pre> para asegurar que:
+    //    a) Se respeten los saltos de línea (\n).
+    //    b) Se respete el espaciado fijo de los métodos padStart/padEnd.
+    //    c) Se use la fuente 'monospace' para que todos los caracteres tengan el mismo ancho.
+    const htmlContent = `<pre style="font-family: monospace; font-size: 14px; margin: 0 auto; text-align: left;">${ticketContent}</pre>`;
 
-    // 3. Inyectar y mostrar
-    document.getElementById('ticket-preview-content').innerHTML = htmlContent;
-    CURRENT_SALE_ID = ventaId; // Guardar el ID para el botón de imprimir
+    // 4. Inyectar y mostrar
+    const ticketPreviewContent = document.getElementById('ticket-preview-content');
+    
+    if (ticketPreviewContent) { 
+        ticketPreviewContent.innerHTML = htmlContent;
+    }
+
+    CURRENT_SALE_ID = ventaId; 
     openModal('modal-ticket-preview');
 }
 window.showTicketPreviewModal = showTicketPreviewModal;
