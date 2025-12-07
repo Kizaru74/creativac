@@ -17,7 +17,7 @@
             line-height: 1; /* Para centrar el '+' */
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-BSyzgsKm.js"></script>
+  <script type="module" crossorigin src="./assets/index-B6xc3IZI.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     
@@ -788,9 +788,9 @@
 <div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 relative">
     
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
             <h3 class="text-xl font-bold">Detalle de Venta: <span id="detail-sale-id">#N/A</span></h3>
-            
+        
             <div class="flex items-center space-x-3"> 
                 
                 <button type="button" 
@@ -804,96 +804,100 @@
                 </button>
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-            <p><strong>Cliente:</strong> <span id="detail-client-name">N/A</span></p>
-            <p><strong>Fecha:</strong> <span id="detail-date">N/A</span></p>
-            <p><strong>Monto Total:</strong> <span id="detail-total-amount" class="font-bold text-green-600">N/A</span></p>
-            <p><strong>Saldo Pendiente:</strong> <span id="detail-saldo-pendiente" class="font-bold text-red-600">N/A</span></p>
-        </div>
-        <p class="mb-4 text-sm"><strong>Comentarios:</strong> <span id="detail-comments">Sin comentarios.</span></p>
-
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Productos Comprados</h4>
-        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead>
-                    <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <th class="px-6 py-3">Producto</th>
-                        <th class="px-6 py-3 text-center">Cantidad</th>
-                        <th class="px-6 py-3 text-right">Precio U.</th>
-                        <th class="px-6 py-3 text-right">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200 text-sm">
-                </tbody>
-            </table>
-        </div>
-
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Historial de Pagos/Abonos</h4>
-        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead>
-                    <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <th class="px-6 py-3">Fecha</th>
-                        <th class="px-6 py-3 text-right">Monto</th>
-                        <th class="px-6 py-3 text-center">Método</th>
-                    </tr>
-                </thead>
-                <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
-                </tbody>
-            </table>
-        </div>
-
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Editar Precio (Solo Ventas Pendientes)</h4>
-        <div id="sale-edit-section" class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded-md hidden">
-            <p class="text-sm text-yellow-800 mb-3">Esta venta se registró con monto cero. Ingrese el precio real a continuación.</p>
-            
-            <div class="flex gap-4 items-end">
-                <input type="hidden" id="sale-edit-transaction-id">
-                
-                <div class="flex-grow">
-                    <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
-                    <input 
-                        type="number" 
-                        step="0.01" 
-                        id="sale-edit-price" 
-                        class="w-full border-gray-300 rounded-md shadow-sm p-2" 
-                        required
-                    >
-                </div>
-                
-                <button 
-                    onclick="handleUpdateSalePrice()" 
-                    type="button" 
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150"
-                >
-                    Actualizar Precio
-                </button>
-            </div>
-        </div>
         
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
-        <form id="register-payment-form" class="flex gap-4 items-end">
-            <input type="hidden" id="payment-sale-id">
-            <div class="flex-grow">
-                <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
-                <input type="number" step="0.01" id="abono-amount" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+        <div id="detail-dynamic-content">
+
+            <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                <p><strong>Cliente:</strong> <span id="detail-client-name">N/A</span></p>
+                <p><strong>Fecha:</strong> <span id="detail-date">N/A</span></p>
+                <p><strong>Monto Total:</strong> <span id="detail-total-amount" class="font-bold text-green-600">N/A</span></p>
+                <p><strong>Saldo Pendiente:</strong> <span id="detail-saldo-pendiente" class="font-bold text-red-600">N/A</span></p>
             </div>
-            <div>
-                <label for="payment-method-abono" class="block text-sm font-medium text-gray-700">Método</label>
-                <select id="payment-method-abono" class="w-full border-gray-300 rounded-md shadow-sm p-2">
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Tarjeta">Tarjeta</option>
-                    <option value="Transferencia">Transferencia</option>
-                </select>
+            <p class="mb-4 text-sm"><strong>Comentarios:</strong> <span id="detail-comments">Sin comentarios.</span></p>
+
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Productos Comprados</h4>
+            <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-6 py-3">Producto</th>
+                            <th class="px-6 py-3 text-center">Cantidad</th>
+                            <th class="px-6 py-3 text-right">Precio U.</th>
+                            <th class="px-6 py-3 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+                </table>
             </div>
-            <button type="submit" id="submit-abono-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150">
-                Abonar
-            </button>
-        </form>
-    </div>
+
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Historial de Pagos/Abonos</h4>
+            <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-6 py-3">Fecha</th>
+                            <th class="px-6 py-3 text-right">Monto</th>
+                            <th class="px-6 py-3 text-center">Método</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+                </table>
+            </div>
+
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Editar Precio (Solo Ventas Pendientes)</h4>
+            <div id="sale-edit-section" class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded-md hidden">
+                <p class="text-sm text-yellow-800 mb-3">Esta venta se registró con monto cero. Ingrese el precio real a continuación.</p>
+            
+                <div class="flex gap-4 items-end">
+                    <input type="hidden" id="sale-edit-transaction-id">
+                
+                    <div class="flex-grow">
+                        <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            id="sale-edit-price" 
+                            class="w-full border-gray-300 rounded-md shadow-sm p-2" 
+                            required
+                        >
+                    </div>
+                
+                    <button 
+                        onclick="handleUpdateSalePrice()" 
+                        type="button" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150"
+                    >
+                        Actualizar Precio
+                    </button>
+                </div>
+            </div>
+        
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
+            <form id="register-payment-form" class="flex gap-4 items-end">
+                <input type="hidden" id="payment-sale-id">
+                <div class="flex-grow">
+                    <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
+                    <input type="number" step="0.01" id="abono-amount" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+                </div>
+                <div>
+                    <label for="payment-method-abono" class="block text-sm font-medium text-gray-700">Método</label>
+                    <select id="payment-method-abono" class="w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Tarjeta">Tarjeta</option>
+                        <option value="Transferencia">Transferencia</option>
+                    </select>
+                </div>
+                <button type="submit" id="submit-abono-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150">
+                    Abonar
+                </button>
+            </form>
+        </div> 
+            </div>
 </div>
 
-<script src="qz-tray.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
