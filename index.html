@@ -727,6 +727,26 @@
         </div>
     </div>
 
+<div id="modal-ticket-preview" class="modal-overlay hidden fixed inset-0 z-[60] items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Previsualización de Ticket</h3>
+            <button data-close-modal="modal-ticket-preview" class="text-gray-400 hover:text-gray-600 text-2xl">
+                &times;
+            </button>
+        </div>
+        
+        <div id="ticket-preview-content" class="mb-4 p-2 border rounded bg-gray-50 max-h-96 overflow-y-auto">
+            </div>
+
+        <div class="flex justify-end">
+            <button id="print-ticket-qz-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150">
+                Imprimir Ticket (Impresora Térmica)
+            </button>
+        </div>
+    </div>
+</div>
+
 <script src="qz-tray.js" type="module"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="main.js"></script>
