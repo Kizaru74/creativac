@@ -2006,27 +2006,59 @@ function openAbonoModal(clientId) {
 
 async function loadMonthlySalesReport() {
     
-    // 1. Obtener los contenedores (usando el ID que tienes en el código)
+    // 1. Obtener los contenedores (usando los IDs CORRECTOS del HTML)
     const selector = document.getElementById('report-month-selector');
-    const monthlyReportBody = document.getElementById('monthly-sales-report'); // Asumo que este ID es el que quieres usar
+    const monthlyReportBody = document.getElementById('monthly-sales-report-body');
     const totalSalesSpan = document.getElementById('report-total-sales');
     const noDataMessage = document.getElementById('monthly-report-no-data');
-    
-    // 2. ¡VERIFICACIÓN CRÍTICA! Si no encuentra el contenedor principal, sal de la función.
+
+    // 🛑 CORRECCIÓN CRÍTICA: VERIFICACIÓN DE NULL
+    // Si alguno de los elementos no existe (porque el modal está cerrado), sal de la función.
     if (!monthlyReportBody || !totalSalesSpan || !noDataMessage) {
-        console.error("Error: Algún contenedor del reporte mensual no se encontró. Revise los IDs en el HTML.");
+        console.error("Error: Contenedores de Reporte Mensual ausentes. (Carga diferida OK)");
         return; 
     }
-    
-    // ... el resto de tu lógica para obtener fechas ...
-    
-    // ... la consulta a Supabase ...
+
+    // Lógica para obtener startDate y endDate...
+    const selectedMonthYear = selector ? selector.value : null;
+    let startDate, endDate;
+
+    if (selectedMonthYear) {
+        const [year, month] = selectedMonthYear.split('-').map(Number);
+        startDate = new Date(year, month - 1, 1); 
+        endDate = new Date(year, month, 0); 
+        endDate.setHours(23, 59, 59, 999);
+    } else {
+        const now = new Date();
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    const isoStartDate = startDate.toISOString();
+    const isoEndDate = endDate.toISOString();
+
+    // 2. CONSULTA A SUPABASE 
+    const { data: sales, error } = await supabase
+        .from('ventas')
+        .select(`
+            venta_id, 
+            created_at, 
+            client_id, 
+            total_amount, 
+            saldo_pendiente, 
+            metodo_pago, 
+            description
+        `)
+        .gte('created_at', isoStartDate) 
+        .lte('created_at', isoEndDate)
+        .order('created_at', { ascending: false });
 
     if (error) {
         console.error('Error al cargar reporte de ventas:', error.message);
         alert('Error al cargar reporte de ventas. Consulte la consola.');
         
-        // El error está atrapado, pero el contenedor ya fue validado arriba.
+        // La verificación de null ya nos protegió, pero usamos los elementos ahora.
         monthlyReportBody.innerHTML = '';
         totalSalesSpan.textContent = '$0.00';
         noDataMessage.classList.remove('hidden');
@@ -2035,11 +2067,59 @@ async function loadMonthlySalesReport() {
 
     // 3. CÁLCULO DE TOTALES Y RENDERIZADO
     let grandTotal = 0;
-    
-    // Aquí usamos el elemento de forma segura
     monthlyReportBody.innerHTML = ''; 
-    // ...
+
+    if (sales && sales.length > 0) {
+        noDataMessage.classList.add('hidden');
+
+        sales.forEach(sale => {
+            grandTotal += sale.total_amount;
+            
+            const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+
+            // CRÍTICO: Buscar el nombre del cliente en el mapa
+            const clientName = allClientsMap[sale.client_id] || 'N/A'; 
+
+            const row = monthlyReportBody.insertRow();
+            row.className = 'hover:bg-gray-50';
+
+            const descriptionDisplay = sale.description || '-'; 
+            
+            row.innerHTML = `
+                <td class="px-3 py-3 whitespace-nowrap">${sale.venta_id}</td>
+                <td class="px-3 py-3 whitespace-nowrap">${saleDate}</td>
+                <td class="px-3 py-3 whitespace-nowrap">${clientName}</td>
+                <td class="px-3 py-3 whitespace-nowrap font-semibold">${formatCurrency(sale.total_amount)}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-red-600">${formatCurrency(sale.saldo_pendiente)}</td>
+                <td class="px-3 py-3 whitespace-nowrap">${sale.metodo_pago}</td>
+                
+                <td class="px-3 py-3 text-sm truncate-cell">
+                    <div class="truncate w-40" title="${descriptionDisplay}">
+                        ${descriptionDisplay}
+                    </div>
+                </td>
+
+                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                        data-venta-id="${sale.venta_id}"  
+                        class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+                    >
+                        Detalles
+                    </button>
+                </td>
+            `;
+        });
+    } else {
+        noDataMessage.classList.remove('hidden');
+    }
+
+    totalSalesSpan.textContent = formatCurrency(grandTotal);
 }
+
 function initializeMonthSelector() {
     const selector = document.getElementById('report-month-selector');
     if (!selector) {
@@ -2423,7 +2503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listeners del reporte
     document.getElementById('report-month-selector')?.addEventListener('change', loadMonthlySalesReport);
-    //loadMonthlySalesReport(); // Cargar la data inicial del mes actual al inicio
+
 
     // --- Autenticación ---
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
