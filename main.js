@@ -2006,7 +2006,7 @@ function openAbonoModal(clientId) {
 
 async function loadMonthlySalesReport() {
     const selector = document.getElementById('report-month-selector');
-    const monthlyReportBody = document.getElementById('monthly-sales-report-body');
+    const monthlyReportBody = document.getElementById('monthly-sales-report');
     const totalSalesSpan = document.getElementById('report-total-sales');
     const noDataMessage = document.getElementById('monthly-report-no-data');
 
