@@ -2103,14 +2103,14 @@ async function loadMonthlySalesReport() {
                     </div>
                 </td>
 
-                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
-                        data-venta-id="${sale.venta_id}"  
-                        class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
-                    >
-                        Detalles
-                    </button>
-                </td>
+              <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+        <button 
+            data-venta-id="${sale.venta_id}"  
+            data-client-id="${sale.client_id}"  class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+        >
+            Detalles
+        </button>
+    </td>
             `;
         });
     } else {
