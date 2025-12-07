@@ -2168,20 +2168,33 @@ function initializeMonthSelector() {
 function generateTextTicket(sale) {
     const TICKET_WIDTH = 32;
 
-    const alignRight = (label, value) => {
+    // Helper 1: Alinea la etiqueta a la izquierda y el valor a la derecha (para totales)
+    const alignValueRight = (label, value) => {
         const valueStr = formatCurrency(value);
+        // Calcula el relleno necesario para empujar el valor al final
         const padding = TICKET_WIDTH - label.length - valueStr.length;
         return label + " ".repeat(padding) + valueStr;
     };
-
+    
+    // Helper 2: Centra el texto completo
+    const alignCenter = (text) => {
+        const padding = TICKET_WIDTH - text.length;
+        // Divide el espacio restante y redondea hacia abajo para el relleno izquierdo
+        const paddingLeft = Math.floor(padding / 2); 
+        return " ".repeat(paddingLeft) + text;
+    };
+    
     // --- 1. ENCABEZADO DE LA EMPRESA ---
-    let ticket = "       Creativa CNC\n";
+    let ticket = alignCenter("Creativa CNC") + "\n"; // Usamos alignCenter para centrar
     ticket += "--------------------------------\n";
-    ticket += "\n\n";
+    ticket += "\n";
+    
+    // 💡 Usamos alignCenter para los datos de contacto
     ticket += alignCenter("Tel: 9851001141") + "\n";
     ticket += alignCenter("Dirección: Calle 33 x 48 y 46") + "\n";
     ticket += alignCenter("Col. Candelaria") + "\n";
-    ticket += alignCenter("Tel: 9851001141") + "\n";
+    // Eliminamos la línea duplicada de Teléfono
+    
     ticket += "Fecha: " + new Date(sale.created_at).toLocaleDateString('es-MX') + "\n";
     ticket += "Venta: " + sale.venta_id + "\n";
     ticket += "--------------------------------\n";
@@ -2190,15 +2203,16 @@ function generateTextTicket(sale) {
     const clientName = sale.clientes?.name || 'Consumidor Final';
     ticket += "Cliente: " + clientName + "\n";
     ticket += "================================\n";
-    ticket += "\n\n";
+    ticket += "\n";
 
     // --- 3. DETALLE DE PRODUCTOS ---
+    // 💡 Usamos espaciado fijo aquí, no espacios literales que pueden fallar
     ticket += "Producto              Cant.  Total\n";
-    ticket += "\n\n";
     ticket += "--------------------------------\n";
     
     sale.detalle_ventas.forEach(item => {
         const productName = item.productos.name;
+        // Nombre truncado a 18 caracteres y rellenado
         const prodName = productName.substring(0, 18).padEnd(18, ' ');
         const quantity = item.quantity.toString().padStart(5, ' ');
         const subtotal = formatCurrency(item.subtotal).padStart(6, ' ');
@@ -2213,18 +2227,19 @@ function generateTextTicket(sale) {
     const saldoPendiente = sale.saldo_pendiente || 0;
     const anticipo = totalAmount - saldoPendiente;
 
-    ticket += alignLeft("SALDO PENDIENTE:", saldoPendiente) + "\n";
-    ticket += alignLeft("ANTICIPO:", anticipo) + "\n";
+    // ✅ Usamos la función renombrada alignValueRight
+    ticket += alignValueRight("SALDO PENDIENTE:", saldoPendiente) + "\n"; 
+    ticket += alignValueRight("ANTICIPO:", anticipo) + "\n";
     ticket += "================================\n";
-    ticket += alignLeft("TOTAL:", totalAmount) + "\n";
-    ticket += "\n\n";
+    ticket += alignValueRight("TOTAL:", totalAmount) + "\n";
     ticket += "================================\n";
 
 
     // --- 5. PIE DE PÁGINA ---
-    ticket += "\n\n";
-    ticket += "    ¡Gracias por su compra!\n";
-    ticket += "\n\n";
+    ticket += "\n";
+    // ⬇️ USAMOS alignCenter
+    ticket += alignCenter("¡Gracias por su compra!") + "\n";
+    ticket += "\n";
     ticket += "--------------------------------\n";
 
     return ticket;
