@@ -995,7 +995,6 @@ async function handleNewSale(e) {
         const new_venta_id = saleData[0].venta_id;
 
         // 2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
-        // ... (Este bloque queda igual) ...
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
@@ -1030,11 +1029,16 @@ async function handleNewSale(e) {
                 alert(`Advertencia: El pago inicial falló. ${paymentError.message}`);
             }
         }
-         
+        
         // 4. LIMPIAR Y RECARGAR
-        alert('Venta registrada exitosamente.');
-        closeModal('new-sale-modal'); // <-- Verifique que 'new-sale-modal' sea el ID correcto
+        // Se elimina el 'alert' de éxito, el modal de vista previa lo reemplaza.
+        closeModal('new-sale-modal'); // <-- Cierra el modal de registro de venta
+
+        // Recarga los datos del Dashboard (ventas recientes, deudas, etc.)
         await loadDashboardData(); 
+
+        // ✅ NUEVA LÍNEA CLAVE: Llama a la vista previa del ticket
+        showTicketPreviewModal(new_venta_id); 
 
     } catch (error) {
         console.error('Error fatal al registrar la venta:', error.message);
@@ -2718,14 +2722,6 @@ document.querySelectorAll('[data-open-modal]').forEach(button => {
     });
 });
 
-// CÓDIGO CORREGIDO (Llama al modal de vista previa)
-if (success) {
-    await loadDashboardData(); // Recargar datos
-    
-    // ✅ LLAMADA AL MODAL DE VISTA PREVIA
-    // El usuario decidirá si imprime desde el modal.
-    showTicketPreviewModal(newSaleId); 
-}
 
 // ====================================================================
 // ✅ Productos (EDITAR/ELIMINAR)
