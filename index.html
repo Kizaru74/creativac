@@ -686,46 +686,46 @@
             </div>
 </div>
 
-    <div id="modal-monthly-report" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 id="monthly-report-title" class="text-2xl font-bold text-gray-800">Reporte de Ventas Mensuales</h3>
-                <button data-close-modal="modal-monthly-report" class="text-gray-400 hover:text-gray-600 text-2xl">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+<div class="p-4 bg-white rounded-lg shadow-md mb-6">
+    <h3 class="text-xl font-bold mb-4 border-b pb-2">Reporte de Ventas Mensual</h3>
+    
+    <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center space-x-2">
+            <label for="report-month-selector" class="text-sm font-medium text-gray-700">Seleccionar Mes:</label>
+            <input type="month" 
+                   id="report-month-selector" 
+                   class="border-gray-300 rounded-md shadow-sm p-1 text-sm"
+                   onchange="loadMonthlySalesReport()"> 
             </div>
+        <h4 class="text-lg font-semibold">
+            Total Ventas: <span id="report-total-sales" class="text-green-600">$0.00</span>
+        </h4>
+    </div>
+
+    <div class="overflow-x-auto border rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead>
+                <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="px-3 py-3">ID Venta</th>
+                    <th class="px-3 py-3">Fecha</th>
+                    <th class="px-3 py-3">Cliente</th>
+                    <th class="px-3 py-3">Monto</th>
+                    <th class="px-3 py-3">Saldo P.</th>
+                    <th class="px-3 py-3">Método</th>
+                    <th class="px-3 py-3">Descripción</th>
+                    <th class="px-3 py-3 text-right">Acciones</th>
+                </tr>
+            </thead>
             
-           <div class="mb-4 flex items-center gap-4">
-        <div class="flex-grow">
-        <label for="report-month-selector" class="block text-sm font-medium text-gray-700">Seleccionar Mes</label>
-        <select id="report-month-selector" class="w-full border-gray-300 rounded-md shadow-sm p-2">
-            <option value="" disabled selected>Cargando Meses...</option>
-        </select>
-        </div>
-     <div class="flex-grow">
-        <p class="text-lg font-semibold">Total de Ventas: <span id="report-total-sales" class="text-green-600">$0.00</span></p>
-        </div>
-        </div>
-            <div class="overflow-x-auto max-h-[70vh] overflow-y-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0">
-                            <th class="px-3 py-3">ID Venta</th>
-                            <th class="px-3 py-3">Fecha</th>
-                            <th class="px-3 py-3">Cliente</th>
-                            <th class="px-3 py-3">Monto Total</th>
-                            <th class="px-3 py-3">Saldo Pendiente</th>
-                            <th class="px-3 py-3">Método</th>
-                            <th class="px-3 py-3">Comentarios</th>
-                        </tr>
-                    </thead>
-                    <tbody id="monthly-sales-report-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
-                </table>
-                <p id="monthly-report-no-data" class="text-center text-gray-500 mt-8 hidden">No se encontraron ventas para este período.</p>
-            </div>
+            <tbody id="monthly-sales-report" class="bg-white divide-y divide-gray-200 text-sm">
+                </tbody>
+        </table>
+
+        <div id="monthly-report-no-data" class="p-4 text-center text-gray-500 hidden">
+            No hay ventas registradas para el mes seleccionado.
         </div>
     </div>
+</div>
 
 <script src="qz-tray.js" type="module"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

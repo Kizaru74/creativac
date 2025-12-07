@@ -2423,7 +2423,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listeners del reporte
     document.getElementById('report-month-selector')?.addEventListener('change', loadMonthlySalesReport);
-    loadMonthlySalesReport(); // Cargar la data inicial del mes actual al inicio
+    //loadMonthlySalesReport(); // Cargar la data inicial del mes actual al inicio
 
     // --- Autenticación ---
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
