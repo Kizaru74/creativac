@@ -2191,6 +2191,7 @@ async function showTicketPreviewModal(ventaId) {
     CURRENT_SALE_ID = ventaId; // Guardar el ID para el botón de imprimir
     openModal('modal-ticket-preview');
 }
+window.showTicketPreviewModal = showTicketPreviewModal;
 
 // ====================================================================
 // FUNCIÓN PARA IMPRIMIR TICKET USANDO QZ TRAY
