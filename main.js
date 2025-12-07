@@ -2192,12 +2192,6 @@ async function showTicketPreviewModal(ventaId) {
     openModal('modal-ticket-preview');
 }
 
-// 4. Función que llama a la impresión real
-function confirmAndPrintTicket(ventaId) {
-    closeModal('modal-ticket-preview');
-    printTicketQZ(ventaId); // Llama a tu función original para el envío crudo
-}
-
 // ====================================================================
 // FUNCIÓN PARA IMPRIMIR TICKET USANDO QZ TRAY
 // ====================================================================
@@ -2739,6 +2733,7 @@ document.getElementById('product-main-select')?.addEventListener('change', handl
 document.getElementById('subproduct-select')?.addEventListener('change', (e) => {
     updatePriceField(e.target.value); 
 });
+
 
 // Listener para el envío del formulario de registro de abonos
 document.getElementById('abono-client-form')?.addEventListener('submit', handleRecordAbono);
