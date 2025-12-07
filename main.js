@@ -2280,6 +2280,54 @@ async function showTicketPreviewModal(ventaId) {
 }
 window.showTicketPreviewModal = showTicketPreviewModal;
 
+// La función que se llama al hacer clic en el botón Imprimir
+async function printTicketQZ(ventaId) {
+    // 1. Obtener los datos de la venta (La misma consulta que usas en el modal)
+    const { data: sale, error } = await supabase
+        .from('ventas')
+        .select(`*, clientes(name), detalle_ventas (quantity, price, subtotal, productos(name))`)
+        .eq('venta_id', ventaId)
+        .single();
+    
+    if (error || !sale) {
+        console.error('Error al obtener datos para impresión:', error?.message);
+        return;
+    }
+
+    // 2. Generar el ticket en texto plano
+    // Utilizamos la función que acabamos de crear:
+    const ticketText = generateTextTicket(sale); 
+
+    // 3. Imprimir usando QZ Tray
+    if (!qz.websocket.isActive()) {
+        alert("QZ Tray no está conectado. Por favor, asegúrate de que esté corriendo y recarga la página.");
+        return;
+    }
+
+    try {
+        // Enviar el contenido del ticket
+        const data = [
+            // El formato 'raw' envía el texto directamente a la impresora
+            { type: 'raw', data: ticketText },
+            // Comando para cortar el papel (necesario en la mayoría de las impresoras térmicas)
+            { type: 'raw', data: '\x1D\x56\x41\x00' } // ESC/POS Comando: GS V 0 (Full Cut)
+        ];
+
+        // 💡 CRÍTICO: Modifica 'Mi Impresora de Tickets' con el nombre de tu impresora 
+        const config = qz.configs.create('Mi Impresora de Tickets', { 
+             encoding: '858', // Codificación de caracteres para manejar tildes (Latin-1)
+             // Puedes ajustar más settings aquí, como el margen o la densidad
+        });
+
+        await qz.print(config, data);
+        console.log('Ticket enviado a la impresora correctamente.');
+
+    } catch (e) {
+        alert('Error de impresión con QZ Tray. Revisa la consola para más detalles.');
+        console.error(e);
+    }
+}
+
 // ====================================================================
 // UTILIDADES/CARGAS
 // ====================================================================
@@ -2529,6 +2577,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         loadDashboardData(); 
     });
+
+    // Ejemplo en el código del botón de imprimir ticket:
+document.getElementById('print-ticket-btn')?.addEventListener('click', () => {
+    // Asumiendo que CURRENT_SALE_ID se establece en showTicketPreviewModal
+    printTicketQZ(CURRENT_SALE_ID);
+});
     
     //Listener reportes de mes
     document.getElementById('open-monthly-report-btn')?.addEventListener('click', () => {
