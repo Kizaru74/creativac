@@ -1073,10 +1073,7 @@ async function handleViewClientDebt(clientId) {
     }
 
     // 2. Obtener todas las transacciones (ventas y abonos)
-    try {
-        // 🛑 MODIFICACIÓN CRÍTICA EN EL SELECT:
-        // Necesitas el ID de la venta asociada (venta_id)
-        // y anidar la consulta a la tabla 'ventas' para obtener los 'venta_items'.
+try {
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select(`
@@ -1085,117 +1082,18 @@ async function handleViewClientDebt(clientId) {
                 type, 
                 amount, 
                 client_id,
-                // ASUNCIÓN: 'transacciones_deuda' tiene una FK llamada 'venta_id'
                 venta_id, 
-                // CRÍTICO: Anidar la información de la venta para obtener los items
-                venta_id ( // Usamos la FK 'venta_id' para hacer el join
+                venta_id ( 
                     venta_items (
                         product_id, 
                         quantity
                     )
                 )
-            `)
+            `) // 🛑 IMPORTANTE: ¡NO HAY COMENTARIOS AQUÍ DENTRO!
             .eq('client_id', clientId)
-            .order('created_at', { ascending: true }); // Orden ascendente para calcular el saldo cronológicamente
-
+            .order('created_at', { ascending: true }); 
+            
         if (error) throw error;
-        
-        const container = document.getElementById('client-transactions-body');
-        const totalDebtElement = document.getElementById('client-report-total-debt');
-        
-        if (!container || !totalDebtElement) return;
-        
-        // 3. Renderizar las transacciones
-        let currentDebt = 0;
-        let htmlContent = '';
-        
-        transactions.forEach(t => {
-            // Cálculo de la deuda
-            const isDebt = t.type === 'cargo_venta'; 
-            
-            if (isDebt) {
-                currentDebt += t.amount;
-            } else {
-                currentDebt -= t.amount; 
-            }
-
-            const displayDebt = currentDebt; 
-
-            // Etiquetado y Descripción
-            let typeLabel = '';
-            let typeDescription = '';
-            
-            switch (t.type) {
-                case 'cargo_venta':
-                    // 🛑 NUEVA LÓGICA: Mostrar los productos
-                    if (t.venta_id && t.venta_id.venta_items && t.venta_id.venta_items.length > 0) {
-                        
-                        // Generar la descripción con los productos vendidos
-                        // Se asume que allProductsMap (product_id -> name) está cargado globalmente
-                        const productList = t.venta_id.venta_items.map(item => {
-                            // Si no tienes allProductsMap cargado, aquí obtendrías el nombre.
-                            // Por ahora, usamos una variable global:
-                            const productName = allProductsMap[item.product_id] || `ID ${item.product_id}`; 
-                            return `${item.quantity} x ${productName}`;
-                        }).join(', ');
-                        
-                        typeLabel = `Venta: ${productList}`; // La nueva descripción detallada
-                        typeDescription = 'Venta que generó deuda.';
-                        
-                    } else {
-                        typeLabel = 'Venta (Cargo)'; // Fallback si no hay items o la relación es nula
-                        typeDescription = 'Venta que generó deuda.';
-                    }
-                    break;
-                case 'abono_inicial':
-                    typeLabel = 'Pago Inicial';
-                    typeDescription = 'Pago realizado al momento de la venta.';
-                    break;
-                case 'abono_posterior':
-                    typeLabel = 'Abono';
-                    typeDescription = 'Pago posterior a la venta.';
-                    break;
-                default:
-                    typeLabel = 'Movimiento';
-                    typeDescription = 'Movimiento de deuda.';
-            }
-
-            // 🛑 LÓGICA DEL BOTÓN "AÑADIR PRECIO" (Asegúrate de pasar el ID de la VENTA y no de la transacción si usas venta_id)
-            let actionButton = '';
-            const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
-            
-            if (t.type === 'cargo_venta' && amountIsZero && clientId && t.venta_id) {
-                actionButton = `
-                    <button onclick="handleViewSaleDetails('${t.venta_id}', '${clientId}')"
-                             class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
-                        Añadir Precio
-                    </button>
-                 `;
-            }
-
-            // Renderizado de la Fila
-            htmlContent += `
-                <tr>
-                    <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
-                    <td class="px-3 py-2 text-sm" title="${typeDescription}">${typeLabel} ${actionButton}</td>
-                    <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
-                        ${formatCurrency(t.amount)}
-                    </td>
-                    <td class="px-3 py-2 text-sm font-semibold">${formatCurrency(displayDebt)}</td>
-                </tr>
-            `;
-        });
-
-        // 4. Mostrar el reporte y abrir el modal
-        document.getElementById('client-report-name').textContent = client.name;
-        container.innerHTML = htmlContent;
-        
-        const finalDebt = currentDebt;
-        totalDebtElement.textContent = formatCurrency(finalDebt);
-        totalDebtElement.className = `font-bold ${finalDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
-        
-        openModal('modal-client-debt-report'); 
-
     } catch (e) {
         console.error('Error al cargar el reporte de deuda:', e);
         alert('Hubo un error al cargar el reporte de deuda del cliente.');
