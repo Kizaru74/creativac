@@ -775,26 +775,23 @@ async function getClientSalesSummary(clientId) {
     }
 }
 async function handleRecordAbono(e) {
-    // Es crucial prevenir el envío por defecto para manejarlo con JavaScript
     e.preventDefault(); 
-    
     if (!supabase) return;
 
     // 1. OBTENER DATOS DEL FORMULARIO
-    // Línea 725 es muy probable que esté aquí:
     const clientIdInput = document.getElementById('abono-client-id-input');
     const amountInput = document.getElementById('abono-amount');
     const methodInput = document.getElementById('abono-method');
     
-    // Si alguna de estas variables es null (por eso el TypeError),
-    // detén la ejecución y muestra un error.
     if (!clientIdInput || !amountInput || !methodInput) {
-        console.error("Error FATAL: No se encontraron los campos del formulario de abono. Revise los IDs en el HTML.");
+        console.error("Error FATAL: No se encontraron los campos del formulario de abono.");
         alert("Error interno: Faltan campos en el formulario. Contacte soporte.");
         return;
     }
     
-    const client_id = clientIdInput.value;
+    // Convertir IDs y montos
+    // Aseguramos que client_id sea un string si en la BD es bigint (para evitar errores de tipo)
+    const client_id = String(clientIdInput.value); 
     const amount = parseFloat(amountInput.value);
     const method = methodInput.value;
 
@@ -805,41 +802,36 @@ async function handleRecordAbono(e) {
 
     try {
         // 2. INSERTAR REGISTRO EN LA TABLA 'abonos'
-        // Esto crea el registro del abono y nos da el ID (abono_id).
-        const { data: abonoData, error: abonoError } = await supabase
+        // ✅ CORRECCIÓN CLAVE: Insertamos el monto y el método directamente.
+        const { error: abonoError } = await supabase
             .from('abonos')
             .insert({ 
                 client_id: client_id, 
                 fecha_abono: new Date().toISOString(),
-                // Se asume que no hay columna 'amount' en 'abonos'
-            })
-            .select('abono_id')
-            .single();
+                monto_abono: amount,    // <--- ¡AÑADIDO!
+                metodo_pago: method,    // <--- ¡AÑADIDO!
+                // ASUNCIÓN: Si necesitas distinguir abonos iniciales, podrías añadir
+                // tipo_abono: 'abono_posterior'
+            });
 
         if (abonoError) throw abonoError;
 
-        const abono_id = abonoData.abono_id;
-
-        // 3. INSERTAR REGISTRO EN LA TABLA 'pagos'
-        // Esto registra el monto y el método, vinculado al 'abono_id'
-        const { error: pagoError } = await supabase
-            .from('pagos')
-            .insert({
-                abono_id: abono_id, // Usamos el ID devuelto
-                amount: amount,
-                payment_method: method
-            });
-
-        if (pagoError) throw pagoError;
-
-        // 4. ÉXITO Y ACTUALIZACIÓN DE LA UI
+        // 3. ÉXITO Y ACTUALIZACIÓN DE LA UI
         alert('✅ Abono registrado exitosamente.');
         closeModal('modal-record-abono'); 
-        closeModal('modal-client-debt-report'); // Cierra el modal de reporte también
-
-        // CRÍTICO: Recargar la tabla principal para reflejar el cambio de deuda
-        await loadClientsTable('gestion'); 
-
+        
+        // No es necesario cerrar el modal de reporte, solo recargarlo.
+        // Si el modal de reporte está abierto, volvemos a llamar a la función para actualizar.
+        // Si el modal de reporte NO está abierto, solo recargamos la tabla principal.
+        const debtModal = document.getElementById('modal-client-debt-report');
+        if (debtModal && !debtModal.classList.contains('hidden') && viewingClientId) {
+            // Si el modal de deuda está abierto y tenemos el ID, lo recargamos.
+            await handleViewClientDebt(viewingClientId); 
+        } else {
+            // Si no, recargamos la tabla principal (como lo tenías).
+            await loadClientsTable('gestion'); 
+        }
+        
     } catch (e) {
         console.error('Error al registrar abono:', e.message || e);
         alert('Hubo un error al registrar el abono. Intente nuevamente.');
@@ -1072,10 +1064,8 @@ async function handleViewClientDebt(clientId) {
         return;
     }
 
-    // 2. Obtener todas las transacciones (ventas y abonos)
     try {
-        // 🛑 PASO 1: Consulta simplificada. Ya NO ANIDAMOS el join.
-        // Solo necesitamos que la columna venta_id exista en la respuesta.
+        // PASO 1: Consulta simplificada (SIN LÓGICA DE ÚLTIMO ABONO AQUÍ)
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select(`
@@ -1084,7 +1074,7 @@ async function handleViewClientDebt(clientId) {
                 type, 
                 amount, 
                 client_id,
-                venta_id  
+                venta_id
             `)
             .eq('client_id', clientId)
             .order('created_at', { ascending: true }); 
@@ -1095,15 +1085,11 @@ async function handleViewClientDebt(clientId) {
         const totalDebtElement = document.getElementById('client-report-total-debt');
         
         if (!container || !totalDebtElement) return;
+
         
-        // 3. Renderizar las transacciones
-        let currentDebt = 0;
-        let htmlContent = '';
-        
-        // Creamos un array de promesas para obtener los detalles de producto en paralelo
+        // PASO 2: Obtener los detalles de los productos (lógica de doble consulta)
         const transactionsWithDetails = await Promise.all(transactions.map(async t => {
             if (t.type === 'cargo_venta' && t.venta_id) {
-                // 🛑 PASO 2: Hacemos una consulta explícita y directa a la tabla 'venta_items'
                 const { data: saleDetails, error: detailError } = await supabase
                     .from('detalle_ventas')
                     .select('product_id, quantity')
@@ -1115,12 +1101,16 @@ async function handleViewClientDebt(clientId) {
                 }
                 return { ...t, product_details: saleDetails };
             }
-            return { ...t, product_details: [] }; // Abonos u otros no necesitan detalle
+            return { ...t, product_details: [] };
         }));
 
 
+        // 3. Renderizar transacciones y calcular la deuda
+        let currentDebt = 0;
+        let htmlContent = '';
+        
         transactionsWithDetails.forEach(t => {
-            // Cálculo de la deuda
+            
             const isDebt = t.type === 'cargo_venta'; 
             
             if (isDebt) {
@@ -1137,11 +1127,9 @@ async function handleViewClientDebt(clientId) {
             
             switch (t.type) {
                 case 'cargo_venta':
-                    // 🛑 NUEVA LÓGICA: Usamos los 'product_details' obtenidos
                     if (t.product_details && t.product_details.length > 0) {
                         
                         const productList = t.product_details.map(item => {
-                            // Usamos allProductsMap que está cargado globalmente
                             const productName = allProductsMap[item.product_id] || `ID ${item.product_id}`; 
                             return `${item.quantity} x ${productName}`;
                         }).join(', ');
@@ -1171,7 +1159,6 @@ async function handleViewClientDebt(clientId) {
             let actionButton = '';
             const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
             
-            // Usamos t.venta_id directamente para el botón
             if (t.type === 'cargo_venta' && amountIsZero && clientId && t.venta_id) {
                 actionButton = `
                     <button onclick="handleViewSaleDetails('${t.venta_id}', '${clientId}')"
@@ -1196,6 +1183,9 @@ async function handleViewClientDebt(clientId) {
 
         // 4. Mostrar el reporte y abrir el modal
         document.getElementById('client-report-name').textContent = client.name;
+        
+        // 🛑 LÓGICA DE ÚLTIMO PAGO ELIMINADA DE AQUÍ
+        
         container.innerHTML = htmlContent;
         
         const finalDebt = currentDebt;
