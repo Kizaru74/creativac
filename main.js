@@ -11,8 +11,9 @@ let currentSaleItems = [];
 let editingClientId = null;
 let editingProductId = null;
 let debtToPayId = null;
-let allClients = []; // 👈 ¡AÑADIR ESTA LÍNEA!
+let allClients = [];
 let allClientsMap = {};
+let allProductsMap = {};
 
 
 // ✅ CORRECCIÓN CRÍTICA: Inicializar Supabase directamente, fuera del try/catch.
@@ -2478,7 +2479,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAllClientsMap(); 
     await loadAllProductsMap(); // 👈 Añadir esta llamada
     await loadAllProductsMap();
-    
+
     // ...
 });
 
