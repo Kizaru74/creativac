@@ -11,7 +11,7 @@ let currentSaleItems = [];
 let editingClientId = null;
 let editingProductId = null;
 let debtToPayId = null;
-let allClients = []; // 👈 ¡AÑADIR ESTA LÍNEA!
+let allClients = [];
 let allClientsMap = {};
 
 
@@ -52,6 +52,12 @@ window.openModal = function(modalId) {
     if (modal) {
         modal.classList.add('flex'); 
         modal.classList.remove('hidden');
+
+        // 💡 LÓGICA CLAVE: Carga el reporte solo si es el modal correcto
+        if (modalId === 'modal-monthly-report') {
+            loadMonthlySalesReport(); 
+            // ⚠️ Opcional: También podrías llamar a initializeMonthSelector(); aquí si aún no lo has hecho
+        }
     }
 }
 
@@ -67,6 +73,19 @@ window.closeModal = function(modalId) {
 // ====================================================================
 // 3. AUTENTICACIÓN Y SESIÓN
 // ====================================================================
+
+async function init() {
+    console.log('Iniciando la aplicación...');
+    try {
+        await loadClients(); 
+        await loadProducts();
+    } catch (error) {
+        console.error("Error al cargar datos iniciales (clientes/productos):", error);
+    }
+    await loadExternalModal('ReportsMensuales.html');
+} // <-- Cierre de la función init()
+
+document.addEventListener('DOMContentLoaded', init); // <-- Listener
 
 async function checkUserSession() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -2006,18 +2025,36 @@ function openAbonoModal(clientId) {
 
 async function loadMonthlySalesReport() {
     
-    // 1. Obtener los contenedores (usando los IDs CORRECTOS del HTML)
+    // 1. Obtener los contenedores (¡Incluyendo los históricos!)
     const selector = document.getElementById('report-month-selector');
     const monthlyReportBody = document.getElementById('monthly-sales-report-body');
     const totalSalesSpan = document.getElementById('report-total-sales');
     const noDataMessage = document.getElementById('monthly-report-no-data');
 
-    // 🛑 CORRECCIÓN CRÍTICA: VERIFICACIÓN DE NULL
-    // Si alguno de los elementos no existe (porque el modal está cerrado), sal de la función.
-    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage) {
-        console.error("Error: Contenedores de Reporte Mensual ausentes. (Carga diferida OK)");
+    // 💡 NUEVOS CONTENEDORES
+    const historicalTotalSpan = document.getElementById('historical-total-sales');
+    const historicalDebtSpan = document.getElementById('historical-pending-debt');
+
+    // 🛑 CRÍTICO: VERIFICACIÓN DE NULL
+    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage || !historicalTotalSpan || !historicalDebtSpan) {
+        console.error("Error: Contenedores de Reporte Mensual/Histórico ausentes.");
         return; 
     }
+
+    // 🚀 PASO NUEVO: CARGAR Y MOSTRAR LOS TOTALES HISTÓRICOS
+    try {
+        const { historicalTotal, historicalDebt } = await loadHistoricalTotals();
+        
+        // Inyectamos los valores formateados
+        historicalTotalSpan.textContent = formatCurrency(historicalTotal);
+        historicalDebtSpan.textContent = formatCurrency(historicalDebt);
+        
+    } catch (e) {
+        console.error("Error al cargar datos históricos:", e);
+        historicalTotalSpan.textContent = 'Error';
+        historicalDebtSpan.textContent = 'Error';
+    }
+
 
     // Lógica para obtener startDate y endDate...
     const selectedMonthYear = selector ? selector.value : null;
@@ -2038,7 +2075,7 @@ async function loadMonthlySalesReport() {
     const isoStartDate = startDate.toISOString();
     const isoEndDate = endDate.toISOString();
 
-    // 2. CONSULTA A SUPABASE 
+    // 2. CONSULTA A SUPABASE (Mensual)
     const { data: sales, error } = await supabase
         .from('ventas')
         .select(`
@@ -2058,14 +2095,13 @@ async function loadMonthlySalesReport() {
         console.error('Error al cargar reporte de ventas:', error.message);
         alert('Error al cargar reporte de ventas. Consulte la consola.');
         
-        // La verificación de null ya nos protegió, pero usamos los elementos ahora.
         monthlyReportBody.innerHTML = '';
         totalSalesSpan.textContent = '$0.00';
         noDataMessage.classList.remove('hidden');
         return;
     }
 
-    // 3. CÁLCULO DE TOTALES Y RENDERIZADO
+    // 3. CÁLCULO DE TOTALES Y RENDERIZADO (Mensual)
     let grandTotal = 0;
     monthlyReportBody.innerHTML = ''; 
 
@@ -2081,7 +2117,7 @@ async function loadMonthlySalesReport() {
                 day: 'numeric'
             });
 
-            // CRÍTICO: Buscar el nombre del cliente en el mapa
+            // Asumiendo que 'allClientsMap' está cargado globalmente (como se ve en tu snippet)
             const clientName = allClientsMap[sale.client_id] || 'N/A'; 
 
             const row = monthlyReportBody.insertRow();
@@ -2103,14 +2139,14 @@ async function loadMonthlySalesReport() {
                     </div>
                 </td>
 
-              <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
-        <button 
-            data-venta-id="${sale.venta_id}"  
-            data-client-id="${sale.client_id}"  class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
-        >
-            Detalles
-        </button>
-    </td>
+                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+            <button 
+                data-venta-id="${sale.venta_id}"  
+                data-client-id="${sale.client_id}"  class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+            >
+                Detalles
+            </button>
+        </td>
             `;
         });
     } else {
@@ -2164,6 +2200,38 @@ function initializeMonthSelector() {
         selector.appendChild(option);
     }
 }
+
+async function loadHistoricalTotals() {
+    // 1. Obtener la suma total de todas las ventas (Total Histórico)
+    const { data: salesSum, error: sumError } = await supabase
+        .from('ventas')
+        .select('total_amount'); 
+
+    let historicalTotal = 0;
+    if (salesSum) {
+        // Sumamos el total_amount de todas las ventas
+        historicalTotal = salesSum.reduce((sum, sale) => sum + sale.total_amount, 0);
+    }
+
+    // 2. Obtener la suma total del saldo pendiente (Deuda Pendiente)
+    const { data: debtSum, error: debtError } = await supabase
+        .from('ventas')
+        .select('saldo_pendiente');
+
+    let historicalDebt = 0;
+    if (debtSum) {
+        // Sumamos el saldo_pendiente de todas las ventas
+        historicalDebt = debtSum.reduce((sum, sale) => sum + sale.saldo_pendiente, 0);
+    }
+    
+    if (sumError || debtError) {
+        console.error('Error al cargar totales históricos:', sumError?.message || debtError?.message);
+    }
+
+    return { historicalTotal, historicalDebt };
+}
+
+//TICKETS
 
 function generateTextTicket(sale) {
     const TICKET_WIDTH = 32;
@@ -2331,6 +2399,44 @@ async function printTicketQZ(ventaId) {
 // ====================================================================
 // UTILIDADES/CARGAS
 // ====================================================================
+
+/**
+ * Carga el contenido de un archivo HTML externo e inyecta el modal en el DOM.
+ * Esto debe ejecutarse al inicio de la aplicación.
+ */
+async function loadExternalModal(fileName, containerId = 'app-content') {
+    try {
+        const response = await fetch(fileName);
+        if (!response.ok) {
+            throw new Error(`No se pudo cargar el archivo: ${fileName}`);
+        }
+        
+        const htmlContent = await response.text();
+        
+        // Asumimos que quieres inyectar el modal al final del body
+        // 💡 NOTA: Si tienes un contenedor principal para todos los modales, usa su ID aquí.
+        const targetContainer = document.body; 
+        
+        // Crea un div temporal para contener el HTML y evitar problemas de parsing
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        
+        // Iinyecta el modal completo en el DOM
+        // Tu modal debe ser el único contenido en ReportsMensuales.html
+        while (tempDiv.firstChild) {
+            targetContainer.appendChild(tempDiv.firstChild);
+        }
+        
+        console.log(`Modal ${fileName} cargado exitosamente.`);
+        
+        // 💡 IMPORTANTE: Si ya habías cargado la lista de meses antes,
+        // asegúrate de que el selector de mes ya esté en el DOM para poder llenarlo.
+        initializeMonthSelector();
+        
+    } catch (error) {
+        console.error("Error al cargar modal externo:", error);
+    }
+}
 
 async function loadAllClientsMap() {
         const { data: clients, error } = await supabase
@@ -2583,12 +2689,7 @@ document.getElementById('print-ticket-btn')?.addEventListener('click', () => {
     // Asumiendo que CURRENT_SALE_ID se establece en showTicketPreviewModal
     printTicketQZ(CURRENT_SALE_ID);
 });
-    
-    //Listener reportes de mes
-    document.getElementById('open-monthly-report-btn')?.addEventListener('click', () => {
-        loadMonthlySalesReport(); 
-        openModal('modal-monthly-report');
-    });
+
 
 // Admin clientes
 document.getElementById('admin-clients-btn')?.addEventListener('click', async () => {
