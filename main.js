@@ -1291,31 +1291,93 @@ async function handleViewSaleDetails(transactionId, clientId) {
             });
         }
 
-        // =======================================================
-        // 5. LÓGICA DE EDICIÓN CONDICIONAL PARA VENTAS CERO
-        // =======================================================
-        const editSection = document.getElementById('sale-edit-section');
-        const amountIsZero = Math.abs(parseFloat(sale.total_amount)) < 0.01;
-        
-        // 🛑 CAMBIO CLAVE 2: La sección solo se muestra si:
-        // 1. El monto total es CERO.
-        // 2. El método de pago inicial es 'Deuda'.
-        // 3. La venta tiene ítems.
-        if (amountIsZero && sale.metodo_pago === 'Deuda' && items.length > 0) {
-            editSection.classList.remove('hidden');
-            const firstItem = items[0]; 
-            
-            document.getElementById('sale-edit-transaction-id').value = `${sale.venta_id}|${firstItem.detalle_id}|${clientId}`;
-            document.getElementById('sale-edit-price').value = firstItem.price.toFixed(2);
-        } else {
-            editSection.classList.add('hidden');
-        }
+        // 5. LÓGICA CONDICIONAL: Mostrar Edición o Abono
+const saleEditSection = document.getElementById('sale-edit-section');
+const paymentFormContainer = document.getElementById('register-payment-form'); 
 
-        openModal('modal-detail-sale');
+// CRÍTICO: Una venta a $0 es editable. Debe ser total_amount <= 0.01 Y saldo_pendiente < 0.01.
+// NOTA: Asumimos que la venta a $0 solo tiene un ítem de servicio.
+const isZeroSalePending = (parseFloat(sale.total_amount) < 0.01) && (parseFloat(sale.saldo_pendiente) < 0.01);
+
+if (isZeroSalePending) {
+    saleEditSection.classList.remove('hidden');
+    paymentFormContainer.classList.add('hidden'); // 👈 Oculta el formulario de Abono
+
+    // 🚨 PASO CRÍTICO: Necesitas el ID del detalle de venta (el ítem del servicio)
+    // Asegúrate de que tu consulta 'detalle_ventas' seleccione el 'detalle_id'.
+    const itemToEdit = (items || [])[0];
+
+    document.getElementById('sale-edit-transaction-id').value = sale.venta_id; 
+
+    // DEBES AÑADIR ESTE INPUT OCULTO A TU HTML: <input type="hidden" id="sale-edit-detail-id">
+    if (itemToEdit && itemToEdit.detalle_id) { 
+        document.getElementById('sale-edit-detail-id').value = itemToEdit.detalle_id; 
+        document.getElementById('sale-edit-price').value = ''; // Limpiar el campo de precio
+    } else {
+        // Si no hay detalle, volvemos al estado normal
+        saleEditSection.classList.add('hidden');
+        paymentFormContainer.classList.remove('hidden');
+    }
+
+} else {
+    saleEditSection.classList.add('hidden');
+    paymentFormContainer.classList.remove('hidden'); // 👈 Muestra el formulario de Abono
+}
+
+// 6. Finalmente, abrir el modal.
+openModal('modal-detail-sale');
 
     } catch (e) {
         console.error('Error al cargar detalles de venta:', e);
         alert('Hubo un error al cargar los detalles de la venta.');
+    }
+}
+// La función llamada por el botón "Actualizar Precio"
+window.handleSaveNewPrice = async function() { 
+    const ventaId = document.getElementById('sale-edit-transaction-id')?.value;
+    const detalleId = document.getElementById('sale-edit-detail-id')?.value; // Lectura del nuevo campo
+    const newPrice = parseFloat(document.getElementById('sale-edit-price')?.value);
+    
+    // Asumiendo que 'viewingClientId' es una variable global establecida por handleViewSaleDetails
+    const clientId = viewingClientId; 
+
+    if (!ventaId || !detalleId || isNaN(newPrice) || newPrice <= 0 || !clientId) {
+        alert("Faltan datos o el monto es inválido.");
+        return;
+    }
+
+    try {
+        // 1. Actualizar Detalle de Venta (detalle_ventas)
+        const { error: detailError } = await supabase
+            .from('detalle_ventas')
+            // Asumiendo que Quantity es 1 o que el nuevo precio ya está ajustado
+            .update({ price: newPrice, subtotal: newPrice }) 
+            .eq('detalle_id', detalleId);
+
+        if (detailError) throw detailError;
+
+        // 2. Actualizar Venta Principal (ventas)
+        const { error: saleError } = await supabase
+            .from('ventas')
+            .update({ 
+                total_amount: newPrice, 
+                saldo_pendiente: newPrice 
+            })
+            .eq('venta_id', ventaId);
+
+        if (saleError) throw saleError;
+
+        alert(`¡Precio de Venta #${ventaId} actualizado a ${formatCurrency(newPrice)}!`);
+        
+        closeModal('modal-detail-sale');
+        
+        // Recargar el dashboard y la tabla de clientes para reflejar la deuda actualizada.
+        await loadDashboardData(); 
+        await loadClientsTable('gestion'); 
+
+    } catch (e) {
+        console.error('Error al guardar el nuevo precio:', e);
+        alert('Error al guardar el nuevo precio.');
     }
 }
 

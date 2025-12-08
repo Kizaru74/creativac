@@ -233,6 +233,8 @@
         </div>
     </div>
 
+
+
 <div id="edit-client-modal" class="modal-overlay hidden fixed inset-0 z-[70] items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-auto p-6">
         <div class="flex justify-between items-center border-b pb-3 mb-4">
@@ -554,7 +556,7 @@
 <div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-[60] flex items-center justify-center bg-gray-900 bg-opacity-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 relative">
     
-                <div class="flex justify-between items-center border-b pb-3 mb-4">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
             <h3 class="text-xl font-bold">Detalle de Venta: <span id="detail-sale-id">#N/A</span></h3>
         
             <div class="flex items-center space-x-3"> 
@@ -618,8 +620,7 @@
             
                 <div class="flex gap-4 items-end">
                     <input type="hidden" id="sale-edit-transaction-id">
-                
-                    <div class="flex-grow">
+                    <input type="hidden" id="sale-edit-detail-id"> <div class="flex-grow">
                         <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
                         <input 
                             type="number" 
@@ -660,7 +661,7 @@
                 </button>
             </form>
         </div> 
-            </div>
+    </div>
 </div>
 
 <div id="modal-monthly-report" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
