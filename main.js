@@ -1204,7 +1204,7 @@ async function handleViewClientDebt(clientId) {
     }
 }
 
-async function handleViewSaleDetails(transactionId, clientId) {
+window.handleViewSaleDetails = async function(transactionId, clientId) {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
