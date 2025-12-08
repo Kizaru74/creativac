@@ -2419,7 +2419,7 @@ async function printTicketQZ(ventaId) {
         ];
 
         // 💡 CRÍTICO: Modifica 'Mi Impresora de Tickets' con el nombre de tu impresora 
-        const config = qz.configs.create('Mi Impresora de Tickets', { 
+        const config = qz.configs.create('XP-58 (copy 1)', { 
              encoding: '858', // Codificación de caracteres para manejar tildes (Latin-1)
              // Puedes ajustar más settings aquí, como el margen o la densidad
         });
