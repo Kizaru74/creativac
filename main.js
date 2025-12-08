@@ -1084,7 +1084,7 @@ async function handleViewClientDebt(clientId) {
                 type, 
                 amount, 
                 client_id,
-                venta_id    // ✅ CLAVE: SOLO seleccionamos el ID aquí
+                venta_id  
             `)
             .eq('client_id', clientId)
             .order('created_at', { ascending: true }); 
