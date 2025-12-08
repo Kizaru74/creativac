@@ -1381,6 +1381,71 @@ window.handleSaveNewPrice = async function() {
     }
 }
 
+// ====================================================================
+// FUNCIÓN PARA ACTUALIZAR PRECIO DE VENTA A $0 (handleUpdateSalePrice)
+// ====================================================================
+window.handleUpdateSalePrice = async function() { 
+    if (!supabase) {
+        alert("Error: Supabase no está inicializado.");
+        return;
+    }
+
+    // 1. Lectura de IDs y Precio desde el Modal
+    const ventaId = document.getElementById('sale-edit-transaction-id')?.value;
+    const detalleId = document.getElementById('sale-edit-detail-id')?.value; // CRÍTICO: El campo que añadimos
+    const newPriceStr = document.getElementById('sale-edit-price')?.value;
+    
+    // Asumimos que 'viewingClientId' es global y fue establecido por handleViewSaleDetails
+    const clientId = viewingClientId; 
+
+    const newPrice = parseFloat(newPriceStr);
+
+    if (!ventaId || !detalleId || isNaN(newPrice) || newPrice <= 0 || !clientId) {
+        alert("Por favor, ingrese un monto válido y asegúrese de que la venta se cargó correctamente.");
+        return;
+    }
+
+    try {
+        // 🚨 Transacción de Actualización:
+        
+        // 1. ACTUALIZAR DETALLE DE VENTA (detalle_ventas)
+        // Se asume cantidad 1, por lo que price y subtotal son iguales al nuevo monto total
+        const { error: detailError } = await supabase
+            .from('detalle_ventas')
+            .update({ price: newPrice, subtotal: newPrice }) 
+            .eq('detalle_id', detalleId);
+
+        if (detailError) throw detailError;
+
+        // 2. ACTUALIZAR VENTA PRINCIPAL (ventas)
+        // total_amount y saldo_pendiente se actualizan al nuevo precio (ya que no hubo pago inicial)
+        const { error: saleError } = await supabase
+            .from('ventas')
+            .update({ 
+                total_amount: newPrice, 
+                saldo_pendiente: newPrice 
+            })
+            .eq('venta_id', ventaId);
+
+        if (saleError) throw saleError;
+
+        alert(`¡Precio de Venta #${ventaId} actualizado con éxito a ${formatCurrency(newPrice)}! El saldo pendiente es ahora ${formatCurrency(newPrice)}.`);
+        
+        // 3. RECARGA Y CIERRE
+        closeModal('modal-detail-sale');
+        
+        // Refrescar las vistas de deuda y la tabla principal
+        await loadClientsTable('gestion'); // Asumiendo que esta función refresca el listado
+        
+        // Si el modal de Deuda del Cliente estaba abierto detrás, deberías recargarlo:
+        // await handleViewClientDebt(clientId); // Descomenta si lo necesitas
+
+    } catch (e) {
+        console.error('Error al guardar el nuevo precio:', e);
+        alert('Error al guardar el nuevo precio. Verifique la consola.');
+    }
+}
+
 async function loadClientsTable(mode = 'gestion') {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
