@@ -112,58 +112,6 @@ async function handleLogout() {
 // 4. LÓGICA DEL DASHBOARD: CARGA DE DATOS
 // ====================================================================
 
-async function loadTotals() {
-    const filterInput = document.getElementById('sales-month-filter');
-    const filterStatus = document.getElementById('filter-status');
-    const monthFilterValue = filterInput?.value;
-    const { start: startDate, end: endDate } = getMonthDateRange(monthFilterValue);
-
-    let salesQuery = supabase
-        .from('ventas')
-        .select('total_amount');
-
-    let statusText = 'Total histórico';
-
-    if (startDate && endDate) {
-        salesQuery = salesQuery
-            .gte('created_at', startDate)
-            .lt('created_at', endDate);
-        
-        const reportMonthYear = new Date(startDate).toLocaleDateString('es-ES', { 
-            year: 'numeric', 
-            month: 'long' 
-        });
-        statusText = `Total del mes de ${reportMonthYear}`; 
-    }
-
-    const { data: salesData, error: salesError } = await salesQuery;
-
-    if (salesError) {
-        console.error('Error al cargar ventas:', salesError);
-        document.getElementById('total-sales').textContent = formatCurrency(0);
-        if (filterStatus) filterStatus.textContent = 'Error al cargar';
-        return;
-    }
-
-    const totalSales = salesData.reduce((sum, sale) => sum + sale.total_amount, 0);
-    document.getElementById('total-sales').textContent = formatCurrency(totalSales);
-    if (filterStatus) filterStatus.textContent = statusText;
-
-    const { data: debtData, error: debtError } = await supabase
-        .from('ventas')
-        .select('saldo_pendiente')
-        .gt('saldo_pendiente', 0);
-
-    if (debtError) {
-        console.error('Error al cargar deudas:', debtError);
-        document.getElementById('total-debt').textContent = formatCurrency(0);
-        return;
-    }
-
-    const totalDebt = debtData.reduce((sum, debt) => sum + debt.saldo_pendiente, 0);
-    document.getElementById('total-debt').textContent = formatCurrency(totalDebt);
-}
-
 async function loadDebts() {
     try {
         const { data, error } = await supabase
@@ -316,7 +264,6 @@ function openSaleDetailModal(saleId) {
 }
 
 async function loadDashboardData() {
-    await loadTotals();
     await loadDebts();
     await loadRecentSales();
     await loadClientsTable('gestion');
@@ -2493,9 +2440,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 2. Continúa con tus llamadas iniciales
-    checkUserSession();
     await loadProductsData();
     await loadAllClientsMap();
+    checkUserSession();
+
+    // 3. Inicializar el selector con los meses (esto selecciona el mes actual)
+    initializeMonthSelector(); 
+
+    // 4. (Tu código) Establecer el Listener en el selector
+    const selector = document.getElementById('report-month-selector');
+    if (selector) {
+        // Al cambiar el mes, se ejecuta loadMonthlySalesReport
+        selector.addEventListener('change', loadMonthlySalesReport);
+    } 
+    loadMonthlySalesReport();
+
     
     // 3. LISTENERS DE EVENTOS Y OTRAS INICIALIZACIONES
     // --------------------------------------------------
