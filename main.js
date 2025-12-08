@@ -1073,7 +1073,9 @@ async function handleViewClientDebt(clientId) {
     }
 
     // 2. Obtener todas las transacciones (ventas y abonos)
-try {
+    try {
+        // 🛑 PASO 1: Consulta simplificada. Ya NO ANIDAMOS el join.
+        // Solo necesitamos que la columna venta_id exista en la respuesta.
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select(`
@@ -1082,18 +1084,126 @@ try {
                 type, 
                 amount, 
                 client_id,
-                venta_id, 
-                venta_id ( 
-                    venta_items (
-                        product_id, 
-                        quantity
-                    )
-                )
-            `) // 🛑 IMPORTANTE: ¡NO HAY COMENTARIOS AQUÍ DENTRO!
+                venta_id    // ✅ CLAVE: SOLO seleccionamos el ID aquí
+            `)
             .eq('client_id', clientId)
             .order('created_at', { ascending: true }); 
-            
+
         if (error) throw error;
+        
+        const container = document.getElementById('client-transactions-body');
+        const totalDebtElement = document.getElementById('client-report-total-debt');
+        
+        if (!container || !totalDebtElement) return;
+        
+        // 3. Renderizar las transacciones
+        let currentDebt = 0;
+        let htmlContent = '';
+        
+        // Creamos un array de promesas para obtener los detalles de producto en paralelo
+        const transactionsWithDetails = await Promise.all(transactions.map(async t => {
+            if (t.type === 'cargo_venta' && t.venta_id) {
+                // 🛑 PASO 2: Hacemos una consulta explícita y directa a la tabla 'venta_items'
+                const { data: saleDetails, error: detailError } = await supabase
+                    .from('venta_items')
+                    .select('product_id, quantity')
+                    .eq('venta_id', t.venta_id);
+
+                if (detailError) {
+                    console.error("Error al obtener detalle de venta:", detailError);
+                    return { ...t, product_details: [] };
+                }
+                return { ...t, product_details: saleDetails };
+            }
+            return { ...t, product_details: [] }; // Abonos u otros no necesitan detalle
+        }));
+
+
+        transactionsWithDetails.forEach(t => {
+            // Cálculo de la deuda
+            const isDebt = t.type === 'cargo_venta'; 
+            
+            if (isDebt) {
+                currentDebt += t.amount;
+            } else {
+                currentDebt -= t.amount; 
+            }
+
+            const displayDebt = currentDebt; 
+
+            // Etiquetado y Descripción
+            let typeLabel = '';
+            let typeDescription = '';
+            
+            switch (t.type) {
+                case 'cargo_venta':
+                    // 🛑 NUEVA LÓGICA: Usamos los 'product_details' obtenidos
+                    if (t.product_details && t.product_details.length > 0) {
+                        
+                        const productList = t.product_details.map(item => {
+                            // Usamos allProductsMap que está cargado globalmente
+                            const productName = allProductsMap[item.product_id] || `ID ${item.product_id}`; 
+                            return `${item.quantity} x ${productName}`;
+                        }).join(', ');
+                        
+                        typeLabel = `Venta: ${productList}`; 
+                        typeDescription = 'Venta que generó deuda.';
+                        
+                    } else {
+                        typeLabel = 'Venta (Cargo)'; 
+                        typeDescription = 'Venta que generó deuda.';
+                    }
+                    break;
+                case 'abono_inicial':
+                    typeLabel = 'Pago Inicial';
+                    typeDescription = 'Pago realizado al momento de la venta.';
+                    break;
+                case 'abono_posterior':
+                    typeLabel = 'Abono';
+                    typeDescription = 'Pago posterior a la venta.';
+                    break;
+                default:
+                    typeLabel = 'Movimiento';
+                    typeDescription = 'Movimiento de deuda.';
+            }
+
+            // Lógica del botón "Añadir Precio"
+            let actionButton = '';
+            const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
+            
+            // Usamos t.venta_id directamente para el botón
+            if (t.type === 'cargo_venta' && amountIsZero && clientId && t.venta_id) {
+                actionButton = `
+                    <button onclick="handleViewSaleDetails('${t.venta_id}', '${clientId}')"
+                             class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
+                        Añadir Precio
+                    </button>
+                 `;
+            }
+
+            // Renderizado de la Fila
+            htmlContent += `
+                <tr>
+                    <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
+                    <td class="px-3 py-2 text-sm" title="${typeDescription}">${typeLabel} ${actionButton}</td>
+                    <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
+                        ${formatCurrency(t.amount)}
+                    </td>
+                    <td class="px-3 py-2 text-sm font-semibold">${formatCurrency(displayDebt)}</td>
+                </tr>
+            `;
+        });
+
+        // 4. Mostrar el reporte y abrir el modal
+        document.getElementById('client-report-name').textContent = client.name;
+        container.innerHTML = htmlContent;
+        
+        const finalDebt = currentDebt;
+        totalDebtElement.textContent = formatCurrency(finalDebt);
+        totalDebtElement.className = `font-bold ${finalDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
+        
+        openModal('modal-client-debt-report'); 
+
     } catch (e) {
         console.error('Error al cargar el reporte de deuda:', e);
         alert('Hubo un error al cargar el reporte de deuda del cliente.');
@@ -2375,7 +2485,6 @@ async function loadAllProductsMap() {
 document.addEventListener('DOMContentLoaded', async () => {
     // ...
     await loadAllClientsMap(); 
-    await loadAllProductsMap(); // 👈 Añadir esta llamada
     await loadAllProductsMap();
 
     // ...
