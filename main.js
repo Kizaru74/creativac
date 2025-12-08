@@ -1054,153 +1054,140 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
 // Variable global para almacenar el ID del cliente cuya deuda estamos viendo
 let viewingClientId = null; 
 
-async function handleViewClientDebt(clientId) {
+// ====================================================================
+// FUNCIÓN PARA VER EL HISTORIAL DE DEUDA DEL CLIENTE (AJUSTADA AL HTML)
+// ====================================================================
+
+window.handleViewClientDebt = async function(clientId) {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
     }
     
-    viewingClientId = clientId; 
-    
-    const client = allClients.find(c => c.client_id.toString() === clientId.toString());
-    if (!client) {
-        console.error("Cliente no encontrado en allClients.");
-        return;
-    }
+    // Asignamos el ID del cliente actual a una variable global
+    window.viewingClientId = clientId;
 
     try {
-        // PASO 1: Consulta simplificada (SIN LÓGICA DE ÚLTIMO ABONO AQUÍ)
-        const { data: transactions, error } = await supabase
-            .from('transacciones_deuda') 
-            .select(`
-                transaction_id, 
-                created_at, 
-                type, 
-                amount, 
-                client_id,
-                venta_id
-            `)
+        // 1. OBTENER DATOS DEL CLIENTE
+        const client = allClients.find(c => c.client_id.toString() === clientId.toString());
+        if (!client) {
+            console.error("Cliente no encontrado para ID:", clientId);
+            alert("Error: Cliente no encontrado.");
+            return;
+        }
+
+        // 2. OBTENER EL HISTORIAL DE TRANSACCIONES (VIEW: transacciones_deuda)
+        const { data: history, error: historyError } = await supabase
+            .from('transacciones_deuda')
+            .select(`*`) // venta_id, created_at, amount, type (cargo_venta o abono), description, metodo_pago
             .eq('client_id', clientId)
-            .order('created_at', { ascending: true }); 
+            .order('created_at', { ascending: true }); // CRÍTICO: Orden ascendente
 
-        if (error) throw error;
+        if (historyError) throw historyError;
+
+        // 3. INYECCIÓN DE DATOS Y CÁLCULO DEL SALDO ACUMULADO
         
-        const container = document.getElementById('client-transactions-body');
-        const totalDebtElement = document.getElementById('client-report-total-debt');
+        // 🚨 IDs AJUSTADOS AL HTML:
+        document.getElementById('client-report-name').textContent = client.name; // <span id="client-report-name">
         
-        if (!container || !totalDebtElement) return;
-
+        // Asumimos que el formulario de abono está en otro modal o sección
+        // Si tienes un input oculto para el ID del cliente, puedes llenarlo aquí:
+        // document.getElementById('abono-client-id').value = clientId; 
         
-        // PASO 2: Obtener los detalles de los productos (lógica de doble consulta)
-        const transactionsWithDetails = await Promise.all(transactions.map(async t => {
-            if (t.type === 'cargo_venta' && t.venta_id) {
-                const { data: saleDetails, error: detailError } = await supabase
-                    .from('detalle_ventas')
-                    .select('product_id, quantity')
-                    .eq('venta_id', t.venta_id);
-
-                if (detailError) {
-                    console.error("Error al obtener detalle de venta:", detailError);
-                    return { ...t, product_details: [] };
-                }
-                return { ...t, product_details: saleDetails };
-            }
-            return { ...t, product_details: [] };
-        }));
-
-
-        // 3. Renderizar transacciones y calcular la deuda
-        let currentDebt = 0;
-        let htmlContent = '';
+        const historyBody = document.getElementById('client-transactions-body'); // <tbody id="client-transactions-body">
+        historyBody.innerHTML = '';
         
-        transactionsWithDetails.forEach(t => {
+        let currentRunningBalance = 0; 
+        
+        // Iteramos sobre el historial
+        (history || []).forEach(transaction => {
+            const amountValue = parseFloat(transaction.amount);
+            let amountDisplay = '';
+            let transactionDescription = '';
+            let amountClass = '';
             
-            const isDebt = t.type === 'cargo_venta'; 
-            
-            if (isDebt) {
-                currentDebt += t.amount;
+            // Determinar si es un CARGO (Venta) o un ABONO (Pago)
+            if (transaction.type === 'cargo_venta') {
+                // Es un cargo (Aumenta la deuda, se muestra positivo)
+                currentRunningBalance += amountValue;
+                transactionDescription = `Venta: ${transaction.description || 'Producto/Servicio'}`;
+                amountDisplay = formatCurrency(amountValue); 
+                amountClass = 'text-red-600 font-bold';
             } else {
-                currentDebt -= t.amount; 
+                // Es un abono (Disminuye la deuda/aumenta el crédito)
+                currentRunningBalance -= amountValue;
+                
+                // Mostrar el abono como un valor negativo para el MONTO
+                amountDisplay = `-${formatCurrency(amountValue)}`; 
+                amountClass = 'text-green-600 font-bold';
+                
+                // Lógica para mejorar la descripción del abono
+                const metodoPago = transaction.metodo_pago ? ` (${transaction.metodo_pago})` : '';
+                
+                if (transaction.description && transaction.description.includes('Pago Inicial')) {
+                    transactionDescription = `Pago Inicial de Venta${metodoPago}`;
+                } else {
+                    transactionDescription = `Abono a Deuda${metodoPago}`;
+                }
             }
 
-            const displayDebt = currentDebt; 
+            // =========================================================
+            // Lógica para el Saldo Acumulado (Running Balance)
+            // =========================================================
 
-            // Etiquetado y Descripción
-            let typeLabel = '';
-            let typeDescription = '';
+            // Mostramos el valor absoluto del saldo
+            const absBalance = Math.abs(currentRunningBalance);
+            const runningBalanceDisplay = formatCurrency(absBalance);
+            let balanceClass = '';
+            let balancePrefix = '';
+
+            if (currentRunningBalance > 0.01) {
+                // Deuda pendiente (Rojo)
+                balanceClass = 'text-red-600 font-extrabold';
+            } else if (currentRunningBalance < -0.01) {
+                // Crédito a favor (Verde, se usa el signo negativo)
+                balanceClass = 'text-green-600 font-extrabold';
+                balancePrefix = '-';
+            } else {
+                // Saldado (Negro/Gris)
+                balanceClass = 'text-gray-700 font-extrabold';
+                balancePrefix = '';
+            }
             
-            switch (t.type) {
-                case 'cargo_venta':
-                    if (t.product_details && t.product_details.length > 0) {
-                        
-                        const productList = t.product_details.map(item => {
-                            const productName = allProductsMap[item.product_id] || `ID ${item.product_id}`; 
-                            return `${item.quantity} x ${productName}`;
-                        }).join(', ');
-                        
-                        typeLabel = `Venta: ${productList}`; 
-                        typeDescription = 'Venta que generó deuda.';
-                        
-                    } else {
-                        typeLabel = 'Venta (Cargo)'; 
-                        typeDescription = 'Venta que generó deuda.';
-                    }
-                    break;
-                case 'abono_inicial':
-                    typeLabel = 'Pago Inicial';
-                    typeDescription = 'Pago realizado al momento de la venta.';
-                    break;
-                case 'abono_posterior':
-                    typeLabel = 'Abono';
-                    typeDescription = 'Pago posterior a la venta.';
-                    break;
-                default:
-                    typeLabel = 'Movimiento';
-                    typeDescription = 'Movimiento de deuda.';
-            }
-
-            // Lógica del botón "Añadir Precio"
-            let actionButton = '';
-            const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
-            
-            if (t.type === 'cargo_venta' && amountIsZero && clientId && t.venta_id) {
-                actionButton = `
-                    <button onclick="handleViewSaleDetails('${t.venta_id}', '${clientId}')"
-                             class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
-                        Añadir Precio
-                    </button>
-                 `;
-            }
-
-            // Renderizado de la Fila
-            htmlContent += `
-                <tr>
-                    <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
-                    <td class="px-3 py-2 text-sm" title="${typeDescription}">${typeLabel} ${actionButton}</td>
-                    <td class="px-3 py-2 text-sm ${isDebt ? 'text-red-600' : 'text-green-600'}">
-                        ${formatCurrency(t.amount)}
-                    </td>
-                    <td class="px-3 py-2 text-sm font-semibold">${formatCurrency(displayDebt)}</td>
+            // 4. INYECCIÓN DEL HTML EN LA TABLA
+            historyBody.innerHTML += `
+                <tr class="hover:bg-gray-50 text-sm">
+                    <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(transaction.created_at)}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-gray-800">${transactionDescription}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-left ${amountClass}">${amountDisplay}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-left ${balanceClass}">${balancePrefix}${runningBalanceDisplay}</td>
                 </tr>
             `;
         });
+        
+        // 5. ACTUALIZAR DEUDA TOTAL y MOSTRAR MODAL
+        
+        // Usamos el valor final del saldo acumulado para la Deuda Total
+        const totalDebtDisplay = formatCurrency(Math.abs(currentRunningBalance));
+        const totalDebtElement = document.getElementById('client-report-total-debt');
 
-        // 4. Mostrar el reporte y abrir el modal
-        document.getElementById('client-report-name').textContent = client.name;
-        
-        // 🛑 LÓGICA DE ÚLTIMO PAGO ELIMINADA DE AQUÍ
-        
-        container.innerHTML = htmlContent;
-        
-        const finalDebt = currentDebt;
-        totalDebtElement.textContent = formatCurrency(finalDebt);
-        totalDebtElement.className = `font-bold ${finalDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
-        
+        if (currentRunningBalance > 0.01) {
+            totalDebtElement.textContent = totalDebtDisplay;
+            totalDebtElement.className = 'text-red-600 font-extrabold text-xl';
+        } else if (currentRunningBalance < -0.01) {
+            totalDebtElement.textContent = `-${totalDebtDisplay}`;
+            totalDebtElement.className = 'text-green-600 font-extrabold text-xl';
+        } else {
+             totalDebtElement.textContent = formatCurrency(0);
+             totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
+        }
+
+        // 🚨 ID DEL MODAL AJUSTADO:
         openModal('modal-client-debt-report'); 
-
+        
     } catch (e) {
-        console.error('Error al cargar el reporte de deuda:', e);
-        alert('Hubo un error al cargar el reporte de deuda del cliente.');
+        console.error('Error al cargar la deuda del cliente:', e);
+        alert('Hubo un error al cargar el historial de deuda.');
     }
 }
 
