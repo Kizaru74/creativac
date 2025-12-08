@@ -1063,11 +1063,8 @@ async function handleViewClientDebt(clientId) {
         return;
     }
     
-    // Guardar la ID del cliente que estamos viendo. Es crucial para recargar el reporte después de una edición.
     viewingClientId = clientId; 
     
-    // 1. Obtener los datos del cliente
-    // Se asume que allClients y viewingClientId están definidos globalmente.
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     if (!client) {
         console.error("Cliente no encontrado en allClients.");
@@ -1076,45 +1073,78 @@ async function handleViewClientDebt(clientId) {
 
     // 2. Obtener todas las transacciones (ventas y abonos)
     try {
+        // 🛑 MODIFICACIÓN CRÍTICA EN EL SELECT:
+        // Necesitas el ID de la venta asociada (venta_id)
+        // y anidar la consulta a la tabla 'ventas' para obtener los 'venta_items'.
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select(`
-                transaction_id, created_at, type, amount, client_id
+                transaction_id, 
+                created_at, 
+                type, 
+                amount, 
+                client_id,
+                // ASUNCIÓN: 'transacciones_deuda' tiene una FK llamada 'venta_id'
+                venta_id, 
+                // CRÍTICO: Anidar la información de la venta para obtener los items
+                venta_id ( // Usamos la FK 'venta_id' para hacer el join
+                    venta_items (
+                        product_id, 
+                        quantity
+                    )
+                )
             `)
             .eq('client_id', clientId)
             .order('created_at', { ascending: true }); // Orden ascendente para calcular el saldo cronológicamente
 
         if (error) throw error;
-         
+        
         const container = document.getElementById('client-transactions-body');
         const totalDebtElement = document.getElementById('client-report-total-debt');
-         
+        
         if (!container || !totalDebtElement) return;
-         
+        
         // 3. Renderizar las transacciones
         let currentDebt = 0;
         let htmlContent = '';
-         
+        
         transactions.forEach(t => {
             // Cálculo de la deuda
             const isDebt = t.type === 'cargo_venta'; 
-             
+            
             if (isDebt) {
                 currentDebt += t.amount;
             } else {
                 currentDebt -= t.amount; 
             }
 
-            // El saldo actual después de esta transacción
             const displayDebt = currentDebt; 
 
             // Etiquetado y Descripción
             let typeLabel = '';
             let typeDescription = '';
+            
             switch (t.type) {
                 case 'cargo_venta':
-                    typeLabel = 'Venta (Cargo)';
-                    typeDescription = 'Venta que generó deuda.';
+                    // 🛑 NUEVA LÓGICA: Mostrar los productos
+                    if (t.venta_id && t.venta_id.venta_items && t.venta_id.venta_items.length > 0) {
+                        
+                        // Generar la descripción con los productos vendidos
+                        // Se asume que allProductsMap (product_id -> name) está cargado globalmente
+                        const productList = t.venta_id.venta_items.map(item => {
+                            // Si no tienes allProductsMap cargado, aquí obtendrías el nombre.
+                            // Por ahora, usamos una variable global:
+                            const productName = allProductsMap[item.product_id] || `ID ${item.product_id}`; 
+                            return `${item.quantity} x ${productName}`;
+                        }).join(', ');
+                        
+                        typeLabel = `Venta: ${productList}`; // La nueva descripción detallada
+                        typeDescription = 'Venta que generó deuda.';
+                        
+                    } else {
+                        typeLabel = 'Venta (Cargo)'; // Fallback si no hay items o la relación es nula
+                        typeDescription = 'Venta que generó deuda.';
+                    }
                     break;
                 case 'abono_inicial':
                     typeLabel = 'Pago Inicial';
@@ -1129,22 +1159,20 @@ async function handleViewClientDebt(clientId) {
                     typeDescription = 'Movimiento de deuda.';
             }
 
-            // 🛑 LÓGICA DEL BOTÓN "AÑADIR PRECIO"
+            // 🛑 LÓGICA DEL BOTÓN "AÑADIR PRECIO" (Asegúrate de pasar el ID de la VENTA y no de la transacción si usas venta_id)
             let actionButton = '';
-            // Detección robusta de monto cero
             const amountIsZero = Math.abs(parseFloat(t.amount)) < 0.01; 
-             
-            // Genera el botón SOLO si es VENTA CERO y el ID del cliente es válido
-            if (t.type === 'cargo_venta' && amountIsZero && clientId) {
-                 actionButton = `
-                    <button onclick="handleViewSaleDetails('${t.transaction_id}', '${clientId}')"
-                            class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
+            
+            if (t.type === 'cargo_venta' && amountIsZero && clientId && t.venta_id) {
+                actionButton = `
+                    <button onclick="handleViewSaleDetails('${t.venta_id}', '${clientId}')"
+                             class="ml-2 px-2 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600 transition duration-150">
                         Añadir Precio
                     </button>
                  `;
             }
 
-            // Renderizado de la Fila (se usa actionButton en la columna de typeLabel)
+            // Renderizado de la Fila
             htmlContent += `
                 <tr>
                     <td class="px-3 py-2 text-sm">${formatDate(t.created_at)}</td>
@@ -1161,11 +1189,10 @@ async function handleViewClientDebt(clientId) {
         document.getElementById('client-report-name').textContent = client.name;
         container.innerHTML = htmlContent;
         
-        // Mostrar la deuda final
         const finalDebt = currentDebt;
         totalDebtElement.textContent = formatCurrency(finalDebt);
         totalDebtElement.className = `font-bold ${finalDebt > 0 ? 'text-red-600' : 'text-green-600'}`;
-         
+        
         openModal('modal-client-debt-report'); 
 
     } catch (e) {
@@ -2424,6 +2451,36 @@ async function loadAndRenderProducts() {
         `;
     });
 }
+
+async function loadAllProductsMap() {
+    console.log("Cargando mapa de productos...");
+    // 🛑 Usamos producto_id y name, según tu código.
+    const { data: products, error } = await supabase
+        .from('productos') // Asegúrate de que este es el nombre de tu tabla
+        .select('producto_id, name'); 
+
+    if (error) {
+        console.error("Error al cargar datos de productos para el mapa:", error);
+        return;
+    }
+
+    // Llenar el mapa: { 'ID_DEL_PRODUCTO': 'Nombre del Producto' }
+    allProductsMap = products.reduce((map, product) => {
+        map[product.producto_id] = product.name;
+        return map;
+    }, {});
+    console.log(`Mapa de ${products.length} productos cargado.`);
+}
+
+// LLAMADA CRÍTICA EN TU DOMContentLoaded:
+document.addEventListener('DOMContentLoaded', async () => {
+    // ...
+    await loadAllClientsMap(); 
+    await loadAllProductsMap(); // 👈 Añadir esta llamada
+    await loadAllProductsMap();
+    
+    // ...
+});
 
 // ====================================================================
 // ✅ NUEVO BLOQUE CRÍTICO DE INICIALIZACIÓN
