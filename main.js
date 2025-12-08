@@ -901,6 +901,8 @@ async function handleNewSale(e) {
         final_saldo_pendiente = 0;
     }
 
+    
+
     if (payment_method !== 'Deuda' && (final_paid_amount < 0 || final_paid_amount > total_amount)) {
          alert('El monto pagado es inválido.');
          return;
