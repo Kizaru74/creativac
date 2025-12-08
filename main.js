@@ -2400,11 +2400,7 @@ async function printTicketQZ(ventaId) {
 // UTILIDADES/CARGAS
 // ====================================================================
 
-/**
- * Carga el contenido de un archivo HTML externo e inyecta el modal en el DOM.
- * Esto debe ejecutarse al inicio de la aplicación.
- */
-async function loadExternalModal(fileName, containerId = 'app-content') {
+async function loadExternalModal(fileName) {
     try {
         const response = await fetch(fileName);
         if (!response.ok) {
@@ -2412,26 +2408,20 @@ async function loadExternalModal(fileName, containerId = 'app-content') {
         }
         
         const htmlContent = await response.text();
-        
-        // Asumimos que quieres inyectar el modal al final del body
-        // 💡 NOTA: Si tienes un contenedor principal para todos los modales, usa su ID aquí.
         const targetContainer = document.body; 
         
-        // Crea un div temporal para contener el HTML y evitar problemas de parsing
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
         
-        // Iinyecta el modal completo en el DOM
-        // Tu modal debe ser el único contenido en ReportsMensuales.html
         while (tempDiv.firstChild) {
             targetContainer.appendChild(tempDiv.firstChild);
         }
         
-        console.log(`Modal ${fileName} cargado exitosamente.`);
+        // 💡 CRÍTICO: El selector ahora existe, hay que llenarlo.
+        // Asume que tienes esta función definida para llenar el selector de mes.
+        initializeMonthSelector(); 
         
-        // 💡 IMPORTANTE: Si ya habías cargado la lista de meses antes,
-        // asegúrate de que el selector de mes ya esté en el DOM para poder llenarlo.
-        initializeMonthSelector();
+        console.log(`Modal ${fileName} cargado exitosamente.`);
         
     } catch (error) {
         console.error("Error al cargar modal externo:", error);
