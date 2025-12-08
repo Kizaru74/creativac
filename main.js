@@ -2005,21 +2005,59 @@ function openAbonoModal(clientId) {
 // ====================================================================
 
 async function loadMonthlySalesReport() {
-    
-    // 1. Obtener los contenedores (usando los IDs CORRECTOS del HTML)
+    // 1. Obtener los contenedores
     const selector = document.getElementById('report-month-selector');
     const monthlyReportBody = document.getElementById('monthly-sales-report-body');
     const totalSalesSpan = document.getElementById('report-total-sales');
     const noDataMessage = document.getElementById('monthly-report-no-data');
+    
+    // IDs de las nuevas tarjetas
+    const historicalTotalSpan = document.getElementById('historical-total-sales');
+    const totalDebtSpan = document.getElementById('total-debt');
 
-    // 🛑 CORRECCIÓN CRÍTICA: VERIFICACIÓN DE NULL
-    // Si alguno de los elementos no existe (porque el modal está cerrado), sal de la función.
-    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage) {
-        console.error("Error: Contenedores de Reporte Mensual ausentes. (Carga diferida OK)");
+    // 🛑 VERIFICACIÓN DE NULL
+    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage || !historicalTotalSpan || !totalDebtSpan) {
+        console.error("Error: Contenedores de Reporte Mensual ausentes o incompletos.");
         return; 
     }
 
-    // Lógica para obtener startDate y endDate...
+    // =======================================================
+    // ✅ CÁLCULOS GENERALES / HISTÓRICOS (SIN FILTRO DE FECHA)
+    // ESTOS VALORES NO CAMBIAN AL SELECCIONAR UN MES.
+    // =======================================================
+
+    // CÁLCULO 1: Total Histórico (Venta Bruta Total) -> #historical-total-sales
+    const { data: historicalSalesData, error: historicalError } = await supabase
+        .from('ventas')
+        .select('total_amount'); 
+
+    if (!historicalError && historicalSalesData) {
+        const historicalTotalSales = historicalSalesData.reduce((sum, sale) => sum + sale.total_amount, 0);
+        historicalTotalSpan.textContent = formatCurrency(historicalTotalSales);
+    } else {
+        console.error('Error al cargar Total Histórico:', historicalError?.message);
+        historicalTotalSpan.textContent = formatCurrency(0);
+    }
+
+    // CÁLCULO 2: Deuda Pendiente (Total Histórico) -> #total-debt
+    const { data: debtData, error: debtError } = await supabase
+        .from('ventas')
+        .select('saldo_pendiente')
+        .gt('saldo_pendiente', 0); // 👈 FILTRO CLAVE: Solo registros con saldo pendiente
+
+    if (!debtError && debtData) {
+        const totalDebt = debtData.reduce((sum, debt) => sum + debt.saldo_pendiente, 0);
+        totalDebtSpan.textContent = formatCurrency(totalDebt);
+    } else {
+        console.error('Error al cargar Deuda Pendiente:', debtError?.message);
+        totalDebtSpan.textContent = formatCurrency(0);
+    }
+
+    // =======================================================
+    // 2. CONSULTA Y CÁLCULO DEL MES SELECCIONADO (CON FILTRO DE FECHA)
+    // =======================================================
+    
+    // Lógica para obtener startDate y endDate del mes seleccionado...
     const selectedMonthYear = selector ? selector.value : null;
     let startDate, endDate;
 
@@ -2038,7 +2076,7 @@ async function loadMonthlySalesReport() {
     const isoStartDate = startDate.toISOString();
     const isoEndDate = endDate.toISOString();
 
-    // 2. CONSULTA A SUPABASE 
+    // Consulta de ventas filtrada por el mes
     const { data: sales, error } = await supabase
         .from('ventas')
         .select(`
@@ -2054,19 +2092,17 @@ async function loadMonthlySalesReport() {
         .lte('created_at', isoEndDate)
         .order('created_at', { ascending: false });
 
+    // ... (El resto de tu código de manejo de errores y renderizado de la tabla es correcto) ...
     if (error) {
-        console.error('Error al cargar reporte de ventas:', error.message);
-        alert('Error al cargar reporte de ventas. Consulte la consola.');
-        
-        // La verificación de null ya nos protegió, pero usamos los elementos ahora.
+        // ... (Tu manejo de error existente)
         monthlyReportBody.innerHTML = '';
         totalSalesSpan.textContent = '$0.00';
         noDataMessage.classList.remove('hidden');
         return;
     }
 
-    // 3. CÁLCULO DE TOTALES Y RENDERIZADO
-    let grandTotal = 0;
+    // 3. CÁLCULO DE TOTALES DEL MES Y RENDERIZADO DE LA TABLA
+    let grandTotal = 0; // Este es el total del mes
     monthlyReportBody.innerHTML = ''; 
 
     if (sales && sales.length > 0) {
@@ -2075,13 +2111,13 @@ async function loadMonthlySalesReport() {
         sales.forEach(sale => {
             grandTotal += sale.total_amount;
             
+            // ... (Resto del código para renderizar la fila de la tabla)
             const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric'
             });
 
-            // CRÍTICO: Buscar el nombre del cliente en el mapa
             const clientName = allClientsMap[sale.client_id] || 'N/A'; 
 
             const row = monthlyReportBody.insertRow();
@@ -2103,21 +2139,22 @@ async function loadMonthlySalesReport() {
                     </div>
                 </td>
 
-              <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
-        <button 
-            data-venta-id="${sale.venta_id}"  
-            data-client-id="${sale.client_id}"  class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
-        >
-            Detalles
-        </button>
-    </td>
+                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                        data-venta-id="${sale.venta_id}"  
+                        data-client-id="${sale.client_id}"  class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
+                    >
+                        Detalles
+                    </button>
+                </td>
             `;
         });
     } else {
         noDataMessage.classList.remove('hidden');
     }
 
-    totalSalesSpan.textContent = formatCurrency(grandTotal);
+    // Actualizar el total del MES
+    totalSalesSpan.textContent = formatCurrency(grandTotal); 
 }
 
 function initializeMonthSelector() {
