@@ -2005,56 +2005,20 @@ function openAbonoModal(clientId) {
 // ====================================================================
 
 async function loadMonthlySalesReport() {
-    // 1. Obtener los contenedores
+    // 1. Obtener los contenedores (solo los que existen en el HTML actual)
     const selector = document.getElementById('report-month-selector');
     const monthlyReportBody = document.getElementById('monthly-sales-report-body');
     const totalSalesSpan = document.getElementById('report-total-sales');
     const noDataMessage = document.getElementById('monthly-report-no-data');
     
-    // IDs de las nuevas tarjetas
-    const historicalTotalSpan = document.getElementById('historical-total-sales');
-    const totalDebtSpan = document.getElementById('total-debt');
-
-    // 🛑 VERIFICACIÓN DE NULL
-    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage || !historicalTotalSpan || !totalDebtSpan) {
-        console.error("Error: Contenedores de Reporte Mensual ausentes o incompletos.");
+    // 🛑 VERIFICACIÓN: Sólo verifica los IDs que SÍ están en el HTML.
+    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage) {
+        console.warn("Advertencia: Contenedores de Reporte Mensual ausentes. (Modal cerrado)");
         return; 
     }
 
     // =======================================================
-    // ✅ CÁLCULOS GENERALES / HISTÓRICOS (SIN FILTRO DE FECHA)
-    // ESTOS VALORES NO CAMBIAN AL SELECCIONAR UN MES.
-    // =======================================================
-
-    // CÁLCULO 1: Total Histórico (Venta Bruta Total) -> #historical-total-sales
-    const { data: historicalSalesData, error: historicalError } = await supabase
-        .from('ventas')
-        .select('total_amount'); 
-
-    if (!historicalError && historicalSalesData) {
-        const historicalTotalSales = historicalSalesData.reduce((sum, sale) => sum + sale.total_amount, 0);
-        historicalTotalSpan.textContent = formatCurrency(historicalTotalSales);
-    } else {
-        console.error('Error al cargar Total Histórico:', historicalError?.message);
-        historicalTotalSpan.textContent = formatCurrency(0);
-    }
-
-    // CÁLCULO 2: Deuda Pendiente (Total Histórico) -> #total-debt
-    const { data: debtData, error: debtError } = await supabase
-        .from('ventas')
-        .select('saldo_pendiente')
-        .gt('saldo_pendiente', 0); // 👈 FILTRO CLAVE: Solo registros con saldo pendiente
-
-    if (!debtError && debtData) {
-        const totalDebt = debtData.reduce((sum, debt) => sum + debt.saldo_pendiente, 0);
-        totalDebtSpan.textContent = formatCurrency(totalDebt);
-    } else {
-        console.error('Error al cargar Deuda Pendiente:', debtError?.message);
-        totalDebtSpan.textContent = formatCurrency(0);
-    }
-
-    // =======================================================
-    // 2. CONSULTA Y CÁLCULO DEL MES SELECCIONADO (CON FILTRO DE FECHA)
+    // 2. Lógica y Consulta del Mes Seleccionado (CON FILTRO DE FECHA)
     // =======================================================
     
     // Lógica para obtener startDate y endDate del mes seleccionado...
@@ -2092,9 +2056,9 @@ async function loadMonthlySalesReport() {
         .lte('created_at', isoEndDate)
         .order('created_at', { ascending: false });
 
-    // ... (El resto de tu código de manejo de errores y renderizado de la tabla es correcto) ...
+    
     if (error) {
-        // ... (Tu manejo de error existente)
+        console.error('Error al cargar reporte de ventas:', error.message);
         monthlyReportBody.innerHTML = '';
         totalSalesSpan.textContent = '$0.00';
         noDataMessage.classList.remove('hidden');
@@ -2102,7 +2066,7 @@ async function loadMonthlySalesReport() {
     }
 
     // 3. CÁLCULO DE TOTALES DEL MES Y RENDERIZADO DE LA TABLA
-    let grandTotal = 0; // Este es el total del mes
+    let grandTotal = 0; 
     monthlyReportBody.innerHTML = ''; 
 
     if (sales && sales.length > 0) {
