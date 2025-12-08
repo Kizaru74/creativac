@@ -910,7 +910,6 @@ async function handleNewSale(e) {
         return;
     }
 
-
     try {
         // 1. REGISTRAR VENTA (Tabla 'ventas')
         const { data: saleData, error: saleError } = await supabase
@@ -970,16 +969,19 @@ async function handleNewSale(e) {
             }
         }
         
-        // 4. LIMPIAR Y RECARGAR
-        // Se elimina el 'alert' de éxito, el modal de vista previa lo reemplaza.
-        closeModal('new-sale-modal'); // <-- Cierra el modal de registro de venta
+    // 4. LIMPIAR Y RECARGAR
+    // Se elimina el 'alert' de éxito, el modal de vista previa lo reemplaza.
+    closeModal('new-sale-modal'); // <-- Cierra el modal de registro de venta
 
-        // Recarga los datos del Dashboard (ventas recientes, deudas, etc.)
-        await loadDashboardData(); 
+    // Recarga los datos del Dashboard (ventas recientes, deudas, etc.)
+    await loadDashboardData(); 
 
-        // ✅ NUEVA LÍNEA CLAVE: Llama a la vista previa del ticket
-        showTicketPreviewModal(new_venta_id); 
+    // 🛑 ¡LÍNEA CRÍTICA AÑADIDA! Esto fuerza la recarga de la tabla de clientes 
+    // y actualiza el saldo de deuda de ese cliente.
+    await loadClientsTable('gestion'); 
 
+    // ✅ Llama a la vista previa del ticket
+    showTicketPreviewModal(new_venta_id);
     } catch (error) {
         console.error('Error fatal al registrar la venta:', error.message);
         alert('Error fatal al registrar la venta: ' + error.message);
