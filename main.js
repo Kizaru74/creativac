@@ -2165,57 +2165,137 @@ function initializeMonthSelector() {
     }
 }
 
-// main.js (showTicketPreviewModal)
+function generateTextTicket(sale) {
+    const TICKET_WIDTH = 32;
+
+    // Helper 1: Alinea la etiqueta a la izquierda y el valor a la derecha (para totales)
+    const alignValueRight = (label, value) => {
+        const valueStr = formatCurrency(value);
+        // Calcula el relleno necesario para empujar el valor al final
+        const padding = TICKET_WIDTH - label.length - valueStr.length;
+        return label + " ".repeat(padding) + valueStr;
+    };
+    
+    // Helper 2: Centra el texto completo
+    const alignCenter = (text) => {
+        const padding = TICKET_WIDTH - text.length;
+        // Divide el espacio restante y redondea hacia abajo para el relleno izquierdo
+        const paddingLeft = Math.floor(padding / 2); 
+        return " ".repeat(paddingLeft) + text;
+    };
+    
+    // --- 1. ENCABEZADO DE LA EMPRESA ---
+    let ticket = alignCenter("Creativa Cortes CNC") + "\n"; // Usamos alignCenter para centrar
+    ticket += "--------------------------------\n";
+    ticket += "\n";
+    
+    // 💡 Usamos alignCenter para los datos de contacto
+    ticket += alignCenter("Tel: 9851001141") + "\n";
+    ticket += alignCenter("Dirección: Calle 33 x 48 y 46") + "\n";
+    ticket += alignCenter("Col. Candelaria") + "\n";
+    // Eliminamos la línea duplicada de Teléfono
+    
+    ticket += "Fecha: " + new Date(sale.created_at).toLocaleDateString('es-MX') + "\n";
+    ticket += "Venta: " + sale.venta_id + "\n";
+    ticket += "--------------------------------\n";
+    
+    // --- 2. CLIENTE ---
+    const clientName = sale.clientes?.name || 'Consumidor Final';
+    ticket += "Cliente: " + clientName + "\n";
+    ticket += "================================\n";
+    ticket += "\n";
+
+    // --- 3. DETALLE DE PRODUCTOS ---
+    // 💡 Usamos espaciado fijo aquí, no espacios literales que pueden fallar
+    ticket += "Producto             Cant.  Total\n";
+    ticket += "--------------------------------\n";
+    
+    sale.detalle_ventas.forEach(item => {
+        const productName = item.productos.name;
+        // Nombre truncado a 18 caracteres y rellenado
+        const prodName = productName.substring(0, 18).padEnd(18, ' ');
+        const quantity = item.quantity.toString().padStart(5, ' ');
+        const subtotal = formatCurrency(item.subtotal).padStart(6, ' ');
+        
+        ticket += `${prodName} ${quantity} ${subtotal}\n`;
+    });
+    
+    ticket += "--------------------------------\n";
+    ticket += "\n";
+    
+    // --- 4. TOTALES ---
+    const totalAmount = sale.total_amount || 0;
+    const saldoPendiente = sale.saldo_pendiente || 0;
+    const anticipo = totalAmount - saldoPendiente;
+
+    // ✅ Usamos la función renombrada alignValueRight
+    ticket += alignValueRight("SALDO PENDIENTE:", saldoPendiente) + "\n"; 
+    ticket += alignValueRight("ANTICIPO:", anticipo) + "\n";
+    ticket += "================================\n";
+    ticket += alignValueRight("TOTAL:", totalAmount) + "\n";
+    ticket += "================================\n";
+
+
+    // --- 5. PIE DE PÁGINA ---
+    ticket += "\n";
+    // ⬇️ USAMOS alignCenter
+    ticket += alignCenter("¡Gracias por su compra!") + "\n";
+    ticket += "\n";
+    ticket += "--------------------------------\n";
+
+    return ticket;
+}
+
+// Variable global para guardar el ID de la venta en vista previa
+let CURRENT_SALE_ID = null; 
 
 async function showTicketPreviewModal(ventaId) {
-    const ticketPreviewContent = document.getElementById('ticket-preview-content');
-    if (!ticketPreviewContent || !supabase) return;
-    
-    ticketPreviewContent.innerHTML = '<p class="text-center py-4 text-gray-500">Cargando detalles...</p>';
-    currentSaleDataForPrint = null; // Limpiamos la variable global
-    
     // 1. Obtener datos de Supabase
     const { data: sale, error } = await supabase
         .from('ventas')
         .select(`*, clientes(name), detalle_ventas (quantity, price, subtotal, productos(name))`)
         .eq('venta_id', ventaId)
         .single();
-     
-    if (error || !sale) {
-        console.error('Error al cargar datos para previsualización:', error?.message);
-        ticketPreviewContent.innerHTML = '<p class="text-red-500 text-center py-4">Error al cargar datos.</p>';
-        return;
-    }
-
-    // 🚀 CRÍTICO: ALMACENAR EL OBJETO COMPLETO DE LA VENTA para la función de impresión
-    currentSaleDataForPrint = sale; 
     
-    // 2. Generar y mostrar
+    if (error || !sale) return;
+
+    // 2. Generar el ticket como texto plano formateado
     const ticketContent = generateTextTicket(sale); 
-     
+    
+    // 3. CRÍTICO: Envolver el contenido en <pre> para asegurar que:
+    //    a) Se respeten los saltos de línea (\n).
+    //    b) Se respete el espaciado fijo de los métodos padStart/padEnd.
+    //    c) Se use la fuente 'monospace' para que todos los caracteres tengan el mismo ancho.
     const htmlContent = `<pre style="font-family: monospace; font-size: 14px; margin: 0 auto; text-align: left;">${ticketContent}</pre>`;
 
-    ticketPreviewContent.innerHTML = htmlContent;
+    // 4. Inyectar y mostrar
+    const ticketPreviewContent = document.getElementById('ticket-preview-content');
+    
+    if (ticketPreviewContent) { 
+        ticketPreviewContent.innerHTML = htmlContent;
+    }
 
-    // Abrimos el modal solo si todo fue exitoso
+    CURRENT_SALE_ID = ventaId; 
     openModal('modal-ticket-preview');
 }
 window.showTicketPreviewModal = showTicketPreviewModal;
 
-// main.js (printTicketQZ)
-
 // La función que se llama al hacer clic en el botón Imprimir
-async function printTicketQZ() {
-    // 1. 🚀 USAR LA DATA YA CARGADA EN LA VARIABLE GLOBAL
-    const sale = currentSaleDataForPrint;
-     
-    if (!sale) {
-        alert("Error: No se han cargado los datos de la venta para imprimir. Intente de nuevo.");
-        console.error('Error al imprimir: currentSaleDataForPrint es null.');
+async function printTicketQZ(ventaId) {
+    // 1. Obtener los datos de la venta (La misma consulta que usas en el modal)
+    const { data: sale, error } = await supabase
+        .from('ventas')
+        .select(`*, clientes(name), detalle_ventas (quantity, price, subtotal, productos(name))`)
+        .eq('venta_id', ventaId)
+        .single();
+    
+    if (error || !sale) {
+        console.error('Error al obtener datos para impresión:', error?.message);
         return;
     }
 
     // 2. Generar el ticket en texto plano
+    // Utilizamos la función que acabamos de crear:
     const ticketText = generateTextTicket(sale); 
 
     // 3. Imprimir usando QZ Tray
@@ -2225,29 +2305,28 @@ async function printTicketQZ() {
     }
 
     try {
+        // Enviar el contenido del ticket
         const data = [
             // El formato 'raw' envía el texto directamente a la impresora
             { type: 'raw', data: ticketText },
-            // Comando para cortar el papel (opcional pero recomendado)
+            // Comando para cortar el papel (necesario en la mayoría de las impresoras térmicas)
             { type: 'raw', data: '\x1D\x56\x41\x00' } // ESC/POS Comando: GS V 0 (Full Cut)
         ];
 
-        // 💡 CRÍTICO: Modifica 'Mi Impresora de Tickets' con el nombre EXACTO de tu impresora en el sistema
+        // 💡 CRÍTICO: Modifica 'Mi Impresora de Tickets' con el nombre de tu impresora 
         const config = qz.configs.create('Mi Impresora de Tickets', { 
-             encoding: '858', // Codificación para tildes (Latin-1)
+             encoding: '858', // Codificación de caracteres para manejar tildes (Latin-1)
+             // Puedes ajustar más settings aquí, como el margen o la densidad
         });
 
         await qz.print(config, data);
         console.log('Ticket enviado a la impresora correctamente.');
-        closeModal('modal-ticket-preview'); // Cerrar el modal después de imprimir
 
     } catch (e) {
         alert('Error de impresión con QZ Tray. Revisa la consola para más detalles.');
         console.error(e);
     }
 }
-window.printTicketQZ = printTicketQZ; // Hacemos global por si acaso
-
 
 // ====================================================================
 // UTILIDADES/CARGAS
@@ -2499,33 +2578,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadDashboardData(); 
     });
 
-// Tickets------
-
-// 1. Listener delegado para el botón "Detalles" del reporte mensual
-document.getElementById('monthly-sales-report-body')?.addEventListener('click', async (e) => {
-    // Busca el botón con la clase .view-sale-details-btn
-    const button = e.target.closest('.view-sale-details-btn');
-    if (!button) return; 
-
-    const ventaId = button.getAttribute('data-venta-id');
-
-    if (ventaId) {
-        // Llama a la función que carga, previsualiza y guarda los datos
-        await showTicketPreviewModal(ventaId); 
-    }
+    // Ejemplo en el código del botón de imprimir ticket:
+document.getElementById('print-ticket-btn')?.addEventListener('click', () => {
+    // Asumiendo que CURRENT_SALE_ID se establece en showTicketPreviewModal
+    printTicketQZ(CURRENT_SALE_ID);
 });
-
-// 2. Listener para el botón "Imprimir" del modal de ticket
-document.getElementById('print-ticket-qz-btn')?.addEventListener('click', printTicketQZ);
-
-document.getElementById('print-ticket-qz-btn')?.addEventListener('click', () => {
-    // Simplemente llama a la función de impresión. 
-    // La función printTicketQZ internamente lee la data de la variable global.
-    printTicketQZ();
-});
-
-// Tickets------
-
     
     //Listener reportes de mes
     document.getElementById('open-monthly-report-btn')?.addEventListener('click', () => {

@@ -256,117 +256,6 @@
         </div>
     </div>
 
-<div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-[60] flex items-center justify-center bg-gray-900 bg-opacity-50">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 relative">
-        
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-            <h3 class="text-xl font-bold">Detalle de Venta: <span id="detail-sale-id">#N/A</span></h3>
-            
-            <div class="flex items-center space-x-3"> 
-                <button type="button" 
-                    onclick="showTicketPreviewModal(document.getElementById('detail-sale-id').textContent.replace('#', '').trim())" 
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-md text-sm transition duration-150 shadow-md">
-                    <i class="fas fa-print mr-1"></i> Imprimir Ticket
-                </button>
-
-                <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
-                    &times;
-                </button>
-            </div>
-        </div>
-        
-        <div id="detail-dynamic-content">
-
-            <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-                <p><strong>Cliente:</strong> <span id="detail-client-name">N/A</span></p>
-                <p><strong>Fecha:</strong> <span id="detail-date">N/A</span></p>
-                <p><strong>Monto Total:</strong> <span id="detail-total-amount" class="font-bold text-green-600">N/A</span></p>
-                <p><strong>Saldo Pendiente:</strong> <span id="detail-saldo-pendiente" class="font-bold text-red-600">N/A</span></p>
-            </div>
-            <p class="mb-4 text-sm"><strong>Comentarios:</strong> <span id="detail-comments">Sin comentarios.</span></p>
-
-            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Productos Comprados</h4>
-            <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <th class="px-6 py-3">Producto</th>
-                            <th class="px-6 py-3 text-center">Cantidad</th>
-                            <th class="px-6 py-3 text-right">Precio U.</th>
-                            <th class="px-6 py-3 text-right">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
-                </table>
-            </div>
-
-            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Historial de Pagos/Abonos</h4>
-            <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead>
-                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <th class="px-6 py-3">Fecha</th>
-                            <th class="px-6 py-3 text-right">Monto</th>
-                            <th class="px-6 py-3 text-center">Método</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
-                </table>
-            </div>
-
-            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Editar Precio (Solo Ventas Pendientes)</h4>
-            <div id="sale-edit-section" class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded-md hidden">
-                <p class="text-sm text-yellow-800 mb-3">Esta venta se registró con monto cero. Ingrese el precio real a continuación.</p>
-                
-                <div class="flex gap-4 items-end">
-                    <input type="hidden" id="sale-edit-transaction-id">
-                    
-                    <div class="flex-grow">
-                        <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            id="sale-edit-price" 
-                            class="w-full border-gray-300 rounded-md shadow-sm p-2" 
-                            required
-                        >
-                    </div>
-                    
-                    <button 
-                        onclick="handleUpdateSalePrice()" 
-                        type="button" 
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150"
-                    >
-                        Actualizar Precio
-                    </button>
-                </div>
-            </div>
-            
-            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
-            <form id="register-payment-form" class="flex gap-4 items-end">
-                <input type="hidden" id="payment-sale-id">
-                <div class="flex-grow">
-                    <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
-                    <input type="number" step="0.01" id="abono-amount" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-                </div>
-                <div>
-                    <label for="payment-method-abono" class="block text-sm font-medium text-gray-700">Método</label>
-                    <select id="payment-method-abono" class="w-full border-gray-300 rounded-md shadow-sm p-2">
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Tarjeta">Tarjeta</option>
-                        <option value="Transferencia">Transferencia</option>
-                    </select>
-                </div>
-                <button type="submit" id="submit-abono-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150">
-                    Abonar
-                </button>
-            </form>
-        </div>
-    </div>
-</div>
-
 <div id="edit-client-modal" class="modal-overlay hidden fixed inset-0 z-[70] items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-auto p-6">
         <div class="flex justify-between items-center border-b pb-3 mb-4">
@@ -644,105 +533,221 @@
     </div>
 </div>
 
+<div id="modal-admin-clients" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto p-6 relative">
+            
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-2xl font-bold text-gray-800">Administración de Clientes</h3>
+                <button data-open-modal="modal-new-client" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-150">
+                    <i class="fas fa-user-plus mr-2"></i> Nuevo Cliente
+                </button>
+                <button data-close-modal="modal-admin-clients" class="text-gray-400 hover:text-gray-600 text-2xl relative">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <h4 class="text-xl font-semibold mb-3 border-b pb-2">Clientes Registrados</h4>
+            
+            <div class="overflow-x-auto max-h-[50vh] overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-3 py-3">ID</th>
+                            <th class="px-3 py-3">Nombre</th>
+                            <th class="px-3 py-3">Teléfono</th>
+                            <th class="px-3 py-3">Total</th>
+                            <th class="px-3 py-3">Deuda</th>
+                            <th class="px-3 py-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clients-list-body" class="bg-white divide-y divide-gray-200 text-sm">
+                        </tbody>
+                </table>
+            </div>
+
+            <div id="clients-list-controls" class="mt-4 text-center hidden">
+                <p id="client-count-summary" class="text-sm text-gray-600 mb-2"></p>
+                <button id="toggle-clients-list" class="text-indigo-600 hover:text-indigo-800 font-semibold py-1 px-4 rounded-md border border-indigo-200 hover:border-indigo-400 transition duration-150">
+                    Mostrar todos
+                </button>
+            </div>
+        </div>
+    </div>
+
 <div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto p-6 relative">
-        
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
+    
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
             <h3 class="text-xl font-bold">Detalle de Venta: <span id="detail-sale-id">#N/A</span></h3>
-            <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-600 text-2xl">
+        
+            <div class="flex items-center space-x-3"> 
+                
+                <button type="button" 
+                        onclick="showTicketPreviewModal(document.getElementById('detail-sale-id').textContent.replace('#', ''))" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-md text-sm transition duration-150 shadow-md">
+                    🖨️ Imprimir Ticket
+                </button>
+
+                <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+                    &times;
+                </button>
+            </div>
+        </div>
+        
+        <div id="detail-dynamic-content">
+
+            <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                <p><strong>Cliente:</strong> <span id="detail-client-name">N/A</span></p>
+                <p><strong>Fecha:</strong> <span id="detail-date">N/A</span></p>
+                <p><strong>Monto Total:</strong> <span id="detail-total-amount" class="font-bold text-green-600">N/A</span></p>
+                <p><strong>Saldo Pendiente:</strong> <span id="detail-saldo-pendiente" class="font-bold text-red-600">N/A</span></p>
+            </div>
+            <p class="mb-4 text-sm"><strong>Comentarios:</strong> <span id="detail-comments">Sin comentarios.</span></p>
+
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Productos Comprados</h4>
+            <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-6 py-3">Producto</th>
+                            <th class="px-6 py-3 text-center">Cantidad</th>
+                            <th class="px-6 py-3 text-right">Precio U.</th>
+                            <th class="px-6 py-3 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+                </table>
+            </div>
+
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Historial de Pagos/Abonos</h4>
+            <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="px-6 py-3">Fecha</th>
+                            <th class="px-6 py-3 text-right">Monto</th>
+                            <th class="px-6 py-3 text-center">Método</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+                </table>
+            </div>
+
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Editar Precio (Solo Ventas Pendientes)</h4>
+            <div id="sale-edit-section" class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded-md hidden">
+                <p class="text-sm text-yellow-800 mb-3">Esta venta se registró con monto cero. Ingrese el precio real a continuación.</p>
+            
+                <div class="flex gap-4 items-end">
+                    <input type="hidden" id="sale-edit-transaction-id">
+                
+                    <div class="flex-grow">
+                        <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            id="sale-edit-price" 
+                            class="w-full border-gray-300 rounded-md shadow-sm p-2" 
+                            required
+                        >
+                    </div>
+                
+                    <button 
+                        onclick="handleUpdateSalePrice()" 
+                        type="button" 
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150"
+                    >
+                        Actualizar Precio
+                    </button>
+                </div>
+            </div>
+        
+            <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
+            <form id="register-payment-form" class="flex gap-4 items-end">
+                <input type="hidden" id="payment-sale-id">
+                <div class="flex-grow">
+                    <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
+                    <input type="number" step="0.01" id="abono-amount" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+                </div>
+                <div>
+                    <label for="payment-method-abono" class="block text-sm font-medium text-gray-700">Método</label>
+                    <select id="payment-method-abono" class="w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Tarjeta">Tarjeta</option>
+                        <option value="Transferencia">Transferencia</option>
+                    </select>
+                </div>
+                <button type="submit" id="submit-abono-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150">
+                    Abonar
+                </button>
+            </form>
+        </div> 
+            </div>
+</div>
+
+    <div id="modal-monthly-report" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-auto p-6">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 id="monthly-report-title" class="text-2xl font-bold text-gray-800">Reporte de Ventas Mensuales</h3>
+                <button data-close-modal="modal-monthly-report" class="text-gray-400 hover:text-gray-600 text-2xl">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+           <div class="mb-4 flex items-center gap-4">
+        <div class="flex-grow">
+        <label for="report-month-selector" class="block text-sm font-medium text-gray-700">Seleccionar Mes</label>
+        <select id="report-month-selector" class="w-full border-gray-300 rounded-md shadow-sm p-2">
+            <option value="" disabled selected>Cargando Meses...</option>
+        </select>
+        </div>
+     <div class="flex-grow">
+        <p class="text-lg font-semibold">Total de Ventas: <span id="report-total-sales" class="text-green-600">$0.00</span></p>
+        </div>
+        </div>
+            <div class="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky top-0">
+                            <th class="px-3 py-3">ID Venta</th>
+                            <th class="px-3 py-3">Fecha</th>
+                            <th class="px-3 py-3">Cliente</th>
+                            <th class="px-3 py-3">Monto Total</th>
+                            <th class="px-3 py-3">Saldo Pendiente</th>
+                            <th class="px-3 py-3">Método</th>
+                            <th class="px-3 py-3">Comentarios</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthly-sales-report-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+                </table>
+                <p id="monthly-report-no-data" class="text-center text-gray-500 mt-8 hidden">No se encontraron ventas para este período.</p>
+            </div>
+        </div>
+    </div>
+
+<div id="modal-ticket-preview" class="modal-overlay hidden fixed inset-0 z-[60] items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-bold">Previsualización de Ticket</h3>
+            <button data-close-modal="modal-ticket-preview" class="text-gray-400 hover:text-gray-600 text-2xl">
                 &times;
             </button>
         </div>
         
-        <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-            <p><strong>Cliente:</strong> <span id="detail-client-name">N/A</span></p>
-            <p><strong>Fecha:</strong> <span id="detail-date">N/A</span></p>
-            <p><strong>Monto Total:</strong> <span id="detail-total-amount" class="font-bold text-green-600">N/A</span></p>
-            <p><strong>Saldo Pendiente:</strong> <span id="detail-saldo-pendiente" class="font-bold text-red-600">N/A</span></p>
-        </div>
-        <p class="mb-4 text-sm"><strong>Comentarios:</strong> <span id="detail-comments">Sin comentarios.</span></p>
-
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Productos Comprados</h4>
-        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead>
-                    <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <th class="px-6 py-3">Producto</th>
-                        <th class="px-6 py-3 text-center">Cantidad</th>
-                        <th class="px-6 py-3 text-right">Precio U.</th>
-                        <th class="px-6 py-3 text-right">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody id="detail-items-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
-            </table>
-        </div>
-
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Historial de Pagos/Abonos</h4>
-        <div class="overflow-x-auto max-h-40 overflow-y-auto mb-4 border rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead>
-                    <tr class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <th class="px-6 py-3">Fecha</th>
-                        <th class="px-6 py-3 text-right">Monto</th>
-                        <th class="px-6 py-3 text-center">Método</th>
-                    </tr>
-                </thead>
-                <tbody id="detail-payments-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
-            </table>
-        </div>
-
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Editar Precio (Solo Ventas Pendientes)</h4>
-        <div id="sale-edit-section" class="mb-4 p-4 border border-yellow-300 bg-yellow-50 rounded-md hidden">
-            <p class="text-sm text-yellow-800 mb-3">Esta venta se registró con monto cero. Ingrese el precio real a continuación.</p>
-            
-            <div class="flex gap-4 items-end">
-                <input type="hidden" id="sale-edit-transaction-id">
-                
-                <div class="flex-grow">
-                    <label for="sale-edit-price" class="block text-sm font-medium text-gray-700">Nuevo Monto de Venta</label>
-                    <input 
-                        type="number" 
-                        step="0.01" 
-                        id="sale-edit-price" 
-                        class="w-full border-gray-300 rounded-md shadow-sm p-2" 
-                        required
-                    >
-                </div>
-                
-                <button 
-                    onclick="handleUpdateSalePrice()" 
-                    type="button" 
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150"
-                >
-                    Actualizar Precio
-                </button>
+        <div id="ticket-preview-content" class="mb-4 p-2 border rounded bg-gray-50 max-h-96 overflow-y-auto">
             </div>
-        </div>
-        <h4 class="text-lg font-bold mt-4 mb-2 border-b">Registrar Abono</h4>
-        <form id="register-payment-form" class="flex gap-4 items-end">
-            <input type="hidden" id="payment-sale-id">
-            <div class="flex-grow">
-                <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
-                <input type="number" step="0.01" id="abono-amount" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
-            </div>
-            <div>
-                <label for="payment-method-abono" class="block text-sm font-medium text-gray-700">Método</label>
-                <select id="payment-method-abono" class="w-full border-gray-300 rounded-md shadow-sm p-2">
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Tarjeta">Tarjeta</option>
-                    <option value="Transferencia">Transferencia</option>
-                </select>
-            </div>
-            <button type="submit" id="submit-abono-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md h-10 transition duration-150">
-                Abonar
+
+        <div class="flex justify-end">
+            <button id="print-ticket-qz-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150">
+                Imprimir Ticket (Impresora Térmica)
             </button>
-        </form>
+        </div>
     </div>
 </div>
 
-<script src="qz-tray.min.js"></script>
+<script src="qz-tray.js" type="module"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="main.js"></script>
 </body>
