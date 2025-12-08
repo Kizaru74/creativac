@@ -1105,7 +1105,7 @@ async function handleViewClientDebt(clientId) {
             if (t.type === 'cargo_venta' && t.venta_id) {
                 // 🛑 PASO 2: Hacemos una consulta explícita y directa a la tabla 'venta_items'
                 const { data: saleDetails, error: detailError } = await supabase
-                    .from('detalle_venta')
+                    .from('detalle_ventas')
                     .select('product_id, quantity')
                     .eq('venta_id', t.venta_id);
 
