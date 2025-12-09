@@ -560,12 +560,56 @@ function updatePriceField(productId) {
 // 6. LÓGICA DE VENTA MULTI-ITEM
 // ====================================================================
 
+// FUNCIÓN NUEVA: Calular el Saldo Pendiente y Proteger el Monto Pagado
+function updatePaymentDebtStatus(grandTotal) {
+    // Los IDs que buscamos en el HTML de la nueva venta
+    const paidAmountInput = document.getElementById('paid-amount');
+    const paymentMethodSelect = document.getElementById('payment-method');
+    // 💡 ASUME ESTE ID para el display del Saldo Pendiente
+    const saldoDisplay = document.getElementById('display-saldo-pendiente'); 
+
+    if (!paidAmountInput || !paymentMethodSelect || !saldoDisplay) return;
+
+    const paymentMethod = paymentMethodSelect.value;
+    
+    // 🛑 1. LÓGICA DE PROTECCIÓN para el campo 'Monto Pagado'
+    let currentPaidAmount = 0;
+
+    if (paymentMethod === 'Deuda') {
+        // Si el método es DEUDA, el pago DEBE ser 0.
+        paidAmountInput.value = '0.00';
+    } else {
+        // Si NO es DEUDA, respetamos la entrada del usuario.
+        const paidAmountStr = paidAmountInput.value.replace(',', '.');
+        currentPaidAmount = parseFloat(paidAmountStr) || 0;
+
+        // Si el campo está vacío, lo inicializamos para que el cálculo de saldo funcione
+        if (paidAmountInput.value.trim() === '') {
+             paidAmountInput.value = '0.00';
+        }
+    }
+
+    // 2. CÁLCULO Y ACTUALIZACIÓN DEL SALDO PENDIENTE DISPLAY
+    const saldoPendiente = grandTotal - currentPaidAmount;
+    
+    // Muestra el saldo pendiente al usuario
+    saldoDisplay.textContent = formatCurrency(saldoPendiente);
+    
+    // Manejo visual de saldo negativo (opcional pero recomendado)
+    if (saldoPendiente < 0) {
+        saldoDisplay.classList.add('text-red-500');
+    } else {
+        saldoDisplay.classList.remove('text-red-500');
+    }
+}
+
 function calculateGrandTotal() {
     const grandTotal = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
     
     const totalInput = document.getElementById('total-amount');
     if (totalInput) totalInput.value = grandTotal.toFixed(2); 
     
+    // ✅ LÍNEA AÑADIDA: Llama a la nueva función
     updatePaymentDebtStatus(grandTotal); 
     
     const submitBtn = document.getElementById('submit-sale-btn');
@@ -2946,6 +2990,13 @@ document.getElementById('abono-client-form')?.addEventListener('submit', handleR
 
 // 🛑 AÑADE ESTE: Listener para el envío del formulario de PAGO en el Modal de DETALLES DE VENTA
 document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
+
+// Listener para recalcular saldo en tiempo real al cambiar el monto pagado
+document.getElementById('paid-amount')?.addEventListener('input', () => {
+    // 💡 Aquí llamamos a la función que recalcula el Saldo Pendiente.
+    // Necesitamos el total, que lo obtenemos con calculateGrandTotal.
+    calculateGrandTotal();
+});
 
     //Listener reporte mensual
     initializeMonthSelector(); // ✅ LLAMADA A LA FUNCIÓN RECIÉN CREADA
