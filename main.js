@@ -566,19 +566,19 @@ function updatePriceField(productId) {
 function updatePaymentDebtStatus(grandTotal) {
     // Campos HTML
     const paidAmountInput = document.getElementById('paid-amount');
+    
+    // ✅ USAMOS EL ID DESEADO: display-saldo-pendiente
+    const saldoInput = document.getElementById('display-saldo-pendiente'); 
+    
     const paymentMethodSelect = document.getElementById('payment-method');
-    const saldoDisplay = document.getElementById('display-saldo-pendiente'); 
-
-    // Si falta alguno de los elementos (ej. el modal no está abierto), salir.
-    if (!paidAmountInput || !paymentMethodSelect || !saldoDisplay) return;
+    
+    // Si falta alguno de los elementos, salir.
+    if (!paidAmountInput || !paymentMethodSelect || !saldoInput) return;
 
     const paymentMethod = paymentMethodSelect.value;
     
-    // 1. LECTURA DEL MONTO PAGADO: PRIORIZAR LA ENTRADA MANUAL DEL USUARIO
-    
-    // Leemos el valor actual del input, reemplazando comas por puntos para el parseo.
+    // 1. LECTURA DEL MONTO PAGADO
     let paidAmountStr = paidAmountInput.value.replace(',', '.');
-    // Convertimos a número. Si es un valor inválido, usamos 0.
     let currentPaidAmount = parseFloat(paidAmountStr) || 0; 
     
     // Si el campo está vacío, lo inicializamos para que no muestre vacío.
@@ -588,11 +588,9 @@ function updatePaymentDebtStatus(grandTotal) {
     
     // Lógica para el método 'Deuda'
     if (paymentMethod === 'Deuda') {
-        // Si es DEUDA, forzamos el monto pagado a 0
         currentPaidAmount = 0;
         paidAmountInput.value = '0.00';
     } 
-    // Si NO es Deuda, currentPaidAmount mantiene el valor que el usuario ingresó.
 
     // 2. CÁLCULO DEL SALDO PENDIENTE
     let saldoPendiente = grandTotal - currentPaidAmount;
@@ -602,22 +600,22 @@ function updatePaymentDebtStatus(grandTotal) {
         saldoPendiente = 0;
     }
     
-    // 3. ACTUALIZACIÓN VISUAL DEL SALDO (Línea crítica faltante)
-    // ✅ ESTA LÍNEA ESCRIBE EL VALOR CALCULADO EN EL HTML
-    saldoDisplay.textContent = formatCurrency(saldoPendiente); 
+    // 3. ACTUALIZACIÓN VISUAL DEL SALDO
+    // ✅ Usamos .value para actualizar el INPUT y formatCurrency
+    saldoInput.value = formatCurrency(saldoPendiente); 
 
-    // Manejo visual de saldo
-    saldoDisplay.classList.remove('text-red-500', 'text-green-500'); 
+    // Manejo visual de clases (para el INPUT)
+    saldoInput.classList.remove('bg-red-100', 'bg-green-100', 'text-red-700', 'text-green-700'); 
     
     if (saldoPendiente > 0) {
         // Hay deuda pendiente
-        saldoDisplay.classList.add('text-red-500');
+        saldoInput.classList.add('bg-red-100', 'text-red-700');
     } else if (saldoPendiente < 0) {
         // Pagó de más
-        saldoDisplay.classList.add('text-red-500');
+        saldoInput.classList.add('bg-green-100', 'text-green-700');
     } else {
-        // Pagó exactamente el total
-        saldoDisplay.classList.add('text-green-500');
+        // Pagó exactamente el total o la venta es 0
+        saldoInput.classList.add('bg-green-100', 'text-green-700');
     }
 }
 
