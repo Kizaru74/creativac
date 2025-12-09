@@ -2891,7 +2891,7 @@ window.openRegisterClientModal = function() {
     
     // 4. Abrimos el modal con el ID CORRECTO ('modal-new-client')
     openModal('modal-new-client'); 
-}; // <-- El punto y coma va solo al final de la definición
+}; 
 
 // Listener para el envío del formulario de edición de precio post-venta
 document.getElementById('post-sale-price-form')?.addEventListener('submit', async (e) => {
