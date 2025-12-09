@@ -2877,7 +2877,7 @@ monthlySalesModal?.addEventListener('click', (e) => {
 // -----------------------------------------------
 window.openRegisterClientModal = function() {
     // 🌟 1. Apuntamos al ID correcto del título ('client-modal-title')
-    document.getElementById('client-modal-title')?.textContent = 'Registrar Nuevo Cliente';
+    document.getElementById('client-modal-title')?.textContent = 'Registrar Nuevo Cliente'; 
     
     // 2. Apuntamos al ID correcto del formulario
     const form = document.getElementById('new-client-form'); 
@@ -2889,9 +2889,9 @@ window.openRegisterClientModal = function() {
     
     editingClientId = null;
     
-    // 🌟 4. Abrimos el modal con el ID CORRECTO ('modal-new-client')
+    // 4. Abrimos el modal con el ID CORRECTO ('modal-new-client')
     openModal('modal-new-client'); 
-}
+}; // <-- El punto y coma va solo al final de la definición
 
 // Listener para el envío del formulario de edición de precio post-venta
 document.getElementById('post-sale-price-form')?.addEventListener('submit', async (e) => {
