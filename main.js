@@ -1313,7 +1313,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         return;
     }
 
-    // Nota: allClients debe estar cargado
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     if (!client) {
         console.error("Cliente no encontrado en allClients.");
@@ -1343,8 +1342,8 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         // =======================================================
         const { data: items, error: itemsError } = await supabase
             .from('detalle_ventas')
-            // 🌟 AJUSTE POR PRODUCTO PADRE 1/3: Solicitamos 'parent_product_id'
-            .select(`detalle_id, quantity, price, subtotal, productos(name, parent_product_id)`) 
+            // 🛑 CORRECCIÓN CLAVE 1/3: Cambiamos 'parent_product_id' a 'parent_product'
+            .select(`detalle_id, quantity, price, subtotal, productos(name, parent_product)`) 
             .eq('venta_id', transactionId) 
             .order('detalle_id', { ascending: true }); 
 
@@ -1381,11 +1380,11 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         (items || []).forEach(item => {
             const productData = item.productos;
             
-            // 🌟 AJUSTE POR PRODUCTO PADRE 2/3: Lógica para encontrar el nombre del padre
+            // 🛑 CORRECCIÓN CLAVE 2/3: Usamos 'parent_product' en lugar de 'parent_product_id'
             let parentName = 'N/A';
-            // Nota: allProductsMap debe estar cargado globalmente
-            if (productData && productData.parent_product_id && window.allProductsMap) {
-                const parentProduct = allProductsMap[productData.parent_product_id];
+            if (productData && productData.parent_product && window.allProductsMap) {
+                // 🛑 CORRECCIÓN CLAVE 3/3: Usamos 'productData.parent_product' como clave
+                const parentProduct = allProductsMap[productData.parent_product]; 
                 if (parentProduct) {
                     parentName = parentProduct.name;
                 } else {
@@ -1394,17 +1393,17 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             }
             // ----------------------------------------------------------------------
             
-          itemsBody.innerHTML += `
-        <tr class="hover:bg-gray-50">
-        <td class="px-6 py-3">
-            ${parentName !== 'N/A' ? parentName + ' (' : ''}
-            <span class="font-semibold">${productData?.name || 'Producto Desconocido'}</span>
-            ${parentName !== 'N/A' ? ')' : ''}
-        </td> 
-        <td class="px-6 py-3 text-center">${item.quantity}</td>
-        <td class="px-6 py-3 text-right">${formatCurrency(item.price)}</td>
-        <td class="px-6 py-3 text-right">${formatCurrency(item.subtotal)}</td>
-        </tr>
+            itemsBody.innerHTML += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-3">
+                        ${parentName !== 'N/A' ? parentName + ' (' : ''}
+                        <span class="font-semibold">${productData?.name || 'Producto Desconocido'}</span>
+                        ${parentName !== 'N/A' ? ')' : ''}
+                    </td> 
+                    <td class="px-6 py-3 text-center">${item.quantity}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(item.price)}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(item.subtotal)}</td>
+                </tr>
             `;
         });
         
@@ -1443,7 +1442,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
 
             document.getElementById('sale-edit-transaction-id').value = sale.venta_id; 
 
-            // DEBES ASEGURARTE DE QUE 'sale-edit-detail-id' exista en tu HTML
             if (itemToEdit && itemToEdit.detalle_id) { 
                 document.getElementById('sale-edit-detail-id').value = itemToEdit.detalle_id; 
                 document.getElementById('sale-edit-price').value = ''; 
