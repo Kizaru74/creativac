@@ -1313,6 +1313,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         return;
     }
 
+    // Nota: allClients debe estar cargado
     const client = allClients.find(c => c.client_id.toString() === clientId.toString());
     if (!client) {
         console.error("Cliente no encontrado en allClients.");
@@ -1327,7 +1328,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         // =======================================================
         const { data: sale, error: saleError } = await supabase
             .from('ventas')
-            // 🛑 CAMBIO CLAVE 1: Añadimos 'metodo_pago' para la condición
             .select(`venta_id, total_amount, saldo_pendiente, created_at, description, metodo_pago`) 
             .eq('venta_id', transactionId)
             .single();
@@ -1338,16 +1338,21 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             return;
         }
 
+        // =======================================================
         // 2. CARGA DE ÍTEMS DE VENTA (Tabla 'detalle_ventas')
+        // =======================================================
         const { data: items, error: itemsError } = await supabase
             .from('detalle_ventas')
-            .select(`detalle_id, quantity, price, subtotal, productos(name)`) 
+            // 🌟 AJUSTE POR PRODUCTO PADRE 1/3: Solicitamos 'parent_product_id'
+            .select(`detalle_id, quantity, price, subtotal, productos(name, parent_product_id)`) 
             .eq('venta_id', transactionId) 
             .order('detalle_id', { ascending: true }); 
 
         if (itemsError) throw itemsError;
 
+        // =======================================================
         // 3. CARGA DEL HISTORIAL DE PAGOS/ABONOS (Tabla 'pagos')
+        // =======================================================
         const { data: payments, error: paymentsError } = await supabase
             .from('pagos')
             .select(`amount, metodo_pago, created_at`) 
@@ -1356,7 +1361,9 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
 
         if (paymentsError) throw paymentsError;
 
+        // =======================================================
         // 4. INYECCIÓN DE DATOS EN EL MODAL (Sin cambios)
+        // =======================================================
         document.getElementById('detail-sale-id').textContent = `#${sale.venta_id}`;
         document.getElementById('detail-client-name').textContent = client.name;
         document.getElementById('detail-date').textContent = formatDate(sale.created_at);
@@ -1365,19 +1372,45 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         document.getElementById('detail-comments').textContent = sale.description || 'Sin comentarios.';
         document.getElementById('payment-sale-id').value = sale.venta_id;
 
+        // -----------------------------------------------------------------
+        // RENDERIZADO DE ÍTEMS DE VENTA
+        // -----------------------------------------------------------------
         const itemsBody = document.getElementById('detail-items-body');
         itemsBody.innerHTML = '';
+        
         (items || []).forEach(item => {
-            itemsBody.innerHTML += `
-                <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-3">${item.productos?.name || 'Producto Desconocido'}</td>
-                    <td class="px-6 py-3 text-center">${item.quantity}</td>
-                    <td class="px-6 py-3 text-right">${formatCurrency(item.price)}</td>
-                    <td class="px-6 py-3 text-right">${formatCurrency(item.subtotal)}</td>
-                </tr>
+            const productData = item.productos;
+            
+            // 🌟 AJUSTE POR PRODUCTO PADRE 2/3: Lógica para encontrar el nombre del padre
+            let parentName = 'N/A';
+            // Nota: allProductsMap debe estar cargado globalmente
+            if (productData && productData.parent_product_id && window.allProductsMap) {
+                const parentProduct = allProductsMap[productData.parent_product_id];
+                if (parentProduct) {
+                    parentName = parentProduct.name;
+                } else {
+                    parentName = 'Padre no cargado'; 
+                }
+            }
+            // ----------------------------------------------------------------------
+            
+          itemsBody.innerHTML += `
+        <tr class="hover:bg-gray-50">
+        <td class="px-6 py-3">
+            ${parentName !== 'N/A' ? parentName + ' (' : ''}
+            <span class="font-semibold">${productData?.name || 'Producto Desconocido'}</span>
+            ${parentName !== 'N/A' ? ')' : ''}
+        </td> 
+        <td class="px-6 py-3 text-center">${item.quantity}</td>
+        <td class="px-6 py-3 text-right">${formatCurrency(item.price)}</td>
+        <td class="px-6 py-3 text-right">${formatCurrency(item.subtotal)}</td>
+        </tr>
             `;
         });
-
+        
+        // -----------------------------------------------------------------
+        // RENDERIZADO DE PAGOS
+        // -----------------------------------------------------------------
         const paymentsBody = document.getElementById('detail-payments-body');
         paymentsBody.innerHTML = '';
         if (payments.length === 0) {
@@ -1394,41 +1427,38 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             });
         }
 
+        // =======================================================
         // 5. LÓGICA CONDICIONAL: Mostrar Edición o Abono
-const saleEditSection = document.getElementById('sale-edit-section');
-const paymentFormContainer = document.getElementById('register-payment-form'); 
+        // =======================================================
+        const saleEditSection = document.getElementById('sale-edit-section');
+        const paymentFormContainer = document.getElementById('register-payment-form'); 
 
-// CRÍTICO: Una venta a $0 es editable. Debe ser total_amount <= 0.01 Y saldo_pendiente < 0.01.
-// NOTA: Asumimos que la venta a $0 solo tiene un ítem de servicio.
-const isZeroSalePending = (parseFloat(sale.total_amount) < 0.01) && (parseFloat(sale.saldo_pendiente) < 0.01);
+        const isZeroSalePending = (parseFloat(sale.total_amount) < 0.01) && (parseFloat(sale.saldo_pendiente) < 0.01);
 
-if (isZeroSalePending) {
-    saleEditSection.classList.remove('hidden');
-    paymentFormContainer.classList.add('hidden'); // 👈 Oculta el formulario de Abono
+        if (isZeroSalePending) {
+            saleEditSection.classList.remove('hidden');
+            paymentFormContainer.classList.add('hidden'); 
 
-    // 🚨 PASO CRÍTICO: Necesitas el ID del detalle de venta (el ítem del servicio)
-    // Asegúrate de que tu consulta 'detalle_ventas' seleccione el 'detalle_id'.
-    const itemToEdit = (items || [])[0];
+            const itemToEdit = (items || [])[0];
 
-    document.getElementById('sale-edit-transaction-id').value = sale.venta_id; 
+            document.getElementById('sale-edit-transaction-id').value = sale.venta_id; 
 
-    // DEBES AÑADIR ESTE INPUT OCULTO A TU HTML: <input type="hidden" id="sale-edit-detail-id">
-    if (itemToEdit && itemToEdit.detalle_id) { 
-        document.getElementById('sale-edit-detail-id').value = itemToEdit.detalle_id; 
-        document.getElementById('sale-edit-price').value = ''; // Limpiar el campo de precio
-    } else {
-        // Si no hay detalle, volvemos al estado normal
-        saleEditSection.classList.add('hidden');
-        paymentFormContainer.classList.remove('hidden');
-    }
+            // DEBES ASEGURARTE DE QUE 'sale-edit-detail-id' exista en tu HTML
+            if (itemToEdit && itemToEdit.detalle_id) { 
+                document.getElementById('sale-edit-detail-id').value = itemToEdit.detalle_id; 
+                document.getElementById('sale-edit-price').value = ''; 
+            } else {
+                saleEditSection.classList.add('hidden');
+                paymentFormContainer.classList.remove('hidden');
+            }
 
-} else {
-    saleEditSection.classList.add('hidden');
-    paymentFormContainer.classList.remove('hidden'); // 👈 Muestra el formulario de Abono
-}
+        } else {
+            saleEditSection.classList.add('hidden');
+            paymentFormContainer.classList.remove('hidden'); 
+        }
 
-// 6. Finalmente, abrir el modal.
-openModal('modal-detail-sale');
+        // 6. Finalmente, abrir el modal.
+        openModal('modal-detail-sale');
 
     } catch (e) {
         console.error('Error al cargar detalles de venta:', e);
