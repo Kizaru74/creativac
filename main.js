@@ -2212,15 +2212,17 @@ function openAbonoModal(clientId) {
 // ====================================================================
 
 async function loadMonthlySalesReport() {
-    // 1. Obtener los contenedores (solo los que existen en el HTML actual)
+    // 1. Obtener los contenedores (¡INCLUYENDO EL NUEVO ID!)
     const selector = document.getElementById('report-month-selector');
     const monthlyReportBody = document.getElementById('monthly-sales-report-body');
     const totalSalesSpan = document.getElementById('report-total-sales');
+    // 🌟 AJUSTE 1: Declarar el nuevo span que inyectará la Deuda Generada en el Mes
+    const totalDebtGeneratedSpan = document.getElementById('report-total-debt-generated'); 
     const noDataMessage = document.getElementById('monthly-report-no-data');
     
-    // 🛑 VERIFICACIÓN: Sólo verifica los IDs que SÍ están en el HTML.
-    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage) {
-        console.warn("Advertencia: Contenedores de Reporte Mensual ausentes. (Modal cerrado)");
+    // 🛑 VERIFICACIÓN: Ahora verificamos si el nuevo ID existe
+    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage || !totalDebtGeneratedSpan) {
+        console.warn("Advertencia: Contenedores de Reporte Mensual ausentes o modal cerrado. (Asegúrese de agregar el ID 'report-total-debt-generated' a su HTML)");
         return; 
     }
 
@@ -2268,12 +2270,16 @@ async function loadMonthlySalesReport() {
         console.error('Error al cargar reporte de ventas:', error.message);
         monthlyReportBody.innerHTML = '';
         totalSalesSpan.textContent = '$0.00';
+        totalDebtGeneratedSpan.textContent = '$0.00'; // También resetear el nuevo total
         noDataMessage.classList.remove('hidden');
         return;
     }
 
     // 3. CÁLCULO DE TOTALES DEL MES Y RENDERIZADO DE LA TABLA
     let grandTotal = 0; 
+    // 🌟 AJUSTE 2: Inicializar el contador para la Deuda Generada
+    let monthlyDebtGenerated = 0;
+    
     monthlyReportBody.innerHTML = ''; 
 
     if (sales && sales.length > 0) {
@@ -2281,6 +2287,8 @@ async function loadMonthlySalesReport() {
 
         sales.forEach(sale => {
             grandTotal += sale.total_amount;
+            // 🌟 AJUSTE 3A: Acumular la deuda pendiente de esa venta
+            monthlyDebtGenerated += sale.saldo_pendiente; 
             
             // ... (Resto del código para renderizar la fila de la tabla)
             const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
@@ -2326,6 +2334,8 @@ async function loadMonthlySalesReport() {
 
     // Actualizar el total del MES
     totalSalesSpan.textContent = formatCurrency(grandTotal); 
+    // 🌟 AJUSTE 3B: Actualizar el total de DEUDA GENERADA
+    totalDebtGeneratedSpan.textContent = formatCurrency(monthlyDebtGenerated);
 }
 
 function initializeMonthSelector() {
