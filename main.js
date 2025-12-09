@@ -14,8 +14,6 @@ let debtToPayId = null;
 let allClients = [];
 let allClientsMap = {};
 let allProductsMap = {};
-await loadDashboardMetrics();
-
 
 // ✅ CORRECCIÓN CRÍTICA: Inicializar Supabase directamente, fuera del try/catch.
 if (window.supabase) {
@@ -28,6 +26,72 @@ if (window.supabase) {
 // ====================================================================
 // 2. UTILIDADES Y MANEJO DE MODALES
 // ====================================================================
+
+async function initializeApp() {
+    // ... [código de inicialización de Supabase] ...
+    
+    await loadProducts();
+    await loadClientsTable('gestion'); // Ya tienes esta llamada
+    
+    // 🌟 AÑADIR ESTA LÍNEA 🌟
+    await loadDashboardMetrics(); 
+}
+
+
+//FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
+window.loadDashboardMetrics = async function() {
+    if (!supabase) {
+        console.error("Supabase no está inicializado para cargar métricas.");
+        return;
+    }
+
+    try {
+        // A. CALCULAR DEUDA PENDIENTE TOTAL (SUM(saldo_pendiente) > 0.01)
+        const { data: debtData, error: debtError } = await supabase
+            .from('ventas')
+            .select('saldo_pendiente')
+            .gt('saldo_pendiente', 0.01); // Selecciona solo ventas con deuda activa
+
+        if (debtError) throw debtError;
+
+        let totalDebt = 0;
+        if (debtData && debtData.length > 0) {
+            // Suma todos los saldos pendientes
+            totalDebt = debtData.reduce((sum, sale) => sum + parseFloat(sale.saldo_pendiente || 0), 0);
+        }
+
+        // B. CALCULAR VENTA HISTÓRICA TOTAL (SUM(total_amount))
+        // Usamos una función de agregación directa (sum) para mayor eficiencia
+        const { data: salesData, error: salesError } = await supabase
+            .from('ventas')
+            .select('total_amount')
+            .not('total_amount', 'is', null);
+
+        if (salesError) throw salesError;
+
+        let historicalTotalSales = 0;
+        if (salesData && salesData.length > 0) {
+            historicalTotalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.total_amount || 0), 0);
+        }
+        
+        // 3. INYECTAR EN EL DOM (usando los IDs que proporcionaste)
+        
+        // Deuda Pendiente
+        const debtElement = document.getElementById('total-debt');
+        if (debtElement) {
+            debtElement.textContent = formatCurrency(totalDebt);
+        }
+
+        // Total Histórico de Ventas
+        const salesElement = document.getElementById('historical-total-sales');
+        if (salesElement) {
+            salesElement.textContent = formatCurrency(historicalTotalSales);
+        }
+
+    } catch (e) {
+        console.error('Error al cargar métricas del dashboard:', e);
+    }
+}
 
 // ✅ MONEDA: PESO MEXICANO (MXN)
 function formatCurrency(amount) {
