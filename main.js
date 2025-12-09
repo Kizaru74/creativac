@@ -2876,13 +2876,18 @@ monthlySalesModal?.addEventListener('click', (e) => {
 //  Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
 // -----------------------------------------------
 window.openRegisterClientModal = function() {
-    // 🌟 1. Apuntamos al ID correcto del título ('client-modal-title')
-    document.getElementById('client-modal-title')?.textContent = 'Registrar Nuevo Cliente'; 
+    
+    // 🌟 CORRECCIÓN CRÍTICA: Cambiamos '?.textContent = ...'
+    // a una verificación estándar para compatibilidad universal.
+    const titleElement = document.getElementById('client-modal-title');
+    if (titleElement) {
+        titleElement.textContent = 'Registrar Nuevo Cliente';
+    }
     
     // 2. Apuntamos al ID correcto del formulario
     const form = document.getElementById('new-client-form'); 
     
-    // 3. Resetear y configurar listeners
+    // 3. Resetear y configurar listeners (Aquí sí funciona el ?. ya que NO es una asignación)
     form?.reset(); 
     form?.removeEventListener('submit', handleEditClient);
     form?.addEventListener('submit', handleNewClient);
@@ -2891,7 +2896,7 @@ window.openRegisterClientModal = function() {
     
     // 4. Abrimos el modal con el ID CORRECTO ('modal-new-client')
     openModal('modal-new-client'); 
-}; 
+};
 
 // Listener para el envío del formulario de edición de precio post-venta
 document.getElementById('post-sale-price-form')?.addEventListener('submit', async (e) => {
