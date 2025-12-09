@@ -2946,7 +2946,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         document.getElementById('total-amount').value = '0.00';
         document.getElementById('paid-amount').value = '0.00';
-        document.getElementById('remaining-balance').value = '0.00';
+        document.getElementById('display-saldo-pendiente').value = '0.00';
 
         openModal('new-sale-modal'); 
     } catch (error) {
