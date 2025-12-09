@@ -569,6 +569,10 @@ function updatePaymentDebtStatus(grandTotal) {
     if (!paidAmountInput || !paymentMethodSelect || !saldoDisplay) return;
 
     const paymentMethod = paymentMethodSelect.value;
+
+    // 🛑 AÑADIR DEBUG AQUÍ
+    console.log("DEBUG TOTALES:");
+    console.log("Grand Total (Venta):", grandTotal);
     
     // 🛑 1. LÓGICA DE PROTECCIÓN (La corrección clave para evitar que se borre)
     let currentPaidAmount = 0;
@@ -588,12 +592,14 @@ function updatePaymentDebtStatus(grandTotal) {
         }
     }
 
+    // 🛑 AÑADIR DEBUG AQUÍ
+    console.log("Monto Pagado (leído):", currentPaidAmount);
+
     // 2. CÁLCULO Y ACTUALIZACIÓN DEL SALDO PENDIENTE DISPLAY
-    // Usamos el monto pagado (respetando la entrada del usuario)
     const saldoPendiente = grandTotal - currentPaidAmount;
     
-    // Muestra el saldo pendiente al usuario.
-    saldoDisplay.textContent = formatCurrency(saldoPendiente);
+    // 🛑 AÑADIR DEBUG AQUÍ
+    console.log("Saldo Pendiente (Calculado):", saldoPendiente);
     
     // Opcional: Manejo visual de saldo negativo
     if (saldoPendiente < 0) {
@@ -2958,8 +2964,17 @@ document.getElementById('abono-client-form')?.addEventListener('submit', handleR
 document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
 
 // Listener para recalcular saldo en tiempo real al cambiar el monto pagado
-document.getElementById('paid-amount')?.addEventListener('input', () => {
-    console.log("Evento 'input' detectado en Monto Pagado."); // ⬅️ AÑADE ESTO
+const paidAmountInput = document.getElementById('paid-amount');
+
+if (paidAmountInput) {
+    paidAmountInput.addEventListener('input', () => {
+        // Al ingresar el monto, forzamos el recálculo total de la venta
+        calculateGrandTotal();
+    });
+}
+// Además, debes asegurarte de que cuando cambies el método de pago,
+// también se recalcule el total, porque el campo paid-amount puede cambiar a '0'
+document.getElementById('payment-method')?.addEventListener('change', () => {
     calculateGrandTotal();
 });
     //Listener reporte mensual
