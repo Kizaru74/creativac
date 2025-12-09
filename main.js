@@ -560,26 +560,25 @@ function updatePriceField(productId) {
 // 6. LÓGICA DE VENTA MULTI-ITEM
 // ====================================================================
 
-// FUNCIÓN NUEVA: Calular el Saldo Pendiente y Proteger el Monto Pagado
 function updatePaymentDebtStatus(grandTotal) {
-    // Los IDs que buscamos en el HTML de la nueva venta
+    // Campos HTML
     const paidAmountInput = document.getElementById('paid-amount');
     const paymentMethodSelect = document.getElementById('payment-method');
-    // 💡 ASUME ESTE ID para el display del Saldo Pendiente
     const saldoDisplay = document.getElementById('display-saldo-pendiente'); 
 
     if (!paidAmountInput || !paymentMethodSelect || !saldoDisplay) return;
 
     const paymentMethod = paymentMethodSelect.value;
     
-    // 🛑 1. LÓGICA DE PROTECCIÓN para el campo 'Monto Pagado'
+    // 🛑 1. LÓGICA DE PROTECCIÓN (La corrección clave para evitar que se borre)
     let currentPaidAmount = 0;
 
     if (paymentMethod === 'Deuda') {
-        // Si el método es DEUDA, el pago DEBE ser 0.
+        // Si el método es DEUDA, el pago DEBE ser 0 y forzamos el campo.
         paidAmountInput.value = '0.00';
     } else {
-        // Si NO es DEUDA, respetamos la entrada del usuario.
+        // Si NO es DEUDA, respetamos el valor ingresado por el usuario.
+        // Convertimos el valor actual del input a número (protegiendo contra comas)
         const paidAmountStr = paidAmountInput.value.replace(',', '.');
         currentPaidAmount = parseFloat(paidAmountStr) || 0;
 
@@ -590,12 +589,13 @@ function updatePaymentDebtStatus(grandTotal) {
     }
 
     // 2. CÁLCULO Y ACTUALIZACIÓN DEL SALDO PENDIENTE DISPLAY
+    // Usamos el monto pagado (respetando la entrada del usuario)
     const saldoPendiente = grandTotal - currentPaidAmount;
     
-    // Muestra el saldo pendiente al usuario
+    // Muestra el saldo pendiente al usuario.
     saldoDisplay.textContent = formatCurrency(saldoPendiente);
     
-    // Manejo visual de saldo negativo (opcional pero recomendado)
+    // Opcional: Manejo visual de saldo negativo
     if (saldoPendiente < 0) {
         saldoDisplay.classList.add('text-red-500');
     } else {
@@ -821,40 +821,6 @@ async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newU
 // ====================================================================
 // 7. MANEJO DEL PAGO Y LA DEUDA 
 // ====================================================================
-
-function updatePaymentDebtStatus(totalAmount = null) {
-    const paidAmountInput = document.getElementById('paid-amount');
-    const paymentMethodSelect = document.getElementById('payment-method');
-    const totalInput = document.getElementById('total-amount');
-    
-    const currentTotal = totalAmount || parseFloat(totalInput?.value) || 0;
-    
-    const paymentMethod = paymentMethodSelect?.value;
-    let paidAmount = parseFloat(paidAmountInput?.value) || 0;
-
-    if (paymentMethod === 'Deuda') {
-        paidAmount = 0;
-        if (paidAmountInput) {
-            paidAmountInput.value = '0.00';
-            paidAmountInput.readOnly = true;
-        }
-    } else {
-        if (paidAmountInput) paidAmountInput.readOnly = false;
-        if (paidAmount > currentTotal) {
-            paidAmount = currentTotal;
-            if (paidAmountInput) paidAmountInput.value = currentTotal.toFixed(2);
-        }
-    }
-    
-    const remainingDebt = Math.max(0, currentTotal - paidAmount);
-    
-    const remainingBalanceInput = document.getElementById('remaining-balance');
-    if (remainingBalanceInput) remainingBalanceInput.value = remainingDebt.toFixed(2);
-
-    if (paidAmountInput && paymentMethod !== 'Deuda') {
-        paidAmountInput.setAttribute('max', currentTotal.toFixed(2));
-    }
-}
 
 //Ventas a credito
 async function getClientSalesSummary(clientId) {
