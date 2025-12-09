@@ -1382,7 +1382,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
            // 🛑 CORRECCIÓN DE ACCESO: Usamos 'window.allProductsMap' para evitar ReferenceError
         let parentName = 'N/A';
         if (productData && productData.parent_product && window.allProductsMap) {
-        // 🛑 CAMBIO CLAVE: Cambiar allProductsMap a window.allProductsMap
         const parentProduct = window.allProductsMap[productData.parent_product]; 
         if (parentProduct) {
         parentName = parentProduct.name;
@@ -1462,6 +1461,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         alert('Hubo un error al cargar los detalles de la venta.');
     }
 }
+
 // La función llamada por el botón "Actualizar Precio"
 window.handleSaveNewPrice = async function() { 
     const ventaId = document.getElementById('sale-edit-transaction-id')?.value;
