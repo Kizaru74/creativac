@@ -2958,16 +2958,8 @@ document.getElementById('abono-client-form')?.addEventListener('submit', handleR
 document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
 
 // Listener para recalcular saldo en tiempo real al cambiar el monto pagado
-const paidAmountInput = document.getElementById('paid-amount');
-if (paidAmountInput) {
-    paidAmountInput.addEventListener('input', () => {
-        // Al ingresar el monto, forzamos el recálculo total de la venta
-        calculateGrandTotal();
-    });
-}
-// Además, debes asegurarte de que cuando cambies el método de pago,
-// también se recalcule el total, porque el campo paid-amount puede cambiar a '0'
-document.getElementById('payment-method')?.addEventListener('change', () => {
+document.getElementById('paid-amount')?.addEventListener('input', () => {
+    console.log("Evento 'input' detectado en Monto Pagado."); // ⬅️ AÑADE ESTO
     calculateGrandTotal();
 });
     //Listener reporte mensual
