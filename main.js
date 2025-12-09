@@ -2958,12 +2958,18 @@ document.getElementById('abono-client-form')?.addEventListener('submit', handleR
 document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
 
 // Listener para recalcular saldo en tiempo real al cambiar el monto pagado
-document.getElementById('paid-amount')?.addEventListener('input', () => {
-    // 💡 Aquí llamamos a la función que recalcula el Saldo Pendiente.
-    // Necesitamos el total, que lo obtenemos con calculateGrandTotal.
+const paidAmountInput = document.getElementById('paid-amount');
+if (paidAmountInput) {
+    paidAmountInput.addEventListener('input', () => {
+        // Al ingresar el monto, forzamos el recálculo total de la venta
+        calculateGrandTotal();
+    });
+}
+// Además, debes asegurarte de que cuando cambies el método de pago,
+// también se recalcule el total, porque el campo paid-amount puede cambiar a '0'
+document.getElementById('payment-method')?.addEventListener('change', () => {
     calculateGrandTotal();
 });
-
     //Listener reporte mensual
     initializeMonthSelector(); // ✅ LLAMADA A LA FUNCIÓN RECIÉN CREADA
     loadMainProductsForSaleSelect(); // (O la función que cargue los productos de venta)
