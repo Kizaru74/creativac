@@ -2254,18 +2254,27 @@ async function handleSaleAbono(e) {
 e.preventDefault(); 
     if (!supabase) return;
 
-    // 1. OBTENER DATOS DESDE EL FORMULARIO
-    // 🛑 CORRECCIÓN: Usar los IDs reales de tu HTML: 'abono-amount' y 'payment-method-abono'
-    const abonoAmountStr = document.getElementById('abono-amount').value; // ¡CORREGIDO!
-    const paymentMethod = document.getElementById('payment-method-abono').value; // ¡CORREGIDO!
-    const ventaId = document.getElementById('payment-sale-id').value;
-    // Usamos la variable global establecida en handleViewSaleDetails
+ // 1. OBTENER DATOS DESDE EL FORMULARIO
+    const abonoAmountStr = document.getElementById('abono-amount').value; 
+    const paymentMethod = document.getElementById('payment-method-abono').value; 
+    const ventaId = document.getElementById('payment-sale-id').value; 
     const clientId = viewingClientId; 
 
     const amount = parseFloat(abonoAmountStr);
+    
+    // ===================================================
+    // 🛑 DEBUGGING: AÑADE ESTAS LÍNEAS
+    // ===================================================
+    console.log("DEBUG ABONO:");
+    console.log("1. Monto String:", abonoAmountStr);
+    console.log("2. Monto Float:", amount);
+    console.log("3. Venta ID:", ventaId);
+    console.log("4. Cliente ID:", clientId);
+    console.log("5. Es NaN:", isNaN(amount));
+    // ===================================================
 
     if (amount <= 0 || isNaN(amount) || !ventaId || !clientId) {
-        alert('Por favor, ingresa un monto de abono válido.');
+        alert('Por favor, ingresa un monto de abono válido.'); // <--- Esta línea se dispara
         return;
     }
 
