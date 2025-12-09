@@ -1077,7 +1077,6 @@ window.handleViewClientDebt = async function(clientId) {
         }
 
         // 2. OBTENER EL HISTORIAL DE TRANSACCIONES (VIEW: transacciones_deuda)
-        // La consulta ahora incluye el campo 'product_name' gracias a la vista SQL corregida.
         const { data: history, error: historyError } = await supabase
             .from('transacciones_deuda')
             .select(`*`) 
@@ -1106,8 +1105,8 @@ window.handleViewClientDebt = async function(clientId) {
                 // Es un cargo (Aumenta la deuda, se muestra positivo)
                 currentRunningBalance += amountValue;
                 
-                // 🚨 CORRECCIÓN CLAVE: Usamos product_name, y si es NULL, usamos 'Producto/Servicio'
-                const productName = transaction.product_name; // Lee el campo de la vista
+                // Usamos product_name (campo de la vista SQL)
+                const productName = transaction.product_name; 
                 transactionDescription = `Venta: ${productName || 'Producto/Servicio'}`;
                 
                 amountDisplay = formatCurrency(amountValue); 
@@ -1116,7 +1115,7 @@ window.handleViewClientDebt = async function(clientId) {
                 // Es un abono (Disminuye la deuda/aumenta el crédito)
                 currentRunningBalance -= amountValue;
                 
-                // Mostrar el abono como un valor negativo para el MONTO
+                // Mostrar el abono como un valor negativo para el MONTO (para que se distinga de la venta)
                 amountDisplay = `-${formatCurrency(amountValue)}`; 
                 amountClass = 'text-green-600 font-bold';
                 
@@ -1131,22 +1130,26 @@ window.handleViewClientDebt = async function(clientId) {
             }
 
             // =========================================================
-            // Lógica para el Saldo Acumulado (Running Balance)
+            // 🌟 LÓGICA DE CORRECCIÓN: Saldo Acumulado (Running Balance)
             // =========================================================
 
             const absBalance = Math.abs(currentRunningBalance);
             const runningBalanceDisplay = formatCurrency(absBalance);
             let balanceClass = '';
-            let balancePrefix = '';
+            let balanceLabel = 'Saldo: '; // Etiqueta por defecto
 
             if (currentRunningBalance > 0.01) {
+                // Deuda pendiente (Positivo)
                 balanceClass = 'text-red-600 font-extrabold';
+                balanceLabel = 'Deuda: ';
             } else if (currentRunningBalance < -0.01) {
+                // Crédito a favor (Negativo)
                 balanceClass = 'text-green-600 font-extrabold';
-                balancePrefix = '-';
+                balanceLabel = 'Crédito: '; // ⬅️ Mostramos "Crédito"
             } else {
+                // Saldado (Cero)
                 balanceClass = 'text-gray-700 font-extrabold';
-                balancePrefix = '';
+                balanceLabel = 'Saldado: ';
             }
             
             // 4. INYECCIÓN DEL HTML EN LA TABLA
@@ -1155,7 +1158,7 @@ window.handleViewClientDebt = async function(clientId) {
                     <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(transaction.created_at)}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-gray-800">${transactionDescription}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-left ${amountClass}">${amountDisplay}</td>
-                    <td class="px-3 py-3 whitespace-nowrap text-left ${balanceClass}">${balancePrefix}${runningBalanceDisplay}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-left ${balanceClass}">${balanceLabel}${runningBalanceDisplay}</td>
                 </tr>
             `;
         });
@@ -1166,12 +1169,15 @@ window.handleViewClientDebt = async function(clientId) {
         const totalDebtElement = document.getElementById('client-report-total-debt');
 
         if (currentRunningBalance > 0.01) {
+            // Deuda total
             totalDebtElement.textContent = totalDebtDisplay;
             totalDebtElement.className = 'text-red-600 font-extrabold text-xl';
         } else if (currentRunningBalance < -0.01) {
-            totalDebtElement.textContent = `-${totalDebtDisplay}`;
+            // Crédito total (Mostramos el texto "Crédito")
+            totalDebtElement.textContent = `Crédito ${totalDebtDisplay}`; // ⬅️ Cambio clave para el encabezado
             totalDebtElement.className = 'text-green-600 font-extrabold text-xl';
         } else {
+             // Saldado
              totalDebtElement.textContent = formatCurrency(0);
              totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
         }
