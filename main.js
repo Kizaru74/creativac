@@ -2250,41 +2250,54 @@ function openAbonoModal(clientId) {
 // ====================================================================
 // ✅ FUNCIÓN CRÍTICA: REGISTRO DE ABONO A UNA VENTA ESPECÍFICA
 // ====================================================================
+// ====================================================================
+// FUNCIÓN: REGISTRO DE ABONO A UNA VENTA ESPECÍFICA (Tabla 'pagos')
+// Debe ser llamada por el listener del formulario 'register-payment-form'
+// ====================================================================
 async function handleSaleAbono(e) {
-e.preventDefault(); 
-    if (!supabase) return;
-
- // 1. OBTENER DATOS DESDE EL FORMULARIO
-    const abonoAmountStr = document.getElementById('abono-amount').value; 
-    const paymentMethod = document.getElementById('payment-method-abono').value; 
-    const ventaId = document.getElementById('payment-sale-id').value; 
-    const clientId = viewingClientId; 
-
-    const amount = parseFloat(abonoAmountStr);
-    
-    // ===================================================
-    // 🛑 DEBUGGING: AÑADE ESTAS LÍNEAS
-    // ===================================================
-    console.log("DEBUG ABONO:");
-    console.log("1. Monto String:", abonoAmountStr);
-    console.log("2. Monto Float:", amount);
-    console.log("3. Venta ID:", ventaId);
-    console.log("4. Cliente ID:", clientId);
-    console.log("5. Es NaN:", isNaN(amount));
-    // ===================================================
-
-    if (amount <= 0 || isNaN(amount) || !ventaId || !clientId) {
-        alert('Por favor, ingresa un monto de abono válido.'); // <--- Esta línea se dispara
+    e.preventDefault(); 
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
         return;
     }
 
+    // 1. OBTENER DATOS CON LOS NUEVOS IDs
+    // Asumimos que los IDs del HTML fueron renombrados para evitar el conflicto.
+    const abonoAmountInput = document.getElementById('abono-amount-sale');
+    const paymentMethod = document.getElementById('payment-method-sale').value; 
+    const ventaId = document.getElementById('payment-sale-id').value; 
+    // viewingClientId es una variable global establecida en handleViewSaleDetails
+    const clientId = viewingClientId; 
+
+    // 2. PROCESAR MONTO (Robusto contra formato o valor vacío)
+    let amount = abonoAmountInput ? abonoAmountInput.valueAsNumber : 0;
+    
+    // Fallback para manejar comas (,) como separador decimal si el navegador no lo soporta
+    if (isNaN(amount)) {
+        const cleanedStr = abonoAmountInput.value.replace(',', '.');
+        amount = parseFloat(cleanedStr) || 0; // Asegura que si es inválido, sea 0
+    }
+    
+    // 3. VALIDACIÓN 
+    if (amount <= 0 || !ventaId || !clientId) {
+        alert('Por favor, ingresa un monto de abono válido y asegúrate de que la venta y el cliente estén cargados.'); 
+        return;
+    }
+    
     try {
-        // Obtenemos el saldo actual para el cálculo
-        const currentSaldoPendienteStr = document.getElementById('detail-saldo-pendiente').textContent;
-        const currentSaldo = parseFloat(currentSaldoPendienteStr.replace(/[^\d.,-]/g, '').replace(',', '.')); 
+        // 4. PRE-CÁLCULO: Calcular el nuevo saldo pendiente
+        const currentSaldoPendienteElement = document.getElementById('detail-saldo-pendiente');
+        // Limpiamos el texto de moneda (asumiendo que formatCurrency lo formatea)
+        const currentSaldoStr = currentSaldoPendienteElement.textContent.replace(/[^\d.,-]/g, '').replace(',', '.'); 
+        const currentSaldo = parseFloat(currentSaldoStr);
+
+        if (isNaN(currentSaldo)) {
+             throw new Error("Error de cálculo: Saldo pendiente actual no es un número válido.");
+        }
+        
         const newSaldoPendiente = currentSaldo - amount;
 
-        // --- 2. REGISTRAR EL PAGO/ABONO EN LA TABLA 'pagos' ---
+        // 5. INSERTAR REGISTRO EN LA TABLA 'pagos'
         const { error: paymentError } = await supabase
             .from('pagos')
             .insert([{
@@ -2296,7 +2309,7 @@ e.preventDefault();
 
         if (paymentError) throw paymentError;
 
-        // --- 3. ACTUALIZAR EL SALDO PENDIENTE EN LA TABLA 'ventas' ---
+        // 6. ACTUALIZAR EL SALDO PENDIENTE EN LA TABLA 'ventas'
         const { error: updateError } = await supabase
             .from('ventas')
             .update({ saldo_pendiente: newSaldoPendiente })
@@ -2304,23 +2317,23 @@ e.preventDefault();
             
         if (updateError) throw updateError;
         
-        // --- 4. ÉXITO Y ACTUALIZACIÓN DE UI ---
+        // 7. ÉXITO Y ACTUALIZACIÓN DE UI
         alert('✅ Abono registrado con éxito. Saldo pendiente actualizado.');
         
-        // Limpia el input de monto y cierra el modal (si aplica)
-        document.getElementById('abono-amount-input-sale').value = ''; 
+        // Limpiar el campo de monto
+        abonoAmountInput.value = ''; 
 
-        // Recargar el contenido del modal de venta actual
-        // Esto refresca la lista de pagos y el nuevo saldo.
-        window.handleViewSaleDetails(ventaId, clientId);
+        // Recargar el contenido del modal de venta actual (para ver el nuevo saldo y el pago)
+        window.handleViewSaleDetails(ventaId, clientId); 
 
-        // Recargar datos generales para actualizar la tabla de deudas
+        // Recargar los datos generales (dashboard y tabla) para reflejar el cambio en la deuda general
+        // Asegúrese de que loadDashboardData y loadClientsTable existan.
         await loadDashboardData();
         await loadClientsTable('gestion'); 
 
     } catch (error) {
         console.error('Error al registrar abono en venta:', error);
-        alert(`Error al registrar abono: ${error.message}`);
+        alert(`Hubo un error al registrar el abono: ${error.message}`);
     }
 }
 
