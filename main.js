@@ -1381,12 +1381,13 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             const productData = item.productos;
            // 🛑 CORRECCIÓN DE ACCESO: Usamos 'window.allProductsMap' para evitar ReferenceError
         let parentName = 'N/A';
-        if (productData && productData.parent_product && window.allProductsMap) {
-        const parentProduct = window.allProductsMap[productData.parent_product]; 
-        if (parentProduct) {
-        parentName = parentProduct.name;
-        } else {
-        parentName = 'Padre no cargado'; 
+            if (productData && productData.parent_product && window.allProductsMap) {
+                // ✅ Acceso corregido: USAR window.allProductsMap
+                const parentProduct = window.allProductsMap[productData.parent_product]; 
+                if (parentProduct) {
+                    parentName = parentProduct.name;
+                } else {
+                    parentName = 'Padre no cargado';
     }
 }
             // ----------------------------------------------------------------------
