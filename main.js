@@ -614,6 +614,7 @@ function updatePaymentDebtStatus(grandTotal) {
 
 function calculateGrandTotal() {
     const grandTotal = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+    console.log("Grand Total calculado:", grandTotal); // DEBE MOSTRAR EL TOTAL DE LA VENTA
     
     const totalInput = document.getElementById('total-amount');
     if (totalInput) totalInput.value = grandTotal.toFixed(2); 
