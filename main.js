@@ -2876,17 +2876,21 @@ monthlySalesModal?.addEventListener('click', (e) => {
 //  Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
 // -----------------------------------------------
 window.openRegisterClientModal = function() {
-    document.getElementById('client-modal-title').textContent = 'Registrar Nuevo Cliente';
+    // 🌟 1. Apuntamos al ID correcto del título ('client-modal-title')
+    document.getElementById('client-modal-title')?.textContent = 'Registrar Nuevo Cliente';
     
-    // ✅ CRÍTICO: Usar la ID correcta 'new-client-form'
+    // 2. Apuntamos al ID correcto del formulario
     const form = document.getElementById('new-client-form'); 
     
+    // 3. Resetear y configurar listeners
     form?.reset(); 
     form?.removeEventListener('submit', handleEditClient);
     form?.addEventListener('submit', handleNewClient);
     
     editingClientId = null;
-    openModal('modal-register-client');
+    
+    // 🌟 4. Abrimos el modal con el ID CORRECTO ('modal-new-client')
+    openModal('modal-new-client'); 
 }
 
 // Listener para el envío del formulario de edición de precio post-venta
