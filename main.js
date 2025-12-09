@@ -2248,6 +2248,74 @@ function openAbonoModal(clientId) {
 }
 
 // ====================================================================
+// ✅ FUNCIÓN CRÍTICA: REGISTRO DE ABONO A UNA VENTA ESPECÍFICA
+// ====================================================================
+async function handleSaleAbono(e) {
+    e.preventDefault(); 
+    if (!supabase) return;
+
+    // 1. OBTENER DATOS DESDE EL FORMULARIO
+    // ASUNCIÓN: Estos son los IDs dentro del formulario "register-payment-form"
+    const abonoAmountStr = document.getElementById('abono-amount-input-sale').value; // ⚠️ VERIFICA ESTE ID
+    const paymentMethod = document.getElementById('payment-method-select-sale').value; // ⚠️ VERIFICA ESTE ID
+    const ventaId = document.getElementById('payment-sale-id').value; // ID de la Venta
+    // Usamos la variable global establecida en handleViewSaleDetails
+    const clientId = viewingClientId; 
+
+    const amount = parseFloat(abonoAmountStr);
+
+    if (amount <= 0 || isNaN(amount) || !ventaId || !clientId) {
+        alert('Por favor, ingresa un monto de abono válido.');
+        return;
+    }
+
+    try {
+        // Obtenemos el saldo actual para el cálculo
+        const currentSaldoPendienteStr = document.getElementById('detail-saldo-pendiente').textContent;
+        const currentSaldo = parseFloat(currentSaldoPendienteStr.replace(/[^\d.,-]/g, '').replace(',', '.')); 
+        const newSaldoPendiente = currentSaldo - amount;
+
+        // --- 2. REGISTRAR EL PAGO/ABONO EN LA TABLA 'pagos' ---
+        const { error: paymentError } = await supabase
+            .from('pagos')
+            .insert([{
+                venta_id: ventaId,
+                client_id: clientId,
+                amount: amount,
+                metodo_pago: paymentMethod,
+            }]);
+
+        if (paymentError) throw paymentError;
+
+        // --- 3. ACTUALIZAR EL SALDO PENDIENTE EN LA TABLA 'ventas' ---
+        const { error: updateError } = await supabase
+            .from('ventas')
+            .update({ saldo_pendiente: newSaldoPendiente })
+            .eq('venta_id', ventaId);
+            
+        if (updateError) throw updateError;
+        
+        // --- 4. ÉXITO Y ACTUALIZACIÓN DE UI ---
+        alert('✅ Abono registrado con éxito. Saldo pendiente actualizado.');
+        
+        // Limpia el input de monto y cierra el modal (si aplica)
+        document.getElementById('abono-amount-input-sale').value = ''; 
+
+        // Recargar el contenido del modal de venta actual
+        // Esto refresca la lista de pagos y el nuevo saldo.
+        window.handleViewSaleDetails(ventaId, clientId);
+
+        // Recargar datos generales para actualizar la tabla de deudas
+        await loadDashboardData();
+        await loadClientsTable('gestion'); 
+
+    } catch (error) {
+        console.error('Error al registrar abono en venta:', error);
+        alert(`Error al registrar abono: ${error.message}`);
+    }
+}
+
+// ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
 
@@ -2850,6 +2918,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     //Boton añadir producto a la venta
     document.getElementById('add-product-btn')?.addEventListener('click', handleAddProductToSale);
+
+// Listener para el envío del formulario de registro de abonos (GENERAL)
+document.getElementById('abono-client-form')?.addEventListener('submit', handleRecordAbono);
+
+// 🛑 AÑADE ESTE: Listener para el envío del formulario de PAGO en el Modal de DETALLES DE VENTA
+document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
 
     //Listener reporte mensual
     initializeMonthSelector(); // ✅ LLAMADA A LA FUNCIÓN RECIÉN CREADA
