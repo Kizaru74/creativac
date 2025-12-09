@@ -1379,18 +1379,17 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         
         (items || []).forEach(item => {
             const productData = item.productos;
-            
-            // 🛑 CORRECCIÓN CLAVE 2/3: Usamos 'parent_product' en lugar de 'parent_product_id'
-            let parentName = 'N/A';
-            if (productData && productData.parent_product && window.allProductsMap) {
-                // 🛑 CORRECCIÓN CLAVE 3/3: Usamos 'productData.parent_product' como clave
-                const parentProduct = allProductsMap[productData.parent_product]; 
-                if (parentProduct) {
-                    parentName = parentProduct.name;
-                } else {
-                    parentName = 'Padre no cargado'; 
-                }
-            }
+           // 🛑 CORRECCIÓN DE ACCESO: Usamos 'window.allProductsMap' para evitar ReferenceError
+        let parentName = 'N/A';
+        if (productData && productData.parent_product && window.allProductsMap) {
+        // 🛑 CAMBIO CLAVE: Cambiar allProductsMap a window.allProductsMap
+        const parentProduct = window.allProductsMap[productData.parent_product]; 
+        if (parentProduct) {
+        parentName = parentProduct.name;
+        } else {
+        parentName = 'Padre no cargado'; 
+    }
+}
             // ----------------------------------------------------------------------
             
             itemsBody.innerHTML += `
