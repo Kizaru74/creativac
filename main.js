@@ -2875,20 +2875,19 @@ monthlySalesModal?.addEventListener('click', (e) => {
 // -----------------------------------------------
 //  Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
 // -----------------------------------------------
-document.getElementById('open-register-client-modal-btn')?.addEventListener('click', () => {
+window.openRegisterClientModal = function() {
     document.getElementById('client-modal-title').textContent = 'Registrar Nuevo Cliente';
     
     // ✅ CRÍTICO: Usar la ID correcta 'new-client-form'
     const form = document.getElementById('new-client-form'); 
     
-    // Usar optional chaining para evitar el crash si el formulario no se encuentra
     form?.reset(); 
     form?.removeEventListener('submit', handleEditClient);
     form?.addEventListener('submit', handleNewClient);
     
     editingClientId = null;
     openModal('modal-register-client');
-});
+}
 
 // ✅ CRÍTICO: El listener de envío debe apuntar a la ID correcta.
 document.getElementById('new-client-form')?.addEventListener('submit', handleNewClient);
