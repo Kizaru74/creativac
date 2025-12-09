@@ -2889,9 +2889,6 @@ window.openRegisterClientModal = function() {
     openModal('modal-register-client');
 }
 
-// ✅ CRÍTICO: El listener de envío debe apuntar a la ID correcta.
-document.getElementById('new-client-form')?.addEventListener('submit', handleNewClient);
-
 // Listener para el envío del formulario de edición de precio post-venta
 document.getElementById('post-sale-price-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
