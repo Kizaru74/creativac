@@ -1077,24 +1077,19 @@ window.handleViewClientDebt = async function(clientId) {
         }
 
         // 2. OBTENER EL HISTORIAL DE TRANSACCIONES (VIEW: transacciones_deuda)
+        // La consulta ahora incluye el campo 'product_name' gracias a la vista SQL corregida.
         const { data: history, error: historyError } = await supabase
             .from('transacciones_deuda')
-            .select(`*`) // venta_id, created_at, amount, type (cargo_venta o abono), description, metodo_pago
+            .select(`*`) 
             .eq('client_id', clientId)
-            .order('created_at', { ascending: true }); // CRÍTICO: Orden ascendente
+            .order('created_at', { ascending: true });
 
         if (historyError) throw historyError;
 
         // 3. INYECCIÓN DE DATOS Y CÁLCULO DEL SALDO ACUMULADO
         
-        // 🚨 IDs AJUSTADOS AL HTML:
-        document.getElementById('client-report-name').textContent = client.name; // <span id="client-report-name">
-        
-        // Asumimos que el formulario de abono está en otro modal o sección
-        // Si tienes un input oculto para el ID del cliente, puedes llenarlo aquí:
-        // document.getElementById('abono-client-id').value = clientId; 
-        
-        const historyBody = document.getElementById('client-transactions-body'); // <tbody id="client-transactions-body">
+        document.getElementById('client-report-name').textContent = client.name;
+        const historyBody = document.getElementById('client-transactions-body'); 
         historyBody.innerHTML = '';
         
         let currentRunningBalance = 0; 
@@ -1110,7 +1105,11 @@ window.handleViewClientDebt = async function(clientId) {
             if (transaction.type === 'cargo_venta') {
                 // Es un cargo (Aumenta la deuda, se muestra positivo)
                 currentRunningBalance += amountValue;
-                transactionDescription = `Venta: ${transaction.description || 'Producto/Servicio'}`;
+                
+                // 🚨 CORRECCIÓN CLAVE: Usamos product_name, y si es NULL, usamos 'Producto/Servicio'
+                const productName = transaction.product_name; // Lee el campo de la vista
+                transactionDescription = `Venta: ${productName || 'Producto/Servicio'}`;
+                
                 amountDisplay = formatCurrency(amountValue); 
                 amountClass = 'text-red-600 font-bold';
             } else {
@@ -1135,21 +1134,17 @@ window.handleViewClientDebt = async function(clientId) {
             // Lógica para el Saldo Acumulado (Running Balance)
             // =========================================================
 
-            // Mostramos el valor absoluto del saldo
             const absBalance = Math.abs(currentRunningBalance);
             const runningBalanceDisplay = formatCurrency(absBalance);
             let balanceClass = '';
             let balancePrefix = '';
 
             if (currentRunningBalance > 0.01) {
-                // Deuda pendiente (Rojo)
                 balanceClass = 'text-red-600 font-extrabold';
             } else if (currentRunningBalance < -0.01) {
-                // Crédito a favor (Verde, se usa el signo negativo)
                 balanceClass = 'text-green-600 font-extrabold';
                 balancePrefix = '-';
             } else {
-                // Saldado (Negro/Gris)
                 balanceClass = 'text-gray-700 font-extrabold';
                 balancePrefix = '';
             }
@@ -1167,7 +1162,6 @@ window.handleViewClientDebt = async function(clientId) {
         
         // 5. ACTUALIZAR DEUDA TOTAL y MOSTRAR MODAL
         
-        // Usamos el valor final del saldo acumulado para la Deuda Total
         const totalDebtDisplay = formatCurrency(Math.abs(currentRunningBalance));
         const totalDebtElement = document.getElementById('client-report-total-debt');
 
@@ -1182,7 +1176,6 @@ window.handleViewClientDebt = async function(clientId) {
              totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
         }
 
-        // 🚨 ID DEL MODAL AJUSTADO:
         openModal('modal-client-debt-report'); 
         
     } catch (e) {
