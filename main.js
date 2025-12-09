@@ -569,20 +569,18 @@ function updatePaymentDebtStatus(grandTotal) {
     if (!paidAmountInput || !paymentMethodSelect || !saldoDisplay) return;
 
     const paymentMethod = paymentMethodSelect.value;
-
+    
     // 🛑 AÑADIR DEBUG AQUÍ
     console.log("DEBUG TOTALES:");
     console.log("Grand Total (Venta):", grandTotal);
     
-    // 🛑 1. LÓGICA DE PROTECCIÓN (La corrección clave para evitar que se borre)
+    // 🛑 1. LÓGICA DE PROTECCIÓN 
     let currentPaidAmount = 0;
 
     if (paymentMethod === 'Deuda') {
-        // Si el método es DEUDA, el pago DEBE ser 0 y forzamos el campo.
         paidAmountInput.value = '0.00';
+        currentPaidAmount = 0; // Aseguramos que el cálculo use 0
     } else {
-        // Si NO es DEUDA, respetamos el valor ingresado por el usuario.
-        // Convertimos el valor actual del input a número (protegiendo contra comas)
         const paidAmountStr = paidAmountInput.value.replace(',', '.');
         currentPaidAmount = parseFloat(paidAmountStr) || 0;
 
@@ -601,10 +599,15 @@ function updatePaymentDebtStatus(grandTotal) {
     // 🛑 AÑADIR DEBUG AQUÍ
     console.log("Saldo Pendiente (Calculado):", saldoPendiente);
     
+    // ✅ LÍNEA CRÍTICA AÑADIDA: Mostrar el saldo al usuario
+    saldoDisplay.textContent = formatCurrency(saldoPendiente); 
+
     // Opcional: Manejo visual de saldo negativo
     if (saldoPendiente < 0) {
         saldoDisplay.classList.add('text-red-500');
+        saldoDisplay.classList.remove('text-green-500');
     } else {
+        saldoDisplay.classList.add('text-green-500');
         saldoDisplay.classList.remove('text-red-500');
     }
 }
@@ -677,24 +680,21 @@ function handleAddProductToSale(e) {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
     const quantityInput = document.getElementById('product-quantity'); 
+    // ✅ LÍNEA NUEVA: Obtener el input de precio unitario editable
+    const priceInput = document.getElementById('product-unit-price'); 
     
-    // 1. Obtener IDs y Cantidad (Aquí no hay cambios, solo leer el valor del DOM)
-    // Usaremos String() en el punto de uso para la corrección
+    // 1. Obtener IDs y Cantidad
     const mainProductId = mainSelect?.value;
     const subProductId = subSelect?.value;
     const quantity = parseFloat(quantityInput?.value);
 
-    // Determinar la ID que define el PRECIO y la que se registra en el carrito
     let productIdToCharge = subProductId;
     if (!productIdToCharge) {
         productIdToCharge = mainProductId;
     }
     
-    // 🛑 CORRECCIÓN 1: Forzar productIdToCharge a String para la búsqueda.
     const searchId = String(productIdToCharge); 
     
-    // Producto que establece el precio (puede ser MAIN o PACKAGE)
-    // 🛑 CORRECCIÓN 2: Usar igualdad estricta (===) y String() en ambos lados.
     const productToCharge = allProducts.find(p => String(p.producto_id) === searchId); 
 
     // --- Validaciones ---
@@ -707,35 +707,42 @@ function handleAddProductToSale(e) {
         return;
     }
 
-    // 2. CONSTRUCCIÓN DEL NOMBRE DE VISUALIZACIÓN (CRÍTICO)
-    let nameDisplay = productToCharge.name; 
+    // 🛑 LÍNEA CLAVE CORREGIDA: PRIORIZAR el valor ingresado manualmente (priceInput.value)
+    const priceStr = priceInput?.value;
+    // Intentar parsear el precio manual. Si falla o es 0, usar el precio de la DB como fallback.
+    let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
+    
+    // Si el precio manual es 0, usar el precio de la base de datos (si existe).
+    if (price === 0 && productToCharge.price > 0) {
+        price = productToCharge.price;
+    }
+    
+    if (price <= 0) {
+        alert('El precio unitario no puede ser cero.');
+        return;
+    }
+    
+    const subtotal = quantity * price;
 
+    // 2. CONSTRUCCIÓN DEL NOMBRE (Lógica existente)
+    let nameDisplay = productToCharge.name; 
     if (subProductId) {
-        // Si hay una subcategoría, buscamos el padre para concatenar el nombre
-        // 🛑 CORRECCIÓN 3: Usar igualdad estricta (===) y String() en ambos lados.
         const mainProductData = allProducts.find(p => String(p.producto_id) === String(mainProductId));
-        
         if (mainProductData) {
-            // Formato: "Producto Padre (Subcategoría)"
             nameDisplay = `${mainProductData.name} (${productToCharge.name})`;
         }
     }
     // ------------------------------------------------------------------------
 
-    const price = productToCharge.price;
-    const subtotal = quantity * price;
-
     const newItem = {
-        // 🛑 CORRECCIÓN 4: Asegurar que la ID que entra al carrito sea un String limpio.
-        product_id: searchId,           // Usamos searchId que ya es String(ID)
+        product_id: searchId,           
         name: nameDisplay,             
         quantity: quantity,
-        price: price,
+        price: price, // ✅ Ahora usa el precio manual o el de la DB
         subtotal: subtotal,
     };
 
     // 3. Lógica de agregar-actualizar el carrito
-    // 🛑 CORRECCIÓN 5: Usar igualdad estricta (===) para encontrar el item existente.
     const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchId);
 
     if (existingIndex > -1) { 
@@ -751,8 +758,8 @@ function handleAddProductToSale(e) {
     mainSelect.value = '';
     subSelect.value = '';
     quantityInput.value = '1';
-    updatePriceField(null); 
-    loadMainProductsForSaleSelect(); // Recargar selectores
+    updatePriceField(null); // Asegura que el campo de precio unitario se limpie
+    loadMainProductsForSaleSelect();
 }
 
 async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
