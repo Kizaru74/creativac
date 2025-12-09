@@ -560,55 +560,64 @@ function updatePriceField(productId) {
 // 6. LÓGICA DE VENTA MULTI-ITEM
 // ====================================================================
 
+// ====================================================================
+// FUNCIÓN: Calular Saldo Pendiente y Proteger el Monto Pagado
+// ====================================================================
 function updatePaymentDebtStatus(grandTotal) {
     // Campos HTML
     const paidAmountInput = document.getElementById('paid-amount');
     const paymentMethodSelect = document.getElementById('payment-method');
     const saldoDisplay = document.getElementById('display-saldo-pendiente'); 
 
+    // Si falta alguno de los elementos (ej. el modal no está abierto), salir.
     if (!paidAmountInput || !paymentMethodSelect || !saldoDisplay) return;
 
     const paymentMethod = paymentMethodSelect.value;
     
-    // 🛑 AÑADIR DEBUG AQUÍ
-    console.log("DEBUG TOTALES:");
-    console.log("Grand Total (Venta):", grandTotal);
+    // 1. LECTURA DEL MONTO PAGADO: PRIORIZAR LA ENTRADA MANUAL DEL USUARIO
     
-    // 🛑 1. LÓGICA DE PROTECCIÓN 
-    let currentPaidAmount = 0;
-
-    if (paymentMethod === 'Deuda') {
+    // Leemos el valor actual del input, reemplazando comas por puntos para el parseo.
+    let paidAmountStr = paidAmountInput.value.replace(',', '.');
+    // Convertimos a número. Si es un valor inválido, usamos 0.
+    let currentPaidAmount = parseFloat(paidAmountStr) || 0; 
+    
+    // Si el campo está vacío, lo inicializamos para que no muestre vacío.
+    if (paidAmountInput.value.trim() === '') {
         paidAmountInput.value = '0.00';
-        currentPaidAmount = 0; // Aseguramos que el cálculo use 0
-    } else {
-        const paidAmountStr = paidAmountInput.value.replace(',', '.');
-        currentPaidAmount = parseFloat(paidAmountStr) || 0;
-
-        // Si el campo está vacío, lo inicializamos para que el cálculo de saldo funcione
-        if (paidAmountInput.value.trim() === '') {
-             paidAmountInput.value = '0.00';
-        }
     }
-
-    // 🛑 AÑADIR DEBUG AQUÍ
-    console.log("Monto Pagado (leído):", currentPaidAmount);
-
-    // 2. CÁLCULO Y ACTUALIZACIÓN DEL SALDO PENDIENTE DISPLAY
-    const saldoPendiente = grandTotal - currentPaidAmount;
     
-    // 🛑 AÑADIR DEBUG AQUÍ
-    console.log("Saldo Pendiente (Calculado):", saldoPendiente);
+    // Lógica para el método 'Deuda'
+    if (paymentMethod === 'Deuda') {
+        // Si es DEUDA, forzamos el monto pagado a 0
+        currentPaidAmount = 0;
+        paidAmountInput.value = '0.00';
+    } 
+    // Si NO es Deuda, currentPaidAmount mantiene el valor que el usuario ingresó.
+
+    // 2. CÁLCULO DEL SALDO PENDIENTE
+    let saldoPendiente = grandTotal - currentPaidAmount;
     
-    // ✅ LÍNEA CRÍTICA AÑADIDA: Mostrar el saldo al usuario
+    // Si la venta total es 0, aseguramos que el saldo también sea 0
+    if (grandTotal === 0) {
+        saldoPendiente = 0;
+    }
+    
+    // 3. ACTUALIZACIÓN VISUAL DEL SALDO (Línea crítica faltante)
+    // ✅ ESTA LÍNEA ESCRIBE EL VALOR CALCULADO EN EL HTML
     saldoDisplay.textContent = formatCurrency(saldoPendiente); 
 
-    // Opcional: Manejo visual de saldo negativo
-    if (saldoPendiente < 0) {
+    // Manejo visual de saldo
+    saldoDisplay.classList.remove('text-red-500', 'text-green-500'); 
+    
+    if (saldoPendiente > 0) {
+        // Hay deuda pendiente
         saldoDisplay.classList.add('text-red-500');
-        saldoDisplay.classList.remove('text-green-500');
+    } else if (saldoPendiente < 0) {
+        // Pagó de más
+        saldoDisplay.classList.add('text-red-500');
     } else {
+        // Pagó exactamente el total
         saldoDisplay.classList.add('text-green-500');
-        saldoDisplay.classList.remove('text-red-500');
     }
 }
 
