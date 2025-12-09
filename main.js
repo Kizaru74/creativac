@@ -2251,14 +2251,14 @@ function openAbonoModal(clientId) {
 // ✅ FUNCIÓN CRÍTICA: REGISTRO DE ABONO A UNA VENTA ESPECÍFICA
 // ====================================================================
 async function handleSaleAbono(e) {
-    e.preventDefault(); 
+e.preventDefault(); 
     if (!supabase) return;
 
     // 1. OBTENER DATOS DESDE EL FORMULARIO
-    // ASUNCIÓN: Estos son los IDs dentro del formulario "register-payment-form"
-    const abonoAmountStr = document.getElementById('abono-amount-input-sale').value; // ⚠️ VERIFICA ESTE ID
-    const paymentMethod = document.getElementById('payment-method-select-sale').value; // ⚠️ VERIFICA ESTE ID
-    const ventaId = document.getElementById('payment-sale-id').value; // ID de la Venta
+    // 🛑 CORRECCIÓN: Usar los IDs reales de tu HTML: 'abono-amount' y 'payment-method-abono'
+    const abonoAmountStr = document.getElementById('abono-amount').value; // ¡CORREGIDO!
+    const paymentMethod = document.getElementById('payment-method-abono').value; // ¡CORREGIDO!
+    const ventaId = document.getElementById('payment-sale-id').value;
     // Usamos la variable global establecida en handleViewSaleDetails
     const clientId = viewingClientId; 
 
