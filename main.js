@@ -375,12 +375,12 @@ async function loadClientsForSale() {
 }
 
 async function loadProductsData() {
-   if (!supabase) {
+    if (!supabase) {
         console.warn("Supabase no inicializado. No se pudieron cargar los productos.");
         return; 
     }
 
-    // ✅ CORRECCIÓN: Se consulta 'producto_id' y se elimina 'cost_price'
+    // ✅ Consulta las columnas correctas
     const { data, error } = await supabase
         .from('productos')
         .select('producto_id, name, type, price, parent_product'); 
@@ -388,9 +388,22 @@ async function loadProductsData() {
     if (error) {
         console.error('Error al cargar todos los productos:', error);
         allProducts = [];
+        window.allProductsMap = {}; // Asegura que se inicialice como objeto vacío
         return;
     }
+    
+    // 1. Llenar el array global
     allProducts = data || [];
+    
+    // 2. 🚨 CRÍTICO: Construir y asignar el mapa global
+    // Esto es lo que estaba faltando
+    window.allProductsMap = allProducts.reduce((map, product) => {
+        // Guardamos el objeto completo del producto con su ID como clave
+        map[product.producto_id] = product; 
+        return map;
+    }, {});
+    
+    console.log(`✅ Mapa de productos cargado: ${Object.keys(window.allProductsMap).length} ítems.`);
 }
 
 function handleChangeProductForSale() {
