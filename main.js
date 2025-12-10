@@ -656,28 +656,30 @@ if (currentSaleItems.length > 0) {
 }
 
 function updateSaleTableDisplay() {
-    // 🛑 ID CORREGIDO: Usando 'sale-items-table-body' de tu HTML
+    // 🛑 CRÍTICO: Asegurarse de que el ID es el correcto según tu HTML
     const container = document.getElementById('sale-items-table-body'); 
     
     if (!container) {
-        // Esto es solo para depuración
+        // Esto solo es para depuración
         console.error("Error FATAL: Elemento 'sale-items-table-body' no encontrado en el DOM.");
         return;
     }
     
+    // Usamos una variable para construir todo el HTML de las filas
     let htmlContent = ''; 
 
     if (currentSaleItems.length === 0) {
-        // Colspan debe ser 5 (Producto, Cant., Precio, Subtotal, Acción)
+        // Si no hay productos, mostramos el mensaje (colspan 5 = columnas totales)
         htmlContent = '<tr><td colspan="5" class="px-4 py-2 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>';
     } else {
         currentSaleItems.forEach((item, index) => {
             let nameDisplay = item.name;
-            // Lógica de subcategoría
+            // Lógica de subcategoría/paquete
             if (!item.name.includes('(') && item.type && item.type.trim().toUpperCase() !== 'MAIN') {
                  nameDisplay = `${item.name} (${item.type})`;
             }
             
+            // Concatenamos el HTML de la fila actual
             htmlContent += `
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-2 text-sm font-medium text-gray-900">${nameDisplay}</td>
@@ -702,8 +704,11 @@ function updateSaleTableDisplay() {
         });
     }
 
+    // 🛑 CRÍTICO: Insertamos todo el contenido HTML de una vez
     container.innerHTML = htmlContent;
-    calculateGrandTotal(); // Llama al cálculo del total
+    
+    // Calculamos el total al final
+    calculateGrandTotal(); 
 }
 
 function promptEditItemPrice(index, currentPrice) {
