@@ -3031,6 +3031,57 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     });
+    
+// ====================================================================
+// FUNCIONES Y LISTENERS PARA CAMBIO DE VISTA
+// ====================================================================
+
+function switchView(viewId) {
+    // 1. Desactivar el estilo de menú activo y ocultar todas las vistas
+    document.querySelectorAll('.menu-item').forEach(link => {
+        link.classList.remove('active-menu-item');
+    });
+    document.querySelectorAll('.content-view').forEach(view => {
+        view.classList.add('hidden');
+    });
+    
+    // 2. Mostrar la vista solicitada
+    const targetView = document.getElementById(viewId);
+    if (targetView) {
+        targetView.classList.remove('hidden');
+    }
+    
+    // 3. Activar el estilo del menú
+    const activeLink = document.querySelector(`[data-view="${viewId}"]`);
+    if (activeLink) {
+        activeLink.classList.add('active-menu-item');
+    }
+
+    // 4. CRÍTICO: Cargar los datos específicos de la vista al cambiar
+    if (viewId === 'home-view') {
+        loadDashboardData(); 
+    } else if (viewId === 'clients-view') {
+        loadClientsTable('gestion'); // Asumo que este es el ID del modal de clientes en gestión
+    } else if (viewId === 'products-view') {
+        loadAndRenderProducts(); // Asumo que esta función carga la tabla de productos
+    } else if (viewId === 'report-view') {
+        loadMonthlySalesReport(); 
+    }
+}
+
+// LISTENER para la navegación principal (data-view)
+document.querySelectorAll('[data-view]').forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault(); // 🛑 ESTO DETIENE EL '#'
+        
+        const viewId = link.getAttribute('data-view');
+        // El ID de tu vista es el valor de data-view, pero quitando el '-view'
+        // 'home-view' -> 'home'
+        // 'clients-view' -> 'clients'
+        // Vamos a asumir que el ID de tu DIV contenedor es el valor de data-view (ej: 'home-view')
+        switchView(viewId); 
+    });
+});
 
     // ====================================================================
     // 1. INICIALIZACIÓN DE SUPABASE Y CARGA DE DATOS
