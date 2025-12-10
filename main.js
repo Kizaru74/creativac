@@ -1349,6 +1349,9 @@ window.handleViewClientDebt = async function(clientId) {
         
         let currentRunningBalance = 0; 
         
+        // 🚨 MENSAJE DE DEBUG INICIAL
+        console.log(`--- DEBUG INICIO: Reporte de Deuda para ${client.name} ---`);
+        
         // Iteramos sobre el historial
         (history || []).forEach(transaction => {
             const amountValue = parseFloat(transaction.amount);
@@ -1385,23 +1388,26 @@ window.handleViewClientDebt = async function(clientId) {
                 }
             }
 
+            // 🚨 MENSAJE DE DEBUG POR TRANSACCIÓN (MUESTRA EL FLUJO DEL SALDO)
+            console.log(`  [${transaction.type} ${transaction.id}] Monto: ${amountValue} | Saldo Acumulado: ${currentRunningBalance.toFixed(2)}`);
+
             // =========================================================
-            // 🌟 LÓGICA DE CORRECCIÓN: Saldo Acumulado (Running Balance)
+            // LÓGICA DEL SALDO ACUMULADO (USANDO CONVENCIÓN ESTÁNDAR)
             // =========================================================
 
             const absBalance = Math.abs(currentRunningBalance);
             const runningBalanceDisplay = formatCurrency(absBalance);
             let balanceClass = '';
-            let balanceLabel = 'Saldo: '; // Etiqueta por defecto
+            let balanceLabel = 'Saldo: '; 
 
             if (currentRunningBalance > 0.01) {
-                // Deuda pendiente (Positivo)
+                // Saldo Positivo = Deuda
                 balanceClass = 'text-red-600 font-extrabold';
                 balanceLabel = 'Deuda: ';
             } else if (currentRunningBalance < -0.01) {
-                // Crédito a favor (Negativo)
+                // Saldo Negativo = Crédito
                 balanceClass = 'text-green-600 font-extrabold';
-                balanceLabel = 'Crédito: '; // ⬅️ Mostramos "Crédito"
+                balanceLabel = 'Crédito: '; 
             } else {
                 // Saldado (Cero)
                 balanceClass = 'text-gray-700 font-extrabold';
@@ -1424,13 +1430,17 @@ window.handleViewClientDebt = async function(clientId) {
         const totalDebtDisplay = formatCurrency(Math.abs(currentRunningBalance));
         const totalDebtElement = document.getElementById('client-report-total-debt');
 
+        // 🚨 MENSAJE DE DEBUG FINAL
+        console.log(`--- DEBUG FINAL: Saldo Total Calculado: ${currentRunningBalance.toFixed(2)} ---`);
+
+
         if (currentRunningBalance > 0.01) {
-            // Deuda total
+            // Saldo Positivo = Deuda
             totalDebtElement.textContent = totalDebtDisplay;
             totalDebtElement.className = 'text-red-600 font-extrabold text-xl';
         } else if (currentRunningBalance < -0.01) {
-            // Crédito total (Mostramos el texto "Crédito")
-            totalDebtElement.textContent = `Crédito ${totalDebtDisplay}`; // ⬅️ Cambio clave para el encabezado
+            // Saldo Negativo = Crédito
+            totalDebtElement.textContent = `Crédito ${totalDebtDisplay}`; 
             totalDebtElement.className = 'text-green-600 font-bold text-xl';
         } else {
              // Saldado
@@ -1438,9 +1448,7 @@ window.handleViewClientDebt = async function(clientId) {
              totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
         }
 
-        console.log('✅ DEBUG: Todos los datos cargados. Intentando abrir modal-client-debt-report'); // ⬅️ AÑADIR ESTA LÍNEA
-
-openModal('modal-client-debt-report');
+        openModal('modal-client-debt-report'); 
         
     } catch (e) {
         console.error('Error al cargar la deuda del cliente:', e);
