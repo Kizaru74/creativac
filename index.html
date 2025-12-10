@@ -583,82 +583,94 @@
         </div>
     </div>
     
-    <div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[60] items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8">
-            <div class="flex justify-between items-center border-b pb-4 mb-6">
-                <h3 class="text-2xl font-bold text-gray-800">Registrar Abono</h3>
-                <button data-close-modal="abono-client-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
-                    &times;
-                </button>
-            </div>
-            <form id="abono-client-form">
-                <input type="hidden" id="debt-to-pay-id">
-                <div class="mb-4">
-                    <p class="text-sm font-medium text-gray-700 mb-2">Deuda actual: <span id="abono-current-debt" class="font-extrabold text-red-600"></span></p>
-                </div>
-                <div class="mb-6">
-                    <label for="abono-amount" class="block text-xs font-semibold text-gray-600 mb-1">Monto del Abono</label>
-                    <input type="number" id="abono-amount" required min="1" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg text-xl font-extrabold focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors">
-                </div>
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
-                    Confirmar Abono
-                </button>
-            </form>
+<div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[60] items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8">
+        <div class="flex justify-between items-center border-b pb-4 mb-6">
+            <h3 class="text-2xl font-bold text-gray-800">Registrar Abono</h3>
+            <button data-close-modal="abono-client-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                &times;
+            </button>
         </div>
-    </div>
-
-    <div id="modal-client-debt-report" class="modal-overlay hidden fixed inset-0 z-[60] items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
+        <form id="abono-client-form">
+            <input type="hidden" id="debt-to-pay-id">
             
-            <div class="p-6 border-b flex justify-between items-center">
-                <h3 class="text-2xl font-semibold text-gray-800">
-                    <i class="fas fa-file-invoice-dollar mr-2 text-blue-600"></i> Reporte de Deuda del Cliente
-                </h3>
-                <button data-close-modal="modal-client-debt-report" class="text-gray-400 hover:text-gray-600 text-3xl transition-colors leading-none">
-                    &times;
-                </button>
-            </div>
-
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h4 class="text-xl font-bold">Cliente: <span id="client-report-name" class="text-indigo-700"></span></h4>
-                    <div>
-                        <span class="text-lg font-semibold mr-2">Deuda Total Pendiente:</span>
-                        <span id="client-report-total-debt" class="text-red-600 font-extrabold text-xl">$0.00</span>
-                    </div>
-                </div>
-
-                <div class="mb-4 text-right">
-                    <button data-open-modal="abono-client-modal" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md transition-shadow">
-                        <i class="fas fa-money-bill-wave mr-2"></i> Registrar Abono a Deuda
-                    </button>
-                </div>
-
-                <div class="overflow-x-auto border rounded-lg">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
-                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Acumulado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="client-transactions-body" class="bg-white divide-y divide-gray-200">
-                        </tbody>
-                    </table>
-                </div>
+            <div class="mb-4">
+                <p class="text-sm font-medium text-gray-700 mb-2">Deuda actual: <span id="abono-current-debt" class="font-extrabold text-red-600"></span></p>
             </div>
             
-            <div class="p-4 border-t text-right">
-                <button data-close-modal="modal-client-debt-report" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition-colors">
-                    Cerrar
+            <div class="mb-4">
+                <label for="abono-amount" class="block text-xs font-semibold text-gray-600 mb-1">Monto del Abono</label>
+                <input type="number" id="abono-amount" required min="1" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg text-xl font-extrabold focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors">
+            </div>
+
+            <div class="mb-6">
+                <label for="payment-method-abono" class="block text-xs font-semibold text-gray-600 mb-1">Método de Pago</label>
+                <select id="payment-method-abono" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Transferencia</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
+                Confirmar Abono
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="modal-client-debt-report" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] mx-auto overflow-y-auto">
+        
+        <div class="p-6 border-b flex justify-between items-center">
+            <h3 class="text-2xl font-semibold text-gray-800">
+                <i class="fas fa-file-invoice-dollar mr-2 text-blue-600"></i> Reporte de Deuda del Cliente
+            </h3>
+            <button data-close-modal="modal-client-debt-report" class="text-gray-400 hover:text-gray-600 text-3xl transition-colors leading-none">
+                &times;
+            </button>
+        </div>
+
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="text-xl font-bold">Cliente: <span id="client-report-name" class="text-indigo-700"></span></h4>
+                <div>
+                    <span class="text-lg font-semibold mr-2">Deuda Total Pendiente:</span>
+                    <span id="client-report-total-debt" class="text-red-600 font-extrabold text-xl">$0.00</span>
+                </div>
+            </div>
+
+            <div class="mb-4 text-right">
+                <button id="open-abono-from-report-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md transition-shadow">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Registrar Abono a Deuda
                 </button>
             </div>
+
+            <div class="overflow-x-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Acumulado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-transactions-body" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t text-right">
+            <button data-close-modal="modal-client-debt-report" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition-colors">
+                Cerrar
+            </button>
         </div>
     </div>
+</div>
 
 
-    <script src="main.js"></script>
+    <script type="module" src="main.js"></script>
 </body>
 </html>
