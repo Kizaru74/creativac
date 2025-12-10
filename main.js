@@ -3039,10 +3039,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 function switchView(viewId) {
     // 1. Desactivar el estilo de menú activo y ocultar todas las vistas
     document.querySelectorAll('.menu-item').forEach(link => {
-        link.classList.remove('active-menu-item');
+    link.classList.remove('active-menu-item');
     });
-    document.querySelectorAll('.content-view').forEach(view => {
-        view.classList.add('hidden');
+    document.querySelectorAll('.dashboard-view').forEach(view => {
+    view.classList.add('hidden'); // ✅ CORREGIDO: Ahora busca y oculta todas las secciones
     });
     
     // 2. Mostrar la vista solicitada
