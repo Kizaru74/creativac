@@ -113,21 +113,34 @@ function getMonthDateRange(monthString) {
     return { start, end };
 }
 
-window.openModal = function(modalId) { 
+window.openModal = function(modalId) {
     const modal = document.getElementById(modalId);
+    
     if (modal) {
+        // 1. Aseguramos que se muestra como un contenedor flexible
         modal.classList.add('flex'); 
-        modal.classList.remove('hidden');
+        
+        // 2. Quitamos la clase de ocultamiento (ESTO ES CRÍTICO)
+        modal.classList.remove('hidden'); 
+        
+        // 3. Opcional: Aseguramos que el foco esté en el modal para accesibilidad
+        modal.querySelector('input, select, textarea')?.focus();
+    } else {
+        console.error(`Error: No se encontró el modal con ID: ${modalId}`);
     }
 }
 
-window.closeModal = function(modalId) { 
+window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
+    
     if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        // 1. Ocultamos el modal
+        modal.classList.add('hidden'); 
+        
+        // 2. Opcional: Quitamos la clase de visualización (buena práctica)
+        modal.classList.remove('flex'); 
     }
-}
+};
 
 
 // ====================================================================
@@ -225,7 +238,7 @@ async function loadDebts() {
                         class="view-debt-btn" 
                         data-client-id="${clientId}" 
                         data-sale-id="${debt.venta_id}" // Si necesitas la venta, mantenla
-        class="view-debt-btn bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-1 px-2 rounded"
+            class="view-debt-btn bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-1 px-2 rounded"
                     >
                         Detalles/Pagar
                     </button>
@@ -1425,7 +1438,9 @@ window.handleViewClientDebt = async function(clientId) {
              totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
         }
 
-        openModal('modal-client-debt-report'); 
+        console.log('✅ DEBUG: Todos los datos cargados. Intentando abrir modal-client-debt-report'); // ⬅️ AÑADIR ESTA LÍNEA
+
+openModal('modal-client-debt-report');
         
     } catch (e) {
         console.error('Error al cargar la deuda del cliente:', e);
