@@ -577,15 +577,18 @@ function updatePriceField(productId) {
 // FUNCIÓN: Calular Saldo Pendiente y Proteger el Monto Pagado
 // ====================================================================
 function updatePaymentDebtStatus(grandTotal) {
+    
     // 1. OBTENER EL TOTAL DE LA VENTA DE FORMA ROBUSTA
     let currentGrandTotal = grandTotal;
 
     // Si 'grandTotal' no es un número válido (ej: es undefined porque viene del listener),
-    // lo leemos del campo 'total-amount' en el DOM.
+    // lo leemos del campo '#total-amount' en el DOM.
     if (typeof currentGrandTotal !== 'number' || isNaN(currentGrandTotal)) {
         const totalInput = document.getElementById('total-amount');
-        // CRÍTICO: Leer el valor del INPUT y parsearlo.
-        currentGrandTotal = parseFloat(totalInput?.value) || 0;
+        
+        // 🛑 CRÍTICO: Limpiamos la cadena antes de parsearla
+        const cleanedTotalStr = cleanCurrencyString(totalInput?.value); 
+        currentGrandTotal = parseFloat(cleanedTotalStr) || 0;
     }
     
     // Campos HTML
@@ -597,44 +600,50 @@ function updatePaymentDebtStatus(grandTotal) {
 
     const paymentMethod = paymentMethodSelect.value;
     
-    // 2. LECTURA DEL MONTO PAGADO
-    let paidAmountStr = paidAmountInput.value.replace(',', '.');
+    // 2. LECTURA DEL MONTO PAGADO (también limpiamos por seguridad)
+    let paidAmountStr = cleanCurrencyString(paidAmountInput.value); 
     let currentPaidAmount = parseFloat(paidAmountStr) || 0; 
     
-    // Si el campo está vacío, lo inicializamos para que no muestre vacío.
+    // Si el campo está vacío, lo inicializamos
     if (paidAmountInput.value.trim() === '') {
         paidAmountInput.value = '0.00';
     }
     
-    // Lógica para el método 'Deuda'
+    // Lógica para el método 'Deuda' (asegura que el pago sea 0 para el cálculo del saldo)
     if (paymentMethod === 'Deuda') {
         currentPaidAmount = 0;
-        // Solo para UX: no cambiamos el valor del input para que el usuario pueda pagar algo de la deuda si quiere.
-        // paidAmountInput.value = '0.00'; // Puedes quitar esta línea si quieres permitir un pago inicial
+        // Opcional: Si quieres que el input muestre '0.00' al elegir Deuda
+        // paidAmountInput.value = '0.00'; 
     } 
 
     // 3. CÁLCULO DEL SALDO PENDIENTE
-    // Usamos el total robusto (currentGrandTotal)
     let saldoPendiente = currentGrandTotal - currentPaidAmount;
     
     // Si la venta total es 0, aseguramos que el saldo también sea 0
-    if (currentGrandTotal === 0) {
+    if (currentGrandTotal <= 0) {
         saldoPendiente = 0;
     }
 
     // 4. ACTUALIZACIÓN VISUAL DEL SALDO
-    // ✅ CRÍTICO: Usamos .toFixed(2) para asegurar que el valor numérico se muestre correctamente
-    // y aplicamos el formato de moneda solo para la visualización final si es necesario, 
-    // aunque tu campo es de texto y funciona mejor con formatCurrency(). Lo dejaré como lo tienes.
+    
+    // ✅ CLAVE: Si la resta es NEGATIVA, es un sobrepago (cambio). 
+    // Si quieres que el Saldo Pendiente NUNCA sea negativo para la DEUDA, 
+    // puedes usar: if (saldoPendiente < 0) saldoPendiente = 0;
+    // PERO, si quieres que muestre el cambio, debes mantener el valor negativo.
+    
+    // Lo dejaremos como está para que muestre el cambio, y te enfocas en el color.
+    
     saldoInput.value = formatCurrency(saldoPendiente); 
 
     // Manejo visual de clases
     saldoInput.classList.remove('bg-red-100', 'bg-green-100', 'text-red-700', 'text-green-700'); 
     
     if (saldoPendiente > 0) {
-        saldoInput.classList.add('bg-red-100', 'text-red-700'); // Deuda
+        // Hay DEUDA pendiente (Color de advertencia)
+        saldoInput.classList.add('bg-red-100', 'text-red-700');
     } else { 
-        saldoInput.classList.add('bg-green-100', 'text-green-700'); // Saldo 0 o Pago de más
+        // Saldo 0 o Sobrepago (Color de éxito/neutro)
+        saldoInput.classList.add('bg-green-100', 'text-green-700');
     }
 }
 
@@ -937,6 +946,13 @@ async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newU
 // ====================================================================
 // 7. MANEJO DEL PAGO Y LA DEUDA 
 // ====================================================================
+
+function cleanCurrencyString(str) {
+    if (typeof str !== 'string') return 0;
+    // Elimina caracteres no numéricos, excepto el punto decimal y el signo menos.
+    const cleaned = str.replace(/[^\d.-]/g, ''); 
+    return cleaned;
+}
 
 //Ventas a credito
 async function getClientSalesSummary(clientId) {
