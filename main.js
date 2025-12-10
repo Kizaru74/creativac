@@ -2958,19 +2958,6 @@ async function loadAllProductsMap() {
     console.log(`Mapa de ${products.length} productos cargado.`);
 }
 
-// LLAMADA CRÍTICA EN TU DOMContentLoaded:
-document.addEventListener('DOMContentLoaded', async () => {
-    // ...
-    await loadAllClientsMap(); 
-    await loadAllProductsMap();
-
-    // ...
-});
-
-// ====================================================================
-// ✅ NUEVO BLOQUE CRÍTICO DE INICIALIZACIÓN
-// ====================================================================
-
 document.addEventListener('DOMContentLoaded', async () => { 
 
     // ====================================================================
