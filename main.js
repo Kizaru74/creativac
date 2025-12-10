@@ -656,49 +656,54 @@ if (currentSaleItems.length > 0) {
 }
 
 function updateSaleTableDisplay() {
-    const container = document.getElementById('sale-items-container'); 
-    if (!container) return;
+    // 🛑 ID CORREGIDO: Usando 'sale-items-table-body' de tu HTML
+    const container = document.getElementById('sale-items-table-body'); 
     
-    container.innerHTML = '';
-
-    if (currentSaleItems.length === 0) {
-        container.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>';
-        calculateGrandTotal();
+    if (!container) {
+        // Esto es solo para depuración
+        console.error("Error FATAL: Elemento 'sale-items-table-body' no encontrado en el DOM.");
         return;
     }
     
-    currentSaleItems.forEach((item, index) => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
+    let htmlContent = ''; 
 
-        let nameDisplay = item.name;
-        // Lógica de Subcategoría (manteniéndola igual)
-        if (item.type && item.type.trim().toUpperCase() !== 'MAIN') {
-            nameDisplay = `${item.name} (${item.type})`;
-        }
-        
-        row.innerHTML = `
-            <td class="px-6 py-3 text-sm font-medium text-gray-900">${nameDisplay}</td>
+    if (currentSaleItems.length === 0) {
+        // Colspan debe ser 5 (Producto, Cant., Precio, Subtotal, Acción)
+        htmlContent = '<tr><td colspan="5" class="px-4 py-2 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>';
+    } else {
+        currentSaleItems.forEach((item, index) => {
+            let nameDisplay = item.name;
+            // Lógica de subcategoría
+            if (!item.name.includes('(') && item.type && item.type.trim().toUpperCase() !== 'MAIN') {
+                 nameDisplay = `${item.name} (${item.type})`;
+            }
             
-            <td class="px-6 py-3 text-sm text-gray-500 cursor-pointer hover:bg-yellow-100 transition-colors"
-                id="price-${index}"
-                onclick="promptEditItemPrice(${index}, ${item.price})">
-                ${formatCurrency(item.price)}
-            </td>
-            
-            <td class="px-6 py-3 text-sm text-gray-500 text-center">${item.quantity}</td>
-            <td class="px-6 py-3 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
-            <td class="px-6 py-3 text-right text-sm font-medium">
-                <button type="button" onclick="removeItemFromSale(${index})" 
-                        class="text-red-600 hover:text-red-900">
-                    <i class="fas fa-times-circle"></i>
-                </button>
-            </td>
-        `;
-        container.appendChild(row);
-    });
-    
-    calculateGrandTotal(); 
+            htmlContent += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2 text-sm font-medium text-gray-900">${nameDisplay}</td>
+                    
+                    <td class="px-4 py-2 text-sm text-gray-500 text-center">${item.quantity}</td> 
+                    
+                    <td class="px-4 py-2 text-sm text-gray-500 cursor-pointer hover:bg-yellow-100 transition-colors"
+                        id="price-${index}"
+                        onclick="promptEditItemPrice(${index}, ${item.price})">
+                        ${formatCurrency(item.price)}
+                    </td>
+                    
+                    <td class="px-4 py-2 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
+                    <td class="px-4 py-2 text-right text-sm font-medium">
+                        <button type="button" onclick="removeItemFromSale(${index})" 
+                                class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-times-circle"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    container.innerHTML = htmlContent;
+    calculateGrandTotal(); // Llama al cálculo del total
 }
 
 function promptEditItemPrice(index, currentPrice) {
@@ -738,8 +743,19 @@ function promptEditItemPrice(index, currentPrice) {
 }
 
 window.removeItemFromSale = function(index) {
-    currentSaleItems.splice(index, 1);
-    updateSaleTableDisplay();
+    if (index < 0 || index >= currentSaleItems.length) {
+        console.error("Índice de ítem de venta inválido para eliminar.");
+        return;
+    }
+    // ✅ MEJORA 1: Agregamos la confirmación para evitar errores
+    const confirmation = confirm(`¿Estás seguro de que quieres eliminar "${currentSaleItems[index].name}" de la venta?`);
+    if (confirmation) {
+        currentSaleItems.splice(index, 1); // Elimina 1 elemento
+        // Actualizamos la interfaz
+        updateSaleTableDisplay();          // Recarga la tabla
+        // ✅ MEJORA 2: CRÍTICO - Llamamos al cálculo total
+        calculateGrandTotal();             
+    }
 }
 
 function handleAddProductToSale(e) {
