@@ -567,7 +567,7 @@
                 </button>
             </div>
             <form id="abono-client-form">
-                <input type="hidden" id="abono-sale-id">
+                <input type="hidden" id="debt-to-pay-id">
                 <div class="mb-4">
                     <p class="text-sm font-medium text-gray-700 mb-2">Deuda actual: <span id="abono-current-debt" class="font-extrabold text-red-600"></span></p>
                 </div>
@@ -611,7 +611,6 @@
                         if (viewId === 'products-view') {
                              if (typeof loadProducts === 'function') loadProducts();
                         } else if (viewId === 'clients-view') {
-                             // Esto ahora debe cargar la lista de clientes en clients-list-body
                              if (typeof loadClients === 'function') loadClients();
                         } else if (viewId === 'home-view') {
                              if (typeof loadDebts === 'function') loadDebts();
