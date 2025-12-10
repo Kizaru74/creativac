@@ -3322,6 +3322,38 @@ document.getElementById('open-abono-from-report-btn')?.addEventListener('click',
 // --- Apertura/Cierre de Modales Universal ---
 // --------------------------------------
 
+// ====================================================================
+// FUNCIONES UTILITY PARA MANEJO DE MODALES
+// ====================================================================
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        // Elimina la clase 'hidden' para mostrar el modal
+        modal.classList.remove('hidden'); 
+        // Añade 'flex' para asegurar que el modal se centre
+        modal.classList.add('flex');
+    } else {
+        console.error(`Error: Modal con ID '${modalId}' no encontrado.`);
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        // Añade la clase 'hidden' para ocultar el modal
+        modal.classList.add('hidden');
+        // Quita 'flex'
+        modal.classList.remove('flex');
+        
+        // Opcional: Si el modal tiene un formulario (como el de abono), lo resetea
+        const form = modal.querySelector('form');
+        if (form) {
+            form.reset();
+        }
+    }
+}
+
 // Cierre universal al hacer clic fuera
 document.addEventListener('click', (event) => {
     const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
