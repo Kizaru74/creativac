@@ -10,6 +10,7 @@
     <style>
         .modal-overlay { background-color: rgba(0, 0, 0, 0.6); }
         #add-product-btn { line-height: 1; }
+        .active-menu-item { background-color: #f3f4f6; color: #1f2937; /* light gray bg for active */ }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans">
@@ -150,7 +151,7 @@
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="clients-table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                            <tbody id="clients-list-body" class="bg-white divide-y divide-gray-200 text-sm">
                                 </tbody>
                         </table>
                     </div>
@@ -610,12 +611,11 @@
                         if (viewId === 'products-view') {
                              if (typeof loadProducts === 'function') loadProducts();
                         } else if (viewId === 'clients-view') {
+                             // Esto ahora debe cargar la lista de clientes en clients-list-body
                              if (typeof loadClients === 'function') loadClients();
                         } else if (viewId === 'home-view') {
                              if (typeof loadDebts === 'function') loadDebts();
                         } else if (viewId === 'report-view') {
-                             // Esto ahora llama a la lógica del reporte, que estaba en el modal original.
-                             // Puedes llamar a la función que solía abrir el reporte aquí:
                              if (typeof loadMonthlyReportData === 'function') loadMonthlyReportData(); 
                         }
                     }
