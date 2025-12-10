@@ -886,10 +886,10 @@ async function handleRecordAbono(e) {
     e.preventDefault();
     if (!supabase) return;
 
-    // 1. Obtener los datos del formulario (Usando las IDs del modal corregido)
+    // 1. Obtener los datos del formulario (Usando las IDs de tu HTML)
     const abonoAmount = parseFloat(document.getElementById('abono-amount').value);
-    // Usamos la ID que añadimos al modal de abono
-    const paymentMethod = document.getElementById('payment-method-abono')?.value; 
+    // ✅ CORRECCIÓN: Usamos tu ID 'abono-method'
+    const paymentMethod = document.getElementById('abono-method')?.value; 
     
     // 2. Validaciones
     if (isNaN(abonoAmount) || abonoAmount <= 0) {
@@ -943,7 +943,7 @@ async function handleRecordAbono(e) {
                 venta_id: sale.venta_id,
                 client_id: sale.client_id,
                 amount: amountApplied,
-                new_saldo_pendiente: debtToSale - amountApplied // Calculo de nuevo saldo
+                new_saldo_pendiente: debtToSale - amountApplied 
             });
 
             remainingAbono -= amountApplied;
@@ -982,8 +982,7 @@ async function handleRecordAbono(e) {
     // 4. REGISTRAR TRANSACCIONES Y ACTUALIZAR VENTA(S)
     try {
         for (const update of salesToUpdate) {
-            // A. Insertar el abono en la tabla 'pagos' (o 'abonos' si así se llama en tu BD, pero tu JS usa 'pagos')
-            // Usaré 'pagos' como lo hace la lógica de la venta en tu app.
+            // A. Insertar el abono en la tabla 'pagos'
             const { error: paymentError } = await supabase
                 .from('pagos')
                 .insert([{ 
@@ -1006,16 +1005,17 @@ async function handleRecordAbono(e) {
 
         alert(`¡Abono de ${formatCurrency(abonoAmount)} registrado con éxito!`);
         document.getElementById('abono-client-form').reset();
-        closeModal('abono-client-modal'); // ✅ Cerramos con la ID correcta
+        // Usamos la ID 'modal-record-abono' de tu HTML
+        closeModal('modal-record-abono'); 
         
         // 5. RECARGAR DATOS
         const debtModal = document.getElementById('modal-client-debt-report');
-        // Si el reporte de deuda está abierto (y no solo la tabla), lo recargamos para ver el cambio
+        // Si el reporte de deuda está abierto, lo recargamos para ver el cambio
         if (debtModal && !debtModal.classList.contains('hidden') && finalClientId) {
             await handleViewClientDebt(finalClientId); 
         }
         
-        // Recargar las tablas principales del dashboard
+        // Recargar las tablas principales
         await loadDashboardData(); 
         await loadClientsTable('gestion'); 
 
@@ -3282,16 +3282,40 @@ document.getElementById('clients-list-body')?.addEventListener('click', async (e
 // Y el listener de envío del formulario de edición también debe estar presente:
 document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
 
+// ====================================================================
+// Listener para abrir el modal de abono desde el Reporte de Deuda
+// ====================================================================
 
+document.getElementById('open-abono-from-report-btn')?.addEventListener('click', (e) => {
+    // Usamos la variable global 'viewingClientId'
+    if (!window.viewingClientId) { 
+        e.preventDefault();
+        return;
+    }
 
-// Listener para abrir el formulario de abono desde el reporte de deuda
-document.getElementById('open-abono-from-report-btn')?.addEventListener('click', () => {
-    // 1. Cierra el modal de reporte
-    closeModal('modal-client-debt-report'); 
-    
-    // 2. Abre el modal de abono y pre-carga el ID del cliente
-    // Se asume que 'openAbonoModal' existe y toma el viewingClientId (definido en main.js)
-    openAbonoModal(viewingClientId); 
+    // Tomamos la deuda total mostrada en el reporte
+    const totalDebtText = document.getElementById('client-report-total-debt')?.textContent || '$0.00';
+    // Limpiamos el texto para obtener el valor numérico
+    const totalDebtValue = parseFloat(totalDebtText.replace(/[^0-9.-]+/g,"").replace(',', '.')); 
+
+    if (totalDebtValue > 0.01) {
+        
+        // CRÍTICO: Asignamos el ID del CLIENTE a debtToPayId para la lógica FIFO
+        debtToPayId = window.viewingClientId;
+
+        // Establecer la deuda total del cliente en el modal de Abono
+        const abonoCurrentDebt = document.getElementById('abono-current-debt');
+        if (abonoCurrentDebt) {
+             abonoCurrentDebt.textContent = totalDebtText;
+        }
+
+        // Abrimos el modal de abono y cerramos el de reporte (Usando el ID 'modal-record-abono')
+        openModal('modal-record-abono'); 
+        closeModal('modal-client-debt-report');
+    } else {
+        e.preventDefault();
+        alert("El cliente no tiene deuda pendiente para registrar un abono.");
+    }
 });
 
 // --------------------------------------
