@@ -662,9 +662,7 @@ function updateSaleTableDisplay() {
     container.innerHTML = '';
 
     if (currentSaleItems.length === 0) {
-        // Asegúrate de que este `colspan` coincida con el número total de columnas
         container.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>';
-        
         calculateGrandTotal();
         return;
     }
@@ -673,22 +671,21 @@ function updateSaleTableDisplay() {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
 
-        // 🛑 LÓGICA DE MOSTRAR PRODUCTO Y SUBCATEGORÍA
-        let displayProductName = item.name;
-        
-        // Priorizar un campo más explícito, si existe, o usar 'type'
-        if (item.category_name && item.category_name.trim()) { 
-            // Si ya tiene un campo 'category_name' (ideal si hiciste un JOIN en la DB)
-            displayProductName += ` (${item.category_name})`;
-        } else if (item.type && item.type.trim() && item.type.trim().toUpperCase() !== 'MAIN') {
-            // Usamos el campo 'type' como fallback, excluyendo tipos genéricos como 'MAIN'
-            displayProductName += ` (${item.type})`;
+        let nameDisplay = item.name;
+        // Lógica de Subcategoría (manteniéndola igual)
+        if (item.type && item.type.trim().toUpperCase() !== 'MAIN') {
+            nameDisplay = `${item.name} (${item.type})`;
         }
-        // ===============================================
-
+        
         row.innerHTML = `
-            <td class="px-6 py-3 text-sm font-medium text-gray-900">${displayProductName}</td>
-            <td class="px-6 py-3 text-sm text-gray-500">${formatCurrency(item.price)}</td>
+            <td class="px-6 py-3 text-sm font-medium text-gray-900">${nameDisplay}</td>
+            
+            <td class="px-6 py-3 text-sm text-gray-500 cursor-pointer hover:bg-yellow-100 transition-colors"
+                id="price-${index}"
+                onclick="promptEditItemPrice(${index}, ${item.price})">
+                ${formatCurrency(item.price)}
+            </td>
+            
             <td class="px-6 py-3 text-sm text-gray-500 text-center">${item.quantity}</td>
             <td class="px-6 py-3 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
             <td class="px-6 py-3 text-right text-sm font-medium">
@@ -702,6 +699,42 @@ function updateSaleTableDisplay() {
     });
     
     calculateGrandTotal(); 
+}
+
+function promptEditItemPrice(index, currentPrice) {
+    if (index < 0 || index >= currentSaleItems.length) {
+        console.error("Índice de ítem de venta inválido.");
+        return;
+    }
+
+    const item = currentSaleItems[index];
+    
+    // Usamos prompt para una interacción rápida.
+    const newPriceStr = prompt(`Ingresa el nuevo precio para "${item.name}" (Actual: ${formatCurrency(currentPrice)}):`);
+
+    if (newPriceStr === null || newPriceStr.trim() === "") {
+        // Cancelar o entrada vacía
+        return;
+    }
+
+    // Limpiamos la entrada y la convertimos a número
+    const newPrice = parseFloat(newPriceStr.replace(',', '.'));
+
+    if (isNaN(newPrice) || newPrice < 0) {
+        alert("El precio ingresado no es válido o es negativo. No se realizaron cambios.");
+        return;
+    }
+
+    // 🛑 ACEPTAMOS EL NUEVO PRECIO, INCLUYENDO CERO
+    // Actualizamos el ítem en el array global
+    item.price = newPrice;
+    item.subtotal = newPrice * item.quantity;
+
+    // Recalculamos y volvemos a renderizar la tabla para mostrar los cambios
+    updateSaleTableDisplay();
+    calculateGrandTotal();
+
+    alert(`Precio de "${item.name}" actualizado a ${formatCurrency(newPrice)}.`);
 }
 
 window.removeItemFromSale = function(index) {
@@ -728,8 +761,6 @@ function handleAddProductToSale(e) {
     }
     
     const searchId = String(productIdToCharge); 
-    
-    // Asumo que 'allProducts' es un array y buscas dentro de él
     const productToCharge = allProducts.find(p => String(p.producto_id) === searchId); 
 
     // --- Validaciones ---
@@ -742,67 +773,69 @@ function handleAddProductToSale(e) {
         return;
     }
 
-    // 🛑 CORRECCIÓN CLAVE: Permitir que el precio sea $0.00 aquí
+    // 2. Lógica de Precio (Acepta $0.00)
     const priceStr = priceInput?.value;
+    // Parsea el precio manual (si no se puede, es 0)
     let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
     
-    // Si el precio manual es 0 o no se ingresó, usamos el precio de la base de datos como valor inicial.
-    // Esto es crítico para aceptar ventas en 0: si el precio de la DB es > 0, lo usamos. Si es 0, lo dejamos en 0.
+    // Si el precio manual es 0, intenta usar el precio de la base de datos (que puede ser 0)
     if (price === 0) {
-        price = productToCharge.price; // Usar el precio de la DB, que puede ser 0
+        price = productToCharge.price || 0; 
     }
     
-    // ❌ ELIMINADA LA VALIDACIÓN: if (price <= 0) { alert('El precio unitario no puede ser cero.'); return; }
-    // Ahora esta función acepta price = 0 para permitir la edición posterior.
+    // 🛑 BLOQUEO A REMOVER: ESTA LÍNEA ES LA CAUSA DE QUE NO SE AGREGUEN PRODUCTOS CON PRECIO CERO
+    /* if (price <= 0) {
+        alert('El precio unitario no puede ser cero.');
+        return;
+    }
+    */
+    // -------------------------------------------------------------------------------------
     
     const subtotal = quantity * price;
 
-    // 2. CONSTRUCCIÓN DEL NOMBRE (Lógica para mostrar Producto Padre + Subproducto)
+
+    // 3. CONSTRUCCIÓN DEL NOMBRE (Producto Padre / Subcategoría)
     let nameDisplay = productToCharge.name; 
     
-    // ✅ MEJORA: Incorporamos la subcategoría/paquete en el nombre para la tabla
     if (subProductId) {
-        // Si se seleccionó un subproducto, buscamos el producto principal para ponerlo como padre
         const mainProductData = allProducts.find(p => String(p.producto_id) === String(mainProductId));
         if (mainProductData) {
-            // Formato: Paquete Principal (Subproducto)
-            nameDisplay = `${mainProductData.name} (${productToCharge.name})`;
+            nameDisplay = `${mainProductData.name} (${productToCharge.name})`; // Paquete (Subproducto)
         }
     } else if (productToCharge.type && productToCharge.type.trim().toUpperCase() !== 'MAIN') {
-        // Si NO es un subproducto, pero tiene un tipo (subcategoría) definido
-        // Formato: Producto (Tipo/Subcategoría)
-        nameDisplay = `${productToCharge.name} (${productToCharge.type})`;
+        nameDisplay = `${productToCharge.name} (${productToCharge.type})`; // Producto (Tipo/Subcategoría)
     }
     // ------------------------------------------------------------------------
 
     const newItem = {
         product_id: searchId,           
-        name: nameDisplay, // Ya incluye el formato de subcategoría
+        name: nameDisplay,             
         quantity: quantity,
         price: price, 
         subtotal: subtotal,
-        // ✅ CRÍTICO: Incluir el 'type' por si la función de renderizado lo necesita
         type: productToCharge.type || null, 
     };
 
-    // 3. Lógica de agregar-actualizar el carrito
+    // 4. Lógica de agregar-actualizar el carrito
     const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchId);
 
     if (existingIndex > -1) { 
         currentSaleItems[existingIndex].quantity += quantity;
         currentSaleItems[existingIndex].subtotal += subtotal;
     } else {
-        currentSaleItems.push(newItem);
+        currentSaleItems.push(newItem); // <-- Aquí es donde finalmente se agrega el producto
     }
     
+    // 5. Renderizado y Limpieza
     updateSaleTableDisplay(); 
+    calculateGrandTotal(); // Asegúrate de llamar a esta función para actualizar el total
 
     // Limpieza de inputs
     mainSelect.value = '';
     subSelect.value = '';
     quantityInput.value = '1';
     updatePriceField(null); 
-    loadMainProductsForSaleSelect(); // Asumo que esto recarga el selector principal
+    loadMainProductsForSaleSelect(); 
 }
 
 async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
