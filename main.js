@@ -3221,15 +3221,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
         openModal('modal-monthly-report');
     });
 
-    // Admin clientes
-    document.getElementById('admin-clients-btn')?.addEventListener('click', async () => {
-        // 1. Abre el modal principal
-        openModal('modal-admin-clients'); 
-        
-        // 2. Llama directamente a la función de tabla en MODO 'gestion'
-        await loadClientsTable('gestion'); 
-    });
-
 
     // Escucha eventos de la tabla de Reporte Mensual (Delegación)
     const monthlySalesModal = document.getElementById('modal-monthly-report'); 
