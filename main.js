@@ -662,6 +662,7 @@ function updateSaleTableDisplay() {
     container.innerHTML = '';
 
     if (currentSaleItems.length === 0) {
+        // Asegúrate de que este `colspan` coincida con el número total de columnas
         container.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>';
         
         calculateGrandTotal();
@@ -672,8 +673,21 @@ function updateSaleTableDisplay() {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
 
+        // 🛑 LÓGICA DE MOSTRAR PRODUCTO Y SUBCATEGORÍA
+        let displayProductName = item.name;
+        
+        // Priorizar un campo más explícito, si existe, o usar 'type'
+        if (item.category_name && item.category_name.trim()) { 
+            // Si ya tiene un campo 'category_name' (ideal si hiciste un JOIN en la DB)
+            displayProductName += ` (${item.category_name})`;
+        } else if (item.type && item.type.trim() && item.type.trim().toUpperCase() !== 'MAIN') {
+            // Usamos el campo 'type' como fallback, excluyendo tipos genéricos como 'MAIN'
+            displayProductName += ` (${item.type})`;
+        }
+        // ===============================================
+
         row.innerHTML = `
-            <td class="px-6 py-3 text-sm font-medium text-gray-900">${item.name}</td>
+            <td class="px-6 py-3 text-sm font-medium text-gray-900">${displayProductName}</td>
             <td class="px-6 py-3 text-sm text-gray-500">${formatCurrency(item.price)}</td>
             <td class="px-6 py-3 text-sm text-gray-500 text-center">${item.quantity}</td>
             <td class="px-6 py-3 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
@@ -701,7 +715,6 @@ function handleAddProductToSale(e) {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
     const quantityInput = document.getElementById('product-quantity'); 
-    // ✅ LÍNEA NUEVA: Obtener el input de precio unitario editable
     const priceInput = document.getElementById('product-unit-price'); 
     
     // 1. Obtener IDs y Cantidad
@@ -716,6 +729,7 @@ function handleAddProductToSale(e) {
     
     const searchId = String(productIdToCharge); 
     
+    // Asumo que 'allProducts' es un array y buscas dentro de él
     const productToCharge = allProducts.find(p => String(p.producto_id) === searchId); 
 
     // --- Validaciones ---
@@ -728,39 +742,47 @@ function handleAddProductToSale(e) {
         return;
     }
 
-    // 🛑 LÍNEA CLAVE CORREGIDA: PRIORIZAR el valor ingresado manualmente (priceInput.value)
+    // 🛑 CORRECCIÓN CLAVE: Permitir que el precio sea $0.00 aquí
     const priceStr = priceInput?.value;
-    // Intentar parsear el precio manual. Si falla o es 0, usar el precio de la DB como fallback.
     let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
     
-    // Si el precio manual es 0, usar el precio de la base de datos (si existe).
-    if (price === 0 && productToCharge.price > 0) {
-        price = productToCharge.price;
+    // Si el precio manual es 0 o no se ingresó, usamos el precio de la base de datos como valor inicial.
+    // Esto es crítico para aceptar ventas en 0: si el precio de la DB es > 0, lo usamos. Si es 0, lo dejamos en 0.
+    if (price === 0) {
+        price = productToCharge.price; // Usar el precio de la DB, que puede ser 0
     }
     
-    if (price <= 0) {
-        alert('El precio unitario no puede ser cero.');
-        return;
-    }
+    // ❌ ELIMINADA LA VALIDACIÓN: if (price <= 0) { alert('El precio unitario no puede ser cero.'); return; }
+    // Ahora esta función acepta price = 0 para permitir la edición posterior.
     
     const subtotal = quantity * price;
 
-    // 2. CONSTRUCCIÓN DEL NOMBRE (Lógica existente)
+    // 2. CONSTRUCCIÓN DEL NOMBRE (Lógica para mostrar Producto Padre + Subproducto)
     let nameDisplay = productToCharge.name; 
+    
+    // ✅ MEJORA: Incorporamos la subcategoría/paquete en el nombre para la tabla
     if (subProductId) {
+        // Si se seleccionó un subproducto, buscamos el producto principal para ponerlo como padre
         const mainProductData = allProducts.find(p => String(p.producto_id) === String(mainProductId));
         if (mainProductData) {
+            // Formato: Paquete Principal (Subproducto)
             nameDisplay = `${mainProductData.name} (${productToCharge.name})`;
         }
+    } else if (productToCharge.type && productToCharge.type.trim().toUpperCase() !== 'MAIN') {
+        // Si NO es un subproducto, pero tiene un tipo (subcategoría) definido
+        // Formato: Producto (Tipo/Subcategoría)
+        nameDisplay = `${productToCharge.name} (${productToCharge.type})`;
     }
     // ------------------------------------------------------------------------
 
     const newItem = {
-        product_id: searchId,           
-        name: nameDisplay,             
+        product_id: searchId,           
+        name: nameDisplay, // Ya incluye el formato de subcategoría
         quantity: quantity,
-        price: price, // ✅ Ahora usa el precio manual o el de la DB
+        price: price, 
         subtotal: subtotal,
+        // ✅ CRÍTICO: Incluir el 'type' por si la función de renderizado lo necesita
+        type: productToCharge.type || null, 
     };
 
     // 3. Lógica de agregar-actualizar el carrito
@@ -779,8 +801,8 @@ function handleAddProductToSale(e) {
     mainSelect.value = '';
     subSelect.value = '';
     quantityInput.value = '1';
-    updatePriceField(null); // Asegura que el campo de precio unitario se limpie
-    loadMainProductsForSaleSelect();
+    updatePriceField(null); 
+    loadMainProductsForSaleSelect(); // Asumo que esto recarga el selector principal
 }
 
 async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
@@ -1066,19 +1088,26 @@ function handleAbonoClick(clientId) {
 async function handleNewSale(e) {
     e.preventDefault();
 
+    // 1. CAPTURAR DATOS DEL FORMULARIO
     const client_id = document.getElementById('client-select')?.value ?? null;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
-    const sale_description = document.getElementById('sale-description')?.value.trim() ?? null;
+    
+    // ✅ CAMBIO: Capturamos los detalles de la venta del nuevo campo
+    const sale_description = document.getElementById('sale-details')?.value.trim() ?? null; 
+    
     const paid_amount_str = document.getElementById('paid-amount')?.value ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
     
+    // Calcula el total de la venta sumando los subtotales de los ítems
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
+    // 2. LÓGICA DE PAGO Y SALDO PENDIENTE
     if (payment_method === 'Deuda') {
+        // Si el método es Deuda, el pago inicial es 0 y todo va a saldo pendiente
         paid_amount = 0;
     }
     
-    const saldo_pendiente = total_amount - paid_amount; 
+    let saldo_pendiente = total_amount - paid_amount; 
 
     // --- Validaciones ---
     if (!client_id) {
@@ -1089,13 +1118,14 @@ async function handleNewSale(e) {
         alert('Debes agregar al menos un producto a la venta.');
         return;
     }
-    // ✅ CORRECCIÓN 1: Permite ventas en $0.00, solo bloquea montos negativos.
+    
+    // ✅ Permite ventas en $0.00, solo bloquea montos negativos.
     if (total_amount < 0) {
         alert('El total de la venta no puede ser negativo.');
         return;
     }
     
-    // Si la venta es de $0.00, forzamos el saldo a cero y el pago a cero para evitar problemas de lógica.
+    // Si la venta es de $0.00, forzamos el saldo y el pago a cero para evitar lógica inconsistente.
     let final_paid_amount = paid_amount;
     let final_saldo_pendiente = saldo_pendiente;
 
@@ -1104,28 +1134,28 @@ async function handleNewSale(e) {
         final_saldo_pendiente = 0;
     }
 
-    
-
     if (payment_method !== 'Deuda' && (final_paid_amount < 0 || final_paid_amount > total_amount)) {
-         alert('El monto pagado es inválido.');
-         return;
+        alert('El monto pagado es inválido.');
+        return;
     }
 
+    // Advertencia si hay saldo pendiente y no se marcó como 'Deuda'
     if (final_saldo_pendiente > 0.01 && payment_method !== 'Deuda' && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar registrando esta cantidad como deuda?`)) {
         return;
     }
 
     try {
-        // 1. REGISTRAR VENTA (Tabla 'ventas')
+        // 3. REGISTRAR VENTA (Tabla 'ventas')
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
                 client_id: client_id,
                 total_amount: total_amount, 
-                paid_amount: final_paid_amount, // Usa el monto ajustado
-                saldo_pendiente: final_saldo_pendiente, // Usa el saldo ajustado
+                paid_amount: final_paid_amount, 
+                saldo_pendiente: final_saldo_pendiente, 
                 metodo_pago: payment_method,
-                description: sale_description,
+                // ✅ Aquí usamos el nuevo campo
+                description: sale_description, 
                 // NO SE INSERTA PROFIT
             }])
             .select('venta_id'); 
@@ -1138,11 +1168,12 @@ async function handleNewSale(e) {
 
         const new_venta_id = saleData[0].venta_id;
 
-        // 2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
+        // 4. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
-            name: item.name,
+            // Asumiendo que el campo 'name' del ítem de venta es el nombre del producto
+            name: item.name, 
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
@@ -1157,8 +1188,8 @@ async function handleNewSale(e) {
             alert(`Venta registrada (ID: ${new_venta_id}), pero falló el registro de detalles: ${detailError.message}`);
         }
 
-        // 3. REGISTRAR PAGO (Tabla 'pagos') - SOLO SI final_paid_amount > 0
-        if (final_paid_amount > 0) { // Usa final_paid_amount
+        // 5. REGISTRAR PAGO (Tabla 'pagos') - SOLO si hay un pago inicial > 0
+        if (final_paid_amount > 0) { 
             const { error: paymentError } = await supabase
                 .from('pagos')
                 .insert([{
@@ -1174,26 +1205,28 @@ async function handleNewSale(e) {
             }
         }
         
-    // 4. LIMPIAR Y RECARGAR
-    // Se elimina el 'alert' de éxito, el modal de vista previa lo reemplaza.
-    closeModal('new-sale-modal'); // <-- Cierra el modal de registro de venta
+    // 6. LIMPIAR Y RECARGAR UI
+    closeModal('new-sale-modal'); 
 
-    // Recarga los datos del Dashboard (ventas recientes, deudas, etc.)
     await loadDashboardData(); 
+    await loadClientsTable('gestion'); // Fuerza la actualización de saldos
 
-    // 🛑 ¡LÍNEA CRÍTICA AÑADIDA! Esto fuerza la recarga de la tabla de clientes 
-    // y actualiza el saldo de deuda de ese cliente.
-    await loadClientsTable('gestion'); 
-
-    // ✅ Llama a la vista previa del ticket
+    // ✅ Llama a la vista previa del ticket (asumiendo que esta función existe)
     showTicketPreviewModal(new_venta_id);
+
     } catch (error) {
         console.error('Error fatal al registrar la venta:', error.message);
         alert('Error fatal al registrar la venta: ' + error.message);
     } finally {
+        // Limpiar variables y formulario
         currentSaleItems = []; 
+        // Asumo que esta función limpia la tabla de la venta
         updateSaleTableDisplay();
+        // Asumo que este ID corresponde al formulario de registro de venta
         document.getElementById('new-sale-form').reset();
+        
+        // 🛑 CAMBIO: También limpiamos el campo de detalles explícitamente por si el .reset() falla en el textarea
+        document.getElementById('sale-details').value = '';
     }
 }
 
