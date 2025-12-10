@@ -577,13 +577,16 @@ function updatePriceField(productId) {
 // FUNCIÓN: Calular Saldo Pendiente y Proteger el Monto Pagado
 // ====================================================================
 function updatePaymentDebtStatus(grandTotal) {
-    // 1. OBTENER EL TOTAL DE LA VENTA (CRÍTICO)
-    // Cuando la función se llama desde el listener, 'grandTotal' será undefined.
-    // Leemos el total del campo de display #total-amount.
-    let totalFromInput = parseFloat(document.getElementById('total-amount')?.value) || 0;
+    // 1. OBTENER EL TOTAL DE LA VENTA DE FORMA ROBUSTA
+    let currentGrandTotal = grandTotal;
 
-    // Usamos el total que se pasa como argumento si está disponible, sino, el leído del input.
-    let currentGrandTotal = grandTotal || totalFromInput; 
+    // Si 'grandTotal' no es un número válido (ej: es undefined porque viene del listener),
+    // lo leemos del campo 'total-amount' en el DOM.
+    if (typeof currentGrandTotal !== 'number' || isNaN(currentGrandTotal)) {
+        const totalInput = document.getElementById('total-amount');
+        // CRÍTICO: Leer el valor del INPUT y parsearlo.
+        currentGrandTotal = parseFloat(totalInput?.value) || 0;
+    }
     
     // Campos HTML
     const paidAmountInput = document.getElementById('paid-amount');
@@ -606,10 +609,12 @@ function updatePaymentDebtStatus(grandTotal) {
     // Lógica para el método 'Deuda'
     if (paymentMethod === 'Deuda') {
         currentPaidAmount = 0;
-        paidAmountInput.value = '0.00';
+        // Solo para UX: no cambiamos el valor del input para que el usuario pueda pagar algo de la deuda si quiere.
+        // paidAmountInput.value = '0.00'; // Puedes quitar esta línea si quieres permitir un pago inicial
     } 
 
     // 3. CÁLCULO DEL SALDO PENDIENTE
+    // Usamos el total robusto (currentGrandTotal)
     let saldoPendiente = currentGrandTotal - currentPaidAmount;
     
     // Si la venta total es 0, aseguramos que el saldo también sea 0
@@ -617,22 +622,19 @@ function updatePaymentDebtStatus(grandTotal) {
         saldoPendiente = 0;
     }
 
-    // 4. CORRECCIÓN VISUAL DEL SALDO Y CLASES
-    // ✅ CORRECCIÓN: Si saldoInput es un INPUT (que lo es), es mejor usar toFixed(2) 
-    // y luego aplicar el formato de moneda en el registro final.
-    // Esto evita que el formato de moneda rompa futuras lecturas de este campo.
-    saldoInput.value = saldoPendiente.toFixed(2); 
+    // 4. ACTUALIZACIÓN VISUAL DEL SALDO
+    // ✅ CRÍTICO: Usamos .toFixed(2) para asegurar que el valor numérico se muestre correctamente
+    // y aplicamos el formato de moneda solo para la visualización final si es necesario, 
+    // aunque tu campo es de texto y funciona mejor con formatCurrency(). Lo dejaré como lo tienes.
+    saldoInput.value = formatCurrency(saldoPendiente); 
 
-    // Limpieza de clases
+    // Manejo visual de clases
     saldoInput.classList.remove('bg-red-100', 'bg-green-100', 'text-red-700', 'text-green-700'); 
     
-    // Aplicación de clases
     if (saldoPendiente > 0) {
-        // Hay deuda pendiente
-        saldoInput.classList.add('bg-red-100', 'text-red-700');
+        saldoInput.classList.add('bg-red-100', 'text-red-700'); // Deuda
     } else { 
-        // Saldo 0 o Pagó de más
-        saldoInput.classList.add('bg-green-100', 'text-green-700');
+        saldoInput.classList.add('bg-green-100', 'text-green-700'); // Saldo 0 o Pago de más
     }
 }
 
