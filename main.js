@@ -2874,12 +2874,9 @@ async function loadMonthlySalesReport() {
         totalDebtEl.textContent = formatCurrency(0);
     }
 }
-// ====================================================================
-// FUNCIÓN AUXILIAR: LLENA EL SELECTOR DE MESES
-// ====================================================================
 
 function initializeMonthSelector() {
-    // 🛑 AJUSTE: Usar el ID correcto de tu HTML
+    // CRÍTICO: Debe buscar el ID 'report-month-select'
     const selector = document.getElementById('report-month-select'); 
     if (!selector) return;
 
@@ -2896,7 +2893,6 @@ function initializeMonthSelector() {
         option.value = value;
         option.textContent = name;
         
-        // Seleccionar el mes actual por defecto
         if (value === currentMonth) {
             option.selected = true;
         }
@@ -2905,17 +2901,16 @@ function initializeMonthSelector() {
 }
 
 // ====================================================================
-// FUNCIÓN AUXILIAR: LLENA EL SELECTOR DE AÑOS
+// FUNCIÓN AUXILIAR: LLENA EL SELECTOR DE AÑOS (SOLUCIÓN AL PUNTO 1)
 // ====================================================================
-
 function initializeYearSelector() {
-    // 🛑 AJUSTE: Usar el ID correcto de tu HTML
+    // CRÍTICO: Debe buscar el ID 'report-year-select'
     const selector = document.getElementById('report-year-select'); 
     if (!selector) return;
 
     selector.innerHTML = '';
     const currentYear = new Date().getFullYear();
-    const startYear = currentYear - 2; // Rango: 2 años atrás hasta el próximo año (si quieres)
+    const startYear = currentYear - 2; 
 
     // Generar años desde el actual (+1) hasta 2 años atrás
     for (let year = currentYear + 1; year >= startYear; year--) {
@@ -2929,6 +2924,35 @@ function initializeYearSelector() {
         selector.appendChild(option);
     }
 }
+
+// ====================================================================
+// FUNCIÓN PRINCIPAL DE INICIALIZACIÓN Y LISTENERS (SOLUCIÓN AL PUNTO 2)
+// ====================================================================
+window.initReportSelectors = function() {
+    
+    // 1. LLENAR AMBOS SELECTORES (Carga los años)
+    initializeMonthSelector(); 
+    initializeYearSelector();
+    
+    // 2. Establecer Listeners de cambio
+    const monthSelector = document.getElementById('report-month-select');
+    const yearSelector = document.getElementById('report-year-select');
+    
+    if (window.loadMonthlySalesReport) {
+        // Al cambiar CUALQUIERA, se ejecuta la función de carga
+        if (monthSelector) {
+             monthSelector.addEventListener('change', window.loadMonthlySalesReport);
+        }
+        if (yearSelector) {
+             yearSelector.addEventListener('change', window.loadMonthlySalesReport);
+        }
+    }
+    
+    // 3. Carga Inicial del Reporte (Necesario para que se vea el reporte del mes actual al inicio)
+    if (window.loadMonthlySalesReport) {
+        window.loadMonthlySalesReport();
+    }
+};
 
 function generateTextTicket(sale) {
     const TICKET_WIDTH = 32;
