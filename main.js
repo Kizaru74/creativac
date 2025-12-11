@@ -1348,7 +1348,7 @@ async function handleNewSale(e) {
             document.getElementById('new-sale-form').reset();
         }
     }
-}
+} window.handleNewSale = handleNewSale;
 
 function openPostSalePriceModal(ventaId, detalleVentaId, clientId, itemName) {
     // 1. Asignar IDs a los campos ocultos
