@@ -1156,7 +1156,6 @@ function handleAbonoClick(clientId) {
 
 async function handleNewSale(e) {
     e.preventDefault();
-
     // 1. CAPTURAR DATOS DEL FORMULARIO
     const client_id = document.getElementById('client-select')?.value ?? null;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
