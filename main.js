@@ -1178,13 +1178,16 @@ function handleAbonoClick(clientId) {
 
 async function handleNewSale(e) {
     e.preventDefault();
+    
+    // 🛑 DEBUG 1
+    console.log("DEBUG 1: Iniciando handleNewSale."); 
 
     // 1. CAPTURAR DATOS Y LÓGICA DE PAGO
     const client_id = document.getElementById('client-select')?.value ?? null;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-description')?.value.trim() ?? null;
     
-    // Aseguramos que paid_amount_str sea solo numérico (limpieza)
+    // Aseguramos que paid_amount_str sea solo numérico
     const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
     
@@ -1194,38 +1197,70 @@ async function handleNewSale(e) {
         paid_amount = 0;
     }
     
-    // ... (Tu lógica de validaciones y saldos) ...
     let final_paid_amount = paid_amount;
     let final_saldo_pendiente = total_amount - paid_amount; 
 
-    // --- Validaciones (Incluyendo la validación de ID que evita el fallo) ---
-    if (!client_id) { alert('Por favor, selecciona un cliente.'); return; }
-    if (currentSaleItems.length === 0) { alert('Debes agregar al menos un producto a la venta.'); return; }
-    if (total_amount < 0) { alert('El total de la venta no puede ser negativo.'); return; }
+    // --- Validaciones ---
+    if (!client_id) {
+        alert('Por favor, selecciona un cliente.'); 
+        return;
+    }
     
-    // Aseguramos que el total 0 también setee saldos 0
+    // 🛑 DEBUG 2
+    console.log("DEBUG 2: Cliente seleccionado (ID:", client_id, ").");
+
+    if (currentSaleItems.length === 0) {
+        alert('Debes agregar al menos un producto a la venta.');
+        return;
+    }
+
+    // 🛑 DEBUG 3
+    console.log("DEBUG 3: Carrito no vacío. Ítems:", currentSaleItems.length);
+
+    if (total_amount < 0) {
+        alert('El total de la venta no puede ser negativo.'); 
+        return;
+    }
+    
+    // Lógica para venta de $0.00
     if (total_amount === 0) {
         final_paid_amount = 0;
         final_saldo_pendiente = 0;
-    } else if (final_saldo_pendiente < 0) { // Manejar sobrepago
+    } else if (final_saldo_pendiente < 0) {
         final_saldo_pendiente = 0;
     }
     
-    // ... (Tu validación de paid_amount y confirmación de deuda) ...
     if (payment_method !== 'Deuda' && (final_paid_amount < 0 || final_paid_amount > total_amount)) {
         alert('El monto pagado es inválido.'); return;
     }
+
     if (final_saldo_pendiente > 0.01 && payment_method !== 'Deuda' && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar registrando esta cantidad como deuda?`)) {
         return;
     }
 
-    // 🛑 VALIDACIÓN FINAL DEL PRODUCTO ANTES DE IR A LA BD
-    const itemWithoutValidId = currentSaleItems.find(item => !item.product_id || isNaN(item.product_id) || parseInt(item.product_id, 10) === 0);
+    // 🛑 VALIDACIÓN FINAL DEL PRODUCTO ANTES DE IR A LA BD (Busca ID = 0, NULL o NaN)
+    const itemWithoutValidId = currentSaleItems.find(item => 
+        !item.product_id || 
+        isNaN(item.product_id) || 
+        parseInt(item.product_id, 10) === 0
+    );
+    
+    // 🛑 DEBUG 4
+    console.log("DEBUG 4: Item con ID Inválido (si existe):", itemWithoutValidId);
+
     if (itemWithoutValidId) {
-        alert(`Error de Producto: El ítem "${itemWithoutValidId.name}" tiene un ID inválido (${itemWithoutValidId.product_id}).`);
-        return;
+        // Si no ves esta alerta, el problema es que el código fue detenido en un return anterior.
+        console.error("DEBUG 5: 🛑 VENTA BLOQUEADA: ID de producto inválido o igual a 0.");
+        alert(`Error de Producto: El ítem "${itemWithoutValidId.name}" tiene un ID inválido (${itemWithoutValidId.product_id}).`); 
+        return; 
     }
     
+    // 🛑 DEBUG 6
+    console.log("DEBUG 6: Los IDs son válidos (no son 0).");
+
+    // 🛑 DEBUG 7
+    console.log("DEBUG 7: Entrando al bloque TRY...");
+
     try {
         // 1. REGISTRAR VENTA (Tabla 'ventas')
         const { data: saleData, error: saleError } = await supabase
@@ -1247,35 +1282,33 @@ async function handleNewSale(e) {
         }
 
         const new_venta_id = saleData[0].venta_id;
-        console.log(`Venta principal registrada con ID: ${new_venta_id}`);
+        console.log(`DEBUG 8: Venta principal registrada con ID: ${new_venta_id}`);
 
         // 2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
-            product_id: parseInt(item.product_id, 10), // Aseguramos que sea INT
+            product_id: parseInt(item.product_id, 10), 
             name: item.name,
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
         }));
         
-        console.log('Detalles a enviar:', detailsToInsert);
+        console.log('DEBUG 9: Detalles a enviar:', detailsToInsert);
 
         const { error: detailError } = await supabase
             .from('detalle_ventas') 
             .insert(detailsToInsert);
 
         if (detailError) {
-            // 🛑 LÍNEA CRÍTICA: Capturamos el error y lanzamos una excepción
-            console.error('🛑 ERROR DE INSERCIÓN DE DETALLES DE VENTA:', detailError);
+            // 🛑 LÍNEA CRÍTICA: Lanzamos una excepción para que el bloque catch la capture
+            console.error('🛑 ERROR DE INSERCIÓN DE DETALLES DE VENTA (Paso 2):', detailError);
             let errorMessage = detailError.message || 'Error desconocido al insertar detalles.';
             
-            // Si la venta se registró, pero los detalles fallaron, NO DEBEMOS CONTINUAR.
             throw new Error(`BD Falló al insertar detalles (ID Venta: ${new_venta_id}). Mensaje Supabase: ${errorMessage}`);
         }
 
         // 3. REGISTRAR PAGO (Tabla 'pagos')
-        // ... (Tu código de registro de pagos) ...
         if (final_paid_amount > 0) { 
             const { error: paymentError } = await supabase
                 .from('pagos')
@@ -1293,6 +1326,7 @@ async function handleNewSale(e) {
         }
         
         // 4. LIMPIAR Y RECARGAR (Solo si el proceso fue COMPLETAMENTE exitoso)
+        console.log("DEBUG 10: Venta completa, limpiando UI.");
         closeModal('new-sale-modal'); 
         await loadDashboardData(); 
         await loadClientsTable('gestion'); 
@@ -1300,18 +1334,15 @@ async function handleNewSale(e) {
         showTicketPreviewModal(new_venta_id);
         
     } catch (error) {
-        // 🛑 Captura el error lanzado en el Paso 2 (detalleError) y cualquier otro fallo fatal
+        // 🛑 Captura cualquier error lanzado, incluyendo el error de Supabase del Paso 2
         console.error('Error FATAL capturado:', error);
         alert('Error fatal al registrar la venta: ' + error.message);
         
-        // 🛑 IMPORTANTE: Si falló después de registrar la venta principal, el carrito no se limpia.
-        // El usuario verá el mensaje de error y el carrito quedará intacto para que pueda corregir los IDs.
+        // Si el error fue capturado, el carrito NO debe limpiarse
         return; 
     } finally {
-        // 🛑 CRÍTICO: SOLO LIMPIAMOS SI LA VENTA FUE EXITOSA (o si falló la VENTA principal, antes del Paso 2).
-        // Si el error fue capturado en el catch, la función salió con 'return', dejando el carrito.
-        // Mantenemos este bloque para limpieza general.
-        if (!error) { // Si no hubo un error capturado en el catch
+        // Este bloque ahora solo limpia si la función terminó correctamente (no llegó al 'return' del catch)
+        if (!error) { 
             currentSaleItems = []; 
             updateSaleTableDisplay();
             document.getElementById('new-sale-form').reset();
