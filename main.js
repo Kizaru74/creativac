@@ -3109,7 +3109,7 @@ async function loadAllProductsMap() {
     // 🛑 Usamos producto_id y name, según tu código.
     const { data: products, error } = await supabase
         .from('productos') // Asegúrate de que este es el nombre de tu tabla
-        .select('producto_id, name, price, type');
+        .select('*');
 
     if (error) {
         console.error("Error al cargar datos de productos para el mapa:", error);
