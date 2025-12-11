@@ -1842,7 +1842,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function handlePriceEditSubmit(e) {
-    e.preventDefault(); // 🛑 CRÍTICO: Evita la recarga de la página
+    // 🛑 CRÍTICO: Evita la recarga de la página (soluciona el error de navegación)
+    e.preventDefault(); 
 
     if (!supabase) {
         alert("Error: Supabase no está inicializado.");
@@ -1850,14 +1851,14 @@ async function handlePriceEditSubmit(e) {
     }
 
     const form = e.target;
-    // IDs de los campos definidos en la solución HTML corregida
+    // Lectura de IDs desde el formulario (asegúrate que estos IDs coincidan con tu HTML)
     const ventaId = form.elements['edit-sale-transaction-id'].value;
     const detalleId = form.elements['edit-sale-detail-id'].value;
     const newPriceValue = form.elements['edit-new-price'].value;
 
     const newPrice = parseFloat(newPriceValue);
     
-    // Asumimos que 'viewingClientId' es global
+    // Asumimos que 'viewingClientId' es una variable global
     const clientId = window.viewingClientId; 
 
     if (!ventaId || !detalleId || isNaN(newPrice) || newPrice <= 0 || !clientId) {
@@ -1870,7 +1871,7 @@ async function handlePriceEditSubmit(e) {
     }
 
     try {
-        // 1. Obtener la CANTIDAD del detalle_venta (esto es clave si Quantity no es siempre 1)
+        // 1. Obtener la CANTIDAD del detalle_venta (clave si Quantity > 1)
         const { data: detail, error: detailFetchError } = await supabase
             .from('detalle_ventas')
             .select('quantity')
@@ -1879,7 +1880,7 @@ async function handlePriceEditSubmit(e) {
 
         if (detailFetchError || !detail) throw new Error("Detalle de venta no encontrado.");
         
-        const newSubtotal = newPrice * detail.quantity; // Nuevo subtotal basado en la cantidad
+        const newSubtotal = newPrice * detail.quantity; // Calcula el nuevo subtotal real
         
         // 2. Actualizar el detalle_venta (price y subtotal)
         const { error: updateDetailError } = await supabase
@@ -1894,8 +1895,8 @@ async function handlePriceEditSubmit(e) {
             .from('ventas')
             .update({ 
                 total_amount: newSubtotal, 
-                saldo_pendiente: newSubtotal, // El saldo pendiente es el total si se asume 0 pagado
-                paid_amount: 0 // Aseguramos que el pago sea cero al editar el precio inicial
+                saldo_pendiente: newSubtotal, // Nuevo precio = Saldo pendiente
+                paid_amount: 0 // Se restablece el pago a cero (asumiendo que era $0.00)
             })
             .eq('venta_id', ventaId);
 
@@ -1906,16 +1907,22 @@ async function handlePriceEditSubmit(e) {
         // 4. RECARGA DE DATOS (REFRESH)
         closeModal('modal-detail-sale');
         
-        // Carga de datos del dashboard para actualizar la lista de ventas
+        // Carga de datos generales del dashboard (widgets, estadísticas)
         if (window.loadDashboardData) {
             await loadDashboardData();
         }
-        // Recargar la tabla específica de clientes/deudas si existe
-        if (window.loadClientsTable) {
-            await loadClientsTable('gestion'); // o el scope que uses
+        
+        // 🚨 CRÍTICO: Recargar la tabla específica de Reportes Mensuales 🚨
+        if (window.loadMonthlySalesReport) {
+            await loadMonthlySalesReport(); 
         }
         
-        // Reabrir el modal con los datos frescos (Opcional, pero útil)
+        // Recargar la tabla de clientes/deudas
+        if (window.loadClientsTable) {
+            await loadClientsTable('gestion'); 
+        }
+        
+        // Reabrir el modal con los datos frescos (para que el usuario vea la confirmación)
         handleViewSaleDetails(ventaId, clientId);
 
     } catch (error) {
@@ -3608,6 +3615,11 @@ document.addEventListener('click', function(e) {
     // Y el listener de envío del formulario de edición también debe estar presente:
     document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
 
+    // Inicializa los selectores del reporte y sus listeners
+    window.initReportSelectors();
+    
+    // Luego, carga la data inicial (la cual llamará loadMonthlySalesReport)
+    window.loadDashboardData();
 
     // ====================================================================
     // Listener para abrir el modal de abono desde el Reporte de Deuda
