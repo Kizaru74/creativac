@@ -1194,8 +1194,9 @@ async function handleNewSale(e) {
         return;
     }
     
-    // 🛑 NUEVA VALIDACIÓN CRÍTICA: Asegurar que todos los productos tienen ID
-    const itemWithoutId = currentSaleItems.find(item => !item.product_id);
+    // 🛑 VALIDACIÓN CRÍTICA CORREGIDA: Asegura que todos los productos tienen un ID válido
+    // Verifica si el ID es nulo, indefinido, O una cadena vacía.
+    const itemWithoutId = currentSaleItems.find(item => !item.product_id || item.product_id === "");
     if (itemWithoutId) {
         alert(`Error de producto: El ítem "${itemWithoutId.name}" no tiene un ID de producto válido. Por favor, selecciona un producto base.`);
         return;
