@@ -1156,45 +1156,53 @@ function handleAbonoClick(clientId) {
 
 async function handleNewSale(e) {
     e.preventDefault();
+
     // 1. CAPTURAR DATOS DEL FORMULARIO
     const client_id = document.getElementById('client-select')?.value ?? null;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null; 
     
-    // Capturamos el monto pagado (limpiando cualquier posible formato de moneda si lo hubiera)
+    // Capturamos el monto pagado
     const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
     
-    // Calcula el total de la venta sumando los subtotales de los ítems
+    // Calcula el total de la venta
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
     // 2. LÓGICA INICIAL DE PAGO
     if (payment_method === 'Deuda') {
-        // Si el método es Deuda, el pago inicial para la venta debe ser 0.
         paid_amount = 0;
     }
     
     let saldo_pendiente = total_amount - paid_amount; 
 
-// --- Validaciones ---
+    // --- Validaciones ---
     if (!client_id) {
         alert('Por favor, selecciona un cliente.');
         return;
     }
     if (currentSaleItems.length === 0) {
-        alert('Debes agregar al menos un producto a la venta.');
+        // Esta alerta ahora solo saltará si la lista está literalmente vacía.
+        alert('Debes agregar al menos un producto a la venta.'); 
         return;
     }
     
-    // 🛑 VALIDACIÓN CRÍTICA CORREGIDA: Asegura que todos los productos tienen un ID válido
-    // Verifica si el ID es nulo, indefinido, O una cadena vacía.
-    const itemWithoutId = currentSaleItems.find(item => !item.product_id || item.product_id === "");
-    if (itemWithoutId) {
-        alert(`Error de producto: El ítem "${itemWithoutId.name}" no tiene un ID de producto válido. Por favor, selecciona un producto base.`);
+    // 🛑 VALIDACIÓN CRÍTICA: Asegurar que todos los productos tienen un ID VÁLIDO (número > 0)
+    // También verifica que no haya IDs de producto como 0, 'null', o cadenas vacías.
+    const itemWithoutValidId = currentSaleItems.find(item => 
+        !item.product_id || 
+        item.product_id === 0 ||
+        (typeof item.product_id === 'string' && item.product_id.trim() === "") ||
+        (typeof item.product_id === 'string' && item.product_id.toLowerCase() === "null")
+    );
+    
+    if (itemWithoutValidId) {
+        alert(`Error de Producto Base: El ítem "${itemWithoutValidId.name}" no tiene un ID de producto válido (${itemWithoutValidId.product_id}). Por favor, revisa la configuración del producto.`);
         return;
     }
-    
-    // 3. VALIDACIÓN CRÍTICA DE VENTA CERO
+    // Fin de la validación
+
+    // 3. VALIDACIÓN DE VENTA CERO Y SALDOS
     let final_paid_amount = paid_amount;
     let final_saldo_pendiente = saldo_pendiente;
 
@@ -1204,35 +1212,23 @@ async function handleNewSale(e) {
     }
     
     if (total_amount === 0) {
-        // 🛑 Lógica para permitir ventas en $0.00 solo si es DEUDA
+        // Permite ventas en $0.00 solo si es DEUDA
         if (payment_method !== 'Deuda') {
-            alert('Una venta de $0.00 solo puede ser registrada con el método de pago "Deuda".');
+            alert('Una venta de $0.00 solo puede ser registrada con el método de pago "Deuda" (o como pago inicial de 0).');
             return; 
         }
-        
-        // Si es Deuda y el total es 0, forzamos los montos a 0 para la base de datos.
         final_paid_amount = 0;
         final_saldo_pendiente = 0;
     } else {
-        // Aseguramos que el saldo no quede negativo en el caso de deuda 
-        // (aunque el sobrepago/cambio es manejado por final_saldo_pendiente)
-        // Puedes ajustar esta lógica si quieres mostrar el cambio:
+        // Si hay sobrepago, el saldo pendiente es 0
         if (final_saldo_pendiente < 0) {
-             // Si el saldo es negativo, es un sobrepago (cambio). 
-             // Se registra el pago como el total de la venta, y el saldo pendiente es 0
-             // El cambio se maneja fuera de la base de datos de deuda.
-             // Aquí asumiremos que si hay sobrepago, el saldo pendiente es 0 y el pago es el total.
-             // Esto es una simplificación común para la tabla de saldos.
              final_saldo_pendiente = 0;
         }
     }
 
 
-    // 4. VALIDACIÓN DE PAGO INICIAL
-    // Si no es Deuda, el pago no debe exceder el total de la venta (si lo excede, el saldo pendiente será 0)
+    // 4. VALIDACIÓN DE PAGO INICIAL (Ajuste por sobrepago)
     if (payment_method !== 'Deuda' && final_paid_amount > total_amount) {
-        // Si se pagó de más, el saldo pendiente es 0, y el pago registrado es el total de la venta.
-        // El excedente es el cambio a devolver.
         final_paid_amount = total_amount; 
     }
     
@@ -1266,20 +1262,25 @@ async function handleNewSale(e) {
         // 7. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
-            product_id: item.product_id,
+            product_id: item.product_id, // CRÍTICO: Debe ser un número entero válido (no 0)
             name: item.name, 
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
         }));
-            console.log("Detalles a insertar (Verificar product_id):", detailsToInsert);
+        
+        console.log("Detalles a enviar (Verificar product_id como número entero válido):", detailsToInsert); 
+
         const { error: detailError } = await supabase
             .from('detalle_ventas') 
             .insert(detailsToInsert);
 
         if (detailError) {
+            // 🛑 CRÍTICO: Muestra el error exacto de Supabase para depuración (probablemente Clave Foránea).
             console.error('Error al insertar detalles de venta:', detailError);
-            alert(`Venta registrada (ID: ${new_venta_id}), pero falló el registro de detalles: ${detailError.message}`);
+            alert(`¡ERROR DE BASE DE DATOS! Falló el registro de detalles (ID Venta: ${new_venta_id}). Mensaje de Supabase: ${detailError.message}.`);
+            // Nota: Podrías considerar hacer un ROLLBACK de la venta principal aquí.
+            return; 
         }
 
         // 8. REGISTRAR PAGO (Tabla 'pagos') - SOLO si hay un pago inicial > 0
@@ -1288,7 +1289,7 @@ async function handleNewSale(e) {
                 .from('pagos')
                 .insert([{
                     venta_id: new_venta_id,
-                    amount: paid_amount, // Usamos el pago real, no el final ajustado si hubo sobrepago
+                    amount: paid_amount, 
                     client_id: client_id,
                     metodo_pago: payment_method,
                 }]);
@@ -1303,9 +1304,9 @@ async function handleNewSale(e) {
         closeModal('new-sale-modal'); 
 
         await loadDashboardData(); 
-        await loadClientsTable('gestion'); // Fuerza la actualización de saldos
+        await loadClientsTable('gestion'); 
 
-        showTicketPreviewModal(new_venta_id);
+        // showTicketPreviewModal(new_venta_id); // Descomentar si usas esta función
 
     } catch (error) {
         console.error('Error fatal al registrar la venta:', error.message);
