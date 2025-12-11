@@ -811,24 +811,13 @@ function handleAddProductToSale(e) {
 
     // 2. Lógica de Precio (Acepta $0.00)
     const priceStr = priceInput?.value;
-    // Parsea el precio manual (si no se puede, es 0)
     let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
     
-    // Si el precio manual es 0, intenta usar el precio de la base de datos (que puede ser 0)
     if (price === 0) {
         price = productToCharge.price || 0; 
     }
     
-    // 🛑 BLOQUEO A REMOVER: ESTA LÍNEA ES LA CAUSA DE QUE NO SE AGREGUEN PRODUCTOS CON PRECIO CERO
-    /* if (price <= 0) {
-        alert('El precio unitario no puede ser cero.');
-        return;
-    }
-    */
-    // -------------------------------------------------------------------------------------
-    
     const subtotal = quantity * price;
-
 
     // 3. CONSTRUCCIÓN DEL NOMBRE (Producto Padre / Subcategoría)
     let nameDisplay = productToCharge.name; 
@@ -836,15 +825,16 @@ function handleAddProductToSale(e) {
     if (subProductId) {
         const mainProductData = allProducts.find(p => String(p.producto_id) === String(mainProductId));
         if (mainProductData) {
-            nameDisplay = `${mainProductData.name} (${productToCharge.name})`; // Paquete (Subproducto)
+            nameDisplay = `${mainProductData.name} (${productToCharge.name})`; 
         }
     } else if (productToCharge.type && productToCharge.type.trim().toUpperCase() !== 'MAIN') {
-        nameDisplay = `${productToCharge.name} (${productToCharge.type})`; // Producto (Tipo/Subcategoría)
+        nameDisplay = `${productToCharge.name} (${productToCharge.type})`; 
     }
     // ------------------------------------------------------------------------
 
     const newItem = {
-        product_id: searchId,           
+        // 🛑 LÍNEA CORREGIDA: Usamos parseInt para garantizar que el ID sea un número entero
+        product_id: parseInt(searchId, 10),           
         name: nameDisplay,             
         quantity: quantity,
         price: price, 
@@ -853,23 +843,26 @@ function handleAddProductToSale(e) {
     };
 
     // 4. Lógica de agregar-actualizar el carrito
-    const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchId);
+    // CRÍTICO: Aseguramos que la comparación también se haga como número para consistencia
+    const searchIdNum = parseInt(searchId, 10);
+    const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchIdNum);
 
     if (existingIndex > -1) { 
         currentSaleItems[existingIndex].quantity += quantity;
         currentSaleItems[existingIndex].subtotal += subtotal;
     } else {
-        currentSaleItems.push(newItem); // <-- Aquí es donde finalmente se agrega el producto
+        currentSaleItems.push(newItem); 
     }
     
     // 5. Renderizado y Limpieza
     updateSaleTableDisplay(); 
-    calculateGrandTotal(); // Asegúrate de llamar a esta función para actualizar el total
+    calculateGrandTotal(); 
 
     // Limpieza de inputs
     mainSelect.value = '';
     subSelect.value = '';
     quantityInput.value = '1';
+    // Asumo que esta función existe y limpia el precio
     updatePriceField(null); 
     loadMainProductsForSaleSelect(); 
 }
