@@ -3237,10 +3237,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
         console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
         return;
     }
-
-
-    // Tu código original:
-    // 1. 🚨 MUEVE LA INICIALIZACIÓN DE SUPABASE AQUÍ
     if (window.supabase) {
         // Si 'supabase' no está definido globalmente (fuera de DOMContentLoaded)
         if (!supabase) {
@@ -3252,8 +3248,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
         console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
         // return; // Si ya se hizo fuera del bloque, esto puede ser omitido.
     }
-
-
     // 2. Continúa con tus llamadas iniciales
     await loadProductsData();
     await loadAllClientsMap();
@@ -3364,16 +3358,28 @@ document.querySelectorAll('[data-view]').forEach(link => {
     });
 
 
-    // Escucha eventos de la tabla de Reporte Mensual (Delegación)
-    const monthlySalesModal = document.getElementById('modal-monthly-report'); 
-    monthlySalesModal?.addEventListener('click', (e) => {
-        if (e.target.classList.contains('view-sale-details-btn')) {
-            const ventaId = e.target.getAttribute('data-venta-id');
-            const clientId = e.target.getAttribute('data-client-id');
+  // Agrega este Listener ÚNICO que escucha en toda la página
+document.addEventListener('click', function(e) {
+    // Usamos .closest() para capturar el botón, incluso si el clic cae en un ícono dentro de él
+    const target = e.target.closest('.view-sale-details-btn'); 
+
+    if (target) {
+        // Asumimos que tu tabla usa: data-venta-id y data-client-id
+        const ventaId = target.getAttribute('data-venta-id');
+        const clientId = target.getAttribute('data-client-id');
+        
+        if (ventaId && clientId) {
+            console.log(`DEBUG: Clic en Detalle Detectado. Venta ID: ${ventaId}, Cliente ID: ${clientId}`);
             
+            // Llama a la función de carga que ya corregimos:
             handleViewSaleDetails(ventaId, clientId);
+        } else {
+            console.error("ERROR: El botón de detalle le faltan atributos (data-venta-id o data-client-id).");
         }
-    });
+    }
+});
+
+// NOTA: Asegúrate de que tu función handleViewSaleDetails ya esté la última versión completa que te proporcioné.
 
     // -----------------------------------------------
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
