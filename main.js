@@ -786,6 +786,9 @@ function handleAddProductToSale(e) {
     const quantityInput = document.getElementById('product-quantity'); 
     const priceInput = document.getElementById('product-unit-price'); 
     
+    // 🛑 CRÍTICO: ID REAL del "Servicio Manual" creado en Supabase
+    const MANUAL_SERVICE_ID = 32; 
+
     // 1. Obtener IDs y Cantidad
     const mainProductId = mainSelect?.value;
     const subProductId = subSelect?.value;
@@ -796,25 +799,44 @@ function handleAddProductToSale(e) {
         productIdToCharge = mainProductId;
     }
     
+    // Convertimos a String para la búsqueda inicial
     const searchId = String(productIdToCharge); 
-    const productToCharge = allProducts.find(p => String(p.producto_id) === searchId); 
+    let productToCharge = allProducts.find(p => String(p.producto_id) === searchId); 
 
-    // --- Validaciones ---
+    // 2. Lógica de Precio (Acepta $0.00)
+    const priceStr = priceInput?.value;
+    let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
+    
+    // Si el precio manual es 0, usar el precio de la base de datos como fallback (que puede ser 0).
+    if (price === 0 && productToCharge) { 
+        price = productToCharge.price || 0; 
+    }
+    
+    // --- LÓGICA DE ID DE EMERGENCIA ---
+    // Si NO encontramos el producto en 'allProducts' Y el precio es 0, asumimos que es el Servicio Manual.
+    if (!productToCharge && (parseInt(searchId, 10) === 0 || !searchId) && price === 0) {
+        
+        // Creamos un objeto temporal con el ID válido (32) para que la inserción no falle
+        productToCharge = {
+            producto_id: MANUAL_SERVICE_ID,
+            name: "Servicio Manual / $0.00",
+            price: 0,
+            type: "MANUAL"
+        };
+        // Asignamos el ID válido para el resto del proceso
+        productIdToCharge = MANUAL_SERVICE_ID; 
+    } 
+    // --- FIN DE LÓGICA DE ID DE EMERGENCIA ---
+
+    // --- Validaciones Finales ---
     if (!productToCharge) {
+        // Esta validación final solo se ejecuta si el producto no se encontró y no era el caso de emergencia de $0.00
         alert('Por favor, selecciona un Producto o Paquete válido.');
         return;
     }
     if (isNaN(quantity) || quantity <= 0) {
         alert('La cantidad debe ser mayor a cero.');
         return;
-    }
-
-    // 2. Lógica de Precio (Acepta $0.00)
-    const priceStr = priceInput?.value;
-    let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
-    
-    if (price === 0) {
-        price = productToCharge.price || 0; 
     }
     
     const subtotal = quantity * price;
@@ -823,6 +845,7 @@ function handleAddProductToSale(e) {
     let nameDisplay = productToCharge.name; 
     
     if (subProductId) {
+        // Aseguramos que mainProductData exista si subProductId está presente
         const mainProductData = allProducts.find(p => String(p.producto_id) === String(mainProductId));
         if (mainProductData) {
             nameDisplay = `${mainProductData.name} (${productToCharge.name})`; 
@@ -833,9 +856,9 @@ function handleAddProductToSale(e) {
     // ------------------------------------------------------------------------
 
     const newItem = {
-        // 🛑 LÍNEA CORREGIDA: Usamos parseInt para garantizar que el ID sea un número entero
-        product_id: parseInt(searchId, 10),           
-        name: nameDisplay,             
+        // 🛑 CRÍTICO: Forzamos la conversión a número entero. Será el ID real o el 32.
+        product_id: parseInt(productIdToCharge, 10),           
+        name: nameDisplay,             
         quantity: quantity,
         price: price, 
         subtotal: subtotal,
@@ -843,8 +866,8 @@ function handleAddProductToSale(e) {
     };
 
     // 4. Lógica de agregar-actualizar el carrito
-    // CRÍTICO: Aseguramos que la comparación también se haga como número para consistencia
-    const searchIdNum = parseInt(searchId, 10);
+    // La búsqueda debe usar el ID numérico para coincidir con newItem
+    const searchIdNum = parseInt(productIdToCharge, 10);
     const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchIdNum);
 
     if (existingIndex > -1) { 
@@ -862,7 +885,6 @@ function handleAddProductToSale(e) {
     mainSelect.value = '';
     subSelect.value = '';
     quantityInput.value = '1';
-    // Asumo que esta función existe y limpia el precio
     updatePriceField(null); 
     loadMainProductsForSaleSelect(); 
 }
@@ -1162,11 +1184,9 @@ async function handleNewSale(e) {
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null; 
     
-    // Capturamos el monto pagado
     const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
     
-    // Calcula el total de la venta
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
     // 2. LÓGICA INICIAL DE PAGO
@@ -1176,28 +1196,26 @@ async function handleNewSale(e) {
     
     let saldo_pendiente = total_amount - paid_amount; 
 
-    // --- Validaciones ---
+    // --- Validaciones de Interfaz ---
     if (!client_id) {
         alert('Por favor, selecciona un cliente.');
         return;
     }
     if (currentSaleItems.length === 0) {
-        // Esta alerta ahora solo saltará si la lista está literalmente vacía.
         alert('Debes agregar al menos un producto a la venta.'); 
         return;
     }
     
     // 🛑 VALIDACIÓN CRÍTICA: Asegurar que todos los productos tienen un ID VÁLIDO (número > 0)
-    // También verifica que no haya IDs de producto como 0, 'null', o cadenas vacías.
+    // Esto previene que un fallo en handleAddProductToSale se propague a la base de datos.
     const itemWithoutValidId = currentSaleItems.find(item => 
         !item.product_id || 
         item.product_id === 0 ||
-        (typeof item.product_id === 'string' && item.product_id.trim() === "") ||
-        (typeof item.product_id === 'string' && item.product_id.toLowerCase() === "null")
+        isNaN(item.product_id)
     );
     
     if (itemWithoutValidId) {
-        alert(`Error de Producto Base: El ítem "${itemWithoutValidId.name}" no tiene un ID de producto válido (${itemWithoutValidId.product_id}). Por favor, revisa la configuración del producto.`);
+        alert(`Error de Producto Base: El ítem "${itemWithoutValidId.name}" no tiene un ID de producto válido (${itemWithoutValidId.product_id}). Por favor, revisa el carrito.`);
         return;
     }
     // Fin de la validación
@@ -1212,27 +1230,24 @@ async function handleNewSale(e) {
     }
     
     if (total_amount === 0) {
-        // Permite ventas en $0.00 solo si es DEUDA
         if (payment_method !== 'Deuda') {
-            alert('Una venta de $0.00 solo puede ser registrada con el método de pago "Deuda" (o como pago inicial de 0).');
+            alert('Una venta de $0.00 solo puede ser registrada con el método de pago "Deuda".');
             return; 
         }
         final_paid_amount = 0;
         final_saldo_pendiente = 0;
     } else {
-        // Si hay sobrepago, el saldo pendiente es 0
         if (final_saldo_pendiente < 0) {
              final_saldo_pendiente = 0;
         }
     }
-
 
     // 4. VALIDACIÓN DE PAGO INICIAL (Ajuste por sobrepago)
     if (payment_method !== 'Deuda' && final_paid_amount > total_amount) {
         final_paid_amount = total_amount; 
     }
     
-    // 5. Advertencia si hay saldo pendiente y no se marcó como 'Deuda'
+    // 5. Advertencia si hay saldo pendiente
     if (final_saldo_pendiente > 0.01 && payment_method !== 'Deuda' && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar registrando esta cantidad como deuda?`)) {
         return;
     }
@@ -1252,8 +1267,8 @@ async function handleNewSale(e) {
             .select('venta_id'); 
 
         if (saleError || !saleData || saleData.length === 0) {
-            console.error('Error al insertar venta:', saleError);
-            alert(`Error al registrar la venta: ${saleError?.message || 'Desconocido'}`);
+            console.error('Error al insertar venta (Paso 6):', saleError);
+            alert(`Error al registrar la venta principal: ${saleError?.message || 'Desconocido'}`);
             return;
         }
 
@@ -1262,28 +1277,28 @@ async function handleNewSale(e) {
         // 7. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
-            product_id: item.product_id, // CRÍTICO: Debe ser un número entero válido (no 0)
+            // 🛑 Forzamos el ID a INT para asegurar la BD, aunque ya debe serlo.
+            product_id: parseInt(item.product_id, 10), 
             name: item.name, 
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
         }));
         
-        console.log("Detalles a enviar (Verificar product_id como número entero válido):", detailsToInsert); 
+        console.log("Detalles a enviar (product_id debe ser un entero > 0, ej: 32):", detailsToInsert); 
 
         const { error: detailError } = await supabase
             .from('detalle_ventas') 
             .insert(detailsToInsert);
 
         if (detailError) {
-            // 🛑 CRÍTICO: Muestra el error exacto de Supabase para depuración (probablemente Clave Foránea).
-            console.error('Error al insertar detalles de venta:', detailError);
-            alert(`¡ERROR DE BASE DE DATOS! Falló el registro de detalles (ID Venta: ${new_venta_id}). Mensaje de Supabase: ${detailError.message}.`);
-            // Nota: Podrías considerar hacer un ROLLBACK de la venta principal aquí.
+            // 🛑 CAPTURA EXPLÍCITA: Muestra el error exacto de Supabase.
+            console.error('Error al insertar detalles de venta (Paso 7):', detailError);
+            alert(`¡ERROR DE BASE DE DATOS! Falló el registro de detalles (Venta ID: ${new_venta_id}). Mensaje de Supabase: ${detailError.message}.`);
             return; 
         }
 
-        // 8. REGISTRAR PAGO (Tabla 'pagos') - SOLO si hay un pago inicial > 0
+        // 8. REGISTRAR PAGO (Tabla 'pagos')
         if (paid_amount > 0) { 
             const { error: paymentError } = await supabase
                 .from('pagos')
@@ -1295,31 +1310,30 @@ async function handleNewSale(e) {
                 }]);
 
             if (paymentError) {
-                console.error('Error al registrar pago inicial:', paymentError);
+                console.error('Error al registrar pago inicial (Paso 8):', paymentError);
                 alert(`Advertencia: El pago inicial falló. ${paymentError.message}`);
             }
         }
         
         // 9. LIMPIAR Y RECARGAR UI
+        // Si llegamos aquí, la venta fue exitosa.
+        alert(`¡Venta #${new_venta_id} registrada con éxito!`);
         closeModal('new-sale-modal'); 
 
         await loadDashboardData(); 
         await loadClientsTable('gestion'); 
 
-        // showTicketPreviewModal(new_venta_id); // Descomentar si usas esta función
-
     } catch (error) {
-        console.error('Error fatal al registrar la venta:', error.message);
-        alert('Error fatal al registrar la venta: ' + error.message);
+        // 🛑 Error Genérico: Captura cualquier error de red o fallo de código.
+        console.error('Error FATAL (Capturado en catch final):', error.message, error);
+        alert('Error FATAL al registrar la venta. Por favor, revise la consola para el error de Base de Datos.');
     } finally {
-        // 10. Limpiar variables y formulario
+        // 10. Limpiar variables y formulario (Se ejecuta siempre, incluso tras un error no retornado)
         currentSaleItems = []; 
         updateSaleTableDisplay();
         
-        // Limpiamos todos los campos del formulario
         document.getElementById('new-sale-form').reset();
         
-        // Aseguramos que el total y saldo se reinicien visualmente
         document.getElementById('total-amount').value = '0.00';
         document.getElementById('paid-amount').value = '0.00';
         document.getElementById('display-saldo-pendiente').value = '0.00';
