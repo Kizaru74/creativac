@@ -1167,19 +1167,18 @@ async function handleNewSale(e) {
     // 1. CAPTURAR DATOS DEL FORMULARIO
     const client_id = document.getElementById('client-select')?.value ?? null;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
-    
-    // ✅ CAMBIO: Capturamos los detalles de la venta del nuevo campo
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null; 
     
-    const paid_amount_str = document.getElementById('paid-amount')?.value ?? '0'; 
+    // Capturamos el monto pagado (limpiando cualquier posible formato de moneda si lo hubiera)
+    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
     
     // Calcula el total de la venta sumando los subtotales de los ítems
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
-    // 2. LÓGICA DE PAGO Y SALDO PENDIENTE
+    // 2. LÓGICA INICIAL DE PAGO
     if (payment_method === 'Deuda') {
-        // Si el método es Deuda, el pago inicial es 0 y todo va a saldo pendiente
+        // Si el método es Deuda, el pago inicial para la venta debe ser 0.
         paid_amount = 0;
     }
     
@@ -1195,33 +1194,55 @@ async function handleNewSale(e) {
         return;
     }
     
-    // ✅ Permite ventas en $0.00, solo bloquea montos negativos.
+    // 3. VALIDACIÓN CRÍTICA DE VENTA CERO
+    let final_paid_amount = paid_amount;
+    let final_saldo_pendiente = saldo_pendiente;
+
     if (total_amount < 0) {
         alert('El total de la venta no puede ser negativo.');
         return;
     }
     
-    // Si la venta es de $0.00, forzamos el saldo y el pago a cero para evitar lógica inconsistente.
-    let final_paid_amount = paid_amount;
-    let final_saldo_pendiente = saldo_pendiente;
-
     if (total_amount === 0) {
+        // 🛑 Lógica para permitir ventas en $0.00 solo si es DEUDA
+        if (payment_method !== 'Deuda') {
+            alert('Una venta de $0.00 solo puede ser registrada con el método de pago "Deuda".');
+            return; 
+        }
+        
+        // Si es Deuda y el total es 0, forzamos los montos a 0 para la base de datos.
         final_paid_amount = 0;
         final_saldo_pendiente = 0;
+    } else {
+        // Aseguramos que el saldo no quede negativo en el caso de deuda 
+        // (aunque el sobrepago/cambio es manejado por final_saldo_pendiente)
+        // Puedes ajustar esta lógica si quieres mostrar el cambio:
+        if (final_saldo_pendiente < 0) {
+             // Si el saldo es negativo, es un sobrepago (cambio). 
+             // Se registra el pago como el total de la venta, y el saldo pendiente es 0
+             // El cambio se maneja fuera de la base de datos de deuda.
+             // Aquí asumiremos que si hay sobrepago, el saldo pendiente es 0 y el pago es el total.
+             // Esto es una simplificación común para la tabla de saldos.
+             final_saldo_pendiente = 0;
+        }
     }
 
-    if (payment_method !== 'Deuda' && (final_paid_amount < 0 || final_paid_amount > total_amount)) {
-        alert('El monto pagado es inválido.');
-        return;
-    }
 
-    // Advertencia si hay saldo pendiente y no se marcó como 'Deuda'
+    // 4. VALIDACIÓN DE PAGO INICIAL
+    // Si no es Deuda, el pago no debe exceder el total de la venta (si lo excede, el saldo pendiente será 0)
+    if (payment_method !== 'Deuda' && final_paid_amount > total_amount) {
+        // Si se pagó de más, el saldo pendiente es 0, y el pago registrado es el total de la venta.
+        // El excedente es el cambio a devolver.
+        final_paid_amount = total_amount; 
+    }
+    
+    // 5. Advertencia si hay saldo pendiente y no se marcó como 'Deuda'
     if (final_saldo_pendiente > 0.01 && payment_method !== 'Deuda' && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar registrando esta cantidad como deuda?`)) {
         return;
     }
 
     try {
-        // 3. REGISTRAR VENTA (Tabla 'ventas')
+        // 6. REGISTRAR VENTA (Tabla 'ventas')
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
@@ -1230,9 +1251,7 @@ async function handleNewSale(e) {
                 paid_amount: final_paid_amount, 
                 saldo_pendiente: final_saldo_pendiente, 
                 metodo_pago: payment_method,
-                // ✅ Aquí usamos el nuevo campo
                 description: sale_description, 
-                // NO SE INSERTA PROFIT
             }])
             .select('venta_id'); 
 
@@ -1244,11 +1263,10 @@ async function handleNewSale(e) {
 
         const new_venta_id = saleData[0].venta_id;
 
-        // 4. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
+        // 7. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
-            // Asumiendo que el campo 'name' del ítem de venta es el nombre del producto
             name: item.name, 
             quantity: item.quantity,
             price: item.price,
@@ -1264,13 +1282,13 @@ async function handleNewSale(e) {
             alert(`Venta registrada (ID: ${new_venta_id}), pero falló el registro de detalles: ${detailError.message}`);
         }
 
-        // 5. REGISTRAR PAGO (Tabla 'pagos') - SOLO si hay un pago inicial > 0
-        if (final_paid_amount > 0) { 
+        // 8. REGISTRAR PAGO (Tabla 'pagos') - SOLO si hay un pago inicial > 0
+        if (paid_amount > 0) { 
             const { error: paymentError } = await supabase
                 .from('pagos')
                 .insert([{
                     venta_id: new_venta_id,
-                    amount: final_paid_amount,
+                    amount: paid_amount, // Usamos el pago real, no el final ajustado si hubo sobrepago
                     client_id: client_id,
                     metodo_pago: payment_method,
                 }]);
@@ -1281,28 +1299,29 @@ async function handleNewSale(e) {
             }
         }
         
-    // 6. LIMPIAR Y RECARGAR UI
-    closeModal('new-sale-modal'); 
+        // 9. LIMPIAR Y RECARGAR UI
+        closeModal('new-sale-modal'); 
 
-    await loadDashboardData(); 
-    await loadClientsTable('gestion'); // Fuerza la actualización de saldos
+        await loadDashboardData(); 
+        await loadClientsTable('gestion'); // Fuerza la actualización de saldos
 
-    // ✅ Llama a la vista previa del ticket (asumiendo que esta función existe)
-    showTicketPreviewModal(new_venta_id);
+        showTicketPreviewModal(new_venta_id);
 
     } catch (error) {
         console.error('Error fatal al registrar la venta:', error.message);
         alert('Error fatal al registrar la venta: ' + error.message);
     } finally {
-        // Limpiar variables y formulario
+        // 10. Limpiar variables y formulario
         currentSaleItems = []; 
-        // Asumo que esta función limpia la tabla de la venta
         updateSaleTableDisplay();
-        // Asumo que este ID corresponde al formulario de registro de venta
+        
+        // Limpiamos todos los campos del formulario
         document.getElementById('new-sale-form').reset();
         
-        // 🛑 CAMBIO: También limpiamos el campo de detalles explícitamente por si el .reset() falla en el textarea
-        document.getElementById('sale-details').value = '';
+        // Aseguramos que el total y saldo se reinicien visualmente
+        document.getElementById('total-amount').value = '0.00';
+        document.getElementById('paid-amount').value = '0.00';
+        document.getElementById('display-saldo-pendiente').value = '0.00';
     }
 }
 
