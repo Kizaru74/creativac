@@ -571,12 +571,9 @@ function updatePriceField(productId) {
 }
 
 // ====================================================================
-// 6. LÓGICA DE VENTA MULTI-ITEM
+// 6. LÓGICA DE VENTA MULTI-ITEM, Calular Saldo Pendiente y Proteger el Monto Pagado
 // ====================================================================
 
-// ====================================================================
-// FUNCIÓN: Calular Saldo Pendiente y Proteger el Monto Pagado
-// ====================================================================
 function updatePaymentDebtStatus(grandTotal) {
     
     // 1. OBTENER EL TOTAL DE LA VENTA DE FORMA ROBUSTA
@@ -969,7 +966,6 @@ function cleanCurrencyString(str) {
     const cleaned = str.replace(/[^\d.-]/g, ''); 
     return cleaned;
 }
-
 //Ventas a credito
 async function getClientSalesSummary(clientId) {
     if (!supabase) return { totalVentas: 0, deudaNeta: 0 };
@@ -2589,10 +2585,7 @@ async function handleEditClient(e) {
 // CRÍTICO: Asegúrate de que el botón de confirmación tenga su listener
 document.getElementById('confirm-delete-client-btn')?.addEventListener('click', confirmDeleteClient);
 
-// ====================================================================
 // 11. DETALLE Y ABONO DE VENTA 
-// ====================================================================
-
 async function handleRegisterPayment(e) {
     e.preventDefault();
     const venta_id = document.getElementById('payment-sale-id').value;
@@ -2765,175 +2758,174 @@ async function handleSaleAbono(e) {
 // ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
-
 async function loadMonthlySalesReport() {
-    // 1. Obtener los contenedores (¡INCLUYENDO EL NUEVO ID!)
-    const selector = document.getElementById('report-month-selector');
-    const monthlyReportBody = document.getElementById('monthly-sales-report-body');
-    const totalSalesSpan = document.getElementById('report-total-sales');
-    // 🌟 AJUSTE 1: Declarar el nuevo span que inyectará la Deuda Generada en el Mes
-    const totalDebtGeneratedSpan = document.getElementById('report-total-debt-generated'); 
-    const noDataMessage = document.getElementById('monthly-report-no-data');
-    
-    // 🛑 VERIFICACIÓN: Ahora verificamos si el nuevo ID existe
-    if (!monthlyReportBody || !totalSalesSpan || !noDataMessage || !totalDebtGeneratedSpan) {
-        console.warn("Advertencia: Contenedores de Reporte Mensual ausentes o modal cerrado. (Asegúrese de agregar el ID 'report-total-debt-generated' a su HTML)");
-        return; 
-    }
-
-    // =======================================================
-    // 2. Lógica y Consulta del Mes Seleccionado (CON FILTRO DE FECHA)
-    // =======================================================
-    
-    // Lógica para obtener startDate y endDate del mes seleccionado...
-    const selectedMonthYear = selector ? selector.value : null;
-    let startDate, endDate;
-
-    if (selectedMonthYear) {
-        const [year, month] = selectedMonthYear.split('-').map(Number);
-        startDate = new Date(year, month - 1, 1); 
-        endDate = new Date(year, month, 0); 
-        endDate.setHours(23, 59, 59, 999);
-    } else {
-        const now = new Date();
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        endDate.setHours(23, 59, 59, 999);
-    }
-
-    const isoStartDate = startDate.toISOString();
-    const isoEndDate = endDate.toISOString();
-
-    // Consulta de ventas filtrada por el mes
-    const { data: sales, error } = await supabase
-        .from('ventas')
-        .select(`
-            venta_id, 
-            created_at, 
-            client_id, 
-            total_amount, 
-            saldo_pendiente, 
-            metodo_pago, 
-            description
-        `)
-        .gte('created_at', isoStartDate) 
-        .lte('created_at', isoEndDate)
-        .order('created_at', { ascending: false });
-
-    
-    if (error) {
-        console.error('Error al cargar reporte de ventas:', error.message);
-        monthlyReportBody.innerHTML = '';
-        totalSalesSpan.textContent = '$0.00';
-        totalDebtGeneratedSpan.textContent = '$0.00'; // También resetear el nuevo total
-        noDataMessage.classList.remove('hidden');
+    if (!supabase) {
+        console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
         return;
     }
 
-    // 3. CÁLCULO DE TOTALES DEL MES Y RENDERIZADO DE LA TABLA
-    let grandTotal = 0; 
-    // 🌟 AJUSTE 2: Inicializar el contador para la Deuda Generada
-    let monthlyDebtGenerated = 0;
-    
-    monthlyReportBody.innerHTML = ''; 
+    const reportBody = document.getElementById('monthly-sales-report-body');
+    const totalSalesEl = document.getElementById('report-total-sales');
+    const totalDebtEl = document.getElementById('report-total-debt-generated');
+    const noDataMessage = document.getElementById('monthly-report-no-data');
 
-    if (sales && sales.length > 0) {
-        noDataMessage.classList.add('hidden');
-
-        sales.forEach(sale => {
-            grandTotal += sale.total_amount;
-            // 🌟 AJUSTE 3A: Acumular la deuda pendiente de esa venta
-            monthlyDebtGenerated += sale.saldo_pendiente; 
-            
-            // ... (Resto del código para renderizar la fila de la tabla)
-            const saleDate = new Date(sale.created_at).toLocaleDateString('es-MX', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
-
-            const clientName = allClientsMap[sale.client_id] || 'N/A'; 
-
-            const row = monthlyReportBody.insertRow();
-            row.className = 'hover:bg-gray-50';
-
-            const descriptionDisplay = sale.description || '-'; 
-            
-            row.innerHTML = `
-                <td class="px-3 py-3 whitespace-nowrap">${sale.venta_id}</td>
-                <td class="px-3 py-3 whitespace-nowrap">${saleDate}</td>
-                <td class="px-3 py-3 whitespace-nowrap">${clientName}</td>
-                <td class="px-3 py-3 whitespace-nowrap font-semibold">${formatCurrency(sale.total_amount)}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-red-600">${formatCurrency(sale.saldo_pendiente)}</td>
-                <td class="px-3 py-3 whitespace-nowrap">${sale.metodo_pago}</td>
-                
-                <td class="px-3 py-3 text-sm truncate-cell">
-                    <div class="truncate w-40" title="${descriptionDisplay}">
-                        ${descriptionDisplay}
-                    </div>
-                </td>
-
-                <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
-                        data-venta-id="${sale.venta_id}"  
-                        data-client-id="${sale.client_id}"  class="view-sale-details-btn text-indigo-600 hover:text-indigo-900 font-semibold text-xs py-1 px-2 rounded bg-indigo-100"
-                    >
-                        Detalles
-                    </button>
-                </td>
-            `;
-        });
-    } else {
-        noDataMessage.classList.remove('hidden');
+    if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) {
+        console.error("Faltan elementos HTML para el reporte mensual.");
+        return;
     }
 
-    // Actualizar el total del MES
-    totalSalesSpan.textContent = formatCurrency(grandTotal); 
-    // 🌟 AJUSTE 3B: Actualizar el total de DEUDA GENERADA
-    totalDebtGeneratedSpan.textContent = formatCurrency(monthlyDebtGenerated);
+    // Mostrar mensaje de carga
+    reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Cargando reporte...</td></tr>';
+    totalSalesEl.textContent = '...';
+    totalDebtEl.textContent = '...';
+    noDataMessage.classList.add('hidden');
+    
+    try {
+        // 🛑 LECTURA DE SELECTORES (AJUSTE CRÍTICO POR IDS SEPARADOS)
+        const monthSelect = document.getElementById('report-month-select');
+        const yearSelect = document.getElementById('report-year-select');
+
+        // Determinar mes y año seleccionado (o usar el actual si no están inicializados)
+        // Usamos Date().getMonth() + 1 porque el valor del selector (1-12) lo espera
+        const currentMonthNum = new Date().getMonth() + 1;
+        const currentYearNum = new Date().getFullYear();
+        
+        const selectedMonth = parseInt(monthSelect?.value) || currentMonthNum;
+        const selectedYear = parseInt(yearSelect?.value) || currentYearNum;
+
+        // 2. Calcular los rangos de fecha (Inicio y Fin del mes)
+        // El mes en Date es 0-indexado, por eso usamos selectedMonth - 1
+        let startDate = new Date(selectedYear, selectedMonth - 1, 1);
+        let endDate = new Date(selectedYear, selectedMonth, 0); // Esto obtiene el último día del mes
+        
+        // Asegurar que la hora cubra todo el último día
+        endDate.setHours(23, 59, 59, 999);
+
+        const isoStartDate = startDate.toISOString();
+        const isoEndDate = endDate.toISOString();
+
+        // 3. Consulta a Supabase
+        const { data: sales, error } = await supabase
+            .from('ventas')
+            .select(`
+                venta_id, 
+                client_id, 
+                created_at, 
+                total_amount, 
+                saldo_pendiente,
+                clientes(name) 
+            `)
+            .gte('created_at', isoStartDate)
+            .lte('created_at', isoEndDate)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        // 4. Cálculo de Totales
+        let totalSales = 0;
+        let totalDebtGenerated = 0;
+
+        // Limpiar el cuerpo de la tabla
+        reportBody.innerHTML = ''; 
+
+        if (sales && sales.length > 0) {
+            sales.forEach(sale => {
+                totalSales += sale.total_amount;
+                totalDebtGenerated += sale.saldo_pendiente;
+
+                const row = reportBody.insertRow();
+                row.className = 'hover:bg-gray-50';
+
+                const clientName = sale.clientes?.name || 'Cliente Desconocido';
+                const formattedDate = new Date(sale.created_at).toLocaleDateString();
+
+                row.innerHTML = `
+                    <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${sale.venta_id})</td>
+                    <td class="px-6 py-3 whitespace-nowrap font-medium text-gray-900">${clientName}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">${formatCurrency(sale.total_amount)}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm ${sale.saldo_pendiente > 0.01 ? 'text-red-600 font-bold' : 'text-green-600'}">
+                        ${formatCurrency(sale.saldo_pendiente)}
+                    </td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm">
+                        <button 
+                            onclick="handleViewSaleDetails(${sale.venta_id}, ${sale.client_id})" 
+                            class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
+                        >
+                            Ver Detalle
+                        </button>
+                    </td>
+                `;
+            });
+            
+            noDataMessage.classList.add('hidden'); // Ocultar si hay datos
+
+        } else {
+            noDataMessage.classList.remove('hidden'); // Mostrar si no hay datos
+        }
+
+        // 5. Actualizar Widgets
+        totalSalesEl.textContent = formatCurrency(totalSales);
+        totalDebtEl.textContent = formatCurrency(totalDebtGenerated);
+
+    } catch (e) {
+        console.error('Error al cargar el reporte mensual:', e);
+        reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-600">Fallo al cargar datos. Consulte la consola.</td></tr>';
+        totalSalesEl.textContent = formatCurrency(0);
+        totalDebtEl.textContent = formatCurrency(0);
+    }
 }
+// ====================================================================
+// FUNCIÓN AUXILIAR: LLENA EL SELECTOR DE MESES
+// ====================================================================
 
 function initializeMonthSelector() {
-    const selector = document.getElementById('report-month-selector');
-    if (!selector) {
-        // No hacer nada si el selector no se encuentra en el HTML
-        return; 
-    }
+    // 🛑 AJUSTE: Usar el ID correcto de tu HTML
+    const selector = document.getElementById('report-month-select'); 
+    if (!selector) return;
 
-    selector.innerHTML = ''; // Limpiar opciones existentes
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0 (Enero) a 11 (Diciembre)
-    
-    // Nombres de los meses en español
+    selector.innerHTML = ''; 
     const monthNames = [
         "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
     ];
+    const currentMonth = new Date().getMonth() + 1; // 1 (Enero) a 12 (Diciembre)
 
-    // Generar opciones para los últimos 12 meses (incluyendo el actual)
-    for (let i = 0; i < 12; i++) {
-        // Calcular el mes pasado (restar i meses al mes actual)
-        // Usamos el día 1 para evitar problemas con meses que tienen menos de 31 días
-        const date = new Date(currentYear, currentMonth - i, 1);
-        const year = date.getFullYear();
-        const monthIndex = date.getMonth();
-        
-        // Formato del 'value' para JavaScript/Supabase: YYYY-MM (ej: 2025-11)
-        // Se usa padStart(2, '0') para asegurar que el mes tenga dos dígitos (01, 02, etc.)
-        const monthValue = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-        const monthLabel = `${monthNames[monthIndex]} ${year}`;
-
+    monthNames.forEach((name, index) => {
+        const value = index + 1;
         const option = document.createElement('option');
-        option.value = monthValue;
-        option.textContent = monthLabel;
+        option.value = value;
+        option.textContent = name;
         
-        // Seleccionar el mes actual por defecto (cuando i es 0)
-        if (i === 0) {
+        // Seleccionar el mes actual por defecto
+        if (value === currentMonth) {
             option.selected = true;
         }
+        selector.appendChild(option);
+    });
+}
+
+// ====================================================================
+// FUNCIÓN AUXILIAR: LLENA EL SELECTOR DE AÑOS
+// ====================================================================
+
+function initializeYearSelector() {
+    // 🛑 AJUSTE: Usar el ID correcto de tu HTML
+    const selector = document.getElementById('report-year-select'); 
+    if (!selector) return;
+
+    selector.innerHTML = '';
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 2; // Rango: 2 años atrás hasta el próximo año (si quieres)
+
+    // Generar años desde el actual (+1) hasta 2 años atrás
+    for (let year = currentYear + 1; year >= startYear; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
         
+        if (year === currentYear) {
+            option.selected = true;
+        }
         selector.appendChild(option);
     }
 }
@@ -3751,11 +3743,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Inicialización de Vistas y Selectores
     // =======================================================
     
-    // Inicializa y llena los selectores de Mes/Año y añade sus listeners 'change'
-    if (window.initReportSelectors) {
-        window.initReportSelectors();
-        console.log("Selectores de Reporte inicializados.");
+    window.initReportSelectors = function() {
+    console.log("Iniciando selectores de reporte (Mes/Año)...");
+    
+    // 1. LLENAR AMBOS SELECTORES
+    initializeMonthSelector(); 
+    initializeYearSelector();
+    
+    // 2. Establecer Listeners de cambio
+    const monthSelector = document.getElementById('report-month-select');
+    const yearSelector = document.getElementById('report-year-select');
+    
+    if (window.loadMonthlySalesReport) {
+        // Al cambiar CUALQUIERA, recargamos el reporte
+        if (monthSelector) {
+             monthSelector.addEventListener('change', window.loadMonthlySalesReport);
+        }
+        if (yearSelector) {
+             yearSelector.addEventListener('change', window.loadMonthlySalesReport);
+        }
     }
+};
     
     // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
     // Esta función debe llamar internamente a loadMonthlySalesReport() 
