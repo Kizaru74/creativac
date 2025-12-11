@@ -1184,13 +1184,20 @@ async function handleNewSale(e) {
     
     let saldo_pendiente = total_amount - paid_amount; 
 
-    // --- Validaciones ---
+// --- Validaciones ---
     if (!client_id) {
         alert('Por favor, selecciona un cliente.');
         return;
     }
     if (currentSaleItems.length === 0) {
         alert('Debes agregar al menos un producto a la venta.');
+        return;
+    }
+    
+    // 🛑 NUEVA VALIDACIÓN CRÍTICA: Asegurar que todos los productos tienen ID
+    const itemWithoutId = currentSaleItems.find(item => !item.product_id);
+    if (itemWithoutId) {
+        alert(`Error de producto: El ítem "${itemWithoutId.name}" no tiene un ID de producto válido. Por favor, selecciona un producto base.`);
         return;
     }
     
@@ -1272,7 +1279,7 @@ async function handleNewSale(e) {
             price: item.price,
             subtotal: item.subtotal
         }));
-
+            console.log("Detalles a insertar (Verificar product_id):", detailsToInsert);
         const { error: detailError } = await supabase
             .from('detalle_ventas') 
             .insert(detailsToInsert);
