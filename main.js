@@ -1581,7 +1581,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         return;
     }
 
-    // Convertimos el ID a número para las consultas (aunque se usa string para la búsqueda de cliente)
     const saleIdNum = parseInt(transactionId, 10);
     if (isNaN(saleIdNum)) {
         console.error("ID de transacción inválido.");
@@ -1596,13 +1595,10 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         alert("Error: Cliente no encontrado para esta venta. Intente recargar la página.");
         return;
     }
-    // Asignar a la variable global (si la usas para otras acciones como Abono)
     window.viewingClientId = clientId; 
 
     try {
-        // =======================================================
         // 2. CARGA DE LA VENTA PRINCIPAL (Tabla 'ventas')
-        // =======================================================
         const { data: sale, error: saleError } = await supabase
             .from('ventas')
             .select(`venta_id, total_amount, paid_amount, saldo_pendiente, created_at, description, metodo_pago`) 
@@ -1614,9 +1610,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             throw new Error("No se encontró la venta principal (ID: " + saleIdNum + ").");
         }
 
-        // =======================================================
         // 3. CARGA DE ÍTEMS DE VENTA (Tabla 'detalle_ventas')
-        // =======================================================
         const { data: items, error: itemsError } = await supabase
             .from('detalle_ventas')
             .select(`detalle_id, quantity, price, subtotal, product_id, productos(name, parent_product)`) 
@@ -1625,9 +1619,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
 
         if (itemsError) throw itemsError;
 
-        // =======================================================
         // 4. CARGA DEL HISTORIAL DE PAGOS/ABONOS (Tabla 'pagos')
-        // =======================================================
         const { data: payments, error: paymentsError } = await supabase
             .from('pagos')
             .select(`amount, metodo_pago, created_at`) 
@@ -1636,25 +1628,16 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
 
         if (paymentsError) throw paymentsError;
 
-        // =======================================================
         // 5. INYECCIÓN DE DATOS EN EL MODAL
-        // =======================================================
-        
-        // A. Información Principal
         document.getElementById('detail-sale-id').textContent = sale.venta_id; 
         document.getElementById('detail-client-name').textContent = client.name;
         document.getElementById('detail-sale-date').textContent = formatDate(sale.created_at);
         document.getElementById('detail-payment-method').textContent = sale.metodo_pago;
-
-        // B. Resumen Financiero
         document.getElementById('detail-grand-total').textContent = formatCurrency(sale.total_amount); 
         document.getElementById('detail-paid-amount').textContent = formatCurrency(sale.paid_amount); 
         document.getElementById('detail-remaining-debt').textContent = formatCurrency(sale.saldo_pendiente);
         
-        // C. Campo de la descripción (si lo tienes)
-        // document.getElementById('sale-description-display').textContent = sale.description || 'Sin comentarios.';
-
-        // D. RENDERIZADO DE ÍTEMS DE VENTA (Tabla detail-products-body)
+        // RENDERIZADO DE ÍTEMS DE VENTA (Tabla detail-products-body)
         const productsBody = document.getElementById('detail-products-body');
         productsBody.innerHTML = '';
         
@@ -1666,8 +1649,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
                 const parentProduct = window.allProductsMap[productData.parent_product]; 
                 if (parentProduct) {
                     parentName = parentProduct.name;
-                } else {
-                    parentName = 'Padre no cargado';
                 }
             }
             
@@ -1685,7 +1666,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             `;
         });
         
-        // E. RENDERIZADO DE ABONOS (Tabla detail-abonos-body)
+        // RENDERIZADO DE ABONOS (Tabla detail-abonos-body)
         const abonosBody = document.getElementById('detail-abonos-body');
         const noAbonosMessage = document.getElementById('no-abonos-message');
         abonosBody.innerHTML = '';
@@ -1704,12 +1685,61 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             });
         }
         
-        // F. LÓGICA CONDICIONAL DE EDICIÓN/ABONO (Mantenemos tu lógica específica)
+        // =======================================================
+        // 6. LÓGICA CONDICIONAL: Edición de Precio ($0.00) vs Abono (Deuda Activa)
+        // =======================================================
         
-        // Aquí iría tu lógica original que usa 'sale-edit-section' y 'register-payment-form'
-        // para manejar ventas a $0.00 que luego deben ser actualizadas.
+        const priceEditSection = document.getElementById('price-edit-section');
+        const abonoButtonInSummary = document.querySelector('[data-open-modal="abono-client-modal"]'); 
+
+        // Criterio para Venta Fantasma ($0.00): Total es ~0 Y Saldo Pendiente es ~0
+        const isZeroSalePending = (parseFloat(sale.total_amount) < 0.01) && (parseFloat(sale.saldo_pendiente) < 0.01);
         
-        // 6. ABRIR EL MODAL
+        // Criterio para Deuda Activa: Saldo Pendiente mayor a cero
+        const hasActiveDebt = parseFloat(sale.saldo_pendiente) > 0.01;
+        const remainingDebt = sale.saldo_pendiente; 
+
+        if (isZeroSalePending) {
+            // VENTA FANTASMA: Habilitar Edición de Precio
+            priceEditSection?.classList.remove('hidden');
+            abonoButtonInSummary?.classList.add('hidden'); 
+            
+            const itemToEdit = (items || [])[0];
+            document.getElementById('edit-sale-id-display').textContent = sale.venta_id;
+            document.getElementById('edit-sale-transaction-id').value = sale.venta_id; 
+
+            if (itemToEdit && itemToEdit.detalle_id) { 
+                document.getElementById('edit-sale-detail-id').value = itemToEdit.detalle_id; 
+                document.getElementById('edit-new-price').value = itemToEdit.price || ''; 
+                document.getElementById('edit-product-name').textContent = itemToEdit.productos?.name || 'Ítem Principal';
+            } else {
+                priceEditSection?.classList.add('hidden');
+                abonoButtonInSummary?.classList.remove('hidden');
+            }
+            
+        } else if (hasActiveDebt) {
+            // DEUDA ACTIVA: Habilitar Abono
+            priceEditSection?.classList.add('hidden');
+            abonoButtonInSummary?.classList.remove('hidden');
+            
+            // Rellenar Modal de Abono (tu modal: #abono-client-modal)
+            const debtIdInput = document.getElementById('debt-to-pay-id');
+            const currentDebtSpan = document.getElementById('abono-current-debt');
+
+            if (debtIdInput) {
+                debtIdInput.value = sale.venta_id; 
+            }
+            if (currentDebtSpan) {
+                currentDebtSpan.textContent = formatCurrency(remainingDebt);
+            }
+            
+        } else {
+            // VENTA PAGADA COMPLETAMENTE: Ocultar ambos
+            priceEditSection?.classList.add('hidden');
+            abonoButtonInSummary?.classList.add('hidden');
+        }
+
+        // 7. ABRIR EL MODAL
         openModal('modal-detail-sale');
 
     } catch (e) {
@@ -1717,118 +1747,88 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         alert('Hubo un error al cargar los detalles de la venta.');
     }
 }
+async function handleAbonoClientSubmit(e) {
+    e.preventDefault();
 
-// La función llamada por el botón "Actualizar Precio"
-window.handleSaveNewPrice = async function() { 
-    const ventaId = document.getElementById('sale-edit-transaction-id')?.value;
-    const detalleId = document.getElementById('sale-edit-detail-id')?.value; // Lectura del nuevo campo
-    const newPrice = parseFloat(document.getElementById('sale-edit-price')?.value);
-    
-    // Asumiendo que 'viewingClientId' es una variable global establecida por handleViewSaleDetails
-    const clientId = viewingClientId; 
-
-    if (!ventaId || !detalleId || isNaN(newPrice) || newPrice <= 0 || !clientId) {
-        alert("Faltan datos o el monto es inválido.");
-        return;
-    }
-
-    try {
-        // 1. Actualizar Detalle de Venta (detalle_ventas)
-        const { error: detailError } = await supabase
-            .from('detalle_ventas')
-            // Asumiendo que Quantity es 1 o que el nuevo precio ya está ajustado
-            .update({ price: newPrice, subtotal: newPrice }) 
-            .eq('detalle_id', detalleId);
-
-        if (detailError) throw detailError;
-
-        // 2. Actualizar Venta Principal (ventas)
-        const { error: saleError } = await supabase
-            .from('ventas')
-            .update({ 
-                total_amount: newPrice, 
-                saldo_pendiente: newPrice 
-            })
-            .eq('venta_id', ventaId);
-
-        if (saleError) throw saleError;
-
-        alert(`¡Precio de Venta #${ventaId} actualizado a ${formatCurrency(newPrice)}!`);
-        
-        closeModal('modal-detail-sale');
-        
-        // Recargar el dashboard y la tabla de clientes para reflejar la deuda actualizada.
-        await loadDashboardData(); 
-        await loadClientsTable('gestion'); 
-
-    } catch (e) {
-        console.error('Error al guardar el nuevo precio:', e);
-        alert('Error al guardar el nuevo precio.');
-    }
-}
-
-// ====================================================================
-// FUNCIÓN PARA ACTUALIZAR PRECIO DE VENTA A $0 (handleUpdateSalePrice)
-// ====================================================================
-window.handleUpdateSalePrice = async function() { 
     if (!supabase) {
-        alert("Error: Supabase no está inicializado.");
+        console.error("Supabase no está inicializado.");
+        alert("Error de configuración.");
         return;
     }
 
-    // 1. Lectura de IDs y Precio desde el Modal
-    const ventaId = document.getElementById('sale-edit-transaction-id')?.value;
-    const detalleId = document.getElementById('sale-edit-detail-id')?.value; // CRÍTICO: El campo que añadimos
-    const newPriceStr = document.getElementById('sale-edit-price')?.value;
-    
-    // Asumimos que 'viewingClientId' es global y fue establecido por handleViewSaleDetails
-    const clientId = viewingClientId; 
+    const form = e.target;
+    // Asumiendo que 'debt-to-pay-id' contiene el ID de la venta (venta_id)
+    const ventaId = form.elements['debt-to-pay-id'].value; 
+    const abonoAmount = parseFloat(form.elements['abono-amount'].value);
+    const paymentMethod = form.elements['payment-method-abono'].value;
 
-    const newPrice = parseFloat(newPriceStr);
-
-    if (!ventaId || !detalleId || isNaN(newPrice) || newPrice <= 0 || !clientId) {
-        alert("Por favor, ingrese un monto válido y asegúrese de que la venta se cargó correctamente.");
+    if (isNaN(abonoAmount) || abonoAmount <= 0) {
+        alert("Ingrese un monto de abono válido y mayor a cero.");
         return;
     }
 
     try {
-        // 🚨 Transacción de Actualización:
-        
-        // 1. ACTUALIZAR DETALLE DE VENTA (detalle_ventas)
-        // Se asume cantidad 1, por lo que price y subtotal son iguales al nuevo monto total
-        const { error: detailError } = await supabase
-            .from('detalle_ventas')
-            .update({ price: newPrice, subtotal: newPrice }) 
-            .eq('detalle_id', detalleId);
-
-        if (detailError) throw detailError;
-
-        // 2. ACTUALIZAR VENTA PRINCIPAL (ventas)
-        // total_amount y saldo_pendiente se actualizan al nuevo precio (ya que no hubo pago inicial)
-        const { error: saleError } = await supabase
+        // 1. Obtener la venta actual para verificar el saldo
+        const { data: sale, error: saleFetchError } = await supabase
             .from('ventas')
-            .update({ 
-                total_amount: newPrice, 
-                saldo_pendiente: newPrice 
+            .select(`total_amount, paid_amount, saldo_pendiente, client_id`) 
+            .eq('venta_id', ventaId)
+            .single();
+
+        if (saleFetchError || !sale) throw new Error("Venta no encontrada.");
+
+        const currentDebt = sale.saldo_pendiente;
+
+        if (abonoAmount > currentDebt) {
+            alert(`El abono (${formatCurrency(abonoAmount)}) es mayor que la deuda pendiente (${formatCurrency(currentDebt)}). Ajuste el monto.`);
+            return;
+        }
+
+        // 2. Calcular nuevos saldos
+        const newPaidAmount = sale.paid_amount + abonoAmount;
+        const newDebt = currentDebt - abonoAmount;
+        const clientId = sale.client_id;
+
+        // 3. Registrar el pago/abono en la tabla 'pagos'
+        const { error: paymentError } = await supabase
+            .from('pagos')
+            .insert([{
+                venta_id: ventaId,
+                client_id: clientId, // Importante para seguimiento
+                amount: abonoAmount,
+                metodo_pago: paymentMethod,
+                type: 'abono' // Para diferenciarlo de pagos iniciales si es necesario
+            }]);
+
+        if (paymentError) throw new Error("Error al registrar el pago: " + paymentError.message);
+
+        // 4. Actualizar la tabla 'ventas' (saldo_pendiente y paid_amount)
+        const { error: updateSaleError } = await supabase
+            .from('ventas')
+            .update({
+                paid_amount: newPaidAmount,
+                saldo_pendiente: newDebt,
             })
             .eq('venta_id', ventaId);
 
-        if (saleError) throw saleError;
+        if (updateSaleError) throw new Error("Error al actualizar la venta: " + updateSaleError.message);
 
-        alert(`¡Precio de Venta #${ventaId} actualizado con éxito a ${formatCurrency(newPrice)}! El saldo pendiente es ahora ${formatCurrency(newPrice)}.`);
+        // Éxito
+        alert(`Abono de ${formatCurrency(abonoAmount)} registrado con éxito. Deuda restante: ${formatCurrency(newDebt)}.`);
         
-        // 3. RECARGA Y CIERRE
-        closeModal('modal-detail-sale');
+        // Limpiar y cerrar modales
+        form.reset();
+        closeModal('abono-client-modal');
         
-        // Refrescar las vistas de deuda y la tabla principal
-        await loadClientsTable('gestion'); // Asumiendo que esta función refresca el listado
+        // Recargar datos y volver a abrir el modal de detalles de venta con la información actualizada
+        await loadDashboardData();
         
-        // Si el modal de Deuda del Cliente estaba abierto detrás, deberías recargarlo:
-        // await handleViewClientDebt(clientId); // Descomenta si lo necesitas
+        // Reabrir el modal de detalles con los nuevos saldos
+        handleViewSaleDetails(ventaId, clientId); 
 
-    } catch (e) {
-        console.error('Error al guardar el nuevo precio:', e);
-        alert('Error al guardar el nuevo precio. Verifique la consola.');
+    } catch (error) {
+        console.error('Error al registrar abono:', error);
+        alert('Fallo al registrar el abono: ' + error.message);
     }
 }
 
@@ -3521,6 +3521,10 @@ document.addEventListener('click', function(e) {
     // Listener para abrir el modal de abono desde el Reporte de Deuda
     // ====================================================================
 
+    // 🛑 Listener para el formulario de Abono 🛑
+    const abonoForm = document.getElementById('abono-client-form');
+    abonoForm?.addEventListener('submit', handleAbonoClientSubmit);
+    
     document.getElementById('open-abono-from-report-btn')?.addEventListener('click', (e) => {
         if (!window.viewingClientId) { 
             e.preventDefault();
