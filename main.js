@@ -348,7 +348,8 @@ async function loadDashboardData() {
     await loadClientsTable('gestion');
     await loadProductsData(); 
     await loadProductsTable(); 
-    await loadClientsForSale(); 
+    await loadClientsForSale();
+    await loadClientDebtsTable();
 }
 
 // ====================================================================
@@ -1153,7 +1154,6 @@ async function handleRecordAbono(e) {
     // 6. LIMPIEZA FINAL
     debtToPayId = null; 
 }
-
 function handleAbonoClick(clientId) {
     // Buscar los datos del cliente en la lista global
     const client = allClients.find(c => c.client_id == clientId);
@@ -1841,6 +1841,92 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+window.loadClientDebtsTable = async function() {
+    if (!supabase || !window.allClientsMap) return;
+
+    const tbody = document.getElementById('debts-table-body');
+    const noDebtsMessage = document.getElementById('no-debts-message');
+    
+    if (!tbody || !noDebtsMessage) return; // Asegura que los elementos existen
+
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Cargando deudas...</td></tr>';
+    noDebtsMessage.classList.add('hidden');
+
+    try {
+        // 1. Consultar todas las ventas con saldo pendiente > 0.01
+        // Se utiliza la vista de 'ventas' y se agrupará la información
+        const { data: sales, error } = await supabase
+            .from('ventas')
+            .select(`
+                venta_id, 
+                client_id, 
+                created_at, 
+                saldo_pendiente,
+                clientes(name) 
+            `)
+            .gt('saldo_pendiente', 0.01) // Solo deudas activas
+            .order('created_at', { ascending: false }); // Ordenado por la más reciente
+
+        if (error) throw error;
+        
+        // 2. Agrupar las deudas por Cliente y calcular el total
+        const clientDebts = {};
+        
+        (sales || []).forEach(sale => {
+            const clientId = sale.client_id;
+            
+            if (!clientDebts[clientId]) {
+                clientDebts[clientId] = {
+                    clientId: clientId,
+                    name: sale.clientes?.name || 'Cliente Desconocido',
+                    totalDebt: 0,
+                    lastSaleDate: sale.created_at, // Al estar ordenado por fecha descendente, el primero es el más reciente
+                    lastSaleId: sale.venta_id
+                };
+            }
+            
+            // Sumar el saldo pendiente de esa venta a la deuda total del cliente
+            clientDebts[clientId].totalDebt += sale.saldo_pendiente;
+        });
+
+        const debtList = Object.values(clientDebts);
+
+        // 3. Renderizar la tabla
+        tbody.innerHTML = ''; // Limpiar el mensaje de carga
+
+        if (debtList.length === 0) {
+            noDebtsMessage.classList.remove('hidden');
+            return;
+        }
+
+        debtList.forEach(debt => {
+            const row = tbody.insertRow();
+            row.className = 'hover:bg-gray-50';
+
+            // Usamos un botón que llame a una función para ver el detalle de TODAS las deudas
+            // del cliente (handleViewClientDebts) o el detalle de la ÚLTIMA venta (handleViewSaleDetails)
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(debt.lastSaleDate)} (Venta #${debt.lastSaleId})</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <button 
+                        onclick="handleViewSaleDetails(${debt.lastSaleId}, ${debt.clientId})" 
+                        class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
+                        title="Detalle"
+                    >
+                        Ver Última Venta
+                    </button>
+                    </td>
+            `;
+        });
+
+    } catch (e) {
+        console.error('Error al cargar la tabla de deudas:', e);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
+    }
+}
+
 async function handlePriceEditSubmit(e) {
     // 🛑 CRÍTICO: Evita la recarga de la página (soluciona el error de navegación)
     e.preventDefault(); 
@@ -2049,107 +2135,43 @@ async function loadClientsTable(mode = 'gestion') {
     }
 }
 
-async function handleNewClient(e) {
-    e.preventDefault();
-    const name = document.getElementById('name').value;
-    const phone = document.getElementById('phone').value;
+function loadProductDataToForm(productId) {
+    // 1. Encontrar el producto en el array global
+    // Usamos String() para manejar inconsistencias de tipo entre number/string
+    const productToEdit = allProducts.find(p => String(p.producto_id) === String(productId));
 
-    const { error } = await supabase
-        .from('clientes')
-        .insert([{ name, telefono: phone, is_active: true }]);
-
-    if (error) {
-        alert('Error al registrar cliente: ' + error.message);
+    if (!productToEdit) {
+        alert('Error: Producto no encontrado para edición.');
+        return;
+    }
+    
+    // 2. Rellenar los campos del formulario
+    document.getElementById('product-id').value = productToEdit.producto_id;
+    document.getElementById('edit-product-name').value = productToEdit.name;
+    document.getElementById('edit-product-type').value = productToEdit.type;
+    
+    // Usamos el ID del HTML 'edit-sale-price' que detecté en tu snippet
+    document.getElementById('edit-sale-price').value = productToEdit.price || 0; 
+    
+    // 3. Lógica para el campo de Padre (si es Paquete)
+    const parentContainer = document.getElementById('edit-parent-product-container');
+    if (productToEdit.type === 'PACKAGE') {
+        parentContainer.classList.remove('hidden');
+        // Debes tener una función para cargar la lista de productos padres en ese selector
+        loadParentProductsForSelect('edit-parent-product-select'); 
+        // Selecciona la ID del padre que ya tiene guardada
+        document.getElementById('edit-parent-product-select').value = productToEdit.parent_product; 
     } else {
-        alert('Cliente registrado exitosamente.');
-        
-        await loadAndRenderClients(); // Recargar la lista de clientes
-
-        // 🛑 LÍNEA CORREGIDA: Verifica si el formulario existe antes de resetearlo
-        const clientForm = document.getElementById('client-form');
-        if (clientForm) {
-            clientForm.reset();
-        } else {
-            console.warn("Advertencia: No se encontró el formulario 'client-form' para resetear.");
-        }
-        
-        closeModal('modal-new-client');
-        await loadClientsTable(); 
+        parentContainer.classList.add('hidden');
     }
+
+    // 4. Actualizar el título
+    document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
 }
 
-function handleEditClientClick(clientId) {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
-    const client = allClients.find(c => String(c.client_id) === String(clientId));
-    if (!client) {
-        alert("Error: Cliente no encontrado para editar.");
-        return;
-    }
-    
-    // Solo asignamos los campos que existen en el HTML y en la DB
-    
-    // ID Oculta
-    const idInput = document.getElementById('edit-client-id');
-    if (idInput) idInput.value = client.client_id;
-    
-    // Nombre
-    const nameInput = document.getElementById('edit-client-name');
-    if (nameInput) nameInput.value = client.name;
-
-    // Teléfono
-    const phoneInput = document.getElementById('edit-client-phone');
-    // Usamos client.telefono porque es el nombre de la columna que manejas
-    if (phoneInput) phoneInput.value = client.telefono || ''; 
-
-    // Abrir Modal
-    openModal('edit-client-modal'); 
-}
-
-async function handleEditClient(e) {
-    e.preventDefault();
-    
-    // 1. Obtener los valores del formulario
-    const clientId = document.getElementById('edit-client-id').value; 
-    const name = document.getElementById('edit-client-name').value.trim();
-    const phone = document.getElementById('edit-client-phone').value.trim();
-    
-    // Ya no se busca 'edit-client-address'
-
-    if (!clientId) {
-        alert("Error de Edición: No se pudo obtener la ID del cliente.");
-        return;
-    }
-
-    // 2. Ejecutar la actualización en Supabase
-    // CRÍTICO: Solo actualizamos 'name' y 'telefono'
-    const { error } = await supabase
-        .from('clientes')
-        .update({ 
-            name: name, 
-            telefono: phone, // Usando el nombre de columna correcto
-        }) 
-        .eq('client_id', clientId); 
-
-    if (error) {
-        console.error('Error al actualizar cliente:', error);
-        alert('Error al actualizar cliente: ' + error.message);
-} else {
-        alert('Cliente actualizado exitosamente.');
-        
-        // 🛑 ORDEN CORREGIDO: 
-        // 1. Recargar la data (y repintar la tabla) PRIMERO.
-        await loadDashboardData(); 
-        
-        // 2. Limpiar el formulario y CERRAR el modal DESPUÉS de que la tabla se actualizó.
-        document.getElementById('edit-client-form').reset();
-        closeModal('edit-client-modal'); 
-    }
-}
-
+// ====================================================================
+// 10. LÓGICA CRUD PARA PRODUCTOS
+// ====================================================================
 async function handleEditProduct(e) {
     e.preventDefault();
 
@@ -2222,12 +2244,6 @@ async function handleEditProduct(e) {
         await loadAndRenderProducts();
     }
 }
-
-
-// ====================================================================
-// 10. LÓGICA CRUD PARA PRODUCTOS
-// ====================================================================
-
 
 // ✅ FUNCIÓN DE VISIBILIDAD FALTANTE PARA EL CAMPO PADRE
 function toggleParentProductField() {
@@ -2372,40 +2388,6 @@ if (type === 'PACKAGE') {
     }
 }
 
-function loadProductDataToForm(productId) {
-    // 1. Encontrar el producto en el array global
-    // Usamos String() para manejar inconsistencias de tipo entre number/string
-    const productToEdit = allProducts.find(p => String(p.producto_id) === String(productId));
-
-    if (!productToEdit) {
-        alert('Error: Producto no encontrado para edición.');
-        return;
-    }
-    
-    // 2. Rellenar los campos del formulario
-    document.getElementById('product-id').value = productToEdit.producto_id;
-    document.getElementById('edit-product-name').value = productToEdit.name;
-    document.getElementById('edit-product-type').value = productToEdit.type;
-    
-    // Usamos el ID del HTML 'edit-sale-price' que detecté en tu snippet
-    document.getElementById('edit-sale-price').value = productToEdit.price || 0; 
-    
-    // 3. Lógica para el campo de Padre (si es Paquete)
-    const parentContainer = document.getElementById('edit-parent-product-container');
-    if (productToEdit.type === 'PACKAGE') {
-        parentContainer.classList.remove('hidden');
-        // Debes tener una función para cargar la lista de productos padres en ese selector
-        loadParentProductsForSelect('edit-parent-product-select'); 
-        // Selecciona la ID del padre que ya tiene guardada
-        document.getElementById('edit-parent-product-select').value = productToEdit.parent_product; 
-    } else {
-        parentContainer.classList.add('hidden');
-    }
-
-    // 4. Actualizar el título
-    document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
-}
-
 function handleEditProductClick(productId) {
     editingProductId = productId; // Guarda la ID en la variable global
     loadProductDataToForm(productId); // Carga los datos en el formulario
@@ -2500,6 +2482,108 @@ async function confirmDeleteClient() {
     clientToDeleteId = null; 
     
     await loadDashboardData(); 
+}
+
+
+async function handleNewClient(e) {
+    e.preventDefault();
+    const name = document.getElementById('name').value;
+    const phone = document.getElementById('phone').value;
+
+    const { error } = await supabase
+        .from('clientes')
+        .insert([{ name, telefono: phone, is_active: true }]);
+
+    if (error) {
+        alert('Error al registrar cliente: ' + error.message);
+    } else {
+        alert('Cliente registrado exitosamente.');
+        
+        await loadAndRenderClients(); // Recargar la lista de clientes
+
+        // 🛑 LÍNEA CORREGIDA: Verifica si el formulario existe antes de resetearlo
+        const clientForm = document.getElementById('client-form');
+        if (clientForm) {
+            clientForm.reset();
+        } else {
+            console.warn("Advertencia: No se encontró el formulario 'client-form' para resetear.");
+        }
+        
+        closeModal('modal-new-client');
+        await loadClientsTable(); 
+    }
+}
+
+function handleEditClientClick(clientId) {
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
+
+    const client = allClients.find(c => String(c.client_id) === String(clientId));
+    if (!client) {
+        alert("Error: Cliente no encontrado para editar.");
+        return;
+    }
+    
+    // Solo asignamos los campos que existen en el HTML y en la DB
+    
+    // ID Oculta
+    const idInput = document.getElementById('edit-client-id');
+    if (idInput) idInput.value = client.client_id;
+    
+    // Nombre
+    const nameInput = document.getElementById('edit-client-name');
+    if (nameInput) nameInput.value = client.name;
+
+    // Teléfono
+    const phoneInput = document.getElementById('edit-client-phone');
+    // Usamos client.telefono porque es el nombre de la columna que manejas
+    if (phoneInput) phoneInput.value = client.telefono || ''; 
+
+    // Abrir Modal
+    openModal('edit-client-modal'); 
+}
+
+async function handleEditClient(e) {
+    e.preventDefault();
+    
+    // 1. Obtener los valores del formulario
+    const clientId = document.getElementById('edit-client-id').value; 
+    const name = document.getElementById('edit-client-name').value.trim();
+    const phone = document.getElementById('edit-client-phone').value.trim();
+    
+    // Ya no se busca 'edit-client-address'
+
+    if (!clientId) {
+        alert("Error de Edición: No se pudo obtener la ID del cliente.");
+        return;
+    }
+
+    // 2. Ejecutar la actualización en Supabase
+    // CRÍTICO: Solo actualizamos 'name' y 'telefono'
+    const { error } = await supabase
+        .from('clientes')
+        .update({ 
+            name: name, 
+            telefono: phone, // Usando el nombre de columna correcto
+        }) 
+        .eq('client_id', clientId); 
+
+    if (error) {
+        console.error('Error al actualizar cliente:', error);
+        alert('Error al actualizar cliente: ' + error.message);
+} else {
+        alert('Cliente actualizado exitosamente.');
+        
+        // 🛑 ORDEN CORREGIDO: 
+        // 1. Recargar la data (y repintar la tabla) PRIMERO.
+        await loadDashboardData(); 
+        
+        // 2. Limpiar el formulario y CERRAR el modal DESPUÉS de que la tabla se actualizó.
+        document.getElementById('edit-client-form').reset();
+        closeModal('edit-client-modal'); 
+    }
 }
 
 // CRÍTICO: Asegúrate de que el botón de confirmación tenga su listener
