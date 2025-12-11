@@ -3698,13 +3698,6 @@ document.addEventListener('click', function(e) {
 
     // Y el listener de envío del formulario de edición también debe estar presente:
     document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
-
-    // Inicializa los selectores del reporte y sus listeners
-    window.initReportSelectors();
-    
-    // Luego, carga la data inicial (la cual llamará loadMonthlySalesReport)
-    window.loadDashboardData();
-
     // ====================================================================
     // Listener para abrir el modal de abono desde el Reporte de Deuda
     // ====================================================================
@@ -3737,4 +3730,55 @@ document.addEventListener('click', function(e) {
             alert("El cliente no tiene deuda pendiente para registrar un abono.");
         }
     });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM Cargado. Inicializando aplicación...");
+
+    // =======================================================
+    // 1. Enlace de Formularios
+    // =======================================================
+    
+    // 🛑 CRÍTICO: Enlace del formulario de edición de precio a la función handlePriceEditSubmit
+    // (Asegura que se use e.preventDefault() y se fuerce la recarga del reporte)
+    const editForm = document.getElementById('edit-sale-price-form');
+    if (editForm) {
+        editForm.addEventListener('submit', handlePriceEditSubmit);
+        console.log("Listener de edición de precio enlazado.");
+    }
+
+    // =======================================================
+    // 2. Inicialización de Vistas y Selectores
+    // =======================================================
+    
+    // Inicializa y llena los selectores de Mes/Año y añade sus listeners 'change'
+    if (window.initReportSelectors) {
+        window.initReportSelectors();
+        console.log("Selectores de Reporte inicializados.");
+    }
+    
+    // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
+    // Esta función debe llamar internamente a loadMonthlySalesReport() 
+    // y loadClientDebtsTable() si es necesario.
+    if (window.loadDashboardData) {
+        window.loadDashboardData();
+        console.log("Datos del Dashboard cargados.");
+    }
+    
+    // =======================================================
+    // 3. Otros Listeners (ej: Botones de detalle)
+    // =======================================================
+    
+    // Ejemplo: Listener para los botones "Detalles" de la tabla de Reportes Mensuales
+    // (Asegúrate de que este manejo de eventos esté implementado en tu código de renderizado)
+    document.body.addEventListener('click', (e) => {
+        if (e.target.classList.contains('view-sale-details-btn')) {
+            const ventaId = e.target.dataset.ventaId;
+            const clientId = e.target.dataset.clientId;
+            if (ventaId && clientId) {
+                handleViewSaleDetails(parseInt(ventaId), parseInt(clientId));
+            }
+        }
+    });
+    console.log("Inicialización de la aplicación completada.");
 });
