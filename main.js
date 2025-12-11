@@ -1832,6 +1832,98 @@ async function handleAbonoClientSubmit(e) {
     }
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    const editForm = document.getElementById('edit-sale-price-form');
+    
+    // Verificación y Listener para el formulario de Edición de Precio
+    if (editForm) {
+        editForm.addEventListener('submit', handlePriceEditSubmit);
+    }
+});
+
+async function handlePriceEditSubmit(e) {
+    e.preventDefault(); // 🛑 CRÍTICO: Evita la recarga de la página
+
+    if (!supabase) {
+        alert("Error: Supabase no está inicializado.");
+        return;
+    }
+
+    const form = e.target;
+    // IDs de los campos definidos en la solución HTML corregida
+    const ventaId = form.elements['edit-sale-transaction-id'].value;
+    const detalleId = form.elements['edit-sale-detail-id'].value;
+    const newPriceValue = form.elements['edit-new-price'].value;
+
+    const newPrice = parseFloat(newPriceValue);
+    
+    // Asumimos que 'viewingClientId' es global
+    const clientId = window.viewingClientId; 
+
+    if (!ventaId || !detalleId || isNaN(newPrice) || newPrice <= 0 || !clientId) {
+        alert("Faltan datos (Venta/Detalle/Cliente) o el precio es inválido.");
+        return;
+    }
+
+    if (!confirm(`¿Está seguro de establecer el precio de la Venta #${ventaId} a ${formatCurrency(newPrice)}? Esto definirá el total y el saldo pendiente.`)) {
+        return;
+    }
+
+    try {
+        // 1. Obtener la CANTIDAD del detalle_venta (esto es clave si Quantity no es siempre 1)
+        const { data: detail, error: detailFetchError } = await supabase
+            .from('detalle_ventas')
+            .select('quantity')
+            .eq('detalle_id', detalleId)
+            .single();
+
+        if (detailFetchError || !detail) throw new Error("Detalle de venta no encontrado.");
+        
+        const newSubtotal = newPrice * detail.quantity; // Nuevo subtotal basado en la cantidad
+        
+        // 2. Actualizar el detalle_venta (price y subtotal)
+        const { error: updateDetailError } = await supabase
+            .from('detalle_ventas')
+            .update({ price: newPrice, subtotal: newSubtotal })
+            .eq('detalle_id', detalleId);
+
+        if (updateDetailError) throw new Error("Error al actualizar detalle: " + updateDetailError.message);
+
+        // 3. Actualizar la tabla 'ventas' (total_amount y saldo_pendiente)
+        const { error: updateSaleError } = await supabase
+            .from('ventas')
+            .update({ 
+                total_amount: newSubtotal, 
+                saldo_pendiente: newSubtotal, // El saldo pendiente es el total si se asume 0 pagado
+                paid_amount: 0 // Aseguramos que el pago sea cero al editar el precio inicial
+            })
+            .eq('venta_id', ventaId);
+
+        if (updateSaleError) throw new Error("Error al actualizar venta: " + updateSaleError.message);
+
+        alert(`Venta #${ventaId} actualizada con éxito. El saldo pendiente ahora es de ${formatCurrency(newSubtotal)}.`);
+
+        // 4. RECARGA DE DATOS (REFRESH)
+        closeModal('modal-detail-sale');
+        
+        // Carga de datos del dashboard para actualizar la lista de ventas
+        if (window.loadDashboardData) {
+            await loadDashboardData();
+        }
+        // Recargar la tabla específica de clientes/deudas si existe
+        if (window.loadClientsTable) {
+            await loadClientsTable('gestion'); // o el scope que uses
+        }
+        
+        // Reabrir el modal con los datos frescos (Opcional, pero útil)
+        handleViewSaleDetails(ventaId, clientId);
+
+    } catch (error) {
+        console.error('Error al editar precio de venta:', error);
+        alert('Fallo al actualizar el precio: ' + error.message);
+    }
+}
+
 async function loadClientsTable(mode = 'gestion') {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
@@ -3524,7 +3616,6 @@ document.addEventListener('click', function(e) {
     // 🛑 Listener para el formulario de Abono 🛑
     const abonoForm = document.getElementById('abono-client-form');
     abonoForm?.addEventListener('submit', handleAbonoClientSubmit);
-    
     document.getElementById('open-abono-from-report-btn')?.addEventListener('click', (e) => {
         if (!window.viewingClientId) { 
             e.preventDefault();
