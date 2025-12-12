@@ -2783,12 +2783,10 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
     noDataMessage.classList.add('hidden');
     
     try {
-        // 🛑 LECTURA CRÍTICA: Prioriza los valores pasados por el evento.
-        const currentMonthNum = new Date().getMonth() + 1; // Mes actual (1-12)
+        const currentMonthNum = new Date().getMonth() + 1;
         const currentYearNum = new Date().getFullYear();
         
-        // 1. Asignación con Fallback Explícito:
-        // Si el valor pasado no es un número válido entre 1 y 12, usamos el mes actual.
+        // 1. Asignación con Fallback:
         let selectedMonth = (selectedMonthFromEvent && selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) 
                               ? selectedMonthFromEvent 
                               : currentMonthNum;
@@ -2797,12 +2795,12 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
                               ? selectedYearFromEvent 
                               : currentYearNum;
 
-        // DEBUG FINAL: Muestra los valores usados
         console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
 
         // 2. Calcular los rangos de fecha (Inicio y Fin del mes)
-        // El mes en Date es 0-indexado, por eso usamos selectedMonth - 1
-        let startDate = new Date(selectedYear, selectedMonth - 1, 1);
+        
+        // 🛑 CORRECCIÓN CRÍTICA: Usamos Date.UTC para garantizar que la fecha inicie a medianoche UTC
+        let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
 
         // 🛑 CORRECCIÓN DE TIMESTAMPTZ: Calculamos el inicio del *siguiente* mes
         let nextMonth = selectedMonth; 
@@ -2815,13 +2813,13 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
             nextMonth += 1;
         }
 
-        // El final del rango es la medianoche (00:00:00.000) del día 1 del mes siguiente
-        let endDate = new Date(nextYear, nextMonth - 1, 1); 
+        // El final del rango es la medianoche UTC del día 1 del mes siguiente
+        let endDate = new Date(Date.UTC(nextYear, nextMonth - 1, 1)); 
 
         const isoStartDate = startDate.toISOString();
         const isoEndDate = endDate.toISOString();
 
-        console.log(`[DEBUG] RANGO FINAL AJUSTADO: GTE ${isoStartDate} | LT ${isoEndDate}`);
+        console.log(`[DEBUG] RANGO FINAL AJUSTADO (UTC): GTE ${isoStartDate} | LT ${isoEndDate}`);
 
 
         // 3. Consulta a Supabase
@@ -2836,17 +2834,16 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
                 clientes(name) 
             `)
             .gte('created_at', isoStartDate)
-            // 🛑 CRÍTICO: Usamos .lt (less than) para asegurar la compatibilidad con timestamptz
+            // Usamos .lt (less than) para asegurar la compatibilidad con timestamptz
             .lt('created_at', isoEndDate) 
             .order('created_at', { ascending: false });
 
         if (error) throw error;
         
-        // 4. Cálculo de Totales
+        // 4. Cálculo de Totales y Renderizado (SIN CAMBIOS)
         let totalSales = 0;
         let totalDebtGenerated = 0;
 
-        // Limpiar el cuerpo de la tabla
         reportBody.innerHTML = ''; 
 
         if (sales && sales.length > 0) {
