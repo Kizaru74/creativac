@@ -3017,11 +3017,15 @@ function initReportSelectors() {
     yearSelect.addEventListener('change', handleChange);
     
     // 7. Carga inicial (Llamar para el mes actual después de configurar todo)
+    // Usamos setTimeout para romper la sincronización y asegurar que los valores de los selectores ya están establecidos.
     setTimeout(() => {
-         if (typeof window.loadMonthlySalesReport === 'function') {
-             console.log("Carga inicial de reporte programada.");
-             window.loadMonthlySalesReport(currentMonth, currentYear); 
-         }
+        const finalMonth = parseInt(monthSelect.value) || currentMonth;
+        const finalYear = parseInt(yearSelect.value) || currentYear;
+
+        if (typeof window.loadMonthlySalesReport === 'function') {
+            console.log(`[CARGA INICIAL ÉXITO] Reporte programado para Mes: ${finalMonth}, Año: ${finalYear}`);
+            window.loadMonthlySalesReport(finalMonth, finalYear); 
+        }
     }, 10);
 }
 
