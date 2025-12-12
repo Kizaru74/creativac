@@ -2930,33 +2930,21 @@ function initializeYearSelector() {
 // FUNCIÓN PRINCIPAL DE INICIALIZACIÓN Y LISTENERS (SOLUCIÓN AL PUNTO 2)
 // ====================================================================
 window.initReportSelectors = function() {
-        // 1. LLENAR AMBOS SELECTORES (Esto ya lo hace bien)
+    if (reportSelectorsInitialized) {
+        return;
+    }
+    
+    console.log("Inicializando selectores de reporte (Mes/Año) por primera vez...");
+    
+    // 1. LLENAR AMBOS SELECTORES
     initializeMonthSelector(); 
     initializeYearSelector();
     
-    // 2. Establecer Listeners de cambio (Añadimos un debugger para ver qué pasa)
-    const monthSelector = document.getElementById('report-month-select');
-    const yearSelector = document.getElementById('report-year-select');
-    
-    if (window.loadMonthlySalesReport) {
-        
-        // Función wrapper para debug y carga
-        const loadReportOnSelectChange = (e) => {
-            console.log(`Selector cambiado: ${e.target.id}. Nuevo valor: ${e.target.value}. Recargando reporte...`);
-            window.loadMonthlySalesReport(); // Llama a la función de carga
-        };
+    // 2. Marcar como inicializado
+    // Los listeners de 'change' ya no van aquí, están en document.body (Delegación de Eventos)
+    reportSelectorsInitialized = true;
 
-        if (monthSelector) {
-             monthSelector.addEventListener('change', loadReportOnSelectChange);
-             console.log("✅ Listener 'change' para Mes enlazado correctamente.");
-        }
-        if (yearSelector) {
-             yearSelector.addEventListener('change', loadReportOnSelectChange);
-             console.log("✅ Listener 'change' para Año enlazado correctamente.");
-        }
-    }
-    
-    // 3. Carga Inicial del Reporte (Necesario para que se vea el reporte del mes actual al inicio)
+    // 3. Carga Inicial
     if (window.loadMonthlySalesReport) {
         window.loadMonthlySalesReport();
     }
@@ -3402,8 +3390,7 @@ function switchView(viewId) {
     } else if (viewId === 'products-view') {
         loadAndRenderProducts();
     } else if (viewId === 'report-view') {
-        
-        // 🛑 LÓGICA DE INICIALIZACIÓN DIFERIDA (Soluciona el problema de los años)
+                // 🛑 LÓGICA DE INICIALIZACIÓN DIFERIDA (Soluciona el problema de los años)
         if (!reportSelectorsInitialized && window.initReportSelectors) {
             window.initReportSelectors();
             // ¡La función initReportSelectors internamente llama a loadMonthlySalesReport() 
@@ -3773,8 +3760,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Enlace de Formularios
     // =======================================================
     
-    // 🛑 CRÍTICO: Enlace del formulario de edición de precio a la función handlePriceEditSubmit
-    // (Asegura que se use e.preventDefault() y se fuerce la recarga del reporte)
     const editForm = document.getElementById('edit-sale-price-form');
     if (editForm) {
         editForm.addEventListener('submit', handlePriceEditSubmit);
@@ -3785,41 +3770,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Inicialización de Vistas y Selectores
     // =======================================================
     
-    window.initReportSelectors = function() {
-    console.log("Iniciando selectores de reporte (Mes/Año)...");
+    // 🛑 IMPORTANTE: La función window.initReportSelectors debe estar definida FUERA de este bloque.
+    // La llamada a initReportSelectors se ha movido a switchView(viewId).
     
-    // 1. LLENAR AMBOS SELECTORES
-    initializeMonthSelector(); 
-    initializeYearSelector();
-    
-    // 2. Establecer Listeners de cambio
-    const monthSelector = document.getElementById('report-month-select');
-    const yearSelector = document.getElementById('report-year-select');
-    
-    if (window.loadMonthlySalesReport) {
-        // Al cambiar CUALQUIERA, recargamos el reporte
-        if (monthSelector) {
-             monthSelector.addEventListener('change', window.loadMonthlySalesReport);
-        }
-        if (yearSelector) {
-             yearSelector.addEventListener('change', window.loadMonthlySalesReport);
-        }
-    }
-};
-        // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
-    // Esta función debe llamar internamente a loadMonthlySalesReport() 
-    // y loadClientDebtsTable() si es necesario.
+    // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
     if (window.loadDashboardData) {
         window.loadDashboardData();
         console.log("Datos del Dashboard cargados.");
     }
     
     // =======================================================
-    // 3. Otros Listeners (ej: Botones de detalle)
+    // 3. Listeners Globales (Delegación de Eventos)
     // =======================================================
     
-    // Ejemplo: Listener para los botones "Detalles" de la tabla de Reportes Mensuales
-    // (Asegúrate de que este manejo de eventos esté implementado en tu código de renderizado)
+    // Listener para los botones "Detalles" (Tu código actual)
     document.body.addEventListener('click', (e) => {
         if (e.target.classList.contains('view-sale-details-btn')) {
             const ventaId = e.target.dataset.ventaId;
@@ -3829,5 +3793,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // 🛑 NUEVO: DELEGACIÓN DE EVENTOS PARA SELECTORES DE REPORTE (SOLUCIÓN AL NO CAMBIO)
+    document.body.addEventListener('change', (e) => {
+        const targetId = e.target.id;
+        
+        // Verifica si el cambio ocurrió en el selector de mes o de año
+        if (targetId === 'report-month-select' || targetId === 'report-year-select') {
+            console.log(`Delegación: Selector ${targetId} cambiado. Recargando reporte...`);
+            
+            // Llama a la función de carga
+            if (window.loadMonthlySalesReport) {
+                window.loadMonthlySalesReport();
+            }
+        }
+    });
+
     console.log("Inicialización de la aplicación completada.");
 });
