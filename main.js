@@ -1720,7 +1720,21 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             if (itemToEdit && itemToEdit.detalle_id) { 
                 document.getElementById('edit-sale-detail-id').value = itemToEdit.detalle_id; 
                 document.getElementById('edit-new-price').value = itemToEdit.price || ''; 
-                document.getElementById('edit-product-name').textContent = itemToEdit.productos?.name || 'Ítem Principal';
+                
+                // 🚀 CAMBIO CLAVE AQUÍ 🚀
+                const productData = itemToEdit.productos;
+                let fullName = productData?.name || 'Ítem Principal';
+
+                if (productData && productData.parent_product && window.allProductsMap) {
+                    const parentProduct = window.allProductsMap[productData.parent_product]; 
+                    if (parentProduct) {
+                        // Formato: Nombre del Padre (Nombre del Hijo)
+                        fullName = `${parentProduct.name} (${productData.name})`;
+                    }
+                }
+                document.getElementById('edit-product-name').textContent = fullName;
+                // 🚀 FIN DEL CAMBIO CLAVE 🚀
+                
             } else {
                 priceEditSection?.classList.add('hidden');
                 abonoButtonInSummary?.classList.remove('hidden');
