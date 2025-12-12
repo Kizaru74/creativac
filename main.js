@@ -2948,6 +2948,7 @@ function initializeYearSelector() {
 // ====================================================================
 // FUNCIÓN PRINCIPAL DE INICIALIZACIÓN Y LISTENERS (SOLUCIÓN AL PUNTO 2)
 // ====================================================================
+
 function initReportSelectors() {
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
@@ -2957,23 +2958,18 @@ function initReportSelectors() {
         return;
     }
 
-    // 1. Llenar los Selectores de Meses
+    // 1. Datos para Llenar Selectores
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1; // getMonth() es 0-index
+    const startYear = 2024; // Puedes ajustar el año de inicio
     const months = [
-        { value: 1, name: 'Enero' },
-        { value: 2, name: 'Febrero' },
-        { value: 3, name: 'Marzo' },
-        { value: 4, name: 'Abril' },
-        { value: 5, name: 'Mayo' },
-        { value: 6, name: 'Junio' },
-        { value: 7, name: 'Julio' },
-        { value: 8, name: 'Agosto' },
-        { value: 9, name: 'Septiembre' },
-        { value: 10, name: 'Octubre' },
-        { value: 11, name: 'Noviembre' },
-        { value: 12, name: 'Diciembre' }
+        { value: 1, name: 'Enero' }, { value: 2, name: 'Febrero' }, { value: 3, name: 'Marzo' },
+        { value: 4, name: 'Abril' }, { value: 5, name: 'Mayo' }, { value: 6, name: 'Junio' },
+        { value: 7, name: 'Julio' }, { value: 8, name: 'Agosto' }, { value: 9, name: 'Septiembre' },
+        { value: 10, name: 'Octubre' }, { value: 11, name: 'Noviembre' }, { value: 12, name: 'Diciembre' }
     ];
 
-    // Limpiar y añadir meses
+    // 2. Llenar Meses
     monthSelect.innerHTML = '';
     months.forEach(month => {
         const option = document.createElement('option');
@@ -2982,11 +2978,7 @@ function initReportSelectors() {
         monthSelect.appendChild(option);
     });
 
-    // 2. Llenar los Selectores de Años
-    const currentYear = new Date().getFullYear();
-    const startYear = 2024; // Puedes ajustar el año de inicio
-    
-    // Limpiar y añadir años
+    // 3. Llenar Años
     yearSelect.innerHTML = '';
     for (let year = currentYear + 1; year >= startYear; year--) {
         const option = document.createElement('option');
@@ -2995,44 +2987,42 @@ function initReportSelectors() {
         yearSelect.appendChild(option);
     }
     
-    // 3. Seleccionar el Mes y Año Actual por defecto
-    const currentMonth = new Date().getMonth() + 1; // getMonth() es 0-index
+    // 4. Seleccionar el Mes y Año Actual por defecto
     monthSelect.value = currentMonth;
     yearSelect.value = currentYear;
 
     console.log(`Inicializando selectores de reporte (Mes/Año) por primera vez...`);
 
-    // 4. Definir el Manejador de Cambios (Listener)
+    // 5. Definir el Manejador de Cambios (Listener)
     const handleChange = () => {
-        const selectedMonth = parseInt(monthSelect.value) || new Date().getMonth() + 1;
-        const selectedYear = parseInt(yearSelect.value) || new Date().getFullYear();
+        // Aseguramos que los valores sean válidos (solución al Año: 0)
+        const selectedMonth = parseInt(monthSelect.value) || currentMonth;
+        const selectedYear = parseInt(yearSelect.value) || currentYear;
 
         console.log(`[INIT SELECTORS] Llamada directa para Mes: ${selectedMonth}, Año: ${selectedYear}`);
 
-        // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para romper la sincronía y liberar el hilo.
+        // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para romper la sincronía y asegurar la ejecución.
         setTimeout(() => {
-            console.log("--- LLAMADA DIRECTA RETRASADA EJECUTÁNDOSE ---");
+            console.log("--- ¡LLAMADA DIRECTA RETRASADA EJECUTÁNDOSE! ---");
             if (typeof loadMonthlySalesReport === 'function') {
-                loadMonthlySalesReport(selectedMonth, selectedYear);
+                window.loadMonthlySalesReport(selectedMonth, selectedYear);
             } else {
                 console.error("ERROR: loadMonthlySalesReport no es una función global.");
             }
         }, 100); // 100ms de espera.
     };
     
-    // 5. Adjuntar Listeners directamente (más robusto que la delegación)
-    // ESTO REEMPLAZA LA LÓGICA DE TU document.body.addEventListener('change', ...)
+    // 6. Adjuntar Listeners directamente
     monthSelect.addEventListener('change', handleChange);
     yearSelect.addEventListener('change', handleChange);
     
-    // 6. Carga inicial (Llamar para el mes actual después de configurar todo)
-    // El setTimeout aquí también previene la condición de carrera en la carga inicial
+    // 7. Carga inicial (Llamar para el mes actual después de configurar todo)
     setTimeout(() => {
-        if (typeof loadMonthlySalesReport === 'function') {
+         if (typeof window.loadMonthlySalesReport === 'function') {
              console.log("Carga inicial de reporte programada.");
-             loadMonthlySalesReport(currentMonth, currentYear); 
-        }
-    }, 10); // Un pequeño retraso para la carga inicial.
+             window.loadMonthlySalesReport(currentMonth, currentYear); 
+         }
+    }, 10);
 }
 
 function generateTextTicket(sale) {
