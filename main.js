@@ -3813,11 +3813,14 @@ document.body.addEventListener('change', (e) => {
         // 🛑 NUEVO DEBUG: Verifica que la llamada a la función se intenta.
         console.log("INTENTANDO LLAMAR a loadMonthlySalesReport...");
         
-        // 3. Llamar a la función de carga
+       // 3. LLAMADA FINAL Y DEFINITIVA CON RETRASO (100ms)
         try {
             if (window.loadMonthlySalesReport) {
-                // LLAMADA FINAL A LA FUNCIÓN
-                window.loadMonthlySalesReport(finalMonth, finalYear); 
+                // 🛑 CORRECCIÓN FINAL: Usamos setTimeout para romper la sincronía.
+                setTimeout(() => {
+                    console.log("LLAMADA ASÍNCRONA RETRASADA EJECUTÁNDOSE...");
+                    window.loadMonthlySalesReport(finalMonth, finalYear); 
+                }, 100); // 100 milisegundos de espera
             }
         } catch (callError) {
             console.error("⛔️ ERROR CRÍTICO AL LLAMAR A LA FUNCIÓN:", callError);
