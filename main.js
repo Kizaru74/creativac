@@ -2761,6 +2761,9 @@ async function handleSaleAbono(e) {
 // ====================================================================
 
 async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
+    // 🛑 DEBUG INMEDIATO: Garantiza que la función se ejecuta con los valores
+    console.log(`>>> Ejecutando loadMonthlySalesReport para Mes: ${selectedMonthFromEvent}, Año: ${selectedYearFromEvent}`); 
+
     if (!supabase) {
         console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
         return;
@@ -2771,9 +2774,15 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
     const totalDebtEl = document.getElementById('report-total-debt-generated');
     const noDataMessage = document.getElementById('monthly-report-no-data');
 
+    // 🛑 CHEQUEO DE DOM CRÍTICO: Identifica qué elemento falta y evita fallos silenciosos
     if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) {
-        console.error("Faltan elementos HTML para el reporte mensual.");
-        return;
+        console.error("Fallo de Renderizado: Faltan elementos HTML para mostrar el reporte.");
+        if (!reportBody) console.error("Elemento faltante: #monthly-sales-report-body");
+        if (!totalSalesEl) console.error("Elemento faltante: #report-total-sales");
+        if (!totalDebtEl) console.error("Elemento faltante: #report-total-debt-generated");
+        if (!noDataMessage) console.error("Elemento faltante: #monthly-report-no-data");
+        // Salimos de la función después de informar el error.
+        return; 
     }
 
     // Mostrar mensaje de carga
@@ -2797,12 +2806,9 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
 
         console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
 
-        // 2. Calcular los rangos de fecha (Inicio y Fin del mes)
-        
-        // 🛑 CORRECCIÓN CRÍTICA: Usamos Date.UTC para garantizar que la fecha inicie a medianoche UTC
+        // 2. Calcular los rangos de fecha (Inicio y Fin del mes) en UTC
         let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
 
-        // 🛑 CORRECCIÓN DE TIMESTAMPTZ: Calculamos el inicio del *siguiente* mes
         let nextMonth = selectedMonth; 
         let nextYear = selectedYear;
 
@@ -2813,7 +2819,6 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
             nextMonth += 1;
         }
 
-        // El final del rango es la medianoche UTC del día 1 del mes siguiente
         let endDate = new Date(Date.UTC(nextYear, nextMonth - 1, 1)); 
 
         const isoStartDate = startDate.toISOString();
@@ -2834,16 +2839,16 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
                 clientes(name) 
             `)
             .gte('created_at', isoStartDate)
-            // Usamos .lt (less than) para asegurar la compatibilidad con timestamptz
             .lt('created_at', isoEndDate) 
             .order('created_at', { ascending: false });
 
         if (error) throw error;
         
-        // 4. Cálculo de Totales y Renderizado (SIN CAMBIOS)
+        // 4. Cálculo de Totales
         let totalSales = 0;
         let totalDebtGenerated = 0;
 
+        // Limpiar el cuerpo de la tabla
         reportBody.innerHTML = ''; 
 
         if (sales && sales.length > 0) {
