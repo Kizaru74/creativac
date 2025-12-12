@@ -2858,7 +2858,7 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
                     row.className = 'hover:bg-gray-50';
     
                     const clientName = sale.clientes?.name || 'Cliente Desconocido';
-                    const formattedDate = new Date(sale.created_at).toLocaleDateString();
+                    const formattedDate = formatDate(sale.created_at);
     
                     row.innerHTML = `
                         <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${sale.venta_id})</td>
@@ -3356,6 +3356,34 @@ async function loadAllProductsMap() {
         return map;
     }, {});
     console.log(`Mapa de ${products.length} productos cargado.`);
+}
+
+function formatDate(isoDateString) {
+    if (!isoDateString) {
+        return 'N/A';
+    }
+
+    try {
+        // 1. Crear un objeto Date a partir de la cadena ISO (maneja la conversión UTC)
+        const date = new Date(isoDateString);
+
+        // 2. Opciones de formato: queremos solo la fecha en formato corto.
+        const options = {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            // Opcional: Si quieres forzar la hora local y evitar problemas de desfase horario:
+            // timeZone: 'America/Mexico_City', 
+        };
+
+        // 3. Devolver la fecha formateada para el local en español (ej: 28/11/2025)
+        // Usamos 'es-MX' o 'es-ES' para asegurar el formato DD/MM/YYYY
+        return date.toLocaleDateString('es-MX', options);
+
+    } catch (e) {
+        console.error("Error al formatear la fecha:", e, isoDateString);
+        return 'Fecha inválida';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', async () => { 
