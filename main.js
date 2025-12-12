@@ -3471,17 +3471,23 @@ function switchView(viewId) {
     } else if (viewId === 'products-view') {
         loadAndRenderProducts();
     } else if (viewId === 'report-view') {
-                // 🛑 LÓGICA DE INICIALIZACIÓN DIFERIDA (Soluciona el problema de los años)
-        if (!reportSelectorsInitialized && window.initReportSelectors) {
-            console.log("--- INTENTANDO LLAMAR A LA INICIALIZACIÓN DE SELECTORES ---");
-            window.initReportSelectors();
-            // ¡La función initReportSelectors internamente llama a loadMonthlySalesReport() 
-            // y establece reportSelectorsInitialized = true!
-        } else if (window.loadMonthlySalesReport) {
-             // Si ya se inicializó, solo recargamos el reporte (esto es clave para que funcione el listener)
-             window.loadMonthlySalesReport();
-        }
+    // 🛑 LÓGICA DE INICIALIZACIÓN DIFERIDA (Corregida: Eliminar 'window.')
+    
+    // Asumiendo que 'reportSelectorsInitialized' es una variable global en main.js
+    if (!reportSelectorsInitialized && typeof initReportSelectors === 'function') {
+        console.log("--- INTENTANDO LLAMAR A LA INICIALIZACIÓN DE SELECTORES DIRECTAMENTE ---");
+        
+        // 🚀 CORRECCIÓN: Llamada Directa
+        initReportSelectors(); 
+        
+        // La función initReportSelectors internamente llama a loadMonthlySalesReport() 
+        // y establece reportSelectorsInitialized = true!
+    } else if (typeof loadMonthlySalesReport === 'function') {
+         // 🚀 CORRECCIÓN: Llamada Directa
+         // Si ya se inicializó, solo recargamos el reporte
+         loadMonthlySalesReport();
     }
+}
 }
 
 // LISTENER para la navegación principal (data-view)
