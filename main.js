@@ -2759,6 +2759,7 @@ async function handleSaleAbono(e) {
 // ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
+
 async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
     if (!supabase) {
         console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
@@ -2787,8 +2788,7 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
         const currentYearNum = new Date().getFullYear();
         
         // 1. Asignación con Fallback Explícito:
-        // Si el valor pasado es 0 (falló la lectura en el listener) o es inválido, usamos el mes/año actual.
-        // NOTA: No usamos "||" porque 0 es falsy, lo que nos llevó al error inicial.
+        // Si el valor pasado no es un número válido entre 1 y 12, usamos el mes actual.
         let selectedMonth = (selectedMonthFromEvent && selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) 
                               ? selectedMonthFromEvent 
                               : currentMonthNum;
@@ -2803,15 +2803,26 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
         // 2. Calcular los rangos de fecha (Inicio y Fin del mes)
         // El mes en Date es 0-indexado, por eso usamos selectedMonth - 1
         let startDate = new Date(selectedYear, selectedMonth - 1, 1);
-        let endDate = new Date(selectedYear, selectedMonth, 0); // Esto obtiene el último día del mes
-        
-        // Asegurar que la hora cubra todo el último día para la comparación timestamptz
-        endDate.setHours(23, 59, 59, 999);
+
+        // 🛑 CORRECCIÓN DE TIMESTAMPTZ: Calculamos el inicio del *siguiente* mes
+        let nextMonth = selectedMonth; 
+        let nextYear = selectedYear;
+
+        if (nextMonth === 12) {
+            nextMonth = 1;
+            nextYear += 1;
+        } else {
+            nextMonth += 1;
+        }
+
+        // El final del rango es la medianoche (00:00:00.000) del día 1 del mes siguiente
+        let endDate = new Date(nextYear, nextMonth - 1, 1); 
 
         const isoStartDate = startDate.toISOString();
         const isoEndDate = endDate.toISOString();
 
-        console.log(`[DEBUG] Rangos de Fecha: Inicio ${isoStartDate} | Fin ${isoEndDate}`);
+        console.log(`[DEBUG] RANGO FINAL AJUSTADO: GTE ${isoStartDate} | LT ${isoEndDate}`);
+
 
         // 3. Consulta a Supabase
         const { data: sales, error } = await supabase
@@ -2825,7 +2836,8 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
                 clientes(name) 
             `)
             .gte('created_at', isoStartDate)
-            .lte('created_at', isoEndDate)
+            // 🛑 CRÍTICO: Usamos .lt (less than) para asegurar la compatibilidad con timestamptz
+            .lt('created_at', isoEndDate) 
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -3519,8 +3531,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
     if (paymentMethodSelect) {
         paymentMethodSelect.addEventListener('change', updatePaymentDebtStatus);
     }
-
-
     // --- Autenticación ---
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
     document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
@@ -3550,8 +3560,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
         loadMonthlySalesReport(); 
         openModal('modal-monthly-report');
     });
-
-
   // Agrega este Listener ÚNICO que escucha en toda la página
 document.addEventListener('click', function(e) {
     // Usamos .closest() para capturar el botón, incluso si el clic cae en un ícono dentro de él
@@ -3572,7 +3580,6 @@ document.addEventListener('click', function(e) {
         }
     }
 });
-
     // -----------------------------------------------
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
     // -----------------------------------------------
@@ -3592,11 +3599,9 @@ document.addEventListener('click', function(e) {
         
         openModal('modal-new-client'); 
     };
-
     // Listener para el envío del formulario de edición de precio post-venta
     document.getElementById('post-sale-price-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const ventaId = document.getElementById('edit-venta-id').value;
         const detalleVentaId = document.getElementById('edit-detalle-venta-id').value;
         const clientId = document.getElementById('edit-client-id').value;
@@ -3673,8 +3678,6 @@ document.addEventListener('click', function(e) {
     // Listener para el botón de confirmación de eliminación (del modal)
     document.getElementById('confirm-delete-btn')?.addEventListener('click', confirmDeleteProduct);
     document.getElementById('edit-product-form')?.addEventListener('submit', handleEditProduct);
-
-
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
     // ====================================================================
