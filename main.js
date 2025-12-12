@@ -2514,15 +2514,13 @@ async function confirmDeleteClient() {
     await loadDashboardData(); 
 }
 
-
 async function handleNewClient(e) {
     e.preventDefault();
     
-    // 🛑 CORRECCIÓN 1: Usar los IDs CORRECTOS del HTML 
+    // 🛑 CRÍTICO: USAR LOS IDs DE INPUT CORRECTOS
     const name = document.getElementById('new-client-name')?.value.trim();
-    const phone = document.getElementById('new-client-phone')?.value.trim() || null; // El teléfono puede ser opcional
+    const phone = document.getElementById('new-client-phone')?.value.trim() || null;
     
-    // 🛑 VALIDACIÓN BÁSICA
     if (!name || name.length < 3) {
         alert('Por favor, ingresa un nombre válido para el cliente.');
         return;
@@ -2542,24 +2540,19 @@ async function handleNewClient(e) {
     } else {
         alert('Cliente registrado exitosamente.');
         
-        // Asumiendo que esta función existe
-        await loadAndRenderClients(); 
-        
-        // 🛑 CORRECCIÓN 2: Usar el ID CORRECTO del formulario
+        // 🛑 ID DE FORMULARIO CORREGIDO para resetear
         const clientForm = document.getElementById('new-client-form');
         if (clientForm) {
             clientForm.reset();
-        } else {
-            console.warn("Advertencia: No se encontró el formulario 'new-client-form' para resetear.");
         }
         
-        // 🛑 CORRECCIÓN 3: Usar el ID CORRECTO del modal
+        // 🛑 ID DE MODAL CORREGIDO para cerrar
         closeModal('new-client-modal');
         
-        await loadClientsTable('gestion'); // Aseguramos que se recargue la tabla de gestión
+        await loadClientsTable('gestion'); 
     }
 }
-window.handleNewClient = handleNewClient; // Asegúrese de exponer la función si es necesario
+window.handleNewClient = handleNewClient;
 
 function handleEditClientClick(clientId) {
     if (!supabase) {
@@ -3718,13 +3711,13 @@ document.addEventListener('click', function(e) {
     // -----------------------------------------------
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
     // -----------------------------------------------
-    window.openRegisterClientModal = function() {
+window.openRegisterClientModal = function() {
     const titleElement = document.getElementById('client-modal-title');
     if (titleElement) {
         titleElement.textContent = 'Registrar Nuevo Cliente';
     }
     
-    // ⚠️ Su formulario tiene el ID 'new-client-form' en el HTML
+    // 🛑 ID DE FORMULARIO CORREGIDO
     const form = document.getElementById('new-client-form'); 
     
     form?.reset(); 
@@ -3733,7 +3726,7 @@ document.addEventListener('click', function(e) {
     
     editingClientId = null;
     
-    // 🛑 CORRECCIÓN: Usar el ID de HTML correcto ('new-client-modal')
+    // 🛑 ID DE MODAL CORREGIDO
     openModal('new-client-modal'); 
 };
     // Listener para el envío del formulario de edición de precio post-venta
