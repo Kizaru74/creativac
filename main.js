@@ -2760,11 +2760,6 @@ async function handleSaleAbono(e) {
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
 
-/**
- * Envuelve la lógica de reporte en una función síncrona para forzar la ejecución.
- * @param {number} selectedMonthFromEvent - Mes seleccionado (1-12).
- * @param {number} selectedYearFromEvent - Año seleccionado.
- */
 function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
     // 🛑 DEBUG INMEDIATO: ESTA LÍNEA DEBE APARECER AHORA.
     console.log(`>>> loadMonthlySalesReport (SÍNCRONA) ejecutándose para Mes: ${selectedMonthFromEvent}`); 
@@ -2960,8 +2955,8 @@ function initReportSelectors() {
 
     // 1. Datos para Llenar Selectores
     const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1; // getMonth() es 0-index
-    const startYear = 2024; // Puedes ajustar el año de inicio
+    const currentMonth = new Date().getMonth() + 1;
+    const startYear = 2024;
     const months = [
         { value: 1, name: 'Enero' }, { value: 2, name: 'Febrero' }, { value: 3, name: 'Marzo' },
         { value: 4, name: 'Abril' }, { value: 5, name: 'Mayo' }, { value: 6, name: 'Junio' },
@@ -2992,41 +2987,40 @@ function initReportSelectors() {
     yearSelect.value = currentYear;
 
     console.log(`Inicializando selectores de reporte (Mes/Año) por primera vez...`);
-    // 🛑 AGREGAR ESTE DEBUGGER PARA VER SI EL NAVEGADOR LLEGA AQUÍ
-    debugger;
 
     // 5. Definir el Manejador de Cambios (Listener)
     const handleChange = () => {
-        // Aseguramos que los valores sean válidos (solución al Año: 0)
         const selectedMonth = parseInt(monthSelect.value) || currentMonth;
         const selectedYear = parseInt(yearSelect.value) || currentYear;
 
         console.log(`[INIT SELECTORS] Llamada directa para Mes: ${selectedMonth}, Año: ${selectedYear}`);
 
-        // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para romper la sincronía y asegurar la ejecución.
+        // 🛑 CORRECCIÓN DE ÁMBITO: Llamada directa, sin 'window.'
         setTimeout(() => {
             console.log("--- ¡LLAMADA DIRECTA RETRASADA EJECUTÁNDOSE! ---");
             if (typeof loadMonthlySalesReport === 'function') {
-                window.loadMonthlySalesReport(selectedMonth, selectedYear);
+                // 🚀 ESTO ES LO QUE ARREGLA EL TypeError
+                loadMonthlySalesReport(selectedMonth, selectedYear); 
             } else {
-                console.error("ERROR: loadMonthlySalesReport no es una función global.");
+                console.error("ERROR: loadMonthlySalesReport no es una función accesible.");
             }
-        }, 100); // 100ms de espera.
+        }, 100); 
     };
     
     // 6. Adjuntar Listeners directamente
     monthSelect.addEventListener('change', handleChange);
     yearSelect.addEventListener('change', handleChange);
     
-    // 7. Carga inicial (Llamar para el mes actual después de configurar todo)
-    // Usamos setTimeout para romper la sincronización y asegurar que los valores de los selectores ya están establecidos.
+    // 7. Carga inicial
     setTimeout(() => {
         const finalMonth = parseInt(monthSelect.value) || currentMonth;
         const finalYear = parseInt(yearSelect.value) || currentYear;
 
-        if (typeof window.loadMonthlySalesReport === 'function') {
+        // 🛑 CORRECCIÓN DE ÁMBITO: Llamada directa, sin 'window.'
+        if (typeof loadMonthlySalesReport === 'function') {
             console.log(`[CARGA INICIAL ÉXITO] Reporte programado para Mes: ${finalMonth}, Año: ${finalYear}`);
-            window.loadMonthlySalesReport(finalMonth, finalYear); 
+            // 🚀 ESTO ES LO QUE ARREGLA LA CARGA INICIAL
+            loadMonthlySalesReport(finalMonth, finalYear); 
         }
     }, 10);
 }
