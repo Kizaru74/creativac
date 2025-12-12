@@ -3795,14 +3795,17 @@ document.body.addEventListener('change', (e) => {
         let finalMonth = parseInt(target.id === 'report-month-select' ? target.value : monthSelect.value) || 0;
         let finalYear = parseInt(target.id === 'report-year-select' ? target.value : yearSelect.value) || 0;
 
-        console.log(`[DELEGACIÓN CORRECTA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función.`);
-        console.log("INTENTANDO LLAMAR a loadMonthlySalesReport...");
+        console.log(`[DELEGACIÓN CORRECTA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función. main.js:3798:17`);
+        console.log("INTENTANDO LLAMAR a loadMonthlySalesReport... main.js:3799:17");
         
         // 🛑 SOLUCIÓN CRÍTICA: Programar la ejecución para después de 100ms.
+        // ESTA SECCIÓN DEBE REEMPLAZAR LO QUE TENGAS EN ESTE PUNTO DE TU LISTENER
         try {
             if (window.loadMonthlySalesReport) {
                 setTimeout(() => {
-                    console.log("--- LLAMADA ASÍNCRONA DE REPORTE RETRASADA EJECUTÁNDOSE ---");
+                    // Si ves esta línea, el problema estará resuelto.
+                    console.log("--- LLAMADA ASÍNCRONA DE REPORTE RETRASADA EJECUTÁNDOSE ---"); 
+                    // Llamamos a la función que ahora es síncrona
                     window.loadMonthlySalesReport(finalMonth, finalYear); 
                 }, 100); // 100ms de espera.
             }
@@ -3810,6 +3813,6 @@ document.body.addEventListener('change', (e) => {
             console.error("⛔️ ERROR CRÍTICO AL PROGRAMAR LA FUNCIÓN:", callError);
         }
 
-        console.log("LISTENER TERMINADO.");
+        console.log("LISTENER TERMINADO. main.js:3813:17");
     }
 });
