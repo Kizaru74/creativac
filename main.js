@@ -3791,17 +3791,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Listener actual (Bloque 'change' para selectores de reporte)
 document.body.addEventListener('change', (e) => {
     const target = e.target;
     
     // Solo actuamos si el cambio es en los selectores de reporte
     if (target.id === 'report-month-select' || target.id === 'report-year-select') {
         
-        // 1. Obtener los selectores
+        // 1. Obtener los selectores y valores (SIN CAMBIOS)
         const monthSelect = document.getElementById('report-month-select');
         const yearSelect = document.getElementById('report-year-select');
         
-        // 2. Determinar los valores finales.
         let finalMonth = target.id === 'report-month-select' ? target.value : monthSelect.value;
         let finalYear = target.id === 'report-year-select' ? target.value : yearSelect.value;
 
@@ -3809,25 +3809,22 @@ document.body.addEventListener('change', (e) => {
         finalYear = parseInt(finalYear) || 0;
 
         console.log(`[DELEGACIÓN CORRECTA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función.`);
-
-        // 🛑 NUEVO DEBUG: Verifica que la llamada a la función se intenta.
         console.log("INTENTANDO LLAMAR a loadMonthlySalesReport...");
         
-       // 3. LLAMADA FINAL Y DEFINITIVA CON RETRASO (100ms)
+        // 3. LLAMADA FINAL Y DEFINITIVA CON RETRASO
         try {
             if (window.loadMonthlySalesReport) {
-                // 🛑 CORRECCIÓN FINAL: Usamos setTimeout para romper la sincronía.
+                // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para que el navegador libere el hilo.
                 setTimeout(() => {
                     console.log("LLAMADA ASÍNCRONA RETRASADA EJECUTÁNDOSE...");
                     window.loadMonthlySalesReport(finalMonth, finalYear); 
-                }, 100); // 100 milisegundos de espera
+                }, 100); // 100ms es el tiempo de espera recomendado.
             }
         } catch (callError) {
             console.error("⛔️ ERROR CRÍTICO AL LLAMAR A LA FUNCIÓN:", callError);
             return;
         }
 
-        // 🛑 NUEVO DEBUG: Verifica que el código del listener termina.
         console.log("LISTENER TERMINADO.");
     }
 });
