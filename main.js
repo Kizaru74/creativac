@@ -3837,37 +3837,3 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-document.body.addEventListener('change', (e) => {
-    const target = e.target;
-    
-    // Solo actuamos si el cambio es en los selectores de reporte
-    if (target.id === 'report-month-select' || target.id === 'report-year-select') {
-        
-        const monthSelect = document.getElementById('report-month-select');
-        const yearSelect = document.getElementById('report-year-select');
-        
-        let finalMonthValue = target.id === 'report-month-select' ? target.value : monthSelect.value;
-        let finalYearValue = target.id === 'report-year-select' ? target.value : yearSelect.value;
-
-        // 🛑 CORRECCIÓN CRÍTICA: Aseguramos que el valor de fallback sea el año/mes actual, NO 0.
-        let finalMonth = parseInt(finalMonthValue) || (new Date().getMonth() + 1);
-        let finalYear = parseInt(finalYearValue) || (new Date().getFullYear());
-
-        console.log(`[DELEGACIÓN CORREGIDA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función.`);
-        console.log("INTENTANDO LLAMAR a loadMonthlySalesReport...");
-        
-        // 🚀 SOLUCIÓN FINAL: Usamos setTimeout para romper la condición de carrera (100ms).
-        try {
-            if (window.loadMonthlySalesReport) {
-                setTimeout(() => {
-                    console.log("--- ¡LLAMADA ASÍNCRONA RETRASADA EJECUTÁNDOSE! ---");
-                    window.loadMonthlySalesReport(finalMonth, finalYear); 
-                }, 100); 
-            }
-        } catch (callError) {
-            console.error("⛔️ ERROR CRÍTICO AL PROGRAMAR LA FUNCIÓN:", callError);
-        }
-
-        console.log("LISTENER TERMINADO.");
-    }
-});
