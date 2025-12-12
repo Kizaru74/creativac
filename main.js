@@ -2760,141 +2760,148 @@ async function handleSaleAbono(e) {
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
 
+/**
+ * Carga y renderiza el reporte de ventas para un mes y año específico.
+ * Versión síncrona final para diagnóstico de DOM/Base de datos.
+ * @param {number} selectedMonthFromEvent - Mes seleccionado (1-12).
+ * @param {number} selectedYearFromEvent - Año seleccionado.
+ */
 async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
-    // 🛑 ENVUELVE TODO EL CÓDIGO RESTANTE EN UN setTimeout(0)
-    setTimeout(async () => {
-        // --- COMIENZA EL CÓDIGO ASÍNCRONO DENTRO DEL TIMEOUT ---
-        console.log(`>>> Ejecutando loadMonthlySalesReport con retraso para Mes: ${selectedMonthFromEvent}`); 
+    // 🛑 DEBUG INMEDIATO
+    console.log(`>>> Ejecutando loadMonthlySalesReport (SÍNCRONO) para Mes: ${selectedMonthFromEvent}, Año: ${selectedYearFromEvent}`); 
 
-        if (!supabase) {
-            console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
-            return;
-        }
+    if (!supabase) {
+        console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
+        return;
+    }
 
-        const reportBody = document.getElementById('monthly-sales-report-body');
-        const totalSalesEl = document.getElementById('report-total-sales');
-        const totalDebtEl = document.getElementById('report-total-debt-generated');
-        const noDataMessage = document.getElementById('monthly-report-no-data');
+    const reportBody = document.getElementById('monthly-sales-report-body');
+    const totalSalesEl = document.getElementById('report-total-sales');
+    const totalDebtEl = document.getElementById('report-total-debt-generated');
+    const noDataMessage = document.getElementById('monthly-report-no-data');
 
-        // CHEQUEO DE DOM: Ahora debería poder encontrar los elementos si la vista ya está activa.
-        if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) {
-            console.error("Fallo de Renderizado: Faltan elementos HTML. El DOM no está listo.");
-            // Si ves este error, confirma que los IDs son correctos:
-            // #monthly-sales-report-body, #report-total-sales, #report-total-debt-generated, #monthly-report-no-data
-            return; 
-        }
+    // 🛑 CHEQUEO CRÍTICO DE DOM: Si falla, este es el problema.
+    if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) {
+        console.error("⛔️ FALLO DE DOM: Un elemento HTML del reporte no fue encontrado.");
+        if (!reportBody) console.error("Elemento faltante: #monthly-sales-report-body");
+        if (!totalSalesEl) console.error("Elemento faltante: #report-total-sales");
+        if (!totalDebtEl) console.error("Elemento faltante: #report-total-debt-generated");
+        if (!noDataMessage) console.error("Elemento faltante: #monthly-report-no-data");
+        return; // Salimos, el problema es el HTML.
+    }
 
-        // Mostrar mensaje de carga
-        reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Cargando reporte...</td></tr>';
-        totalSalesEl.textContent = '...';
-        totalDebtEl.textContent = '...';
-        noDataMessage.classList.add('hidden');
+    // Mostrar mensaje de carga
+    reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Cargando reporte...</td></tr>';
+    totalSalesEl.textContent = '...';
+    totalDebtEl.textContent = '...';
+    noDataMessage.classList.add('hidden');
+    
+    try {
+        const currentMonthNum = new Date().getMonth() + 1;
+        const currentYearNum = new Date().getFullYear();
         
-        try {
-            const currentMonthNum = new Date().getMonth() + 1;
-            const currentYearNum = new Date().getFullYear();
-            
-            // 1. Asignación con Fallback: (SIN CAMBIOS)
-            let selectedMonth = (selectedMonthFromEvent && selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) 
-                                ? selectedMonthFromEvent 
-                                : currentMonthNum;
+        // 1. Asignación con Fallback:
+        let selectedMonth = (selectedMonthFromEvent && selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) 
+                              ? selectedMonthFromEvent 
+                              : currentMonthNum;
 
-            let selectedYear = (selectedYearFromEvent && selectedYearFromEvent >= 2000) 
-                                ? selectedYearFromEvent 
-                                : currentYearNum;
+        let selectedYear = (selectedYearFromEvent && selectedYearFromEvent >= 2000) 
+                              ? selectedYearFromEvent 
+                              : currentYearNum;
 
-            console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
+        // 🛑 DEBUG FINAL ANTES DE SUPABASE: Mes/Año CORRECTOS
+        console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
 
-            // 2. Calcular los rangos de fecha (Inicio y Fin del mes) en UTC (SIN CAMBIOS)
-            let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
-            // ... (Lógica para nextMonth/nextYear)
-            let nextMonth = selectedMonth; 
-            let nextYear = selectedYear;
+        // 2. Calcular los rangos de fecha (Inicio y Fin del mes) en UTC
+        let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
 
-            if (nextMonth === 12) {
-                nextMonth = 1;
-                nextYear += 1;
-            } else {
-                nextMonth += 1;
-            }
+        let nextMonth = selectedMonth; 
+        let nextYear = selectedYear;
 
-            let endDate = new Date(Date.UTC(nextYear, nextMonth - 1, 1)); 
-
-            const isoStartDate = startDate.toISOString();
-            const isoEndDate = endDate.toISOString();
-
-            console.log(`[DEBUG] RANGO FINAL AJUSTADO (UTC): GTE ${isoStartDate} | LT ${isoEndDate}`);
-
-            // 3. Consulta a Supabase (SIN CAMBIOS)
-            const { data: sales, error } = await supabase
-                .from('ventas')
-                .select(`
-                    venta_id, 
-                    client_id, 
-                    created_at, 
-                    total_amount, 
-                    saldo_pendiente,
-                    clientes(name) 
-                `)
-                .gte('created_at', isoStartDate)
-                .lt('created_at', isoEndDate) 
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            
-            // 4. Cálculo de Totales y Renderizado (SIN CAMBIOS)
-            let totalSales = 0;
-            let totalDebtGenerated = 0;
-            reportBody.innerHTML = ''; 
-
-            if (sales && sales.length > 0) {
-                // ... (Tu lógica para renderizar las filas) ...
-                sales.forEach(sale => {
-                    totalSales += sale.total_amount;
-                    totalDebtGenerated += sale.saldo_pendiente;
-    
-                    const row = reportBody.insertRow();
-                    row.className = 'hover:bg-gray-50';
-    
-                    const clientName = sale.clientes?.name || 'Cliente Desconocido';
-                    const formattedDate = new Date(sale.created_at).toLocaleDateString();
-    
-                    row.innerHTML = `
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${sale.venta_id})</td>
-                        <td class="px-6 py-3 whitespace-nowrap font-medium text-gray-900">${clientName}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">${formatCurrency(sale.total_amount)}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm ${sale.saldo_pendiente > 0.01 ? 'text-red-600 font-bold' : 'text-green-600'}">
-                            ${formatCurrency(sale.saldo_pendiente)}
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm">
-                            <button 
-                                onclick="handleViewSaleDetails(${sale.venta_id}, ${sale.client_id})" 
-                                class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
-                            >
-                                Ver Detalle
-                            </button>
-                        </td>
-                    `;
-                });
-                
-                noDataMessage.classList.add('hidden'); 
-
-            } else {
-                noDataMessage.classList.remove('hidden'); 
-            }
-
-            // 5. Actualizar Widgets
-            totalSalesEl.textContent = formatCurrency(totalSales);
-            totalDebtEl.textContent = formatCurrency(totalDebtGenerated);
-
-        } catch (e) {
-            console.error('Error al cargar el reporte mensual:', e);
-            reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-600">Fallo al cargar datos. Consulte la consola.</td></tr>';
-            totalSalesEl.textContent = formatCurrency(0);
-            totalDebtEl.textContent = formatCurrency(0);
+        if (nextMonth === 12) {
+            nextMonth = 1;
+            nextYear += 1;
+        } else {
+            nextMonth += 1;
         }
-        // --- FIN DEL CÓDIGO ASÍNCRONO DENTRO DEL TIMEOUT ---
-    }, 0); // Ejecutar después de que la pila de eventos esté vacía
+
+        let endDate = new Date(Date.UTC(nextYear, nextMonth - 1, 1)); 
+
+        const isoStartDate = startDate.toISOString();
+        const isoEndDate = endDate.toISOString();
+
+        // 🛑 DEBUG FINAL ANTES DE SUPABASE: Rango de fechas CORRECTO
+        console.log(`[DEBUG] RANGO FINAL AJUSTADO (UTC): GTE ${isoStartDate} | LT ${isoEndDate}`);
+
+
+        // 3. Consulta a Supabase
+        const { data: sales, error } = await supabase
+            .from('ventas')
+            .select(`
+                venta_id, 
+                client_id, 
+                created_at, 
+                total_amount, 
+                saldo_pendiente,
+                clientes(name) 
+            `)
+            .gte('created_at', isoStartDate)
+            .lt('created_at', isoEndDate) 
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        // 4. Cálculo de Totales y Renderizado (SIN CAMBIOS)
+        let totalSales = 0;
+        let totalDebtGenerated = 0;
+        reportBody.innerHTML = ''; 
+
+        // ... (Tu código para renderizar las filas y actualizar widgets) ...
+        if (sales && sales.length > 0) {
+            sales.forEach(sale => {
+                totalSales += sale.total_amount;
+                totalDebtGenerated += sale.saldo_pendiente;
+
+                const row = reportBody.insertRow();
+                row.className = 'hover:bg-gray-50';
+
+                const clientName = sale.clientes?.name || 'Cliente Desconocido';
+                const formattedDate = new Date(sale.created_at).toLocaleDateString();
+
+                row.innerHTML = `
+                    <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${sale.venta_id})</td>
+                    <td class="px-6 py-3 whitespace-nowrap font-medium text-gray-900">${clientName}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">${formatCurrency(sale.total_amount)}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm ${sale.saldo_pendiente > 0.01 ? 'text-red-600 font-bold' : 'text-green-600'}">
+                        ${formatCurrency(sale.saldo_pendiente)}
+                    </td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm">
+                        <button 
+                            onclick="handleViewSaleDetails(${sale.venta_id}, ${sale.client_id})" 
+                            class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
+                        >
+                            Ver Detalle
+                        </button>
+                    </td>
+                `;
+            });
+            
+            noDataMessage.classList.add('hidden'); 
+
+        } else {
+            noDataMessage.classList.remove('hidden'); 
+        }
+
+        // 5. Actualizar Widgets
+        totalSalesEl.textContent = formatCurrency(totalSales);
+        totalDebtEl.textContent = formatCurrency(totalDebtGenerated);
+
+    } catch (e) {
+        console.error('Error al cargar el reporte mensual:', e);
+        reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-600">Fallo al cargar datos. Consulte la consola.</td></tr>';
+        totalSalesEl.textContent = formatCurrency(0);
+        totalDebtEl.textContent = formatCurrency(0);
+    }
 }
 
 function initializeMonthSelector() {
