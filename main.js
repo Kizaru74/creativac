@@ -3797,33 +3797,30 @@ document.body.addEventListener('change', (e) => {
     // Solo actuamos si el cambio es en los selectores de reporte
     if (target.id === 'report-month-select' || target.id === 'report-year-select') {
         
-        // 1. Obtener los selectores (para leer el valor que NO cambió)
+        // Obtenemos los selectores para leer el valor que NO cambió
         const monthSelect = document.getElementById('report-month-select');
         const yearSelect = document.getElementById('report-year-select');
         
-        // 2. Determinar los valores finales.
-        let finalMonth = target.id === 'report-month-select' ? target.value : monthSelect.value;
-        let finalYear = target.id === 'report-year-select' ? target.value : yearSelect.value;
-
-        // Convertir a número.
-        finalMonth = parseInt(finalMonth) || 0;
-        finalYear = parseInt(finalYear) || 0;
+        // Determinamos los valores finales.
+        let finalMonth = parseInt(target.id === 'report-month-select' ? target.value : monthSelect.value) || 0;
+        let finalYear = parseInt(target.id === 'report-year-select' ? target.value : yearSelect.value) || 0;
 
         console.log(`[DELEGACIÓN CORRECTA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función.`);
         console.log("INTENTANDO LLAMAR a loadMonthlySalesReport...");
         
-        // 3. LLAMADA FINAL Y DEFINITIVA CON RETRASO
+        // 3. LLAMADA CRÍTICA CON RETRASO
         try {
             if (window.loadMonthlySalesReport) {
                 // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para romper la sincronía y liberar el hilo.
                 setTimeout(() => {
-                    console.log("LLAMADA ASÍNCRONA RETRASADA EJECUTÁNDOSE...");
+                    // Este log aparecerá solo DESPUÉS de 100ms.
+                    console.log("--- LLAMADA ASÍNCRONA DE REPORTE RETRASADA EJECUTÁNDOSE ---"); 
                     window.loadMonthlySalesReport(finalMonth, finalYear); 
-                }, 100); // 100ms es el tiempo de espera recomendado.
+                }, 100); // 100ms de espera.
             }
         } catch (callError) {
-            console.error("⛔️ ERROR CRÍTICO AL LLAMAR A LA FUNCIÓN:", callError);
-            return;
+            // Este catch solo atraparía errores de la llamada al setTimeout, no de la función interna.
+            console.error("⛔️ ERROR CRÍTICO AL PROGRAMAR LA FUNCIÓN:", callError);
         }
 
         console.log("LISTENER TERMINADO.");
