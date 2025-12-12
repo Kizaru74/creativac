@@ -99,11 +99,6 @@ function formatCurrency(amount) {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 }
 
-function formatDate(dateString) {
-    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-    return new Date(dateString).toLocaleDateString('es-MX', options);
-}
-
 function getMonthDateRange(monthString) {
     if (!monthString) return { start: null, end: null };
     const [year, month] = monthString.split('-').map(Number);
