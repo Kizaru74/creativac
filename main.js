@@ -14,6 +14,7 @@ let debtToPayId = null;
 let allClients = [];
 let allClientsMap = {};
 let allProductsMap = {};
+let reportSelectorsInitialized = false;
 
 // ✅ CORRECCIÓN CRÍTICA: Inicializar Supabase directamente, fuera del try/catch.
 if (window.supabase) {
@@ -3367,10 +3368,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 function switchView(viewId) {
     // 1. Desactivar el estilo de menú activo y ocultar todas las vistas
     document.querySelectorAll('.menu-item').forEach(link => {
-    link.classList.remove('active-menu-item');
+        link.classList.remove('active-menu-item');
     });
     document.querySelectorAll('.dashboard-view').forEach(view => {
-    view.classList.add('hidden'); // ✅ CORREGIDO: Ahora busca y oculta todas las secciones
+        view.classList.add('hidden');
     });
     
     // 2. Mostrar la vista solicitada
@@ -3386,14 +3387,24 @@ function switchView(viewId) {
     }
 
     // 4. CRÍTICO: Cargar los datos específicos de la vista al cambiar
+
     if (viewId === 'home-view') {
         loadDashboardData(); 
     } else if (viewId === 'clients-view') {
-        loadClientsTable('gestion'); // Asumo que este es el ID del modal de clientes en gestión
+        loadClientsTable('gestion');
     } else if (viewId === 'products-view') {
-        loadAndRenderProducts(); // Asumo que esta función carga la tabla de productos
+        loadAndRenderProducts();
     } else if (viewId === 'report-view') {
-        loadMonthlySalesReport(); 
+        
+        // 🛑 LÓGICA DE INICIALIZACIÓN DIFERIDA (Soluciona el problema de los años)
+        if (!reportSelectorsInitialized && window.initReportSelectors) {
+            window.initReportSelectors();
+            // ¡La función initReportSelectors internamente llama a loadMonthlySalesReport() 
+            // y establece reportSelectorsInitialized = true!
+        } else if (window.loadMonthlySalesReport) {
+             // Si ya se inicializó, solo recargamos el reporte (esto es clave para que funcione el listener)
+             window.loadMonthlySalesReport();
+        }
     }
 }
 
