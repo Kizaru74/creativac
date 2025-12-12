@@ -2786,11 +2786,16 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
         const currentMonthNum = new Date().getMonth() + 1; // Mes actual (1-12)
         const currentYearNum = new Date().getFullYear();
         
-        // 1. Asignación con Fallback:
-        // Si el evento no pasó un valor válido, usamos los valores por defecto del calendario.
-        // Si el valor es 0 o NaN, usamos el valor actual (currentMonthNum).
-        let selectedMonth = parseInt(selectedMonthFromEvent) || currentMonthNum;
-        let selectedYear = parseInt(selectedYearFromEvent) || currentYearNum;
+        // 1. Asignación con Fallback Explícito:
+        // Si el valor pasado es 0 (falló la lectura en el listener) o es inválido, usamos el mes/año actual.
+        // NOTA: No usamos "||" porque 0 es falsy, lo que nos llevó al error inicial.
+        let selectedMonth = (selectedMonthFromEvent && selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) 
+                              ? selectedMonthFromEvent 
+                              : currentMonthNum;
+
+        let selectedYear = (selectedYearFromEvent && selectedYearFromEvent >= 2000) 
+                              ? selectedYearFromEvent 
+                              : currentYearNum;
 
         // DEBUG FINAL: Muestra los valores usados
         console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
@@ -2861,10 +2866,10 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
                 `;
             });
             
-            noDataMessage.classList.add('hidden'); // Ocultar si hay datos
+            noDataMessage.classList.add('hidden'); 
 
         } else {
-            noDataMessage.classList.remove('hidden'); // Mostrar si no hay datos
+            noDataMessage.classList.remove('hidden'); 
         }
 
         // 5. Actualizar Widgets
@@ -3798,22 +3803,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 document.body.addEventListener('change', (e) => {
-    const targetId = e.target.id;
+    const target = e.target;
     
-    if (targetId === 'report-month-select' || targetId === 'report-year-select') {
+    // Solo actuamos si el cambio es en los selectores de reporte
+    if (target.id === 'report-month-select' || target.id === 'report-year-select') {
         
+        // 1. Obtener los selectores (para leer el valor que NO cambió)
         const monthSelect = document.getElementById('report-month-select');
         const yearSelect = document.getElementById('report-year-select');
         
-        // Capturar los valores numéricos AHORA (antes de cualquier re-render)
-        const selectedMonth = parseInt(monthSelect?.value);
-        const selectedYear = parseInt(yearSelect?.value);
+        // 2. Determinar los valores finales. Priorizamos el elemento que cambió (target.value).
+        let finalMonth = target.id === 'report-month-select' ? target.value : monthSelect.value;
+        let finalYear = target.id === 'report-year-select' ? target.value : yearSelect.value;
 
-        // Llamamos a la función con los valores capturados
+        // Convertir a número. Usamos || 0 como valor seguro para pasar.
+        finalMonth = parseInt(finalMonth) || 0;
+        finalYear = parseInt(finalYear) || 0;
+
+        console.log(`[DELEGACIÓN CORRECTA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función.`);
+
+        // 3. Llamar a la función de carga pasando los valores NUMÉRICOS capturados
         if (window.loadMonthlySalesReport) {
-            window.loadMonthlySalesReport(selectedMonth, selectedYear); 
+            window.loadMonthlySalesReport(finalMonth, finalYear); 
         }
     }
-});
-    console.log("Inicialización de la aplicación completada.");
 });
