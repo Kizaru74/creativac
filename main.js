@@ -1625,18 +1625,26 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         document.getElementById('detail-client-name').textContent = client.name;
         document.getElementById('detail-sale-date').textContent = formatDate(sale.created_at);
         document.getElementById('detail-payment-method').textContent = sale.metodo_pago;
+
         const descriptionEl = document.getElementById('detail-sale-description');
-if (descriptionEl) {
-    const descriptionText = sale.description || 'No se registraron comentarios adicionales para esta venta.';
-    descriptionEl.textContent = descriptionText;
-    
-    // Oculta el bloque si no hay descripción para evitar que se vea el título vacío
-    // Nota: El elemento padre es el <div> con las clases "mb-6 pt-4 border-t border-dashed"
-    descriptionEl.parentElement.classList.toggle('hidden', !sale.description);
-}
+        if (descriptionEl) {
+            const descriptionText = sale.description || 'No se registraron comentarios adicionales para esta venta.';
+            descriptionEl.textContent = descriptionText;
+            
+            // 🚀 CORRECCIÓN: Nos aseguramos de que el contenedor esté visible, y
+            // confiamos en que 'descriptionText' manejará el valor vacío.
+            if (descriptionEl.parentElement) {
+                descriptionEl.parentElement.classList.remove('hidden');
+            }
+            // 🛑 ELIMINAMOS ESTA LÍNEA QUE CAUSABA EL PROBLEMA:
+            // descriptionEl.parentElement.classList.toggle('hidden', !sale.description);
+        }
+
         document.getElementById('detail-grand-total').textContent = formatCurrency(sale.total_amount); 
         document.getElementById('detail-paid-amount').textContent = formatCurrency(sale.paid_amount); 
         document.getElementById('detail-remaining-debt').textContent = formatCurrency(sale.saldo_pendiente);
+        
+        // ... (el resto de su código)
         
         // RENDERIZADO DE ÍTEMS DE VENTA (Tabla detail-products-body)
         const productsBody = document.getElementById('detail-products-body');
@@ -1748,6 +1756,7 @@ if (descriptionEl) {
         alert('Hubo un error al cargar los detalles de la venta.');
     }
 }
+
 async function handleAbonoClientSubmit(e) {
     e.preventDefault();
 
