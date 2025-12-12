@@ -3797,29 +3797,27 @@ document.body.addEventListener('change', (e) => {
     // Solo actuamos si el cambio es en los selectores de reporte
     if (target.id === 'report-month-select' || target.id === 'report-year-select') {
         
-        // Obtenemos los selectores para leer el valor que NO cambió
+        // 1. Obtener los selectores y valores
         const monthSelect = document.getElementById('report-month-select');
         const yearSelect = document.getElementById('report-year-select');
         
-        // Determinamos los valores finales.
+        // Aseguramos que los valores sean numéricos
         let finalMonth = parseInt(target.id === 'report-month-select' ? target.value : monthSelect.value) || 0;
         let finalYear = parseInt(target.id === 'report-year-select' ? target.value : yearSelect.value) || 0;
 
         console.log(`[DELEGACIÓN CORRECTA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función.`);
         console.log("INTENTANDO LLAMAR a loadMonthlySalesReport...");
         
-        // 3. LLAMADA CRÍTICA CON RETRASO
+        // 2. LLAMADA CRÍTICA CON RETRASO
         try {
             if (window.loadMonthlySalesReport) {
-                // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para romper la sincronía y liberar el hilo.
+                // 🛑 SOLUCIÓN CRÍTICA: Programar la ejecución para después de 100ms.
                 setTimeout(() => {
-                    // Este log aparecerá solo DESPUÉS de 100ms.
-                    console.log("--- LLAMADA ASÍNCRONA DE REPORTE RETRASADA EJECUTÁNDOSE ---"); 
+                    console.log("--- LLAMADA ASÍNCRONA DE REPORTE RETRASADA EJECUTÁNDOSE ---");
                     window.loadMonthlySalesReport(finalMonth, finalYear); 
                 }, 100); // 100ms de espera.
             }
         } catch (callError) {
-            // Este catch solo atraparía errores de la llamada al setTimeout, no de la función interna.
             console.error("⛔️ ERROR CRÍTICO AL PROGRAMAR LA FUNCIÓN:", callError);
         }
 
