@@ -2759,16 +2759,15 @@ async function handleSaleAbono(e) {
 // ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
-
 /**
  * Carga y renderiza el reporte de ventas para un mes y año específico.
- * Versión síncrona final para diagnóstico de DOM/Base de datos.
+ * Incluye alerta de diagnóstico para fallos críticos de DOM.
  * @param {number} selectedMonthFromEvent - Mes seleccionado (1-12).
  * @param {number} selectedYearFromEvent - Año seleccionado.
  */
 async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
-    // 🛑 DEBUG INMEDIATO
-    console.log(`>>> Ejecutando loadMonthlySalesReport (SÍNCRONO) para Mes: ${selectedMonthFromEvent}, Año: ${selectedYearFromEvent}`); 
+    // 🛑 DEBUG INMEDIATO - ESTA LÍNEA DEBE APARECER AL SELECCIONAR NOVIEMBRE
+    console.log(`>>> Ejecutando loadMonthlySalesReport (DIAGNÓSTICO FINAL) para Mes: ${selectedMonthFromEvent}, Año: ${selectedYearFromEvent}`); 
 
     if (!supabase) {
         console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
@@ -2780,17 +2779,22 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
     const totalDebtEl = document.getElementById('report-total-debt-generated');
     const noDataMessage = document.getElementById('monthly-report-no-data');
 
-    // 🛑 CHEQUEO CRÍTICO DE DOM: Si falla, este es el problema.
+    // 🛑 CHEQUEO CRÍTICO DE DOM
     if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) {
-        console.error("⛔️ FALLO DE DOM: Un elemento HTML del reporte no fue encontrado.");
-        if (!reportBody) console.error("Elemento faltante: #monthly-sales-report-body");
-        if (!totalSalesEl) console.error("Elemento faltante: #report-total-sales");
-        if (!totalDebtEl) console.error("Elemento faltante: #report-total-debt-generated");
-        if (!noDataMessage) console.error("Elemento faltante: #monthly-report-no-data");
-        return; // Salimos, el problema es el HTML.
+        let missing = [];
+        if (!reportBody) missing.push("#monthly-sales-report-body");
+        if (!totalSalesEl) missing.push("#report-total-sales");
+        if (!totalDebtEl) missing.push("#report-total-debt-generated");
+        if (!noDataMessage) missing.push("#monthly-report-no-data");
+        
+        // ¡ALERTA CRÍTICA! Esto forzará una notificación y detendrá la ejecución.
+        alert("ERROR CRÍTICO (DOM FALTANTE): El reporte falló porque falta el elemento HTML: " + missing.join(', '));
+        
+        console.error("⛔️ FALLO DE DOM: Elementos faltantes:", missing.join(', '));
+        return; // Salimos si el HTML no está listo
     }
 
-    // Mostrar mensaje de carga
+    // Mostrar mensaje de carga (ya que el DOM está listo)
     reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Cargando reporte...</td></tr>';
     totalSalesEl.textContent = '...';
     totalDebtEl.textContent = '...';
@@ -2809,12 +2813,11 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
                               ? selectedYearFromEvent 
                               : currentYearNum;
 
-        // 🛑 DEBUG FINAL ANTES DE SUPABASE: Mes/Año CORRECTOS
         console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
 
         // 2. Calcular los rangos de fecha (Inicio y Fin del mes) en UTC
         let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
-
+        
         let nextMonth = selectedMonth; 
         let nextYear = selectedYear;
 
@@ -2830,7 +2833,6 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
         const isoStartDate = startDate.toISOString();
         const isoEndDate = endDate.toISOString();
 
-        // 🛑 DEBUG FINAL ANTES DE SUPABASE: Rango de fechas CORRECTO
         console.log(`[DEBUG] RANGO FINAL AJUSTADO (UTC): GTE ${isoStartDate} | LT ${isoEndDate}`);
 
 
@@ -2851,12 +2853,11 @@ async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEv
 
         if (error) throw error;
         
-        // 4. Cálculo de Totales y Renderizado (SIN CAMBIOS)
+        // 4. Cálculo de Totales y Renderizado
         let totalSales = 0;
         let totalDebtGenerated = 0;
         reportBody.innerHTML = ''; 
 
-        // ... (Tu código para renderizar las filas y actualizar widgets) ...
         if (sales && sales.length > 0) {
             sales.forEach(sale => {
                 totalSales += sale.total_amount;
