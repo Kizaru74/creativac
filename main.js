@@ -2992,6 +2992,8 @@ function initReportSelectors() {
     yearSelect.value = currentYear;
 
     console.log(`Inicializando selectores de reporte (Mes/Año) por primera vez...`);
+    // 🛑 AGREGAR ESTE DEBUGGER PARA VER SI EL NAVEGADOR LLEGA AQUÍ
+    debugger;
 
     // 5. Definir el Manejador de Cambios (Listener)
     const handleChange = () => {
@@ -3471,6 +3473,7 @@ function switchView(viewId) {
     } else if (viewId === 'report-view') {
                 // 🛑 LÓGICA DE INICIALIZACIÓN DIFERIDA (Soluciona el problema de los años)
         if (!reportSelectorsInitialized && window.initReportSelectors) {
+            console.log("--- INTENTANDO LLAMAR A LA INICIALIZACIÓN DE SELECTORES ---");
             window.initReportSelectors();
             // ¡La función initReportSelectors internamente llama a loadMonthlySalesReport() 
             // y establece reportSelectorsInitialized = true!
