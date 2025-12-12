@@ -2930,22 +2930,29 @@ function initializeYearSelector() {
 // FUNCIÓN PRINCIPAL DE INICIALIZACIÓN Y LISTENERS (SOLUCIÓN AL PUNTO 2)
 // ====================================================================
 window.initReportSelectors = function() {
-    
-    // 1. LLENAR AMBOS SELECTORES (Carga los años)
+        // 1. LLENAR AMBOS SELECTORES (Esto ya lo hace bien)
     initializeMonthSelector(); 
     initializeYearSelector();
     
-    // 2. Establecer Listeners de cambio
+    // 2. Establecer Listeners de cambio (Añadimos un debugger para ver qué pasa)
     const monthSelector = document.getElementById('report-month-select');
     const yearSelector = document.getElementById('report-year-select');
     
     if (window.loadMonthlySalesReport) {
-        // Al cambiar CUALQUIERA, se ejecuta la función de carga
+        
+        // Función wrapper para debug y carga
+        const loadReportOnSelectChange = (e) => {
+            console.log(`Selector cambiado: ${e.target.id}. Nuevo valor: ${e.target.value}. Recargando reporte...`);
+            window.loadMonthlySalesReport(); // Llama a la función de carga
+        };
+
         if (monthSelector) {
-             monthSelector.addEventListener('change', window.loadMonthlySalesReport);
+             monthSelector.addEventListener('change', loadReportOnSelectChange);
+             console.log("✅ Listener 'change' para Mes enlazado correctamente.");
         }
         if (yearSelector) {
-             yearSelector.addEventListener('change', window.loadMonthlySalesReport);
+             yearSelector.addEventListener('change', loadReportOnSelectChange);
+             console.log("✅ Listener 'change' para Año enlazado correctamente.");
         }
     }
     
@@ -3799,8 +3806,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 };
-    
-    // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
+        // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
     // Esta función debe llamar internamente a loadMonthlySalesReport() 
     // y loadClientDebtsTable() si es necesario.
     if (window.loadDashboardData) {
