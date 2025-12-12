@@ -3797,23 +3797,34 @@ document.body.addEventListener('change', (e) => {
     // Solo actuamos si el cambio es en los selectores de reporte
     if (target.id === 'report-month-select' || target.id === 'report-year-select') {
         
-        // 1. Obtener los selectores (para leer el valor que NO cambió)
+        // 1. Obtener los selectores
         const monthSelect = document.getElementById('report-month-select');
         const yearSelect = document.getElementById('report-year-select');
         
-        // 2. Determinar los valores finales. Priorizamos el elemento que cambió (target.value).
+        // 2. Determinar los valores finales.
         let finalMonth = target.id === 'report-month-select' ? target.value : monthSelect.value;
         let finalYear = target.id === 'report-year-select' ? target.value : yearSelect.value;
 
-        // Convertir a número. Usamos || 0 como valor seguro para pasar.
         finalMonth = parseInt(finalMonth) || 0;
         finalYear = parseInt(finalYear) || 0;
 
         console.log(`[DELEGACIÓN CORRECTA] Mes: ${finalMonth}, Año: ${finalYear} pasados a la función.`);
 
-        // 3. Llamar a la función de carga pasando los valores NUMÉRICOS capturados
-        if (window.loadMonthlySalesReport) {
-            window.loadMonthlySalesReport(finalMonth, finalYear); 
+        // 🛑 NUEVO DEBUG: Verifica que la llamada a la función se intenta.
+        console.log("INTENTANDO LLAMAR a loadMonthlySalesReport...");
+        
+        // 3. Llamar a la función de carga
+        try {
+            if (window.loadMonthlySalesReport) {
+                // LLAMADA FINAL A LA FUNCIÓN
+                window.loadMonthlySalesReport(finalMonth, finalYear); 
+            }
+        } catch (callError) {
+            console.error("⛔️ ERROR CRÍTICO AL LLAMAR A LA FUNCIÓN:", callError);
+            return;
         }
+
+        // 🛑 NUEVO DEBUG: Verifica que el código del listener termina.
+        console.log("LISTENER TERMINADO.");
     }
 });
