@@ -2787,20 +2787,22 @@ async function loadMonthlySalesReport() {
         const yearSelect = document.getElementById('report-year-select');
 
         // Determinar mes y año seleccionado
-        const currentMonthNum = new Date().getMonth() + 1;
+        const currentMonthNum = new Date().getMonth() + 1; // Mes actual (1-12)
         const currentYearNum = new Date().getFullYear();
         
-        // Intentar leer el valor, si falla (es NaN), usar el valor por defecto
+        // 1. Intentar leer el valor numérico
         let selectedMonth = parseInt(monthSelect?.value);
         let selectedYear = parseInt(yearSelect?.value);
 
-        // Aseguramos que el valor sea un número válido Y mayor que cero.
-    if (isNaN(selectedMonth) || selectedMonth < 1) {
-    selectedMonth = currentMonthNum;
-    }
-    if (isNaN(selectedYear) || selectedYear < 2000) { // Asumiendo que no hay ventas antes del 2000
-    selectedYear = currentYearNum;
-    }
+        // 2. Aplicar Fallback si el valor no es un número válido o está fuera de rango
+        if (isNaN(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+            console.warn("ADVERTENCIA: Mes no válido leído, usando mes actual como respaldo.");
+            selectedMonth = currentMonthNum;
+        }
+        if (isNaN(selectedYear) || selectedYear < 2000) { 
+            console.warn("ADVERTENCIA: Año no válido leído, usando año actual como respaldo.");
+            selectedYear = currentYearNum;
+        }
 
         // 💡 DEBUG CRÍTICO: Muestra los valores reales que se usarán en la consulta
         console.log(`[DEBUG] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
@@ -2837,6 +2839,8 @@ async function loadMonthlySalesReport() {
 
         if (error) throw error;
         
+        // ... (El resto de la función para mostrar la tabla y totales) ...
+
         // 4. Cálculo de Totales
         let totalSales = 0;
         let totalDebtGenerated = 0;
@@ -2873,10 +2877,10 @@ async function loadMonthlySalesReport() {
                 `;
             });
             
-            noDataMessage.classList.add('hidden'); // Ocultar si hay datos
+            noDataMessage.classList.add('hidden'); 
 
         } else {
-            noDataMessage.classList.remove('hidden'); // Mostrar si no hay datos
+            noDataMessage.classList.remove('hidden'); 
         }
 
         // 5. Actualizar Widgets
