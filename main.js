@@ -3726,21 +3726,16 @@ document.addEventListener('click', function(e) {
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
     // -----------------------------------------------
 window.openRegisterClientModal = function() {
-    const titleElement = document.getElementById('client-modal-title');
-    if (titleElement) {
-        titleElement.textContent = 'Registrar Nuevo Cliente';
-    }
-    
-    // 🛑 ID DE FORMULARIO CORREGIDO
+    // ...
     const form = document.getElementById('new-client-form'); 
     
     form?.reset(); 
     form?.removeEventListener('submit', handleEditClient);
-    form?.addEventListener('submit', handleNewClient);
+    // ❌ QUITAR O COMENTAR ESTA LÍNEA:
+    // form?.addEventListener('submit', handleNewClient); 
     
     editingClientId = null;
     
-    // 🛑 ID DE MODAL CORREGIDO
     openModal('new-client-modal'); 
 };
     // Listener para el envío del formulario de edición de precio post-venta
