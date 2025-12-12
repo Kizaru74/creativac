@@ -3430,21 +3430,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
     
     // 🚨 MUEVE LA INICIALIZACIÓN DE SUPABASE AQUÍ
     if (window.supabase) {
-        // Asegúrate de que las variables SUPABASE_URL y SUPABASE_ANON_KEY 
-        // están definidas en la parte superior del archivo.
-        // Si ya están definidas fuera de este bloque, la siguiente línea es correcta:
-        // supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        // Si ya tenías esta lógica fuera de DOMContentLoaded:
-        // Quita la siguiente línea si ya la tienes en la parte superior.
-        // if (!supabase) supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
-        
-        // Asumiendo que las variables globales ya están inicializadas:
-        // Si tu código original en main.js ya inicializa 'supabase' fuera de este bloque, puedes comentarlo.
-        // Si no, debes añadir la inicialización aquí si es el único lugar donde lo haces.
-        // if (!supabase) { 
-        //    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        // }
     } else {
         console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
         return;
@@ -3452,9 +3437,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
     if (window.supabase) {
         // Si 'supabase' no está definido globalmente (fuera de DOMContentLoaded)
         if (!supabase) {
-             // ASUMO que SUPABASE_URL y SUPABASE_ANON_KEY están accesibles
-             // Esto es una redundancia si ya lo hiciste arriba, revisa tu main.js
-             // supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         }
     } else {
         console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
@@ -3591,8 +3573,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// NOTA: Asegúrate de que tu función handleViewSaleDetails ya esté la última versión completa que te proporcioné.
-
     // -----------------------------------------------
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
     // -----------------------------------------------
@@ -3669,12 +3649,8 @@ document.addEventListener('click', function(e) {
     document.getElementById('subproduct-select')?.addEventListener('change', (e) => {
         updatePriceField(e.target.value); 
     });
-
-
-    // ====================================================================
+    
     // ✅ DELEGACIÓN DE EVENTOS PRODUCTOS
-    // ====================================================================
-
     // Adjuntamos el listener al <tbody>, que es estático
     document.getElementById('products-table-body')?.addEventListener('click', (e) => {
         if (!e.target.hasAttribute('data-product-id')) return;
@@ -3801,6 +3777,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+});
 
 document.body.addEventListener('change', (e) => {
     const target = e.target;
