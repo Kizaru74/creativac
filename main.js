@@ -2782,17 +2782,27 @@ async function loadMonthlySalesReport() {
     noDataMessage.classList.add('hidden');
     
     try {
-        // 🛑 LECTURA DE SELECTORES (AJUSTE CRÍTICO POR IDS SEPARADOS)
+        // 🛑 LECTURA DE SELECTORES (Implementación robusta)
         const monthSelect = document.getElementById('report-month-select');
         const yearSelect = document.getElementById('report-year-select');
 
-        // Determinar mes y año seleccionado (o usar el actual si no están inicializados)
-        // Usamos Date().getMonth() + 1 porque el valor del selector (1-12) lo espera
+        // Determinar mes y año seleccionado
         const currentMonthNum = new Date().getMonth() + 1;
         const currentYearNum = new Date().getFullYear();
         
-        const selectedMonth = parseInt(monthSelect?.value) || currentMonthNum;
-        const selectedYear = parseInt(yearSelect?.value) || currentYearNum;
+        // Intentar leer el valor, si falla (es NaN), usar el valor por defecto
+        let selectedMonth = parseInt(monthSelect?.value);
+        let selectedYear = parseInt(yearSelect?.value);
+
+        if (isNaN(selectedMonth)) {
+            selectedMonth = currentMonthNum;
+        }
+        if (isNaN(selectedYear)) {
+            selectedYear = currentYearNum;
+        }
+
+        // 💡 DEBUG CRÍTICO: Muestra los valores reales que se usarán en la consulta
+        console.log(`[DEBUG] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
 
         // 2. Calcular los rangos de fecha (Inicio y Fin del mes)
         // El mes en Date es 0-indexado, por eso usamos selectedMonth - 1
@@ -2804,6 +2814,10 @@ async function loadMonthlySalesReport() {
 
         const isoStartDate = startDate.toISOString();
         const isoEndDate = endDate.toISOString();
+
+        // 💡 DEBUG ADICIONAL: Muestra los rangos exactos de la consulta
+        console.log(`[DEBUG] Rangos de Fecha: Inicio ${isoStartDate} | Fin ${isoEndDate}`);
+
 
         // 3. Consulta a Supabase
         const { data: sales, error } = await supabase
