@@ -3791,20 +3791,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Listener actual (Bloque 'change' para selectores de reporte)
 document.body.addEventListener('change', (e) => {
     const target = e.target;
     
     // Solo actuamos si el cambio es en los selectores de reporte
     if (target.id === 'report-month-select' || target.id === 'report-year-select') {
         
-        // 1. Obtener los selectores y valores (SIN CAMBIOS)
+        // 1. Obtener los selectores (para leer el valor que NO cambió)
         const monthSelect = document.getElementById('report-month-select');
         const yearSelect = document.getElementById('report-year-select');
         
+        // 2. Determinar los valores finales.
         let finalMonth = target.id === 'report-month-select' ? target.value : monthSelect.value;
         let finalYear = target.id === 'report-year-select' ? target.value : yearSelect.value;
 
+        // Convertir a número.
         finalMonth = parseInt(finalMonth) || 0;
         finalYear = parseInt(finalYear) || 0;
 
@@ -3814,7 +3815,7 @@ document.body.addEventListener('change', (e) => {
         // 3. LLAMADA FINAL Y DEFINITIVA CON RETRASO
         try {
             if (window.loadMonthlySalesReport) {
-                // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para que el navegador libere el hilo.
+                // 🛑 SOLUCIÓN CRÍTICA: Usamos setTimeout para romper la sincronía y liberar el hilo.
                 setTimeout(() => {
                     console.log("LLAMADA ASÍNCRONA RETRASADA EJECUTÁNDOSE...");
                     window.loadMonthlySalesReport(finalMonth, finalYear); 
