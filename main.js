@@ -1174,7 +1174,7 @@ async function handleNewSale(e) {
     // --- 1. CAPTURAR Y VALIDAR DATOS INICIALES ---
     const client_id = document.getElementById('client-select')?.value ?? null;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
-    const sale_description = document.getElementById('sale-description')?.value.trim() ?? null;
+    const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
     
     // Aseguramos que paid_amount_str sea numérico
     const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
