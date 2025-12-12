@@ -2517,14 +2517,28 @@ async function confirmDeleteClient() {
 async function handleNewClient(e) {
     e.preventDefault();
     
-    // 🛑 CRÍTICO: USAR LOS IDs DE INPUT CORRECTOS
+    // 🛑 LOG 1: VERIFICAR SI LA FUNCIÓN FUE LLAMADA
+    console.log('1. FUNCIÓN DE REGISTRO INICIADA.'); 
+    
     const name = document.getElementById('new-client-name')?.value.trim();
     const phone = document.getElementById('new-client-phone')?.value.trim() || null;
     
+    // 🛑 LOG 2: VERIFICAR LA CAPTURA DE DATOS Y LA DISPONIBILIDAD DE SUPABASE
+    console.log(`2. Datos capturados: Nombre='${name}', Teléfono='${phone}'.`);
+    if (typeof supabase === 'undefined') {
+        console.error('ERROR CRÍTICO: La variable "supabase" no está definida o accesible globalmente.');
+        alert('Error: La conexión a la base de datos no está disponible.');
+        return;
+    }
+    
     if (!name || name.length < 3) {
+        console.warn('Registro cancelado: Nombre inválido.');
         alert('Por favor, ingresa un nombre válido para el cliente.');
         return;
     }
+
+    // 🛑 LOG 3: INTENTO DE INSERCIÓN
+    console.log('3. Intentando insertar en Supabase...');
 
     const { error } = await supabase
         .from('clientes')
@@ -2534,22 +2548,22 @@ async function handleNewClient(e) {
             is_active: true 
         }]);
 
+    // 🛑 LOG 4: RESULTADO DE SUPABASE
     if (error) {
-        console.error('Error al registrar cliente:', error);
+        console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
         alert('Error al registrar cliente: ' + error.message);
     } else {
+        console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
         alert('Cliente registrado exitosamente.');
         
-        // 🛑 ID DE FORMULARIO CORREGIDO para resetear
-        const clientForm = document.getElementById('new-client-form');
-        if (clientForm) {
-            clientForm.reset();
-        }
+        await loadClientsTable('gestion'); // O la función que recarga su tabla
         
-        // 🛑 ID DE MODAL CORREGIDO para cerrar
+        // Cierre y Limpieza
+        const clientForm = document.getElementById('new-client-form');
+        clientForm?.reset(); 
         closeModal('new-client-modal');
         
-        await loadClientsTable('gestion'); 
+        console.log('5. Tarea completada y modal cerrado.');
     }
 }
 window.handleNewClient = handleNewClient;
