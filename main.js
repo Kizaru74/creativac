@@ -2794,12 +2794,13 @@ async function loadMonthlySalesReport() {
         let selectedMonth = parseInt(monthSelect?.value);
         let selectedYear = parseInt(yearSelect?.value);
 
-        if (isNaN(selectedMonth)) {
-            selectedMonth = currentMonthNum;
-        }
-        if (isNaN(selectedYear)) {
-            selectedYear = currentYearNum;
-        }
+        // Aseguramos que el valor sea un número válido Y mayor que cero.
+    if (isNaN(selectedMonth) || selectedMonth < 1) {
+    selectedMonth = currentMonthNum;
+    }
+    if (isNaN(selectedYear) || selectedYear < 2000) { // Asumiendo que no hay ventas antes del 2000
+    selectedYear = currentYearNum;
+    }
 
         // 💡 DEBUG CRÍTICO: Muestra los valores reales que se usarán en la consulta
         console.log(`[DEBUG] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
