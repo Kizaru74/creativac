@@ -1838,20 +1838,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.loadClientDebtsTable = async function() {
-    if (!supabase || !window.allClientsMap) return;
+async function loadClientDebtsTable() {
+    // Si 'window.allClientsMap' no está disponible, quizás necesite cargarse primero
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
 
     const tbody = document.getElementById('debts-table-body');
     const noDebtsMessage = document.getElementById('no-debts-message');
     
-    if (!tbody || !noDebtsMessage) return; // Asegura que los elementos existen
+    if (!tbody || !noDebtsMessage) return; 
 
     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Cargando deudas...</td></tr>';
     noDebtsMessage.classList.add('hidden');
 
     try {
-        // 1. Consultar todas las ventas con saldo pendiente > 0.01
-        // Se utiliza la vista de 'ventas' y se agrupará la información
+        // 1. Consultar ventas con saldo pendiente > 0.01 (Orden descendente por fecha, MÁS RECIENTE PRIMERO)
         const { data: sales, error } = await supabase
             .from('ventas')
             .select(`
@@ -1861,7 +1864,7 @@ window.loadClientDebtsTable = async function() {
                 saldo_pendiente,
                 clientes(name) 
             `)
-            .gt('saldo_pendiente', 0.01) // Solo deudas activas
+            .gt('saldo_pendiente', 0.01) 
             .order('created_at', { ascending: false }); // Ordenado por la más reciente
 
         if (error) throw error;
@@ -1872,24 +1875,26 @@ window.loadClientDebtsTable = async function() {
         (sales || []).forEach(sale => {
             const clientId = sale.client_id;
             
+            // Si es la PRIMERA vez que encontramos a este cliente (que será la venta más reciente)
             if (!clientDebts[clientId]) {
                 clientDebts[clientId] = {
                     clientId: clientId,
                     name: sale.clientes?.name || 'Cliente Desconocido',
                     totalDebt: 0,
-                    lastSaleDate: sale.created_at, // Al estar ordenado por fecha descendente, el primero es el más reciente
-                    lastSaleId: sale.venta_id
+                    // Estos se establecen con la venta más reciente
+                    lastSaleDate: sale.created_at, 
+                    lastSaleId: sale.venta_id 
                 };
             }
             
-            // Sumar el saldo pendiente de esa venta a la deuda total del cliente
+            // 🚀 ACUMULACIÓN: Sumar el saldo pendiente de esa venta a la deuda total del cliente
             clientDebts[clientId].totalDebt += sale.saldo_pendiente;
         });
 
         const debtList = Object.values(clientDebts);
 
         // 3. Renderizar la tabla
-        tbody.innerHTML = ''; // Limpiar el mensaje de carga
+        tbody.innerHTML = ''; 
 
         if (debtList.length === 0) {
             noDebtsMessage.classList.remove('hidden');
@@ -1899,20 +1904,21 @@ window.loadClientDebtsTable = async function() {
         debtList.forEach(debt => {
             const row = tbody.insertRow();
             row.className = 'hover:bg-gray-50';
+            
+            // Formatear la fecha usando la función existente
+            const formattedDate = formatDate(debt.lastSaleDate); 
 
-            // Usamos un botón que llame a una función para ver el detalle de TODAS las deudas
-            // del cliente (handleViewClientDebts) o el detalle de la ÚLTIMA venta (handleViewSaleDetails)
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(debt.lastSaleDate)} (Venta #${debt.lastSaleId})</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${debt.lastSaleId})</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                     <button 
                         onclick="handleViewSaleDetails(${debt.lastSaleId}, ${debt.clientId})" 
                         class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
-                        title="Detalle"
+                        title="Ver Detalle de Venta #${debt.lastSaleId}"
                     >
-                        Ver Última Venta
+                        Ver Venta (${debt.lastSaleId})
                     </button>
                     </td>
             `;
