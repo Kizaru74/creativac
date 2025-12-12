@@ -2759,7 +2759,7 @@ async function handleSaleAbono(e) {
 // ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
-async function loadMonthlySalesReport() {
+async function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
     if (!supabase) {
         console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
         return;
@@ -2782,45 +2782,31 @@ async function loadMonthlySalesReport() {
     noDataMessage.classList.add('hidden');
     
     try {
-        // 🛑 LECTURA DE SELECTORES (Implementación robusta)
-        const monthSelect = document.getElementById('report-month-select');
-        const yearSelect = document.getElementById('report-year-select');
-
-        // Determinar mes y año seleccionado
+        // 🛑 LECTURA CRÍTICA: Prioriza los valores pasados por el evento.
         const currentMonthNum = new Date().getMonth() + 1; // Mes actual (1-12)
         const currentYearNum = new Date().getFullYear();
         
-        // 1. Intentar leer el valor numérico
-        let selectedMonth = parseInt(monthSelect?.value);
-        let selectedYear = parseInt(yearSelect?.value);
+        // 1. Asignación con Fallback:
+        // Si el evento no pasó un valor válido, usamos los valores por defecto del calendario.
+        // Si el valor es 0 o NaN, usamos el valor actual (currentMonthNum).
+        let selectedMonth = parseInt(selectedMonthFromEvent) || currentMonthNum;
+        let selectedYear = parseInt(selectedYearFromEvent) || currentYearNum;
 
-        // 2. Aplicar Fallback si el valor no es un número válido o está fuera de rango
-        if (isNaN(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
-            console.warn("ADVERTENCIA: Mes no válido leído, usando mes actual como respaldo.");
-            selectedMonth = currentMonthNum;
-        }
-        if (isNaN(selectedYear) || selectedYear < 2000) { 
-            console.warn("ADVERTENCIA: Año no válido leído, usando año actual como respaldo.");
-            selectedYear = currentYearNum;
-        }
-
-        // 💡 DEBUG CRÍTICO: Muestra los valores reales que se usarán en la consulta
-        console.log(`[DEBUG] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
+        // DEBUG FINAL: Muestra los valores usados
+        console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
 
         // 2. Calcular los rangos de fecha (Inicio y Fin del mes)
         // El mes en Date es 0-indexado, por eso usamos selectedMonth - 1
         let startDate = new Date(selectedYear, selectedMonth - 1, 1);
         let endDate = new Date(selectedYear, selectedMonth, 0); // Esto obtiene el último día del mes
         
-        // Asegurar que la hora cubra todo el último día
+        // Asegurar que la hora cubra todo el último día para la comparación timestamptz
         endDate.setHours(23, 59, 59, 999);
 
         const isoStartDate = startDate.toISOString();
         const isoEndDate = endDate.toISOString();
 
-        // 💡 DEBUG ADICIONAL: Muestra los rangos exactos de la consulta
         console.log(`[DEBUG] Rangos de Fecha: Inicio ${isoStartDate} | Fin ${isoEndDate}`);
-
 
         // 3. Consulta a Supabase
         const { data: sales, error } = await supabase
@@ -2839,8 +2825,6 @@ async function loadMonthlySalesReport() {
 
         if (error) throw error;
         
-        // ... (El resto de la función para mostrar la tabla y totales) ...
-
         // 4. Cálculo de Totales
         let totalSales = 0;
         let totalDebtGenerated = 0;
@@ -2877,10 +2861,10 @@ async function loadMonthlySalesReport() {
                 `;
             });
             
-            noDataMessage.classList.add('hidden'); 
+            noDataMessage.classList.add('hidden'); // Ocultar si hay datos
 
         } else {
-            noDataMessage.classList.remove('hidden'); 
+            noDataMessage.classList.remove('hidden'); // Mostrar si no hay datos
         }
 
         // 5. Actualizar Widgets
@@ -3813,20 +3797,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 🛑 NUEVO: DELEGACIÓN DE EVENTOS PARA SELECTORES DE REPORTE (SOLUCIÓN AL NO CAMBIO)
-    document.body.addEventListener('change', (e) => {
-        const targetId = e.target.id;
+document.body.addEventListener('change', (e) => {
+    const targetId = e.target.id;
+    
+    if (targetId === 'report-month-select' || targetId === 'report-year-select') {
         
-        // Verifica si el cambio ocurrió en el selector de mes o de año
-        if (targetId === 'report-month-select' || targetId === 'report-year-select') {
-            console.log(`Delegación: Selector ${targetId} cambiado. Recargando reporte...`);
-            
-            // Llama a la función de carga
-            if (window.loadMonthlySalesReport) {
-                window.loadMonthlySalesReport();
-            }
-        }
-    });
+        const monthSelect = document.getElementById('report-month-select');
+        const yearSelect = document.getElementById('report-year-select');
+        
+        // Capturar los valores numéricos AHORA (antes de cualquier re-render)
+        const selectedMonth = parseInt(monthSelect?.value);
+        const selectedYear = parseInt(yearSelect?.value);
 
+        // Llamamos a la función con los valores capturados
+        if (window.loadMonthlySalesReport) {
+            window.loadMonthlySalesReport(selectedMonth, selectedYear); 
+        }
+    }
+});
     console.log("Inicialización de la aplicación completada.");
 });
