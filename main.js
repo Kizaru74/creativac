@@ -2988,23 +2988,18 @@ function initReportSelectors() {
 
     console.log(`Inicializando selectores de reporte (Mes/Año) por primera vez...`);
 
-    // 5. Definir el Manejador de Cambios (Listener)
     const handleChange = () => {
         const selectedMonth = parseInt(monthSelect.value) || currentMonth;
         const selectedYear = parseInt(yearSelect.value) || currentYear;
 
-        console.log(`[INIT SELECTORS] Llamada directa para Mes: ${selectedMonth}, Año: ${selectedYear}`);
+        console.log(`[INIT SELECTORS] Llamada directa (SÍNCRONA) para Mes: ${selectedMonth}, Año: ${selectedYear}`);
 
-        // 🛑 CORRECCIÓN DE ÁMBITO: Llamada directa, sin 'window.'
-        setTimeout(() => {
-            console.log("--- ¡LLAMADA DIRECTA RETRASADA EJECUTÁNDOSE! ---");
-            if (typeof loadMonthlySalesReport === 'function') {
-                // 🚀 ESTO ES LO QUE ARREGLA EL TypeError
-                loadMonthlySalesReport(selectedMonth, selectedYear); 
-            } else {
-                console.error("ERROR: loadMonthlySalesReport no es una función accesible.");
-            }
-        }, 100); 
+        // 🛑 SOLUCIÓN SÍNCRONA: Eliminamos el setTimeout
+        if (typeof loadMonthlySalesReport === 'function') {
+            loadMonthlySalesReport(selectedMonth, selectedYear); 
+        } else {
+            console.error("ERROR: loadMonthlySalesReport no es una función accesible.");
+        }
     };
     
     // 6. Adjuntar Listeners directamente
