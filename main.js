@@ -3567,7 +3567,7 @@ function switchView(viewId) {
     // 4. CRÍTICO: Cargar los datos específicos de la vista al cambiar
 
     if (viewId === 'home-view') {
-        
+        console.log("Cambiando a vista de Inicio. No se requiere carga de datos.");
     } else if (viewId === 'deudas-view') {
         loadDashboardData();   
     } else if (viewId === 'clients-view') {
