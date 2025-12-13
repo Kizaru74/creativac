@@ -2515,7 +2515,9 @@ async function confirmDeleteClient() {
 }
 
 window.handleNewClient = async function(e) {
-    // Es CRÍTICO que e.preventDefault() esté DESCOMENTADO aquí
+    // 🛑 CRÍTICO: Detiene el envío nativo del formulario.
+    // Esta línea funcionará correctamente porque ahora la función será llamada
+    // por un listener de JS nativo (form.addEventListener('submit', ...))
     e.preventDefault(); 
     
     // 🛑 LOG 1: VERIFICAR SI LA FUNCIÓN FUE LLAMADA
@@ -2526,6 +2528,7 @@ window.handleNewClient = async function(e) {
     
     // 🛑 LOG 2: VERIFICAR LA CAPTURA DE DATOS Y LA DISPONIBILIDAD DE SUPABASE
     console.log(`2. Datos capturados: Nombre='${name}', Teléfono='${phone}'.`);
+    
     if (typeof supabase === 'undefined' || !supabase) { 
         console.error('ERROR CRÍTICO: La variable "supabase" no está definida o accesible globalmente.');
         alert('Error: La conexión a la base de datos no está disponible.');
@@ -2535,50 +2538,57 @@ window.handleNewClient = async function(e) {
     if (!name || name.length < 3) {
         console.warn('Registro cancelado: Nombre inválido.');
         alert('Por favor, ingresa un nombre válido para el cliente.');
+        
+        // Opcional: enfocar el campo para mejor UX
+        document.getElementById('new-client-name')?.focus(); 
+        
         return;
     }
 
     // 🛑 LOG 3: INTENTO DE INSERCIÓN
     console.log('3. Intentando insertar en Supabase...');
 
-    const { error } = await supabase
-        .from('clientes')
-        .insert([{ 
-            name: name, 
-            telefono: phone, 
-            is_active: true 
-        }]);
+    // Usamos un bloque try/catch para manejar errores de red o Supabase
+    try {
+        const { error } = await supabase
+            .from('clientes')
+            .insert([{ 
+                name: name, 
+                telefono: phone, 
+                is_active: true 
+            }]);
 
-    // 🛑 LOG 4: RESULTADO DE SUPABASE
-    if (error) {
-        console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
-        alert('Error al registrar cliente: ' + error.message);
-    } else {
-        console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
-        alert('Cliente registrado exitosamente.');
-        
-        // La función de recarga de tabla debe estar definida globalmente también
-        if (typeof loadClientsTable === 'function') {
-            await loadClientsTable('gestion'); 
-        }
-
-        // Cierre y Limpieza
-        const clientForm = document.getElementById('new-client-form');
-    if (clientForm) {
-        // Asociar el evento 'submit' a la función global.
-        // Usamos window.handleNewClient para ser explícitos.
-        clientForm.addEventListener('submit', window.handleNewClient);
-        console.log("--- LISTENER DE NUEVO CLIENTE ASOCIADO CORRECTAMENTE ---");
-    }
-        
-        // ¡IMPORTANTE! Verifique que la función closeModal es global
-        if (typeof closeModal === 'function') {
-             closeModal('new-client-modal');
+        // 🛑 LOG 4: RESULTADO DE SUPABASE
+        if (error) {
+            console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
+            alert('Error al registrar cliente: ' + error.message);
         } else {
-            console.error("closeModal no está definida globalmente.");
+            console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
+            alert('Cliente registrado exitosamente.');
+            
+            // --- Cierre y Limpieza ---
+            
+            // 1. Recargar la tabla de clientes
+            if (typeof loadClientsTable === 'function') {
+                await loadClientsTable('gestion'); 
+            }
+
+            // 2. Limpiar el formulario
+            const clientForm = document.getElementById('new-client-form');
+            clientForm?.reset(); 
+            
+            // 3. Cerrar el modal
+            if (typeof closeModal === 'function') {
+                closeModal('new-client-modal');
+            } else {
+                console.error("closeModal no está definida globalmente.");
+            }
+            
+            console.log('5. Tarea completada y modal cerrado.');
         }
-        
-        console.log('5. Tarea completada y modal cerrado.');
+    } catch (e) {
+        console.error('5. ERROR DE RED o EXCEPCIÓN AL REGISTRAR:', e);
+        alert('Error desconocido al registrar cliente. Verifique la conexión a Supabase.');
     }
 }
 
@@ -3628,19 +3638,17 @@ document.querySelectorAll('[data-view]').forEach(link => {
 
     // --------------------------------------------------
     // 2. LISTENERS ESPECÍFICOS DE EVENTOS
-    // --------------------------------------------------
-
+   
+    //Guardar cliente
     const newClientForm = document.getElementById('new-client-form');
     
     if (newClientForm) {
-        console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
-        // Asocia la función de registro al evento submit del formulario.
-        // Esto garantiza que la conexión se haga una sola vez al inicio.
-        newClientForm.addEventListener('submit', handleNewClient); 
+    console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
+    // Asocia la función de registro al evento submit del formulario.
+    newClientForm.addEventListener('submit', handleNewClient); // <--- Aquí la corrección
     } else {
-        console.error('ERROR: No se encontró el formulario con ID "new-client-form".');
+    console.error('ERROR: No se encontró el formulario con ID "new-client-form".');
     }
-    
     // Listener para el botón de abrir el modal de nueva venta
     document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => { 
         try {
