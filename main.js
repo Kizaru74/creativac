@@ -2564,7 +2564,12 @@ window.handleNewClient = async function(e) {
 
         // Cierre y Limpieza
         const clientForm = document.getElementById('new-client-form');
-        clientForm?.reset(); 
+    if (clientForm) {
+        // Asociar el evento 'submit' a la función global.
+        // Usamos window.handleNewClient para ser explícitos.
+        clientForm.addEventListener('submit', window.handleNewClient);
+        console.log("--- LISTENER DE NUEVO CLIENTE ASOCIADO CORRECTAMENTE ---");
+    }
         
         // ¡IMPORTANTE! Verifique que la función closeModal es global
         if (typeof closeModal === 'function') {
