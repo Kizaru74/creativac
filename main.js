@@ -3567,7 +3567,9 @@ function switchView(viewId) {
     // 4. CRÍTICO: Cargar los datos específicos de la vista al cambiar
 
     if (viewId === 'home-view') {
-        loadDashboardData(); 
+        
+    } else if (viewId === 'deudas-view') {
+        loadDashboardData();   
     } else if (viewId === 'clients-view') {
         loadClientsTable('gestion');
     } else if (viewId === 'products-view') {
