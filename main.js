@@ -2566,7 +2566,6 @@ async function handleNewClient(e) {
         console.log('5. Tarea completada y modal cerrado.');
     }
 }window.handleNewClient = handleNewClient;
-window.openRegisterClientModal = function() {
 
 function handleEditClientClick(clientId) {
     if (!supabase) {
