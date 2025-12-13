@@ -3616,6 +3616,17 @@ document.querySelectorAll('[data-view]').forEach(link => {
     // 2. LISTENERS ESPECÍFICOS DE EVENTOS
     // --------------------------------------------------
 
+    const newClientForm = document.getElementById('new-client-form');
+    
+    if (newClientForm) {
+        console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
+        // Asocia la función de registro al evento submit del formulario.
+        // Esto garantiza que la conexión se haga una sola vez al inicio.
+        newClientForm.addEventListener('submit', handleNewClient); 
+    } else {
+        console.error('ERROR: No se encontró el formulario con ID "new-client-form".');
+    }
+    
     // Listener para el botón de abrir el modal de nueva venta
     document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => { 
         try {
@@ -3726,16 +3737,21 @@ document.addEventListener('click', function(e) {
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
     // -----------------------------------------------
 window.openRegisterClientModal = function() {
-    // ...
+    const titleElement = document.getElementById('client-modal-title');
+    if (titleElement) {
+        titleElement.textContent = 'Registrar Nuevo Cliente';
+    }
+    
     const form = document.getElementById('new-client-form'); 
     
-    form?.reset(); 
-    form?.removeEventListener('submit', handleEditClient);
-    // ❌ QUITAR O COMENTAR ESTA LÍNEA:
-    // form?.addEventListener('submit', handleNewClient); 
+    form?.reset(); // Limpia los campos del formulario
+    form?.removeEventListener('submit', handleEditClient); // Asegura que no tenga el listener de edición
+    
+    // 🛑 BORRE O COMENTE: form?.addEventListener('submit', handleNewClient);
     
     editingClientId = null;
     
+    // 🛑 Asegúrese que el ID del modal sea el correcto:
     openModal('new-client-modal'); 
 };
     // Listener para el envío del formulario de edición de precio post-venta
