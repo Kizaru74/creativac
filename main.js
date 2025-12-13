@@ -3736,37 +3736,12 @@ document.addEventListener('click', function(e) {
     // -----------------------------------------------
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
     // -----------------------------------------------
-window.openRegisterClientModal = function() {
-    const titleElement = document.getElementById('client-modal-title');
-    if (titleElement) {
-        titleElement.textContent = 'Registrar Nuevo Cliente';
+document.addEventListener('DOMContentLoaded', () => {
+    const newClientForm = document.getElementById('new-client-form');
+    if (newClientForm) {
+        newClientForm.addEventListener('submit', handleNewClient); // ✅ SOLO AQUÍ
     }
-    
-    const form = document.getElementById('new-client-form'); 
-    
-    form?.reset(); // Limpia los campos del formulario
-    form?.removeEventListener('submit', handleEditClient); // Asegura que no tenga el listener de edición
-    
-    // 🛑 BORRE O COMENTE: form?.addEventListener('submit', handleNewClient);
-    
-    editingClientId = null;
-    
-    // 🛑 Asegúrese que el ID del modal sea el correcto:
-    openModal('new-client-modal'); 
-};
-    // Listener para el envío del formulario de edición de precio post-venta
-    document.getElementById('post-sale-price-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const ventaId = document.getElementById('edit-venta-id').value;
-        const detalleVentaId = document.getElementById('edit-detalle-venta-id').value;
-        const clientId = document.getElementById('edit-client-id').value;
-        const newPrice = parseFloat(document.getElementById('new-unit-price').value);
-
-        await handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newPrice);
-        
-        closeModal('modal-edit-sale-item');
-    });
-
+});
     // ------------------------------------
     // --- LISTENERS DE MODAL PRODUCTOS ---
     // ------------------------------------
