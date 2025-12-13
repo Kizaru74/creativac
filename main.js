@@ -3642,13 +3642,12 @@ document.querySelectorAll('[data-view]').forEach(link => {
     //Guardar cliente
     const newClientForm = document.getElementById('new-client-form');
     
-    if (newClientForm) {
+if (newClientForm) {
     console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
-    // Asocia la función de registro al evento submit del formulario.
-    newClientForm.addEventListener('submit', handleNewClient); // <--- Aquí la corrección
-    } else {
-    console.error('ERROR: No se encontró el formulario con ID "new-client-form".');
-    }
+    // CÁMBIELO AQUÍ:
+    newClientForm.addEventListener('submit', window.handleNewClient); // <-- AÑADA 'window.'
+}
+
     // Listener para el botón de abrir el modal de nueva venta
     document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => { 
         try {
