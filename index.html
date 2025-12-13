@@ -45,7 +45,11 @@
             <nav class="flex-grow p-4 space-y-2">
                 <a href="#" data-view="home-view" class="menu-item flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 font-semibold active-menu-item">
                     <i class="fas fa-home w-6"></i>
-                    <span class="ml-3">Inicio (Deudas)</span>
+                    <span class="ml-3">Inicio</span>
+                </a>
+                <a href="#" data-view="deudas-view" class="menu-item flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 font-semibold active-menu-item">
+                    <i class="fas fa-home w-6"></i>
+                    <span class="ml-3">Deudas</span>
                 </a>
                 <a href="#" data-view="products-view" class="menu-item flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 font-semibold">
                     <i class="fas fa-box-open w-6"></i>
@@ -84,8 +88,11 @@
     </aside>
 
         <main class="flex-grow ml-64 p-8">
+                        <section id="home-view" class="deudas-view">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Inicio</h2>
+            </section>
             
-            <section id="home-view" class="dashboard-view">
+            <section id="Deudas" class="deudas-view">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">Inicio / Deudas Pendientes</h2>
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <div class="overflow-x-auto">
