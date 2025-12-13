@@ -2047,7 +2047,8 @@ async function handlePriceEditSubmit(e) {
     }
 }
 
-async function loadClientsTable(mode = 'gestion') {
+window.loadClientsTable = async function(mode = 'gestion') {
+
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
@@ -2569,9 +2570,12 @@ window.handleNewClient = async function(e) {
             // --- Cierre y Limpieza ---
             
             // 1. Recargar la tabla de clientes
-            if (typeof loadClientsTable === 'function') {
-                await loadClientsTable('gestion'); 
-            }
+            if (typeof window.loadClientsTable === 'function') { // Verificar en window
+             await window.loadClientsTable('gestion');        // Llamar desde window
+             console.log("5. Tabla de clientes recargada exitosamente.");
+            }    else {
+            console.error("ERROR: window.loadClientsTable no está definida para la recarga.");
+}
 
             // 2. Limpiar el formulario
             const clientForm = document.getElementById('new-client-form');
