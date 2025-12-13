@@ -1771,7 +1771,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
     }
 }
 
-async function handleAbonoClientSubmit(e) {
+window.handleAbonoClientSubmit = async function(e) {
     e.preventDefault();
 
     if (!supabase) {
@@ -1784,10 +1784,20 @@ async function handleAbonoClientSubmit(e) {
     // Asumiendo que 'debt-to-pay-id' contiene el ID de la venta (venta_id)
     const ventaId = form.elements['debt-to-pay-id'].value; 
     const abonoAmount = parseFloat(form.elements['abono-amount'].value);
-    const paymentMethod = form.elements['payment-method-abono'].value;
+    
+    // 💡 CORRECCIÓN: Capturar y limpiar el método de pago
+    const paymentMethod = form.elements['payment-method-abono'].value.trim();
 
     if (isNaN(abonoAmount) || abonoAmount <= 0) {
         alert("Ingrese un monto de abono válido y mayor a cero.");
+        return;
+    }
+
+    // 🛑 VALIDACIÓN AGREGADA
+    if (!paymentMethod || paymentMethod === '') {
+        alert("¡Debe seleccionar un método de pago!");
+        // Opcional: enfocar el campo para mejor UX
+        document.getElementById('payment-method-abono')?.focus();
         return;
     }
 
@@ -1814,14 +1824,15 @@ async function handleAbonoClientSubmit(e) {
         const clientId = sale.client_id;
 
         // 3. Registrar el pago/abono en la tabla 'pagos'
+        // NOTA: 'type' debe existir en Supabase (ya lo confirmamos)
         const { error: paymentError } = await supabase
             .from('pagos')
             .insert([{
                 venta_id: ventaId,
-                client_id: clientId, // Importante para seguimiento
+                client_id: clientId, 
                 amount: abonoAmount,
-                metodo_pago: paymentMethod,
-                type: 'abono' // Para diferenciarlo de pagos iniciales si es necesario
+                metodo_pago: paymentMethod, // Usa el valor validado
+                type: 'abono' 
             }]);
 
         if (paymentError) throw new Error("Error al registrar el pago: " + paymentError.message);
