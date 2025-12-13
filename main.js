@@ -582,7 +582,7 @@ function updatePaymentDebtStatus(grandTotal) {
         
         // 🛑 CRÍTICO: Limpiamos la cadena antes de parsearla
         const cleanedTotalStr = cleanCurrencyString(totalInput?.value); 
-        currentGrandTotal = parseFloat(cleanedTotalStr) || 0;
+        let currentPaidAmount = parseFloat(paidAmountStr);
     }
     
     // Campos HTML
