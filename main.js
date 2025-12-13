@@ -1455,7 +1455,9 @@ window.handleViewClientDebt = async function(clientId) {
         
         document.getElementById('client-report-name').textContent = client.name;
         const historyBody = document.getElementById('client-transactions-body'); 
-        historyBody.innerHTML = '';
+        
+        // 🛑 Inicializar el array de acumulación de HTML (Optimización de Rendimiento)
+        let historyHTML = []; 
         
         let currentRunningBalance = 0; 
         
@@ -1470,17 +1472,17 @@ window.handleViewClientDebt = async function(clientId) {
             let amountClass = '';
             
             // Determinar si es un CARGO (Venta) o un ABONO (Pago)
+            // 💡 MEJORA: Usar else if para claridad en el tipo de abono
             if (transaction.type === 'cargo_venta') {
                 // Es un cargo (Aumenta la deuda, se muestra positivo)
                 currentRunningBalance += amountValue;
                 
-                // Usamos product_name (campo de la vista SQL)
                 const productName = transaction.product_name; 
                 transactionDescription = `Venta: ${productName || 'Producto/Servicio'}`;
                 
                 amountDisplay = formatCurrency(amountValue); 
                 amountClass = 'text-red-600 font-bold';
-            } else {
+            } else if (transaction.type === 'abono') { // 💡 CLARIDAD: Aseguramos que solo el tipo 'abono' reste
                 // Es un abono (Disminuye la deuda/aumenta el crédito)
                 currentRunningBalance -= amountValue;
                 
@@ -1496,10 +1498,14 @@ window.handleViewClientDebt = async function(clientId) {
                 } else {
                     transactionDescription = `Abono a Deuda${metodoPago}`;
                 }
+            } else {
+                 // Manejar tipos de transacciones no reconocidos/futuros
+                 console.warn(`Tipo de transacción no reconocido: ${transaction.type}. Se ignorará en el cálculo del saldo.`);
+                 return; // Ignorar esta transacción en el renderizado
             }
 
             // 🚨 MENSAJE DE DEBUG POR TRANSACCIÓN (MUESTRA EL FLUJO DEL SALDO)
-            console.log(`  [${transaction.type} ${transaction.id}] Monto: ${amountValue} | Saldo Acumulado: ${currentRunningBalance.toFixed(2)}`);
+            console.log(`  [${transaction.type} ${transaction.id}] Monto: ${amountValue} | Saldo Acumulado: ${currentRunningBalance.toFixed(2)}`);
 
             // =========================================================
             // LÓGICA DEL SALDO ACUMULADO (USANDO CONVENCIÓN ESTÁNDAR)
@@ -1524,16 +1530,19 @@ window.handleViewClientDebt = async function(clientId) {
                 balanceLabel = 'Saldado: ';
             }
             
-            // 4. INYECCIÓN DEL HTML EN LA TABLA
-            historyBody.innerHTML += `
+            // 4. ACUMULACIÓN DEL HTML EN EL ARRAY (Optimización de Rendimiento)
+            historyHTML.push(`
                 <tr class="hover:bg-gray-50 text-sm">
                     <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(transaction.created_at)}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-gray-800">${transactionDescription}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-left ${amountClass}">${amountDisplay}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-left ${balanceClass}">${balanceLabel}${runningBalanceDisplay}</td>
                 </tr>
-            `;
+            `);
         });
+        
+        // 🛑 INYECCIÓN FINAL DEL HTML (Optimización de Rendimiento)
+        historyBody.innerHTML = historyHTML.join('');
         
         // 5. ACTUALIZAR DEUDA TOTAL y MOSTRAR MODAL
         
@@ -1553,9 +1562,9 @@ window.handleViewClientDebt = async function(clientId) {
             totalDebtElement.textContent = `Crédito ${totalDebtDisplay}`; 
             totalDebtElement.className = 'text-green-600 font-bold text-xl';
         } else {
-             // Saldado
-             totalDebtElement.textContent = formatCurrency(0);
-             totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
+            // Saldado
+            totalDebtElement.textContent = formatCurrency(0);
+            totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
         }
 
         openModal('modal-client-debt-report'); 
@@ -1877,7 +1886,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadClientDebtsTable() {
-    // Si 'window.allClientsMap' no está disponible, quizás necesite cargarse primero
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
@@ -1892,7 +1900,7 @@ async function loadClientDebtsTable() {
     noDebtsMessage.classList.add('hidden');
 
     try {
-        // 1. Consultar ventas con saldo pendiente > 0.01 (Orden descendente por fecha, MÁS RECIENTE PRIMERO)
+        // 1. Consultar ventas con saldo pendiente > 0.01
         const { data: sales, error } = await supabase
             .from('ventas')
             .select(`
@@ -1903,7 +1911,7 @@ async function loadClientDebtsTable() {
                 clientes(name) 
             `)
             .gt('saldo_pendiente', 0.01) 
-            .order('created_at', { ascending: false }); // Ordenado por la más reciente
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
         
@@ -1913,19 +1921,16 @@ async function loadClientDebtsTable() {
         (sales || []).forEach(sale => {
             const clientId = sale.client_id;
             
-            // Si es la PRIMERA vez que encontramos a este cliente (que será la venta más reciente)
             if (!clientDebts[clientId]) {
                 clientDebts[clientId] = {
                     clientId: clientId,
                     name: sale.clientes?.name || 'Cliente Desconocido',
                     totalDebt: 0,
-                    // Estos se establecen con la venta más reciente
                     lastSaleDate: sale.created_at, 
                     lastSaleId: sale.venta_id 
                 };
             }
             
-            // 🚀 ACUMULACIÓN: Sumar el saldo pendiente de esa venta a la deuda total del cliente
             clientDebts[clientId].totalDebt += sale.saldo_pendiente;
         });
 
@@ -1939,28 +1944,30 @@ async function loadClientDebtsTable() {
             return;
         }
 
+        let debtsHTML = []; 
+
         debtList.forEach(debt => {
-            const row = tbody.insertRow();
-            row.className = 'hover:bg-gray-50';
-            
-            // Formatear la fecha usando la función existente
             const formattedDate = formatDate(debt.lastSaleDate); 
 
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${debt.lastSaleId})</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <button 
-                        onclick="handleViewSaleDetails(${debt.lastSaleId}, ${debt.clientId})" 
-                        class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
-                        title="Ver Detalle de Venta #${debt.lastSaleId}"
-                    >
-                        Ver Venta (${debt.lastSaleId})
-                    </button>
+            debtsHTML.push(`
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button 
+                            onclick="window.handleViewClientDebt(${debt.clientId})" 
+                            class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
+                            title="Ver historial completo de cargos y abonos"
+                        >
+                            Ver Historial (${formatCurrency(debt.totalDebt)})
+                        </button>
                     </td>
-            `;
+                </tr>
+            `);
         });
+        
+        tbody.innerHTML = debtsHTML.join(''); // Inyección única
 
     } catch (e) {
         console.error('Error al cargar la tabla de deudas:', e);
