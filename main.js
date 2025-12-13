@@ -2514,8 +2514,9 @@ async function confirmDeleteClient() {
     await loadDashboardData(); 
 }
 
-async function handleNewClient(e) {
-    e.preventDefault();
+window.handleNewClient = async function(e) {
+    // Es CRÍTICO que e.preventDefault() esté DESCOMENTADO aquí
+    e.preventDefault(); 
     
     // 🛑 LOG 1: VERIFICAR SI LA FUNCIÓN FUE LLAMADA
     console.log('1. FUNCIÓN DE REGISTRO INICIADA.'); 
@@ -2525,7 +2526,7 @@ async function handleNewClient(e) {
     
     // 🛑 LOG 2: VERIFICAR LA CAPTURA DE DATOS Y LA DISPONIBILIDAD DE SUPABASE
     console.log(`2. Datos capturados: Nombre='${name}', Teléfono='${phone}'.`);
-    if (typeof supabase === 'undefined') {
+    if (typeof supabase === 'undefined' || !supabase) { 
         console.error('ERROR CRÍTICO: La variable "supabase" no está definida o accesible globalmente.');
         alert('Error: La conexión a la base de datos no está disponible.');
         return;
@@ -2556,16 +2557,25 @@ async function handleNewClient(e) {
         console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
         alert('Cliente registrado exitosamente.');
         
-        await loadClientsTable('gestion'); // O la función que recarga su tabla
-        
+        // La función de recarga de tabla debe estar definida globalmente también
+        if (typeof loadClientsTable === 'function') {
+            await loadClientsTable('gestion'); 
+        }
+
         // Cierre y Limpieza
         const clientForm = document.getElementById('new-client-form');
         clientForm?.reset(); 
-        closeModal('new-client-modal');
+        
+        // ¡IMPORTANTE! Verifique que la función closeModal es global
+        if (typeof closeModal === 'function') {
+             closeModal('new-client-modal');
+        } else {
+            console.error("closeModal no está definida globalmente.");
+        }
         
         console.log('5. Tarea completada y modal cerrado.');
     }
-}window.handleNewClient = handleNewClient;
+}
 
 function handleEditClientClick(clientId) {
     if (!supabase) {
@@ -3898,15 +3908,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // 3. Listeners Globales (Delegación de Eventos)
     // =======================================================
-    
-    // Listener para los botones "Detalles" (Tu código actual)
-    document.body.addEventListener('click', (e) => {
-        if (e.target.classList.contains('view-sale-details-btn')) {
-            const ventaId = e.target.dataset.ventaId;
-            const clientId = e.target.dataset.clientId;
-            if (ventaId && clientId) {
-                handleViewSaleDetails(parseInt(ventaId), parseInt(clientId));
-            }
+ document.body.addEventListener('click', (e) => {
+    // Maneja botones de cierre (como la 'X')
+    const closeBtn = e.target.closest('[data-close-modal]');
+    if (closeBtn) {
+        const modalId = closeBtn.dataset.closeModal;
+        window.closeModal(modalId);
+        return; // Detiene la propagación
+    }
+
+    // Maneja botones de apertura (como el de 'Nuevo Cliente')
+    const openBtn = e.target.closest('[data-open-modal]');
+    if (openBtn) {
+        const modalId = openBtn.dataset.openModal;
+        // Solo llamar si la función de apertura especializada existe (como openRegisterClientModal)
+        if (typeof window[`open${modalId.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}`] === 'function') {
+             // Intenta llamar a una función específica (ej: window.openNewClientModal)
+             window[`open${modalId.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}`]();
+        } else {
+            // Sino, usa la función genérica
+            window.openModal(modalId);
         }
-    });
+    }
+    
+    // Maneja el cierre del overlay (clic fuera)
+    if (e.target.classList.contains('modal-overlay')) {
+        const modalId = e.target.id;
+        window.closeModal(modalId);
+    }
+});
 });
