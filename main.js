@@ -1007,7 +1007,6 @@ async function handleRecordAbono(e) {
 
     // 1. Obtener los datos del formulario (Usando las IDs de tu HTML)
     const abonoAmount = parseFloat(document.getElementById('abono-amount').value);
-    // ✅ CORRECCIÓN: Usamos tu ID 'abono-method'
     const paymentMethod = document.getElementById('abono-method')?.value; 
     
     // 2. Validaciones
@@ -1021,20 +1020,26 @@ async function handleRecordAbono(e) {
     }
 
     // 3. DETERMINAR EL TIPO DE ABONO: Venta específica o Deuda del Cliente
-    // Usamos allClientsMap para saber si debtToPayId es el ID de un cliente (deuda general) o una venta.
-    const isClientDebtAbono = window.allClientsMap[debtToPayId] !== undefined; 
+    const idToUpdate = window.debtToPayId; // ID del cliente o de la venta
+    
+    // Asumimos que si el ID existe en allClientsMap, es un abono general.
+    const isClientDebtAbono = window.allClientsMap[idToUpdate] !== undefined; 
+    
     let salesToUpdate = []; 
     let finalClientId = null;
+    let totalPaidAmount = 0; // Para la alerta final
 
     if (isClientDebtAbono) {
         // 3a. ABONO A DEUDA GENERAL DEL CLIENTE (FIFO)
-        const clientId = debtToPayId;
+        // [Su lógica FIFO es correcta y se mantiene]
+
+        const clientId = idToUpdate;
         finalClientId = clientId;
         
-        // Obtenemos todas las ventas pendientes del cliente, ordenadas por fecha (la más antigua primero)
+        // Obtenemos todas las ventas pendientes del cliente (FIFO)
         const { data: pendingSales, error: fetchError } = await supabase
             .from('ventas')
-            .select('venta_id, saldo_pendiente, client_id, created_at')
+            .select('venta_id, saldo_pendiente, paid_amount, client_id, created_at') // 💡 Añadimos paid_amount
             .eq('client_id', clientId)
             .gt('saldo_pendiente', 0.01)
             .order('created_at', { ascending: true }); 
@@ -1050,7 +1055,8 @@ async function handleRecordAbono(e) {
         }
 
         let remainingAbono = abonoAmount;
-        
+        totalPaidAmount = abonoAmount; // Es el total abonado
+
         // Aplicar el abono a las ventas pendientes por orden de antigüedad
         for (const sale of pendingSales) {
             if (remainingAbono <= 0) break;
@@ -1062,6 +1068,8 @@ async function handleRecordAbono(e) {
                 venta_id: sale.venta_id,
                 client_id: sale.client_id,
                 amount: amountApplied,
+                // Calculamos el nuevo paid_amount y el nuevo saldo
+                new_paid_amount: sale.paid_amount + amountApplied, // <-- ¡CORRECCIÓN!
                 new_saldo_pendiente: debtToSale - amountApplied 
             });
 
@@ -1069,12 +1077,14 @@ async function handleRecordAbono(e) {
         }
         
     } else {
-        // 3b. ABONO A VENTA ESPECÍFICA (Lógica original de tu app)
-        const ventaId = debtToPayId; 
+        // 3b. ABONO A VENTA ESPECÍFICA
+        // [Su lógica específica es correcta y se mantiene]
+        
+        const ventaId = idToUpdate; 
         
         const { data: saleData, error: fetchError } = await supabase
             .from('ventas')
-            .select('saldo_pendiente, client_id')
+            .select('saldo_pendiente, paid_amount, client_id') // 💡 Añadimos paid_amount
             .eq('venta_id', ventaId)
             .single();
 
@@ -1089,11 +1099,14 @@ async function handleRecordAbono(e) {
         }
         
         finalClientId = saleData.client_id;
+        totalPaidAmount = abonoAmount; // Es el total abonado
 
         salesToUpdate.push({
             venta_id: ventaId,
             client_id: saleData.client_id,
             amount: abonoAmount,
+            // Calculamos el nuevo paid_amount y el nuevo saldo
+            new_paid_amount: saleData.paid_amount + abonoAmount, // <-- ¡CORRECCIÓN!
             new_saldo_pendiente: saleData.saldo_pendiente - abonoAmount
         });
     }
@@ -1112,29 +1125,37 @@ async function handleRecordAbono(e) {
                 }]);
             if (paymentError) throw paymentError;
 
-            // B. Actualizar el saldo de la tabla 'ventas' (¡CRÍTICO! Esto resta la deuda)
+            // B. Actualizar el saldo y el monto pagado de la tabla 'ventas' (¡CRÍTICO!)
             const { error: updateError } = await supabase
                 .from('ventas')
                 .update({ 
-                    saldo_pendiente: update.new_saldo_pendiente 
+                    saldo_pendiente: update.new_saldo_pendiente,
+                    paid_amount: update.new_paid_amount // <-- ¡ESTO ES LO NUEVO!
                 })
                 .eq('venta_id', update.venta_id);
             if (updateError) throw updateError;
         }
 
-        alert(`¡Abono de ${formatCurrency(abonoAmount)} registrado con éxito!`);
+        alert(`¡Abono de ${formatCurrency(totalPaidAmount)} registrado con éxito!`);
         document.getElementById('abono-client-form').reset();
-        // Usamos la ID 'modal-record-abono' de tu HTML
         closeModal('modal-record-abono'); 
         
         // 5. RECARGAR DATOS
-        const debtModal = document.getElementById('modal-client-debt-report');
+        
         // Si el reporte de deuda está abierto, lo recargamos para ver el cambio
+        const debtModal = document.getElementById('modal-client-debt-report');
         if (debtModal && !debtModal.classList.contains('hidden') && finalClientId) {
             await handleViewClientDebt(finalClientId); 
         }
+
+        // Si el modal de Detalle de Venta está abierto y acabamos de abonar a una venta específica, ¡recargarlo!
+        const detailSaleModal = document.getElementById('modal-detail-sale');
+        if (detailSaleModal && !detailSaleModal.classList.contains('hidden') && !isClientDebtAbono) {
+            // Recargamos los detalles de la venta que acabamos de abonar
+            // Usamos el ID de la venta y el ID del cliente que guardamos.
+            await handleViewSaleDetails(idToUpdate, finalClientId); 
+        }
         
-        // Recargar las tablas principales
         await loadDashboardData(); 
         await loadClientsTable('gestion'); 
 
@@ -1144,7 +1165,7 @@ async function handleRecordAbono(e) {
     }
     
     // 6. LIMPIEZA FINAL
-    debtToPayId = null; 
+    window.debtToPayId = null; // Usamos window. para la variable global
 }
 function handleAbonoClick(clientId) {
     // Buscar los datos del cliente en la lista global
