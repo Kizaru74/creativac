@@ -30,14 +30,19 @@ if (window.supabase) {
 // ====================================================================
 
 async function initializeApp() {
-    // ... [código de inicialización de Supabase] ...
+// 1. Cargar datos esenciales
+    await loadProducts(); // <-- Asumo que esta función carga TODOS los productos
+    await loadClientsTable('gestion'); 
     
-    await loadProducts();
-    await loadClientsTable('gestion'); // Ya tienes esta llamada
-    loadMainProductsAndPopulateSelect();
-    
-    // 🌟 AÑADIR ESTA LÍNEA 🌟
+    // 2. Cargar métricas del dashboard
     await loadDashboardMetrics(); 
+    
+    // 3. CRÍTICO: Cargar los productos principales para el modal de Subproducto.
+    // Esto asegura que el selector 'new-product-parent-select' esté lleno 
+    // antes de que el usuario lo abra.
+    await loadMainProductsAndPopulateSelect(); 
+
+    console.log("✅ Aplicación inicializada y selectores de productos cargados.");
 }
 //FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
 window.loadDashboardMetrics = async function() {
