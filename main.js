@@ -413,7 +413,7 @@ async function loadProductsData() {
         return map;
     }, {});
     
-    console.log(`✅ Mapa de productos cargado: ${Object.keys(window.allProductsMap).length} ítems.`);
+    //console.log(`✅ Mapa de productos cargado: ${Object.keys(window.allProductsMap).length} ítems.`);
 }
 
 function handleChangeProductForSale() {
@@ -1446,130 +1446,155 @@ window.loadDashboardMetrics = async function() {
 }
 
 window.handleViewClientDebt = async function(clientId) {
-    // Verificar si Supabase está inicializado
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         alert("Error de conexión a la base de datos.");
         return;
     }
     
-    // Guardar el ID del cliente que se está visualizando
     window.viewingClientId = clientId;
-
+    
     try {
-        // Asumiendo que 'allClients' es un array global con la información de los clientes
-        const client = allClients.find(c => c.client_id.toString() === clientId.toString());
+        const client = allClients.find(c => c.client_id?.toString() === clientId?.toString());
         if (!client) {
             console.error("Cliente no encontrado para ID:", clientId);
             alert("Error: Cliente no encontrado.");
             return;
         }
 
-        // 1. OBTENER EL HISTORIAL DE TRANSACCIONES (VIEW: transacciones_deuda)
-        // Se ordena por fecha de forma ascendente para calcular el saldo acumulado
-        const { data: history, error: historyError } = await supabase
-            .from('transacciones_deuda')
-            .select(`*`) 
+        // 1. OBTENER VENTAS Y PAGOS/ABONOS DIRECTAMENTE
+        // A. Obtener todas las ventas del cliente (cargos)
+        const { data: sales, error: salesError } = await supabase
+            .from('ventas')
+            .select(`
+                venta_id, total_amount, paid_amount, created_at,
+                detalle_ventas (productos (name))
+            `)
             .eq('client_id', clientId)
             .order('created_at', { ascending: true });
 
-        if (historyError) throw historyError;
+        if (salesError) throw salesError;
 
-        // 2. CONFIGURACIÓN E INYECCIÓN DE DATOS
-        
-        document.getElementById('client-report-name').textContent = client.name;
-        const historyBody = document.getElementById('client-transactions-body'); 
-        
-        let historyHTML = []; 
-        let currentRunningBalance = 0; // Se inicializa el saldo en cero
-        
-        // Iteramos sobre el historial para calcular el saldo acumulado y generar el HTML
-        (history || []).forEach(transaction => {
-            const amountValue = parseFloat(transaction.amount);
-            let amountDisplay = '';
-            let transactionDescription = '';
-            let amountClass = '';
+        // B. Obtener todos los pagos/abonos del cliente
+        const { data: payments, error: paymentsError } = await supabase
+            .from('pagos')
+            .select(`venta_id, amount, metodo_pago, created_at`)
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: true });
+
+        if (paymentsError) throw paymentsError;
+
+
+        // 2. UNIFICAR Y NORMALIZAR TRANSACCIONES
+        let transactions = [];
+
+        // 2a. Normalizar Ventas (Cargos)
+        sales.forEach(sale => {
+            const productNames = sale.detalle_ventas.map(d => d.productos.name).join(', ') || 'Venta General';
+
+            // Registramos la VENTA COMPLETA como el cargo a la deuda
+            transactions.push({
+                date: new Date(sale.created_at),
+                type: 'cargo_venta',
+                description: `Venta: ${productNames}`,
+                amount: sale.total_amount,
+                venta_id: sale.venta_id,
+                order: 1 // Venta siempre va antes de un pago si la hora es la misma
+            });
+        });
+
+        // 2b. Normalizar Pagos (Abonos)
+        payments.forEach(payment => {
+            let description = `Abono a Deuda (${payment.metodo_pago})`;
             
-            // --- CÁLCULO Y FORMATO DE CARGOS Y ABONOS ---
-            
-            if (transaction.type === 'cargo_venta') {
-                // Es un cargo (Aumenta la deuda)
-                currentRunningBalance += amountValue;
-                
-                const productNames = transaction.product_name || 'Venta General de Productos'; 
-                transactionDescription = `Venta: ${productNames}`;
-                
-                amountDisplay = formatCurrency(amountValue); 
-                amountClass = 'text-red-600 font-bold'; // Clase para deuda (Rojo)
+            // Si tiene venta_id, intentamos darle contexto
+            if (payment.venta_id) {
+                const sale = sales.find(s => s.venta_id === payment.venta_id);
+                if (sale) {
+                    const productNames = sale.detalle_ventas.map(d => d.productos.name).join(', ') || 'Venta General';
 
-            } else if (transaction.type === 'abono') { 
-                // Es un abono (Disminuye la deuda)
-                currentRunningBalance -= amountValue;
-                
-                // 💡 MEJORA VISUAL: Monto positivo, el color indica que es un abono.
-                amountDisplay = formatCurrency(amountValue); 
-                amountClass = 'text-green-600 font-bold'; // Clase para abono (Verde)
-
-                // --- ENLACE CON VENTA PARA CLARIDAD EN LA DESCRIPCIÓN ---
-                
-                let relatedSaleDescription = '';
-                
-                // Buscar el cargo_venta asociado si existe un venta_id en el abono/pago
-                if (transaction.venta_id) {
-                    const relatedSale = history.find(h => 
-                        h.type === 'cargo_venta' && h.venta_id === transaction.venta_id
-                    );
+                    // Si la hora del pago es MUY cercana a la hora de la venta, lo llamamos "Pago Inicial"
+                    // (Esto es una heurística; lo ideal es tener una columna 'is_initial' en pagos)
+                    const saleDate = new Date(sale.created_at);
+                    const paymentDate = new Date(payment.created_at);
+                    const timeDiff = Math.abs(saleDate - paymentDate); // Diferencia en ms
                     
-                    if (relatedSale && relatedSale.product_name) {
-                        // Usamos la descripción concatenada de la venta relacionada
-                        relatedSaleDescription = ` - Venta: "${relatedSale.product_name}"`;
+                    if (timeDiff < 60000) { // Menos de 1 minuto de diferencia = Pago Inicial
+                        description = `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`;
+                    } else {
+                        description = `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
                     }
                 }
-                
-                // Construir la descripción final del abono/pago
-                const metodoPago = transaction.metodo_pago ? ` (${transaction.metodo_pago})` : '';
-                
-                if (transaction.description === 'Pago Inicial') {
-                    // Pago Inicial, anexando el producto
-                    transactionDescription = `Pago Inicial${metodoPago}${relatedSaleDescription}`;
-                } else if (transaction.description === 'Abono a Deuda') {
-                    // Abonos posteriores o generales
-                    transactionDescription = `Abono a Deuda${metodoPago}`;
-                } else {
-                    // Caso general
-                    transactionDescription = `Abono${metodoPago}`;
-                }
+            }
+
+            transactions.push({
+                date: new Date(payment.created_at),
+                type: 'abono',
+                description: description,
+                amount: payment.amount, // El valor es positivo, pero lo restaremos del saldo
+                venta_id: payment.venta_id,
+                order: 2 // Pago siempre va después de una venta si la hora es la misma
+            });
+        });
+
+
+        // 3. ORDENAR TODAS LAS TRANSACCIONES
+        transactions.sort((a, b) => {
+            if (a.date.getTime() !== b.date.getTime()) {
+                return a.date.getTime() - b.date.getTime(); // Ordenar por fecha y hora
+            }
+            return a.order - b.order; // Si son iguales, Venta (1) va antes de Pago (2)
+        });
+
+        
+        // 4. GENERAR EL HTML Y CALCULAR EL SALDO ACUMULADO
+        document.getElementById('client-report-name').textContent = client.name;
+        const historyBody = document.getElementById('client-transactions-body'); 
+        let historyHTML = []; 
+        let currentRunningBalance = 0; 
+
+        transactions.forEach(t => {
+            const amountValue = t.amount;
+            let transactionDescription = t.description;
+            let amountDisplay = formatCurrency(amountValue);
+            let amountClass = '';
+            
+            if (t.type === 'cargo_venta') {
+                // Es un cargo (Aumenta la deuda)
+                currentRunningBalance += amountValue;
+                amountClass = 'text-red-600 font-bold'; 
+
+            } else if (t.type === 'abono') { 
+                // Es un abono (Disminuye la deuda)
+                currentRunningBalance -= amountValue;
+                amountClass = 'text-green-600 font-bold'; // Monto en positivo, color verde
 
             } else {
-                 console.warn(`Tipo de transacción no reconocido: ${transaction.type}.`);
-                 return; 
+                console.warn(`Tipo de transacción no reconocido: ${t.type}.`);
+                return; 
             }
 
             // --- CÁLCULO DEL SALDO ACUMULADO VISUAL ---
-            
             const absBalance = Math.abs(currentRunningBalance);
             const runningBalanceDisplay = formatCurrency(absBalance);
             let balanceClass = '';
             let balanceLabel = 'Saldo: '; 
 
             if (currentRunningBalance > 0.01) {
-                // Saldo Positivo = Deuda
                 balanceClass = 'text-red-600 font-extrabold';
                 balanceLabel = 'Deuda: ';
             } else if (currentRunningBalance < -0.01) {
-                // Saldo Negativo = Crédito
                 balanceClass = 'text-green-600 font-extrabold';
                 balanceLabel = 'Crédito: '; 
             } else {
-                // Saldado (Cero)
                 balanceClass = 'text-gray-700 font-extrabold';
                 balanceLabel = 'Saldado: ';
             }
             
-            // 3. GENERACIÓN DEL HTML DE LA FILA
+            // 5. GENERACIÓN DEL HTML DE LA FILA
             historyHTML.push(`
                 <tr class="hover:bg-gray-50 text-sm">
-                    <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(transaction.created_at)}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(t.date)}</td>
                     <td class="px-3 py-3 text-gray-800">${transactionDescription}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-left ${amountClass}">${amountDisplay}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-left ${balanceClass}">${balanceLabel}${runningBalanceDisplay}</td>
@@ -1577,19 +1602,17 @@ window.handleViewClientDebt = async function(clientId) {
             `);
         });
         
-        // 4. INYECCIÓN FINAL DEL HTML EN EL MODAL
+        // 6. INYECCIÓN FINAL Y ACTUALIZACIÓN DE TOTALES
         historyBody.innerHTML = historyHTML.join('');
         
-        // 5. ACTUALIZAR DEUDA TOTAL (HEADER DEL MODAL)
-        
-        const totalDebtDisplay = formatCurrency(Math.abs(currentRunningBalance));
         const totalDebtElement = document.getElementById('client-report-total-debt');
 
+        // (Se mantiene su lógica para el total de deuda en el header)
         if (currentRunningBalance > 0.01) {
-            totalDebtElement.textContent = totalDebtDisplay;
+            totalDebtElement.textContent = formatCurrency(Math.abs(currentRunningBalance));
             totalDebtElement.className = 'text-red-600 font-extrabold text-xl';
         } else if (currentRunningBalance < -0.01) {
-            totalDebtElement.textContent = `Crédito ${totalDebtDisplay}`; 
+            totalDebtElement.textContent = `Crédito ${formatCurrency(Math.abs(currentRunningBalance))}`; 
             totalDebtElement.className = 'text-green-600 font-bold text-xl';
         } else {
             totalDebtElement.textContent = formatCurrency(0);
