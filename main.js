@@ -1465,16 +1465,14 @@ window.handleViewClientDebt = async function(clientId) {
         // 1. OBTENER VENTAS Y PAGOS/ABONOS DIRECTAMENTE
         // A. Obtener todas las ventas del cliente (cargos)
         const { data: sales, error: salesError } = await supabase
-            .from('ventas')
-            .select(`
-                venta_id, total_amount, paid_amount, created_at,
-                description, // <--- ¡CAMBIO APLICADO AQUÍ! Seleccionamos la descripción
-                detalle_ventas (productos (name))
-            `)
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: true });
-
-        if (salesError) throw salesError;
+        .from('ventas')
+         .select(`
+        venta_id, total_amount, paid_amount, created_at,
+        description, // Este campo es el que queríamos añadir
+        detalle_ventas (productos (name))
+         `) // <--- NOTE QUE NO HAY COMENTARIOS AQUÍ DENTRO
+          .eq('client_id', clientId)
+        .order('created_at', { ascending: true });
 
         // B. Obtener todos los pagos/abonos del cliente
         // ... (el código de pagos se mantiene) ...
