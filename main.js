@@ -1686,22 +1686,31 @@ window.printClientDebtReport = function() {
                     padding: 10px 8px; 
                     text-align: left; 
                 }
+                
+                tbody tr {
+                    border-bottom: 1px solid #eeeeee;
+                }
+                
                 th { 
-                    background-color: #e6f0ff; /* Azul claro para encabezados */
+                    background-color: #e6f0ff; 
                     color: #0056b3; 
                     font-weight: bold; 
                     text-transform: uppercase;
                     font-size: 9pt;
+                    border-bottom: 2px solid #0056b3; 
                 }
                 
-                /* Alineación específica de columnas */
-                .amount-col, .balance-col { text-align: right; width: 15%; }
-                .date-col { width: 10%; }
+                /* 🎯 NUEVAS ALINEACIONES Y ANCHOS */
+                .date-col { width: 10%; } /* Fecha */
+                .concept-col { width: 65%; } /* Concepto/Detalle (AMPLIADO) */
+                .amount-col { width: 12.5%; text-align: right; } /* Monto */
+                .balance-col { width: 12.5%; text-align: right; } /* Saldo Acumulado */
+
 
                 /* Clases de estado (deben coincidir con las clases generadas en handleViewClientDebt) */
-                .text-red-600 { color: #dc2626; font-weight: bold; } /* Cargo */
-                .text-green-600 { color: #16a34a; font-weight: bold; } /* Abono */
-                .text-gray-700 { color: #4b5563; } /* Saldado */
+                .text-red-600 { color: #dc2626; font-weight: normal; } /* Cargo */
+                .text-green-600 { color: #16a34a; font-weight: normal; } /* Abono */
+                .text-gray-700 { color: #4b5563; font-weight: normal; } /* Saldado */
 
                 .page-footer {
                     position: fixed;
@@ -1735,7 +1744,7 @@ window.printClientDebtReport = function() {
                 <thead>
                     <tr>
                         <th class="date-col">Fecha</th>
-                        <th>Concepto</th>
+                        <th class="concept-col">Detalle de la Transacción</th> 
                         <th class="amount-col">Monto</th>
                         <th class="balance-col">Saldo Acumulado</th>
                     </tr>
