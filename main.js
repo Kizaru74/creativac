@@ -16,6 +16,7 @@ let allClientsMap = {};
 let allProductsMap = {};
 let reportSelectorsInitialized = false;
 
+
 // ✅ CORRECCIÓN CRÍTICA: Inicializar Supabase directamente, fuera del try/catch.
 if (window.supabase) {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -33,12 +34,11 @@ async function initializeApp() {
     
     await loadProducts();
     await loadClientsTable('gestion'); // Ya tienes esta llamada
+    loadMainProductsAndPopulateSelect();
     
     // 🌟 AÑADIR ESTA LÍNEA 🌟
     await loadDashboardMetrics(); 
 }
-
-
 //FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
 window.loadDashboardMetrics = async function() {
     if (!supabase) {
@@ -2664,6 +2664,49 @@ window.handleProductTypeChange = function() {
     } else {
         parentContainer.classList.add('hidden');
     }
+}
+
+/**
+ * Consulta a Supabase los productos principales (no 'PACKAGE')
+ * y rellena el selector de producto padre en el modal.
+ */
+async function loadMainProductsAndPopulateSelect() {
+    if (!supabase) {
+        console.error('Supabase no está disponible para cargar productos principales.');
+        return;
+    }
+
+    const parentSelect = document.getElementById('new-product-parent-select');
+    
+    // Verificación para asegurar que el elemento existe antes de continuar
+    if (!parentSelect) {
+        console.error('No se encontró el selector de producto padre (new-product-parent-select).');
+        return;
+    }
+    
+    // 1. Consulta a Supabase
+    // Filtramos para obtener solo productos que no sean 'PACKAGE' (subproductos)
+    const { data: mainProducts, error } = await supabase
+        .from('productos')
+        .select('id, name')
+        .neq('type', 'PACKAGE') // <-- FILTRO CLAVE: Solo productos que no sean subproductos
+        .order('name', { ascending: true });
+
+    if (error) {
+        console.error('Error al cargar productos principales:', error.message);
+        parentSelect.innerHTML = '<option value="">Error al cargar</option>';
+        return;
+    }
+
+    // 2. Poblar el elemento select
+    let optionsHtml = '<option value="" selected disabled>Seleccione un producto principal</option>';
+    
+    mainProducts.forEach(product => {
+        // Usamos el ID del producto como valor (lo que se guardará en la base de datos)
+        optionsHtml += `<option value="${product.id}">${product.name}</option>`;
+    });
+
+    parentSelect.innerHTML = optionsHtml;
 }
 
 
