@@ -1581,13 +1581,13 @@ window.handleViewClientDebt = async function(clientId) {
             let balanceLabel = 'Saldo: '; 
 
             if (currentRunningBalance > 0.01) {
-                balanceClass = 'text-red-600 font-extrabold';
+                balanceClass = 'text-red-600 font-bold';
                 balanceLabel = 'Deuda: ';
             } else if (currentRunningBalance < -0.01) {
-                balanceClass = 'text-green-600 font-extrabold';
+                balanceClass = 'text-green-600 font-bold';
                 balanceLabel = 'Crédito: '; 
             } else {
-                balanceClass = 'text-gray-700 font-extrabold';
+                balanceClass = 'text-gray-700 font-bold';
                 balanceLabel = 'Saldado: ';
             }
             
