@@ -1473,7 +1473,7 @@ window.handleViewClientDebt = async function(clientId) {
                 total_amount, 
                 paid_amount, 
                 created_at,
-                description,
+                description, 
                 detalle_ventas (productos (name))
             `)
             .eq('client_id', clientId)
@@ -1582,7 +1582,6 @@ window.handleViewClientDebt = async function(clientId) {
             } else if (t.type === 'abono') { 
                 currentRunningBalance -= amountValue;
                 amountClass = 'text-green-600 font-bold';
-
             } else {
                 console.warn(`Tipo de transacción no reconocido: ${t.type}.`);
                 return; 
