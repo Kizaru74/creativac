@@ -1610,13 +1610,13 @@ window.handleViewClientDebt = async function(clientId) {
         // (Se mantiene su lógica para el total de deuda en el header)
         if (currentRunningBalance > 0.01) {
             totalDebtElement.textContent = formatCurrency(Math.abs(currentRunningBalance));
-            totalDebtElement.className = 'text-red-600 font-extrabold text-xl';
+            totalDebtElement.className = 'text-red-600 font-bold text-xl';
         } else if (currentRunningBalance < -0.01) {
             totalDebtElement.textContent = `Crédito ${formatCurrency(Math.abs(currentRunningBalance))}`; 
             totalDebtElement.className = 'text-green-600 font-bold text-xl';
         } else {
             totalDebtElement.textContent = formatCurrency(0);
-            totalDebtElement.className = 'text-gray-600 font-extrabold text-xl';
+            totalDebtElement.className = 'text-gray-600 font-bold text-xl';
         }
 
         // Mostrar el modal al final
