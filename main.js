@@ -2593,7 +2593,6 @@ async function handleNewProduct(e) {
 
     // 1. Obtener elementos del formulario
     const nameInput = document.getElementById('new-product-name');
-    // ✅ Corregido: Usamos el ID nuevo/corregido 'new-product-type'
     const typeInput = document.getElementById('new-product-type'); 
     const priceInput = document.getElementById('new-product-price'); 
     
@@ -2606,7 +2605,6 @@ async function handleNewProduct(e) {
 
     // 2. Leer valores
     const name = nameInput.value.trim();
-    // ✅ type ahora leerá 'PRODUCT', 'SERVICE' o 'PACKAGE' del HTML corregido
     const type = typeInput.value; 
     const price = parseFloat(priceInput.value);
     let parentProductId = null;
@@ -2617,15 +2615,14 @@ async function handleNewProduct(e) {
         return;
     }
 
-    // 4. Lógica y validación para Paquetes
-    // ✅ La verificación ahora usa 'PACKAGE' que coincide con el valor del HTML corregido
+    // 4. Lógica y validación para Paquetes (Subproductos)
     if (type === 'PACKAGE') {
-        // ✅ Corregido: Usamos el ID correcto 'new-product-parent-select'
+        // ✅ CRÍTICO: Usamos el ID corregido del SELECT PADRE
         const parentSelect = document.getElementById('new-product-parent-select');
         parentProductId = parentSelect?.value || null; 
         
-        if (!parentProductId || parentProductId === 'placeholder-option-value') { // Asegurar que no sea una opción vacía
-            alert('Los paquetes deben tener un Producto Principal asociado. Seleccione uno de la lista.');
+        if (!parentProductId || parentProductId === 'placeholder-option-value') { 
+            alert('Los subproductos deben tener un Producto Principal asociado. Seleccione uno de la lista.');
             return;
         }
     }
@@ -2635,9 +2632,9 @@ async function handleNewProduct(e) {
         .from('productos')
         .insert([{ 
             name: name, 
-            type: type, // Enviamos el valor de tipo (PRODUCT/SERVICE/PACKAGE)
+            type: type, 
             price: price, 
-            parent_product: parentProductId 
+            parent_product: parentProductId // Será null si no es 'PACKAGE'
         }]);
 
     // 6. Manejo de respuesta
@@ -2647,19 +2644,21 @@ async function handleNewProduct(e) {
     } else {
         alert('Producto registrado exitosamente.');
         
-        // Cerrar el modal correcto y resetear el formulario
-        // 🛑 NOTA: Su modal tiene el ID 'new-product-modal'. Ajusté el closeModal.
+        // Cerrar el modal y resetear el formulario
         closeModal('new-product-modal'); 
         document.getElementById('new-product-form')?.reset(); 
         
+        // Recargar datos (asumiendo que estas funciones existen)
         await loadProductsData();
         await loadAndRenderProducts();
     }
 }
+
 window.handleProductTypeChange = function() {
     const typeSelect = document.getElementById('new-product-type');
     const parentContainer = document.getElementById('new-product-parent-container');
     
+    // Verificamos si el valor seleccionado es 'PACKAGE'
     if (typeSelect.value === 'PACKAGE') {
         parentContainer.classList.remove('hidden');
     } else {
