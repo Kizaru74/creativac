@@ -1430,7 +1430,6 @@ window.handleViewClientDebt = async function(clientId) {
         return;
     }
     
-    // Asignamos el ID del cliente actual a una variable global
     window.viewingClientId = clientId;
 
     try {
@@ -1456,12 +1455,9 @@ window.handleViewClientDebt = async function(clientId) {
         document.getElementById('client-report-name').textContent = client.name;
         const historyBody = document.getElementById('client-transactions-body'); 
         
-        // 🛑 Inicializar el array de acumulación de HTML (Optimización de Rendimiento)
         let historyHTML = []; 
-        
         let currentRunningBalance = 0; 
         
-        // 🚨 MENSAJE DE DEBUG INICIAL
         console.log(`--- DEBUG INICIO: Reporte de Deuda para ${client.name} ---`);
         
         // Iteramos sobre el historial
@@ -1472,40 +1468,56 @@ window.handleViewClientDebt = async function(clientId) {
             let amountClass = '';
             
             // Determinar si es un CARGO (Venta) o un ABONO (Pago)
-            // 💡 MEJORA: Usar else if para claridad en el tipo de abono
             if (transaction.type === 'cargo_venta') {
                 // Es un cargo (Aumenta la deuda, se muestra positivo)
                 currentRunningBalance += amountValue;
                 
-                const productName = transaction.product_name; 
-                transactionDescription = `Venta: ${productName || 'Producto/Servicio'}`;
+                // Usamos el product_name concatenado de la vista (ej: "Corte CNC, PVC 25MM")
+                const productNames = transaction.product_name || 'Producto/Servicio'; 
+                transactionDescription = `Venta: ${productNames}`;
                 
                 amountDisplay = formatCurrency(amountValue); 
                 amountClass = 'text-red-600 font-bold';
-            } else if (transaction.type === 'abono') { // 💡 CLARIDAD: Aseguramos que solo el tipo 'abono' reste
-                // Es un abono (Disminuye la deuda/aumenta el crédito)
+            } else if (transaction.type === 'abono') { 
+                // Es un abono (Disminuye la deuda)
                 currentRunningBalance -= amountValue;
                 
-                // Mostrar el abono como un valor negativo para el MONTO (para que se distinga de la venta)
-                amountDisplay = `-${formatCurrency(amountValue)}`; 
+                // 💡 CAMBIO VISUAL: Mostrar el abono como valor positivo. El color es el indicador.
+                amountDisplay = formatCurrency(amountValue); 
                 amountClass = 'text-green-600 font-bold';
+
+                // --- 🔑 MEJORA: Obtener la Descripción del Producto de la Venta Relacionada ---
                 
-                // Lógica para mejorar la descripción del abono
+                let relatedSaleDescription = '';
+                
+                // 1. Encontrar la transacción de cargo_venta asociada por venta_id
+                if (transaction.venta_id) {
+                    const relatedSale = history.find(h => 
+                        h.type === 'cargo_venta' && h.venta_id === transaction.venta_id
+                    );
+                    
+                    if (relatedSale && relatedSale.product_name) {
+                        // Usamos la descripción de la venta relacionada
+                        relatedSaleDescription = ` - Venta: "${relatedSale.product_name}"`;
+                    }
+                }
+                
+                // 2. Construir la descripción del abono
                 const metodoPago = transaction.metodo_pago ? ` (${transaction.metodo_pago})` : '';
                 
-                if (transaction.description && transaction.description.includes('Pago Inicial')) {
-                    transactionDescription = `Pago Inicial de Venta${metodoPago}`;
+                if (transaction.description === 'Pago Inicial') {
+                    transactionDescription = `Pago Inicial${metodoPago}${relatedSaleDescription}`;
                 } else {
+                    // Para abonos posteriores donde 'description' es 'Abono a Deuda'
                     transactionDescription = `Abono a Deuda${metodoPago}`;
                 }
+
             } else {
-                 // Manejar tipos de transacciones no reconocidos/futuros
-                 console.warn(`Tipo de transacción no reconocido: ${transaction.type}. Se ignorará en el cálculo del saldo.`);
-                 return; // Ignorar esta transacción en el renderizado
+                 console.warn(`Tipo de transacción no reconocido: ${transaction.type}.`);
+                 return; 
             }
 
-            // 🚨 MENSAJE DE DEBUG POR TRANSACCIÓN (MUESTRA EL FLUJO DEL SALDO)
-            console.log(`  [${transaction.type} ${transaction.id}] Monto: ${amountValue} | Saldo Acumulado: ${currentRunningBalance.toFixed(2)}`);
+            console.log(`  [${transaction.type} ${transaction.transaction_id}] Monto: ${amountValue} | Saldo Acumulado: ${currentRunningBalance.toFixed(2)}`);
 
             // =========================================================
             // LÓGICA DEL SALDO ACUMULADO (USANDO CONVENCIÓN ESTÁNDAR)
@@ -1530,18 +1542,18 @@ window.handleViewClientDebt = async function(clientId) {
                 balanceLabel = 'Saldado: ';
             }
             
-            // 4. ACUMULACIÓN DEL HTML EN EL ARRAY (Optimización de Rendimiento)
+            // 4. ACUMULACIÓN DEL HTML
             historyHTML.push(`
                 <tr class="hover:bg-gray-50 text-sm">
                     <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(transaction.created_at)}</td>
-                    <td class="px-3 py-3 whitespace-nowrap text-gray-800">${transactionDescription}</td>
+                    <td class="px-3 py-3 text-gray-800">${transactionDescription}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-left ${amountClass}">${amountDisplay}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-left ${balanceClass}">${balanceLabel}${runningBalanceDisplay}</td>
                 </tr>
             `);
         });
         
-        // 🛑 INYECCIÓN FINAL DEL HTML (Optimización de Rendimiento)
+        // 🛑 INYECCIÓN FINAL DEL HTML
         historyBody.innerHTML = historyHTML.join('');
         
         // 5. ACTUALIZAR DEUDA TOTAL y MOSTRAR MODAL
@@ -1549,7 +1561,6 @@ window.handleViewClientDebt = async function(clientId) {
         const totalDebtDisplay = formatCurrency(Math.abs(currentRunningBalance));
         const totalDebtElement = document.getElementById('client-report-total-debt');
 
-        // 🚨 MENSAJE DE DEBUG FINAL
         console.log(`--- DEBUG FINAL: Saldo Total Calculado: ${currentRunningBalance.toFixed(2)} ---`);
 
 
