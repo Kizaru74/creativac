@@ -1473,7 +1473,7 @@ window.handleViewClientDebt = async function(clientId) {
                 total_amount, 
                 paid_amount, 
                 created_at,
-                description, // <-- Consulta limpia. Este campo es el detalle de la venta.
+                description,
                 detalle_ventas (productos (name))
             `)
             .eq('client_id', clientId)
