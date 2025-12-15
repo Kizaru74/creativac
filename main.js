@@ -1469,8 +1469,11 @@ window.handleViewClientDebt = async function(clientId) {
         const { data: salesData, error: salesError } = await supabase
             .from('ventas')
             .select(`
-                venta_id, total_amount, paid_amount, created_at,
-                description, // <-- Incluimos la descripción de la venta
+                venta_id, 
+                total_amount, 
+                paid_amount, 
+                created_at,
+                description, // <-- Consulta limpia. Este campo es el detalle de la venta.
                 detalle_ventas (productos (name))
             `)
             .eq('client_id', clientId)
@@ -1478,7 +1481,6 @@ window.handleViewClientDebt = async function(clientId) {
 
         if (salesError) throw salesError;
         
-        // **CORRECCIÓN 1:** Aseguramos que 'sales' sea un array vacío si es null
         const sales = salesData || []; 
 
         // B. Obtener todos los pagos/abonos del cliente
@@ -1490,7 +1492,6 @@ window.handleViewClientDebt = async function(clientId) {
 
         if (paymentsError) throw paymentsError;
 
-        // **CORRECCIÓN 2:** Aseguramos que 'payments' sea un array vacío si es null
         const payments = paymentsData || []; 
 
 
@@ -1531,14 +1532,12 @@ window.handleViewClientDebt = async function(clientId) {
                     const paymentDate = new Date(payment.created_at);
                     const timeDiff = Math.abs(saleDate - paymentDate); 
                     
-                    // Lógica para determinar si es Pago Inicial o Abono posterior
                     if (timeDiff < 60000) { 
                         description = `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`;
                     } else {
                         description = `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
                     }
                     
-                    // Añadir el comentario de la venta original para contexto del abono
                     if (sale.description && sale.description.trim() !== '') {
                          description += ` (${sale.description.trim()})`; 
                     }
@@ -1559,9 +1558,9 @@ window.handleViewClientDebt = async function(clientId) {
         // 3. ORDENAR TODAS LAS TRANSACCIONES
         transactions.sort((a, b) => {
             if (a.date.getTime() !== b.date.getTime()) {
-                return a.date.getTime() - b.date.getTime(); // Ordenar por fecha y hora
+                return a.date.getTime() - b.date.getTime();
             }
-            return a.order - b.order; // Si son iguales, Venta (1) va antes de Pago (2)
+            return a.order - b.order;
         });
 
         
@@ -1578,14 +1577,11 @@ window.handleViewClientDebt = async function(clientId) {
             let amountClass = '';
             
             if (t.type === 'cargo_venta') {
-                // Es un cargo (Aumenta la deuda)
                 currentRunningBalance += amountValue;
                 amountClass = 'text-red-600 font-bold'; 
-
             } else if (t.type === 'abono') { 
-                // Es un abono (Disminuye la deuda)
                 currentRunningBalance -= amountValue;
-                amountClass = 'text-green-600 font-bold'; // Monto en positivo, color verde
+                amountClass = 'text-green-600 font-bold';
 
             } else {
                 console.warn(`Tipo de transacción no reconocido: ${t.type}.`);
@@ -1605,7 +1601,7 @@ window.handleViewClientDebt = async function(clientId) {
                 balanceClass = 'text-gray-700 font-bold text-right';
             }
             
-            // 5. GENERACIÓN DEL HTML DE LA FILA (Alineación a la derecha ajustada para el modal)
+            // 5. GENERACIÓN DEL HTML DE LA FILA
             historyHTML.push(`
                 <tr class="hover:bg-gray-50 text-sm">
                     <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(t.date)}</td>
