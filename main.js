@@ -1475,7 +1475,7 @@ window.handleViewClientDebt = async function(clientId) {
                 // Es un cargo (Aumenta la deuda)
                 currentRunningBalance += amountValue;
                 
-                const productNames = transaction.product_name || 'Venta Sin Descripción'; 
+                const productNames = transaction.product_name || 'Venta General de Productos'; 
                 transactionDescription = `Venta: ${productNames}`;
                 
                 amountDisplay = formatCurrency(amountValue); 
@@ -2930,7 +2930,7 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
             const isoStartDate = startDate.toISOString();
             const isoEndDate = endDate.toISOString();
 
-            console.log(`[DEBUG] RANGO FINAL AJUSTADO (UTC): GTE ${isoStartDate} | LT ${isoEndDate}`);
+            //console.log(`[DEBUG] RANGO FINAL AJUSTADO (UTC): GTE ${isoStartDate} | LT ${isoEndDate}`);
 
             // 3. Consulta a Supabase (SIN CAMBIOS)
             const { data: sales, error } = await supabase
@@ -3098,13 +3098,13 @@ function initReportSelectors() {
     monthSelect.value = currentMonth;
     yearSelect.value = currentYear;
 
-    console.log(`Inicializando selectores de reporte (Mes/Año) por primera vez...`);
+   // console.log(`Inicializando selectores de reporte (Mes/Año) por primera vez...`);
 
     const handleChange = () => {
         const selectedMonth = parseInt(monthSelect.value) || currentMonth;
         const selectedYear = parseInt(yearSelect.value) || currentYear;
 
-        console.log(`[INIT SELECTORS] Llamada directa (SÍNCRONA) para Mes: ${selectedMonth}, Año: ${selectedYear}`);
+        //console.log(`[INIT SELECTORS] Llamada directa (SÍNCRONA) para Mes: ${selectedMonth}, Año: ${selectedYear}`);
 
         // 🛑 SOLUCIÓN SÍNCRONA: Eliminamos el setTimeout
         if (typeof loadMonthlySalesReport === 'function') {
@@ -3125,7 +3125,7 @@ function initReportSelectors() {
 
         // 🛑 CORRECCIÓN DE ÁMBITO: Llamada directa, sin 'window.'
         if (typeof loadMonthlySalesReport === 'function') {
-            console.log(`[CARGA INICIAL ÉXITO] Reporte programado para Mes: ${finalMonth}, Año: ${finalYear}`);
+          //  console.log(`[CARGA INICIAL ÉXITO] Reporte programado para Mes: ${finalMonth}, Año: ${finalYear}`);
             // 🚀 ESTO ES LO QUE ARREGLA LA CARGA INICIAL
             loadMonthlySalesReport(finalMonth, finalYear); 
         }
@@ -3461,7 +3461,7 @@ async function loadAllProductsMap() {
         map[product.producto_id] = product.name;
         return map;
     }, {});
-    console.log(`Mapa de ${products.length} productos cargado.`);
+   // console.log(`Mapa de ${products.length} productos cargado.`);
 }
 
 function formatDate(isoDateString) {
