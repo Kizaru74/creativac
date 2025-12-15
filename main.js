@@ -1629,7 +1629,7 @@ window.handleViewClientDebt = async function(clientId) {
 }
 
 //Imprmir PDF
-function printClientDebtReport() {
+window.printClientDebtReport = function() {
     const clientName = document.getElementById('client-report-name').textContent;
     const totalDebt = document.getElementById('client-report-total-debt').textContent;
     const reportContent = document.getElementById('client-transactions-body').innerHTML;
@@ -1641,15 +1641,15 @@ function printClientDebtReport() {
         <head>
             <title>Reporte de Deuda - ${clientName}</title>
             <style>
-                /* 2. Estilos básicos para impresión (opcional, pero recomendado) */
+                /* ... estilos ... */
                 body { font-family: Arial, sans-serif; margin: 20px; }
                 h1 { color: #333; }
                 .header-summary { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
                 table { width: 100%; border-collapse: collapse; }
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
                 th { background-color: #f2f2f2; }
-                .text-red-600 { color: #dc2626; } /* Color de deuda */
-                .text-green-600 { color: #16a34a; } /* Color de abono */
+                .text-red-600 { color: #dc2626; } 
+                .text-green-600 { color: #16a34a; } 
             </style>
         </head>
         <body>
@@ -1680,11 +1680,9 @@ function printClientDebtReport() {
     if (printWindow) {
         printWindow.document.write(htmlContent);
         printWindow.document.close();
-
-        // Forzar un pequeño retraso para asegurar que el contenido se renderice
+        
         setTimeout(() => {
             printWindow.print();
-            // Opcional: printWindow.close(); después de que el usuario imprima o cancele
         }, 300);
     } else {
         alert("Por favor, permita ventanas emergentes para imprimir el reporte.");
