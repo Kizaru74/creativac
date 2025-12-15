@@ -1666,7 +1666,7 @@ window.printClientDebtReport = function() {
                     display: inline-block; 
                     width: auto;
                 }
-                .summary-box strong { font-size: 11pt; }
+                .summary-box strong { font-size: 10pt; }
                 .total-debt-amount { 
                     font-size: 18pt; 
                     font-weight: bold; 
@@ -1677,9 +1677,9 @@ window.printClientDebtReport = function() {
 
                 /* --- TABLA DE TRANSACCIONES --- */
                 table { 
-                    width: 100%; 
+                    width: 90%; 
                     border-collapse: collapse; 
-                    margin-top: 15px; 
+                    margin-top: 13px; 
                 }
                 th, td { 
                     border: 1px solid #e0e0e0; 
