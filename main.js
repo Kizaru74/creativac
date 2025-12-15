@@ -2591,23 +2591,22 @@ async function handleNewProduct(e) {
         return;
     }
 
-    // 2. Obtener elementos del formulario y verificar su existencia
+    // 1. Obtener elementos del formulario
     const nameInput = document.getElementById('new-product-name');
+    // ✅ Corregido: Usamos el ID nuevo/corregido 'new-product-type'
     const typeInput = document.getElementById('new-product-type'); 
-    
-    // ✅ CORRECCIÓN CLAVE: Usar 'new-product-price' que es el ID en tu HTML
     const priceInput = document.getElementById('new-product-price'); 
     
-    // 🛑 VERIFICACIÓN: Si falta alguno de estos elementos, el script se detiene aquí.
+    // 🛑 VERIFICACIÓN:
     if (!nameInput || !typeInput || !priceInput) {
-        // Este error ya no debería dispararse si el HTML está cargado y los IDs son correctos
-        console.error("Error FATAL: No se encontraron todos los campos del formulario en el DOM. Verifique los IDs.");
+        console.error("Error FATAL: No se encontraron todos los campos del formulario en el DOM.");
         alert("Error al intentar guardar el producto. Verifique los IDs en la consola.");
         return;
     }
 
-    // Ahora que sabemos que existen, leemos sus valores
+    // 2. Leer valores
     const name = nameInput.value.trim();
+    // ✅ type ahora leerá 'PRODUCT', 'SERVICE' o 'PACKAGE' del HTML corregido
     const type = typeInput.value; 
     const price = parseFloat(priceInput.value);
     let parentProductId = null;
@@ -2618,27 +2617,30 @@ async function handleNewProduct(e) {
         return;
     }
 
-    // 4. Lógica y validación para Paquetes (se mantiene igual, asumiendo que tienes el selector padre)
-if (type === 'PACKAGE') {
-        const parentSelect = document.getElementById('parent-product-select');
-        parentProductId = parentSelect?.value || null; // 1. Asignación correcta
+    // 4. Lógica y validación para Paquetes
+    // ✅ La verificación ahora usa 'PACKAGE' que coincide con el valor del HTML corregido
+    if (type === 'PACKAGE') {
+        // ✅ Corregido: Usamos el ID correcto 'new-product-parent-select'
+        const parentSelect = document.getElementById('new-product-parent-select');
+        parentProductId = parentSelect?.value || null; 
         
-        if (!parentProductId) {
+        if (!parentProductId || parentProductId === 'placeholder-option-value') { // Asegurar que no sea una opción vacía
             alert('Los paquetes deben tener un Producto Principal asociado. Seleccione uno de la lista.');
             return;
         }
     }
 
-    // 5. Inserción en la base de datos (se mantiene igual)
+    // 5. Inserción en la base de datos
     const { error } = await supabase
         .from('productos')
         .insert([{ 
             name: name, 
-            type: type, 
+            type: type, // Enviamos el valor de tipo (PRODUCT/SERVICE/PACKAGE)
             price: price, 
-           parent_product: parentProductId        }]);
+            parent_product: parentProductId 
+        }]);
 
-    // 6. Manejo de respuesta (se mantiene igual)
+    // 6. Manejo de respuesta
     if (error) {
         console.error('Error de Supabase al registrar producto:', error.message);
         alert('Error al registrar producto: ' + error.message);
@@ -2646,7 +2648,8 @@ if (type === 'PACKAGE') {
         alert('Producto registrado exitosamente.');
         
         // Cerrar el modal correcto y resetear el formulario
-        closeModal('modal-register-product'); 
+        // 🛑 NOTA: Su modal tiene el ID 'new-product-modal'. Ajusté el closeModal.
+        closeModal('new-product-modal'); 
         document.getElementById('new-product-form')?.reset(); 
         
         await loadProductsData();
