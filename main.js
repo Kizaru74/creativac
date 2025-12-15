@@ -1605,7 +1605,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         alert("Error: Cliente no encontrado para esta venta. Intente recargar la página.");
         return;
     }
-    window.viewingClientId = clientId; 
+    window.viewingClientId = clientId; // Guardamos el ID del cliente que estamos viendo
 
     try {
         // 2. CARGA DE LA VENTA PRINCIPAL (Tabla 'ventas')
@@ -1638,33 +1638,25 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
 
         if (paymentsError) throw paymentsError;
 
-        // 5. INYECCIÓN DE DATOS EN EL MODAL
+        // 5. INYECCIÓN DE DATOS GENERALES
         document.getElementById('detail-sale-id').textContent = sale.venta_id; 
         document.getElementById('detail-client-name').textContent = client.name;
         document.getElementById('detail-sale-date').textContent = formatDate(sale.created_at);
         document.getElementById('detail-payment-method').textContent = sale.metodo_pago;
 
         const descriptionEl = document.getElementById('detail-sale-description');
-        if (descriptionEl) {
+        if (descriptionEl && descriptionEl.parentElement) {
             const descriptionText = sale.description || 'No se registraron comentarios adicionales para esta venta.';
             descriptionEl.textContent = descriptionText;
-            
-            // 🚀 CORRECCIÓN: Nos aseguramos de que el contenedor esté visible, y
-            // confiamos en que 'descriptionText' manejará el valor vacío.
-            if (descriptionEl.parentElement) {
-                descriptionEl.parentElement.classList.remove('hidden');
-            }
-            // 🛑 ELIMINAMOS ESTA LÍNEA QUE CAUSABA EL PROBLEMA:
-            // descriptionEl.parentElement.classList.toggle('hidden', !sale.description);
+            descriptionEl.parentElement.classList.remove('hidden');
         }
 
         document.getElementById('detail-grand-total').textContent = formatCurrency(sale.total_amount); 
         document.getElementById('detail-paid-amount').textContent = formatCurrency(sale.paid_amount); 
         document.getElementById('detail-remaining-debt').textContent = formatCurrency(sale.saldo_pendiente);
         
-        // ... (el resto de su código)
         
-        // RENDERIZADO DE ÍTEMS DE VENTA (Tabla detail-products-body)
+        // 6. RENDERIZADO DE ÍTEMS DE VENTA (Tabla detail-products-body)
         const productsBody = document.getElementById('detail-products-body');
         productsBody.innerHTML = '';
         
@@ -1679,44 +1671,53 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
                 }
             }
             
+            // Usamos un formato más limpio para la descripción del producto
+            const productNameDisplay = (parentName !== 'N/A' && parentName ? parentName + ' (' : '') + 
+                                       (productData?.name || 'Producto Desconocido') + 
+                                       (parentName !== 'N/A' && parentName ? ')' : '');
+
             productsBody.innerHTML += `
                 <tr>
-                    <td class="px-4 py-2">
-                        ${parentName !== 'N/A' && parentName ? parentName + ' (' : ''}
-                        <span class="font-medium">${productData?.name || 'Producto Desconocido'}</span>
-                        ${parentName !== 'N/A' && parentName ? ')' : ''}
-                    </td> 
+                    <td class="px-4 py-2">${productNameDisplay}</td> 
                     <td class="px-4 py-2 text-center">${item.quantity}</td>
                     <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
                     <td class="px-4 py-2 font-medium text-right">${formatCurrency(item.subtotal)}</td>
+                    <td class="px-4 py-2"></td>
                 </tr>
             `;
         });
         
-        // RENDERIZADO DE ABONOS (Tabla detail-abonos-body)
+        // 7. RENDERIZADO DE ABONOS (Tabla detail-abonos-body) - Implementación de la corrección
         const abonosBody = document.getElementById('detail-abonos-body');
         const noAbonosMessage = document.getElementById('no-abonos-message');
         abonosBody.innerHTML = '';
 
         if (payments.length === 0) {
+            // Si no hay pagos, mostramos el mensaje de "No se han registrado abonos."
             noAbonosMessage.classList.remove('hidden');
+            abonosBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">No se han registrado pagos o abonos específicos para esta venta.</td></tr>`;
         } else {
-            noAbonosMessage.classList.add('hidden');
+            noAbonosMessage.classList.add('hidden'); // Ocultamos el mensaje si hay pagos
             payments.forEach(payment => {
+                // Aseguramos que el método de pago no sea NULL
+                const metodoPagoDisplay = payment.metodo_pago || 'Pago Inicial'; 
+                
                 abonosBody.innerHTML += `
                     <tr>
                         <td class="px-4 py-2">${formatDate(payment.created_at)}</td>
-                        <td class="px-4 py-2 font-medium text-right">${formatCurrency(payment.amount)}</td>
+                        <td class="px-4 py-2 font-medium text-right text-green-700">${formatCurrency(payment.amount)}</td>
+                        <td class="px-4 py-2">${metodoPagoDisplay}</td>
                     </tr>
                 `;
             });
         }
         
         // =======================================================
-        // 6. LÓGICA CONDICIONAL: Edición de Precio ($0.00) vs Abono (Deuda Activa)
+        // 8. LÓGICA CONDICIONAL: Edición de Precio ($0.00) vs Abono (Deuda Activa)
         // =======================================================
         
         const priceEditSection = document.getElementById('price-edit-section');
+        // El botón de abono está en el resumen financiero
         const abonoButtonInSummary = document.querySelector('[data-open-modal="abono-client-modal"]'); 
 
         // Criterio para Venta Fantasma ($0.00): Total es ~0 Y Saldo Pendiente es ~0
@@ -1739,21 +1740,20 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
                 document.getElementById('edit-sale-detail-id').value = itemToEdit.detalle_id; 
                 document.getElementById('edit-new-price').value = itemToEdit.price || ''; 
                 
-                // 🚀 CAMBIO CLAVE AQUÍ 🚀
+                // Relleno de Nombre de Producto para Edición
                 const productData = itemToEdit.productos;
                 let fullName = productData?.name || 'Ítem Principal';
 
                 if (productData && productData.parent_product && window.allProductsMap) {
                     const parentProduct = window.allProductsMap[productData.parent_product]; 
                     if (parentProduct) {
-                        // Formato: Nombre del Padre (Nombre del Hijo)
                         fullName = `${parentProduct.name} (${productData.name})`;
                     }
                 }
                 document.getElementById('edit-product-name').textContent = fullName;
-                // 🚀 FIN DEL CAMBIO CLAVE 🚀
                 
             } else {
+                // Si la venta está a 0 pero no tiene detalle (caso raro), ocultamos edición
                 priceEditSection?.classList.add('hidden');
                 abonoButtonInSummary?.classList.remove('hidden');
             }
@@ -1763,10 +1763,13 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             priceEditSection?.classList.add('hidden');
             abonoButtonInSummary?.classList.remove('hidden');
             
-            // Rellenar Modal de Abono (tu modal: #abono-client-modal)
+            // Rellenar Modal de Abono (Datos de Venta Específica)
+            window.debtToPayId = sale.venta_id; // <-- CRÍTICO: Aquí indicamos que el abono es para esta Venta ID
+            
             const debtIdInput = document.getElementById('debt-to-pay-id');
             const currentDebtSpan = document.getElementById('abono-current-debt');
 
+            // Estos elementos son usados por el modal de Abono Específico si lo implementa
             if (debtIdInput) {
                 debtIdInput.value = sale.venta_id; 
             }
@@ -1774,13 +1777,19 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
                 currentDebtSpan.textContent = formatCurrency(remainingDebt);
             }
             
+            // Adjuntar evento para abrir el modal de abono y pasar el ID de la VENTA
+            abonoButtonInSummary.onclick = () => {
+                 // Usamos la función de abono para pasar el ID de la VENTA (no el cliente)
+                 openAbonoModal(sale.venta_id, client.name, remainingDebt); 
+            };
+            
         } else {
             // VENTA PAGADA COMPLETAMENTE: Ocultar ambos
             priceEditSection?.classList.add('hidden');
             abonoButtonInSummary?.classList.add('hidden');
         }
 
-        // 7. ABRIR EL MODAL
+        // 9. ABRIR EL MODAL
         openModal('modal-detail-sale');
 
     } catch (e) {
@@ -2760,23 +2769,53 @@ async function handleRegisterPayment(e) {
     await loadDashboardData(); 
 }
 
-function openAbonoModal(clientId) {
-    // 1. Asigna el ID del cliente a una variable global o campo oculto del formulario de abonos.
-    // Esto es CRÍTICO para que handleRecordAbono sepa a quién abonar.
-    debtToPayId = clientId; // Asumiendo que tienes una variable global 'debtToPayId'
+window.openAbonoModal = function(id, name, remainingDebt = null) {
+    
+    // 1. Asignar el ID a la variable global (Usado por handleRecordAbono)
+    window.debtToPayId = id; 
 
-    // También puedes usar un campo oculto si prefieres:
+    // 2. Determinar el contexto
+    // Usamos allClientsMap para saber si el ID es un cliente.
+    const isClientId = window.allClientsMap[id] !== undefined;
+
+    // 3. Obtener referencias del modal
     const clientIdInput = document.getElementById('abono-client-id-input');
+    const clientNameDisplay = document.getElementById('abono-client-name-display');
+    // Asegúrese de que este ID exista en su HTML (contenedor de saldo pendiente)
+    const debtDisplayContainer = document.getElementById('abono-debt-info-container'); 
+    const currentDebtSpan = document.getElementById('abono-current-debt');
+    const modalTitle = document.querySelector('#modal-record-abono h3');
+
+    // 4. Inyectar datos en el formulario y ajustar la interfaz
+    
+    // El ID principal (client_id o venta_id) va al input oculto
     if (clientIdInput) {
-        clientIdInput.value = clientId;
+        clientIdInput.value = id; 
     }
 
-    // 2. Limpia cualquier dato anterior
-    document.getElementById('abono-client-form')?.reset();
+    if (clientNameDisplay) {
+        let nameText = isClientId ? `Deuda General de: ${name}` : `Venta #${id} de ${name}`;
+        clientNameDisplay.textContent = nameText;
+    }
     
-    // 3. Abre el modal de abonos
-    openModal('modal-record-abono'); // 💡 Reemplaza con el ID real de tu modal de abonos
-}
+    if (modalTitle) {
+         // Ajustamos el título del modal según el tipo de abono
+        modalTitle.textContent = isClientId ? 'Registrar Abono General' : 'Registrar Pago a Venta Específica';
+    }
+
+    // 5. Mostrar/Ocultar el saldo pendiente
+    if (remainingDebt !== null && remainingDebt > 0) {
+        if (debtDisplayContainer) debtDisplayContainer.classList.remove('hidden');
+        if (currentDebtSpan) currentDebtSpan.textContent = formatCurrency(remainingDebt);
+    } else {
+        // Ocultar si no hay deuda o si es abono general (la deuda se ve en el reporte)
+        if (debtDisplayContainer) debtDisplayContainer.classList.add('hidden');
+    }
+
+    // 6. Limpia el formulario (excepto el input oculto) y abre el modal
+    document.getElementById('abono-client-form')?.reset();
+    openModal('modal-record-abono');
+};
 
 // ====================================================================
 // ✅ FUNCIÓN CRÍTICA: REGISTRO DE ABONO A UNA VENTA ESPECÍFICA
