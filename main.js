@@ -1628,6 +1628,69 @@ window.handleViewClientDebt = async function(clientId) {
     }
 }
 
+//Imprmir PDF
+function printClientDebtReport() {
+    const clientName = document.getElementById('client-report-name').textContent;
+    const totalDebt = document.getElementById('client-report-total-debt').textContent;
+    const reportContent = document.getElementById('client-transactions-body').innerHTML;
+
+    // 1. Construir el HTML de la hoja de impresión
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Reporte de Deuda - ${clientName}</title>
+            <style>
+                /* 2. Estilos básicos para impresión (opcional, pero recomendado) */
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #333; }
+                .header-summary { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+                th { background-color: #f2f2f2; }
+                .text-red-600 { color: #dc2626; } /* Color de deuda */
+                .text-green-600 { color: #16a34a; } /* Color de abono */
+            </style>
+        </head>
+        <body>
+            <h1>Resumen de Cuenta: ${clientName}</h1>
+            <div class="header-summary">
+                <strong>DEUDA TOTAL PENDIENTE:</strong> <span style="font-size: 1.2em; font-weight: bold;">${totalDebt}</span>
+            </div>
+            <h2>Historial Detallado de Transacciones</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th style="text-align: right;">Monto</th>
+                        <th style="text-align: right;">Saldo Acumulado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${reportContent} 
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `;
+
+    // 3. Abrir en una nueva ventana y llamar a la función de impresión
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+
+        // Forzar un pequeño retraso para asegurar que el contenido se renderice
+        setTimeout(() => {
+            printWindow.print();
+            // Opcional: printWindow.close(); después de que el usuario imprima o cancele
+        }, 300);
+    } else {
+        alert("Por favor, permita ventanas emergentes para imprimir el reporte.");
+    }
+}
+
 window.handleViewSaleDetails = async function(transactionId, clientId) {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
