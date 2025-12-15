@@ -1,0 +1,17 @@
+Novedades de Diseño:
+
+    Encabezado Formal: Se agregó un encabezado con un título (REPORTE DE ESTADO DE CUENTA) y la información del cliente/fecha.
+
+    Caja de Resumen: La deuda total se destaca en una caja gris (.summary-box) con el monto en un tamaño de fuente grande y en color rojo para mayor impacto.
+
+    Diseño de Tabla:
+
+        Se mejoraron los colores de las cabeceras (th) a un azul claro.
+
+        Se aumentó el padding para que las filas no se vean tan apretadas.
+
+        Se definieron anchos específicos para las columnas (.date-col, .amount-col, .balance-col) para un mejor ajuste.
+
+    Pie de Página (.page-footer): Agregamos un pie de página fijo, útil para marcar la fuente del documento o notas legales.
+
+Pruebe esta nueva función. Al hacer clic en "Imprimir / PDF", verá el reporte con un aspecto mucho más limpio y profesional, y así se guardará en PDF.

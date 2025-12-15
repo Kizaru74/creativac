@@ -1633,49 +1633,126 @@ window.printClientDebtReport = function() {
     const clientName = document.getElementById('client-report-name').textContent;
     const totalDebt = document.getElementById('client-report-total-debt').textContent;
     const reportContent = document.getElementById('client-transactions-body').innerHTML;
+    const currentDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    // 1. Construir el HTML de la hoja de impresión
+    // 1. Construir el HTML de la hoja de impresión con estilos mejorados
     const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
             <title>Reporte de Deuda - ${clientName}</title>
             <style>
-                /* ... estilos ... */
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                h1 { color: #333; }
-                .header-summary { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-                th { background-color: #f2f2f2; }
-                .text-red-600 { color: #dc2626; } 
-                .text-green-600 { color: #16a34a; } 
+                /* --- RESET Y BASE --- */
+                body { 
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+                    margin: 0; 
+                    padding: 40px; 
+                    color: #333;
+                    font-size: 10pt;
+                }
+                
+                /* --- ENCABEZADO Y TÍTULOS --- */
+                .header { border-bottom: 3px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px; }
+                .header h1 { margin: 0; font-size: 18pt; color: #0056b3; }
+                .client-info { font-size: 11pt; margin-top: 10px; }
+                .client-info strong { font-weight: bold; }
+
+                /* --- RESUMEN DEUDA TOTAL --- */
+                .summary-box { 
+                    background-color: #f7f7f7; 
+                    border: 1px solid #ddd; 
+                    padding: 15px; 
+                    margin-bottom: 25px; 
+                    display: inline-block; 
+                    width: auto;
+                }
+                .summary-box strong { font-size: 11pt; }
+                .total-debt-amount { 
+                    font-size: 18pt; 
+                    font-weight: bold; 
+                    color: #dc2626; /* Rojo de deuda */
+                    display: block; 
+                    margin-top: 5px;
+                }
+
+                /* --- TABLA DE TRANSACCIONES --- */
+                table { 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-top: 15px; 
+                }
+                th, td { 
+                    border: 1px solid #e0e0e0; 
+                    padding: 10px 8px; 
+                    text-align: left; 
+                }
+                th { 
+                    background-color: #e6f0ff; /* Azul claro para encabezados */
+                    color: #0056b3; 
+                    font-weight: bold; 
+                    text-transform: uppercase;
+                    font-size: 9pt;
+                }
+                
+                /* Alineación específica de columnas */
+                .amount-col, .balance-col { text-align: right; width: 15%; }
+                .date-col { width: 10%; }
+
+                /* Clases de estado (deben coincidir con las clases generadas en handleViewClientDebt) */
+                .text-red-600 { color: #dc2626; font-weight: bold; } /* Cargo */
+                .text-green-600 { color: #16a34a; font-weight: bold; } /* Abono */
+                .text-gray-700 { color: #4b5563; } /* Saldado */
+
+                .page-footer {
+                    position: fixed;
+                    bottom: 0;
+                    width: 100%;
+                    text-align: right;
+                    font-size: 8pt;
+                    color: #777;
+                    padding-top: 10px;
+                    border-top: 1px dashed #ccc;
+                }
+
             </style>
         </head>
         <body>
-            <h1>Resumen de Cuenta: ${clientName}</h1>
-            <div class="header-summary">
-                <strong>DEUDA TOTAL PENDIENTE:</strong> <span style="font-size: 1.2em; font-weight: bold;">${totalDebt}</span>
+            <div class="header">
+                <h1>REPORTE DE ESTADO DE CUENTA</h1>
+                <div class="client-info">
+                    <strong>Cliente:</strong> ${clientName}<br>
+                    <strong>Fecha de Emisión:</strong> ${currentDate}
+                </div>
             </div>
+
+            <div class="summary-box">
+                <strong>SALDO PENDIENTE ACTUAL</strong>
+                <span class="total-debt-amount">${totalDebt}</span>
+            </div>
+
             <h2>Historial Detallado de Transacciones</h2>
             <table>
                 <thead>
                     <tr>
-                        <th>Fecha</th>
-                        <th>Tipo</th>
-                        <th style="text-align: right;">Monto</th>
-                        <th style="text-align: right;">Saldo Acumulado</th>
+                        <th class="date-col">Fecha</th>
+                        <th>Concepto</th>
+                        <th class="amount-col">Monto</th>
+                        <th class="balance-col">Saldo Acumulado</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${reportContent} 
                 </tbody>
             </table>
+
+            <div class="page-footer">
+                Documento generado por [Nombre de su Empresa]. Para fines informativos.
+            </div>
         </body>
         </html>
     `;
 
-    // 3. Abrir en una nueva ventana y llamar a la función de impresión
+    // 2. Abrir en una nueva ventana y llamar a la función de impresión
     const printWindow = window.open('', '_blank');
     if (printWindow) {
         printWindow.document.write(htmlContent);
