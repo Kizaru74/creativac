@@ -1730,7 +1730,7 @@ window.printClientDebtReport = function() {
                 <span class="total-debt-amount">${totalDebt}</span>
             </div>
 
-            <h2>Historial Detallado de Transacciones</h2>
+            <h2>Historial</h2>
             <table>
                 <thead>
                     <tr>
@@ -1746,7 +1746,7 @@ window.printClientDebtReport = function() {
             </table>
 
             <div class="page-footer">
-                Documento generado por [Nombre de su Empresa]. Para fines informativos.
+                Documento generado por [Creativa Cortes CNC]. Para fines informativos.
             </div>
         </body>
         </html>
