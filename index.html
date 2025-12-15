@@ -718,6 +718,59 @@
     </div>
 </div>
 
+<div id="modal-record-abono" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+        
+        <div class="p-6 border-b flex justify-between items-center">
+            <h3 class="text-2xl font-semibold text-gray-800">
+                <i class="fas fa-hand-holding-dollar mr-2 text-green-600"></i> Registrar Abono de Cliente
+            </h3>
+            <button onclick="closeModal('modal-record-abono')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="abono-client-form">
+            <div class="p-6 space-y-4">
+                
+                <input type="hidden" id="abono-client-id-input" name="client_id">
+
+                <p class="text-sm text-gray-600">
+                    Abono para el cliente: 
+                    <span id="abono-client-name-display" class="font-semibold text-indigo-700">Cargando...</span>
+                </p>
+
+                <div>
+                    <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
+                    <input type="number" step="0.01" min="1" id="abono-amount" name="amount" required
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500 text-lg">
+                </div>
+
+                <div>
+                    <label for="abono-method" class="block text-sm font-medium text-gray-700">Método de Pago</label>
+                    <select id="abono-method" name="method" required
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
+                        <option value="">Seleccione un método</option>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Transferencia">Transferencia</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t bg-gray-50 flex justify-end">
+                <button type="button" onclick="closeModal('modal-record-abono')" 
+                        class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg mr-2 transition duration-150">
+                    Cancelar
+                </button>
+                <button type="submit" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
+                    <i class="fas fa-check mr-2"></i> Registrar Abono
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script type="module" src="main.js"></script>
 
 </body>

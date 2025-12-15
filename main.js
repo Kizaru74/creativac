@@ -2574,7 +2574,7 @@ window.handleNewClient = async function(e) {
     }
 
     // 🛑 LOG 3: INTENTO DE INSERCIÓN
-    console.log('3. Intentando insertar en Supabase...');
+   // console.log('3. Intentando insertar en Supabase...');
 
     // Usamos un bloque try/catch para manejar errores de red o Supabase
     try {
@@ -2591,7 +2591,7 @@ window.handleNewClient = async function(e) {
             console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
             alert('Error al registrar cliente: ' + error.message);
         } else {
-            console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
+        //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
             alert('Cliente registrado exitosamente.');
             
             // --- Cierre y Limpieza ---
@@ -2599,7 +2599,7 @@ window.handleNewClient = async function(e) {
             // 1. Recargar la tabla de clientes
             if (typeof window.loadClientsTable === 'function') { // Verificar en window
              await window.loadClientsTable('gestion');        // Llamar desde window
-             console.log("5. Tabla de clientes recargada exitosamente.");
+         //    console.log("5. Tabla de clientes recargada exitosamente.");
             }    else {
             console.error("ERROR: window.loadClientsTable no está definida para la recarga.");
 }
@@ -2615,7 +2615,7 @@ window.handleNewClient = async function(e) {
                 console.error("closeModal no está definida globalmente.");
             }
             
-            console.log('5. Tarea completada y modal cerrado.');
+           // console.log('5. Tarea completada y modal cerrado.');
         }
     } catch (e) {
         console.error('5. ERROR DE RED o EXCEPCIÓN AL REGISTRAR:', e);
@@ -2874,7 +2874,7 @@ async function handleSaleAbono(e) {
 
 function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
     // 🛑 DEBUG INMEDIATO: ESTA LÍNEA DEBE APARECER AHORA.
-    console.log(`>>> loadMonthlySalesReport (SÍNCRONA) ejecutándose para Mes: ${selectedMonthFromEvent}`); 
+    //console.log(`>>> loadMonthlySalesReport (SÍNCRONA) ejecutándose para Mes: ${selectedMonthFromEvent}`); 
 
     // Definimos una función asíncrona anónima y la ejecutamos inmediatamente.
     (async () => {
@@ -2911,7 +2911,7 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
                                   ? selectedYearFromEvent 
                                   : currentYearNum;
 
-            console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
+          //  console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
 
             // 2. Lógica para calcular rangos de fecha UTC (SIN CAMBIOS)
             let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
