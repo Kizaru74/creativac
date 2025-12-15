@@ -1462,27 +1462,22 @@ window.handleViewClientDebt = async function(clientId) {
             return;
         }
 
-        // 1. OBTENER VENTAS Y PAGOS/ABONOS DIRECTAMENTE
-        // A. Obtener todas las ventas del cliente (cargos)
-        const { data: sales, error: salesError } = await supabase
-        .from('ventas')
-         .select(`
+        /// 1. OBTENER VENTAS Y PAGOS/ABONOS DIRECTAMENTE
+// A. Obtener todas las ventas del cliente (cargos)
+const { data: salesData, error: salesError } = await supabase
+    .from('ventas')
+    .select(`
         venta_id, total_amount, paid_amount, created_at,
-        description, // Este campo es el que queríamos añadir
+        description, 
         detalle_ventas (productos (name))
-         `) // <--- NOTE QUE NO HAY COMENTARIOS AQUÍ DENTRO
-          .eq('client_id', clientId)
-        .order('created_at', { ascending: true });
+    `)
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true });
 
-        // B. Obtener todos los pagos/abonos del cliente
-        // ... (el código de pagos se mantiene) ...
-        const { data: payments, error: paymentsError } = await supabase
-            .from('pagos')
-            .select(`venta_id, amount, metodo_pago, created_at`)
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: true });
+if (salesError) throw salesError;
 
-        if (paymentsError) throw paymentsError;
+// 💡 Nuevo: Aseguramos que 'sales' sea el array de datos o un array vacío si es null
+const sales = salesData || [];
 
 
         // 2. UNIFICAR Y NORMALIZAR TRANSACCIONES
