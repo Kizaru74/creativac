@@ -312,7 +312,7 @@
         </div>
     </div>
     
-<div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+    <div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-8">
         <div class="flex justify-between items-center border-b pb-4 mb-6">
             <h3 class="text-2xl font-bold text-gray-800">Registrar Producto/Servicio</h3>
@@ -334,10 +334,13 @@
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <div>
                     <label for="new-product-type" class="block text-xs font-semibold text-gray-600 mb-1">Categoría</label>
-                    <select id="new-product-type" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                    <select 
+                        id="new-product-type" 
+                        required 
+                        class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors"
+                        onchange="handleProductTypeChange()" >
                         <option value="PRODUCT">Producto</option>
-                        <option value="SERVICE">Servicio</option>
-                        <option value="PACKAGE">Paquete/Subproducto</option>
+                        <option value="PACKAGE">Subproducto</option>
                     </select>
                 </div>
                 <div id="new-product-parent-container" class="hidden"> 

@@ -2656,6 +2656,17 @@ async function handleNewProduct(e) {
         await loadAndRenderProducts();
     }
 }
+window.handleProductTypeChange = function() {
+    const typeSelect = document.getElementById('new-product-type');
+    const parentContainer = document.getElementById('new-product-parent-container');
+    
+    if (typeSelect.value === 'PACKAGE') {
+        parentContainer.classList.remove('hidden');
+    } else {
+        parentContainer.classList.add('hidden');
+    }
+}
+
 
 function handleEditProductClick(productId) {
     editingProductId = productId; // Guarda la ID en la variable global
