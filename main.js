@@ -3111,10 +3111,6 @@ async function handleSaleAbono(e) {
 // ====================================================================
 
 function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
-    // 🛑 DEBUG INMEDIATO: ESTA LÍNEA DEBE APARECER AHORA.
-    //console.log(`>>> loadMonthlySalesReport (SÍNCRONA) ejecutándose para Mes: ${selectedMonthFromEvent}`); 
-
-    // Definimos una función asíncrona anónima y la ejecutamos inmediatamente.
     (async () => {
         if (!supabase) {
             console.error("Supabase no está inicializado. No se pueden cargar los reportes.");
@@ -3126,34 +3122,29 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
         const totalDebtEl = document.getElementById('report-total-debt-generated');
         const noDataMessage = document.getElementById('monthly-report-no-data');
 
-        // CHEQUEO CRÍTICO DE DOM
         if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) {
             console.error("⛔️ FALLO DE DOM: Un elemento HTML del reporte no fue encontrado.");
             return; 
         }
 
-        // Mostrar mensaje de carga...
+        // Mostrar mensaje de carga
         reportBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Cargando reporte...</td></tr>';
-        // ...
-
+        
         try {
-            // 1. Lógica para obtener el mes/año (SIN CAMBIOS)
+            // 1. Lógica para obtener el mes/año
             const currentMonthNum = new Date().getMonth() + 1;
             const currentYearNum = new Date().getFullYear();
             
             let selectedMonth = (selectedMonthFromEvent && selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) 
-                                  ? selectedMonthFromEvent 
-                                  : currentMonthNum;
+                                     ? selectedMonthFromEvent 
+                                     : currentMonthNum;
 
             let selectedYear = (selectedYearFromEvent && selectedYearFromEvent >= 2000) 
-                                  ? selectedYearFromEvent 
-                                  : currentYearNum;
+                                     ? selectedYearFromEvent 
+                                     : currentYearNum;
 
-          //  console.log(`[DEBUG FINAL] CONSULTA SUPABASE para Mes: ${selectedMonth}, Año: ${selectedYear}`); 
-
-            // 2. Lógica para calcular rangos de fecha UTC (SIN CAMBIOS)
+            // 2. Lógica para calcular rangos de fecha UTC
             let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
-            // ... (lógica de endDate) ...
             let nextMonth = selectedMonth; 
             let nextYear = selectedYear;
 
@@ -3168,9 +3159,7 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
             const isoStartDate = startDate.toISOString();
             const isoEndDate = endDate.toISOString();
 
-            //console.log(`[DEBUG] RANGO FINAL AJUSTADO (UTC): GTE ${isoStartDate} | LT ${isoEndDate}`);
-
-            // 3. Consulta a Supabase (SIN CAMBIOS)
+            // 3. Consulta a Supabase
             const { data: sales, error } = await supabase
                 .from('ventas')
                 .select(`
@@ -3187,39 +3176,48 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
 
             if (error) throw error;
             
-            // 4. Renderizado y Actualización de Totales (SIN CAMBIOS)
+            // 4. Renderizado y Actualización de Totales
             let totalSales = 0;
             let totalDebtGenerated = 0;
             reportBody.innerHTML = ''; 
 
             if (sales && sales.length > 0) {
-                // ... (Tu código para renderizar las filas) ...
+                
                 sales.forEach(sale => {
                     totalSales += sale.total_amount;
                     totalDebtGenerated += sale.saldo_pendiente;
-    
-                    const row = reportBody.insertRow();
-                    row.className = 'hover:bg-gray-50';
-    
+        
                     const clientName = sale.clientes?.name || 'Cliente Desconocido';
                     const formattedDate = formatDate(sale.created_at);
-    
-                    row.innerHTML = `
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${sale.venta_id})</td>
-                        <td class="px-6 py-3 whitespace-nowrap font-medium text-gray-900">${clientName}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">${formatCurrency(sale.total_amount)}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm ${sale.saldo_pendiente > 0.01 ? 'text-red-600 font-bold' : 'text-green-600'}">
-                            ${formatCurrency(sale.saldo_pendiente)}
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-sm">
-                            <button 
-                                onclick="handleViewSaleDetails(${sale.venta_id}, ${sale.client_id})" 
-                                class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
-                            >
-                                Ver Detalle
-                            </button>
-                        </td>
+                    
+                    const rowHTML = `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-500">${formattedDate} (Venta #${sale.venta_id})</td>
+                            <td class="px-6 py-3 whitespace-nowrap font-medium text-gray-900">${clientName}</td>
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-right text-gray-700">${formatCurrency(sale.total_amount)}</td>
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-right ${sale.saldo_pendiente > 0.01 ? 'text-red-600 font-bold' : 'text-green-600'}">
+                                ${formatCurrency(sale.saldo_pendiente)}
+                            </td>
+                            <td class="px-6 py-3 whitespace-nowrap text-sm flex space-x-2">
+                                <button 
+                                    onclick="handleViewSaleDetails('${sale.venta_id}', '${sale.client_id}')" 
+                                    class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100 transition-colors"
+                                    title="Ver Detalle de la Venta"
+                                >
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                
+                                <button 
+                                    onclick="handleDeleteSale('${sale.venta_id}', ${selectedMonth}, ${selectedYear})" // <-- Incluimos los filtros para la recarga
+                                    class="text-red-600 hover:text-red-800 font-medium text-xs py-1 px-2 rounded bg-red-100 transition-colors"
+                                    title="Eliminar Venta"
+                                >
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
                     `;
+                    reportBody.insertAdjacentHTML('beforeend', rowHTML); 
                 });
                 
                 noDataMessage.classList.add('hidden'); 
@@ -3237,7 +3235,60 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
             totalSalesEl.textContent = formatCurrency(0);
             totalDebtEl.textContent = formatCurrency(0);
         }
-    })(); // Ejecución inmediata de la función asíncrona anónima
+    })();
+}
+
+//Borrar venta
+window.handleDeleteSale = async function(ventaId, currentMonth, currentYear) {
+    if (!supabase) {
+        alert("Error de conexión a la base de datos.");
+        return;
+    }
+
+    const confirmDeletion = confirm(
+        `ADVERTENCIA: ¿Está seguro de que desea eliminar la Venta #${ventaId}? 
+        
+        Esta acción es irreversible, eliminará todos los detalles y pagos asociados, y afectará la deuda del cliente.
+        
+        Presione OK para continuar.`
+    );
+
+    if (!confirmDeletion) {
+        return;
+    }
+
+    try {
+        // 1. Eliminación en Supabase
+        // (Asumimos que las cascadas están configuradas para detalle_ventas y pagos)
+        const { error } = await supabase
+            .from('ventas')
+            .delete()
+            .eq('venta_id', ventaId);
+
+        if (error) {
+             // Detalle de error para el desarrollador
+            console.error("Error de eliminación en Supabase:", error);
+            if (error.code === '23503') { // Código de error común para violación de FK (si las cascadas no están)
+                throw new Error("Violación de restricción: La venta tiene registros asociados que no se pudieron eliminar. Revise las reglas de 'ON DELETE CASCADE' en su base de datos.");
+            }
+            throw error;
+        }
+
+        // 2. Éxito: Notificar y Recargar el Reporte
+        alert(`Venta #${ventaId} eliminada exitosamente.`);
+        
+        // Recargar el reporte mensual con los mismos filtros
+        if (typeof loadMonthlySalesReport === 'function') {
+            await loadMonthlySalesReport(currentMonth, currentYear); 
+        } else {
+            // Último recurso si la recarga falla (NO RECOMENDADO)
+            location.reload(); 
+        }
+        
+    } catch (e) {
+        console.error('Error al eliminar la venta:', e);
+        alert(`Error al eliminar la venta. Detalles: ${e.message}`);
+    } 
 }
 
 function initializeMonthSelector() {
