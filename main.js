@@ -1660,13 +1660,13 @@ window.printClientDebtReport = function() {
                 /* --- RESUMEN DEUDA TOTAL --- */
                 .summary-box { 
                     background-color: #f7f7f7; 
-                    border: none; 
+                    border: 1px solid #ddd; 
                     padding: 15px; 
                     margin-bottom: 25px; 
                     display: inline-block; 
                     width: auto;
                 }
-                .summary-box strong { font-size: 1pt; }
+                .summary-box strong { font-size: 11pt; }
                 .total-debt-amount { 
                     font-size: 18pt; 
                     font-weight: bold; 
@@ -1699,8 +1699,8 @@ window.printClientDebtReport = function() {
                 .date-col { width: 10%; }
 
                 /* Clases de estado (deben coincidir con las clases generadas en handleViewClientDebt) */
-                .text-red-600 { color: #dc2626; font-weight: normal; } /* Cargo */
-                .text-green-600 { color: #16a34a; font-weight: normal; } /* Abono */
+                .text-red-600 { color: #dc2626; font-weight: bold; } /* Cargo */
+                .text-green-600 { color: #16a34a; font-weight: bold; } /* Abono */
                 .text-gray-700 { color: #4b5563; } /* Saldado */
 
                 .page-footer {
