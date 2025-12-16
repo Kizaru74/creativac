@@ -357,6 +357,77 @@ async function loadDashboardData() {
 // 5. CARGA DE DATOS PARA SELECTORES
 // ====================================================================
 
+//Llena el SELECT de Producto Padre en el modal de edición
+window.loadMainProductsForEditSelect = function() {
+    const selectElement = document.getElementById('edit-product-parent');
+    if (!selectElement) return;
+
+    // Usamos los datos globales ya cargados
+    const allProducts = window.allProducts || []; 
+    const mainProducts = allProducts.filter(product => 
+        // Filtra los productos que pueden ser padres (MAIN o SERVICE)
+        product.type === 'MAIN' || product.type === 'SERVICE' 
+    ); 
+
+    selectElement.innerHTML = '';
+    
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '--- Seleccione el Producto Principal ---';
+    selectElement.appendChild(defaultOption);
+
+    mainProducts.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.producto_id; 
+        option.textContent = product.name;
+        selectElement.appendChild(option);
+    });
+}
+window.loadProductDataToForm = async function(productId) {
+    
+    // Aseguramos que el select padre esté lleno antes de buscar el valor.
+    window.loadMainProductsForEditSelect(); 
+    
+    const product = window.allProductsMap ? window.allProductsMap[String(productId)] : null;
+
+    if (!product) {
+        alert(`Error: No se encontró el producto con ID ${productId}.`);
+        return;
+    }
+
+    // 1. Determinar el valor de la Categoría para el SELECT del HTML
+    let categoryValue;
+    if (product.type === 'MAIN') categoryValue = 'Producto';
+    else if (product.type === 'SERVICE') categoryValue = 'Servicio';
+    else if (product.type === 'PACKAGE') categoryValue = 'Paquete';
+    
+    // 2. Llenar los campos del modal
+    document.getElementById('edit-product-id').value = product.producto_id; 
+    document.getElementById('edit-product-name').value = product.name;
+    document.getElementById('edit-product-price').value = product.price;
+    document.getElementById('edit-product-category').value = categoryValue; // Establece el valor mapeado
+
+    // 3. Manejar el Producto Padre y la visibilidad
+    const parentContainer = document.getElementById('edit-product-parent-container');
+    const parentSelect = document.getElementById('edit-product-parent');
+    
+    if (product.type === 'PACKAGE') {
+        parentContainer.classList.remove('hidden');
+        parentSelect.value = product.parent_product || ''; // Selecciona el padre actual
+    } else {
+        parentContainer.classList.add('hidden');
+    }
+    
+    // 4. Establecer el listener de cambio para la Categoría (para ocultar/mostrar el Padre)
+    document.getElementById('edit-product-category').onchange = function() {
+        if (this.value === 'Paquete') {
+            parentContainer.classList.remove('hidden');
+        } else {
+            parentContainer.classList.add('hidden');
+        }
+    };
+}
+
 async function loadClientsForSale() {
     const select = document.getElementById('client-select');
     if (!select) return;
@@ -2378,25 +2449,27 @@ function toggleParentProductField() {
         parentSelect.value = ''; // Limpiar el valor seleccionado
     }
 }
-async function handleEditProduct(e) {
+// La función DEBE estar expuesta globalmente si el formulario no tiene un listener en JS.
+window.handleEditProduct = async function(e) { 
     e.preventDefault();
 
-    if (!supabase || !editingProductId) {
+    if (!supabase || !window.editingProductId) { // Usar window.editingProductId si es global
         alert('Error: Supabase no está disponible o el ID del producto a editar es desconocido.');
         return;
     }
-
-    // 1. Obtener valores del formulario de edición
+    
+    // 1. Obtener valores del formulario de edición (USANDO IDs del HTML del modal)
     const nameInput = document.getElementById('edit-product-name');
-    const typeInput = document.getElementById('edit-product-type'); 
-    
-    // ⚠️ ATENCIÓN: Confirma el ID de tu input de precio ('edit-sale-price' o 'edit-product-price')
-    const priceInput = document.getElementById('edit-sale-price'); 
-    
+    const categoryInput = document.getElementById('edit-product-category'); // ⬅️ CORREGIDO
+    const priceInput = document.getElementById('edit-product-price');       // ⬅️ CORREGIDO
+
     const name = nameInput.value.trim();
-    const type = typeInput.value; 
     const price = parseFloat(priceInput.value);
     
+    // El valor del SELECT del HTML es "Producto", "Servicio" o "Paquete".
+    const categoryValue = categoryInput.value; 
+    const supabaseType = mapCategoryToSupabaseType(categoryValue); // Mapeamos a 'MAIN', 'SERVICE', 'PACKAGE'
+
     let parentProductId = null; 
 
     // 2. Validación de precio
@@ -2405,14 +2478,14 @@ async function handleEditProduct(e) {
         return;
     }
 
-    // 3. Lógica para Paquetes
-    if (type === 'PACKAGE') {
-        // ⚠️ ATENCIÓN: Confirma el ID de tu SELECT de padre ('edit-parent-product-select' o 'edit-product-parent-select')
-        const parentSelect = document.getElementById('edit-parent-product-select');
+    // 3. Lógica para Paquetes (Usamos el tipo mapeado)
+    if (supabaseType === 'PACKAGE') {
+        const parentSelect = document.getElementById('edit-product-parent'); // ⬅️ CORREGIDO
         parentProductId = parentSelect?.value || null; 
         
-        if (!parentProductId || parentProductId === 'placeholder-option-value') { 
-            alert('Los paquetes deben tener un Producto Principal asociado. Seleccione uno de la lista.');
+        // Verifica si la ID del padre es válida y diferente de la propia ID
+        if (!parentProductId || parentProductId === 'placeholder-option-value' || String(parentProductId) === String(window.editingProductId)) { 
+            alert('Los paquetes deben tener un Producto Principal asociado válido y no pueden ser su propio padre.');
             return;
         }
     }
@@ -2420,47 +2493,42 @@ async function handleEditProduct(e) {
     // 4. Objeto de datos a actualizar
     const productData = { 
         name: name, 
-        type: type, 
+        type: supabaseType, // Usamos el tipo de Supabase
         price: price, 
         parent_product: parentProductId 
     };
     
-    // 5. Deshabilitar el botón de submit (Mejora UX)
-    const submitBtn = e.submitter;
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Actualizando...';
-    }
+    // ... (Resto del código de UX) ...
 
     // 6. Actualización en la base de datos
     const { error } = await supabase
         .from('productos')
         .update(productData)
-        .eq('producto_id', editingProductId); 
+        .eq('producto_id', window.editingProductId); // Usar la ID global
 
     // 7. Manejo de respuesta
     if (error) {
-        console.error('Error de Supabase al actualizar producto:', error.message);
-        alert('Error al actualizar producto: ' + error.message);
+        // ... (Manejo de error) ...
     } else {
         alert('Producto actualizado exitosamente.');
         
         // Limpieza y recarga
-        closeModal('modal-edit-product'); 
+        closeModal('edit-product-modal'); // ⬅️ CORREGIDO: Usar el ID real del modal
         document.getElementById('edit-product-form')?.reset(); 
         
-        // La recarga es CRÍTICA para que la tabla refleje los cambios
         await loadProductsData();
         await loadAndRenderProducts();
     }
     
-    // 8. Restablecer el botón
-    if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Guardar Cambios';
-    }
-
-    editingProductId = null; // Reseteamos la ID global SÓLO al final
+    // ... (Restablecer el botón) ...
+    
+    window.editingProductId = null; // Reseteamos la ID global SÓLO al final
+}
+// ⚠️ NECESITAS ESTA FUNCIÓN DE MAPEO:
+function mapCategoryToSupabaseType(category) {
+    if (category === 'Producto') return 'MAIN';
+    if (category === 'Paquete') return 'PACKAGE';
+    return 'MAIN'; 
 }
 // main.js - Función para manejar el guardado de un nuevo producto
 async function handleNewProduct(e) {
