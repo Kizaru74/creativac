@@ -2617,8 +2617,8 @@ window.handleProductTypeChange = function() {
         parentSelect.value = ''; 
     }
 }
-function handleEditProductClick(productId) {
-    editingProductId = productId; // Guarda la ID en la variable global
+window.handleEditProductClick = function(productId) {
+        editingProductId = productId; // Guarda la ID en la variable global
     loadProductDataToForm(productId); // Carga los datos en el formulario
     openModal('modal-edit-product'); // Abre el modal de edición
 }
@@ -2642,7 +2642,7 @@ window.handleDeleteProductClick = function(productId) {
     // 4. Abrir el modal (USANDO EL ID CORRECTO DEL BLOQUE HTML)
     openModal('delete-product-modal'); 
 }
-async function confirmDeleteProduct() {
+window.confirmDeleteProduct = async function() {
     // Usamos la ID global unificada
     if (!editingProductId) return;
 
@@ -2674,6 +2674,9 @@ async function confirmDeleteProduct() {
     confirmBtn.textContent = 'Sí, Eliminar';
     closeModal('modal-delete-confirmation'); 
     editingProductId = null; // CRÍTICO: Limpiar la ID global después de la acción
+
+    closeModal('delete-product-modal'); // ⬅️ CRÍTICO: Cierre el modal con el ID correcto.
+    window.editingProductId = null;
 }
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
