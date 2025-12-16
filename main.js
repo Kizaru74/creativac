@@ -535,11 +535,23 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
     
     // 4. Filtrar y buscar los subproductos (paquetes)
-    const subProducts = allProducts.filter(p => 
+const subProducts = allProducts.filter(p => {
+    // 1. Convertir el parent_product a número entero
+    const parentIdNum = parseInt(p.parent_product, 10);
+    
+    // 2. Convertir el productId seleccionado a número entero
+    const selectedIdNum = parseInt(productId, 10);
+    
+    // Devolvemos true si se cumplen TODAS las condiciones
+    return (
+        // a) El tipo debe ser 'PACKAGE'
         p.type && p.type.trim().toUpperCase() === 'PACKAGE' && 
-        p.parent_product &&
-        String(p.parent_product) === String(productId) 
+        // b) El parent_product DEBE ser un número válido
+        !isNaN(parentIdNum) &&
+        // c) Comparación numérica estricta de IDs
+        parentIdNum === selectedIdNum 
     );
+});
     
     console.log(`DEBUG FILTRO: Subproductos encontrados para ID ${productId}: ${subProducts.length}`);
     
