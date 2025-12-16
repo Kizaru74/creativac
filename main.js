@@ -2443,6 +2443,22 @@ function loadProductDataToForm(productId) {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
+
+async function openNewProductModal() {
+    // 1. Asegura que la lista de productos padres esté actualizada antes de mostrar el modal.
+    await loadMainProductsAndPopulateSelect(); 
+    
+    // 2. Ejecuta la función global para abrir el modal (ej. muestra el div con el ID).
+    openModal('new-product-modal'); 
+    
+    // 3. Opcional: Asegurar que el campo padre esté oculto al abrir el modal (estado por defecto)
+    // Esto se puede lograr llamando a la función de cambio con el valor 'PRODUCT'.
+    const typeSelect = document.getElementById('new-product-type');
+    if (typeSelect) {
+        typeSelect.value = 'PRODUCT'; // Establece el valor por defecto
+        handleProductTypeChange();     // Fuerza la ejecución de la lógica de ocultamiento/mostrado
+    }
+}
 async function loadMainProductsAndPopulateSelect() {
     if (!supabase) return; 
 
@@ -2721,7 +2737,6 @@ function handleProductTypeChange() {
         parentSelect.value = ''; // Limpiar el valor seleccionado
     }
 }
-
 function handleEditProductClick(productId) {
     editingProductId = productId; // Guarda la ID en la variable global
     loadProductDataToForm(productId); // Carga los datos en el formulario
@@ -2746,7 +2761,6 @@ function handleDeleteProductClick(productId) {
     // 4. Abrir el modal de confirmación
     openModal('modal-delete-confirmation'); 
 }
-
 async function confirmDeleteProduct() {
     // Usamos la ID global unificada
     if (!editingProductId) return;
@@ -2780,7 +2794,9 @@ async function confirmDeleteProduct() {
     closeModal('modal-delete-confirmation'); 
     editingProductId = null; // CRÍTICO: Limpiar la ID global después de la acción
 }
-
+// ====================================================================
+// 11. LÓGICA CRUD PARA CLIENTES
+// ====================================================================
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
