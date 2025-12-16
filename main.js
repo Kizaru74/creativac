@@ -509,62 +509,59 @@ async function loadProductsData() {
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
-    const priceInput = document.getElementById('product-unit-price');
     
-    // Si la función está vacía aquí, este console.log nunca se imprimirá
-    // y la función devolverá 'undefined'
-    console.log("DEBUG: La función handleChangeProductForSale se está ejecutando."); 
-    
-    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
-        console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
-        return;
-    }
+    if (!mainSelect || typeof allProducts === 'undefined') return;
 
     const productId = mainSelect.value;
     
-    // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
+    // 1. Limpieza inicial: Deshabilitar subselect
     subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     subSelect.disabled = true; 
-    priceInput.value = '0.00';
     
-    if (!productId) {
-        return; 
-    }
-
-    // 2. Búsqueda del producto seleccionado y establecer precio
+    if (!productId) return; 
+    
+    // Establecer el precio por defecto (el del producto principal)
     window.updatePriceField(productId);
     
+    // ==========================================================
+    // 🛑 INICIO DEL DEBUG DE DATOS CRÍTICO 🛑
+    // ==========================================================
+    const packageItemsForDebug = allProducts
+        .filter(p => p.type && p.type.trim().toUpperCase() === 'PACKAGE')
+        .map(p => ({
+            id: p.producto_id,
+            name: p.name,
+            type_found: p.type,
+            parent_id_found: p.parent_product // Valor exacto de la base de datos
+        }));
+        
+    console.log("DEBUG DATOS: Lista de todos los paquetes cargados:", packageItemsForDebug);
+    // ==========================================================
+    // 🛑 FIN DEL DEBUG DE DATOS CRÍTICO 🛑
+    // ==========================================================
+
     // 4. Filtrar y buscar los subproductos (paquetes)
-const subProducts = allProducts.filter(p => {
-    // 1. Convertir el parent_product a número entero
-    const parentIdNum = parseInt(p.parent_product, 10);
-    
-    // 2. Convertir el productId seleccionado a número entero
-    const selectedIdNum = parseInt(productId, 10);
-    
-    // Devolvemos true si se cumplen TODAS las condiciones
-    return (
-        // a) El tipo debe ser 'PACKAGE'
-        p.type && p.type.trim().toUpperCase() === 'PACKAGE' && 
-        // b) El parent_product DEBE ser un número válido
-        !isNaN(parentIdNum) &&
-        // c) Comparación numérica estricta de IDs
-        parentIdNum === selectedIdNum 
-    );
-});
+    const subProducts = allProducts.filter(p => {
+        const parentIdNum = parseInt(p.parent_product, 10);
+        const selectedIdNum = parseInt(productId, 10);
+        
+        return (
+            p.type && p.type.trim().toUpperCase() === 'PACKAGE' && 
+            !isNaN(parentIdNum) &&
+            parentIdNum === selectedIdNum 
+        );
+    });
     
     console.log(`DEBUG FILTRO: Subproductos encontrados para ID ${productId}: ${subProducts.length}`);
-    
+
     if (subProducts.length > 0) {
-        // 5. Si hay subproductos: Habilitar el selector y cargarlo
+        // ... (código para habilitar y cargar el selector) ...
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub.producto_id;
-            
-            // Usamos formatCurrency si existe, o un fallback simple
             const priceDisplay = (typeof formatCurrency === 'function') 
                 ? formatCurrency(sub.price) 
                 : `$${parseFloat(sub.price).toFixed(2)}`;
