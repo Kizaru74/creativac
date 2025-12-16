@@ -392,33 +392,36 @@ async function loadClientsForSale() {
 async function loadProductsData() {
     if (!supabase) {
         console.warn("Supabase no inicializado. No se pudieron cargar los productos.");
+        // CRÍTICO: Asegura que las variables globales estén definidas (aunque sea vacías)
+        window.allProducts = []; 
+        window.allProductsMap = {};
         return; 
     }
 
-    // ✅ Consulta las columnas correctas
     const { data, error } = await supabase
         .from('productos')
         .select('producto_id, name, type, price, parent_product'); 
 
     if (error) {
         console.error('Error al cargar todos los productos:', error);
-        allProducts = [];
-        window.allProductsMap = {}; // Asegura que se inicialice como objeto vacío
+        window.allProducts = []; // Definición CORRECTA en el ámbito global
+        window.allProductsMap = {};
         return;
     }
     
-    // 1. Llenar el array global
-    allProducts = data || [];
+    // 1. Llenar el array global (¡CORRECCIÓN APLICADA AQUÍ!)
+    window.allProducts = data || [];
     
-    // 2. 🚨 CRÍTICO: Construir y asignar el mapa global
-    // Esto es lo que estaba faltando
-    window.allProductsMap = allProducts.reduce((map, product) => {
-        // Guardamos el objeto completo del producto con su ID como clave
+    // 2. Construir y asignar el mapa global
+    window.allProductsMap = window.allProducts.reduce((map, product) => {
         map[product.producto_id] = product; 
         return map;
     }, {});
     
-    //console.log(`✅ Mapa de productos cargado: ${Object.keys(window.allProductsMap).length} ítems.`);
+    console.log(`✅ Productos cargados en ámbito global: ${window.allProducts.length} ítems.`);
+    
+    // Si tienes otra función que se llama automáticamente al inicio, llámala aquí
+    // Ejemplo: loadClientsData();
 }
 
 function handleChangeProductForSale() {
