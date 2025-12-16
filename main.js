@@ -660,73 +660,65 @@ function updatePriceField(productId) {
 // 6. LÓGICA DE VENTA MULTI-ITEM, Calular Saldo Pendiente y Proteger el Monto Pagado
 // ====================================================================
 
-function updatePaymentDebtStatus(grandTotal) {
+function updatePaymentDebtStatus(grandTotalFromArgument) {
     
-    // 1. OBTENER EL TOTAL DE LA VENTA DE FORMA ROBUSTA
-    let currentGrandTotal = grandTotal;
-
-    // Si 'grandTotal' no es un número válido (ej: es undefined porque viene del listener),
-    // lo leemos del campo '#total-amount' en el DOM.
-    if (typeof currentGrandTotal !== 'number' || isNaN(currentGrandTotal)) {
-        const totalInput = document.getElementById('total-amount');
-        
-        // 🛑 CRÍTICO: Limpiamos la cadena antes de parsearla
-        const cleanedTotalStr = cleanCurrencyString(totalInput?.value); 
-        let currentPaidAmount = parseFloat(paidAmountStr);
-    }
-    
-    // Campos HTML
+    // 1. DECLARACIÓN DE VARIABLES Y OBTENCIÓN DE ELEMENTOS
     const paidAmountInput = document.getElementById('paid-amount');
     const saldoInput = document.getElementById('display-saldo-pendiente'); 
     const paymentMethodSelect = document.getElementById('payment-method');
+    const totalInput = document.getElementById('total-amount'); // Necesario para leer el total del DOM
     
-    if (!paidAmountInput || !paymentMethodSelect || !saldoInput) return;
+    if (!paidAmountInput || !paymentMethodSelect || !saldoInput || !totalInput) {
+        console.warn("Faltan elementos DOM para la actualización de Saldo.");
+        return;
+    }
 
-    const paymentMethod = paymentMethodSelect.value;
+    // 2. OBTENER EL TOTAL Y PAGADO DE FORMA ROBUSTA
     
-    // 2. LECTURA DEL MONTO PAGADO (también limpiamos por seguridad)
+    // Lee el Grand Total del DOM (por si la función se llama sin argumento)
+    const cleanedTotalStr = cleanCurrencyString(totalInput.value); 
+    const grandTotal = parseFloat(cleanedTotalStr) || 0; 
+    
+    // Lectura del Monto Pagado (limpiamos y parseamos)
+    const paymentMethod = paymentMethodSelect.value;
     let paidAmountStr = cleanCurrencyString(paidAmountInput.value); 
     let currentPaidAmount = parseFloat(paidAmountStr) || 0; 
-    
-    // Si el campo está vacío, lo inicializamos
+
+    // Si el campo está vacío, lo inicializamos para el usuario
     if (paidAmountInput.value.trim() === '') {
         paidAmountInput.value = '0.00';
     }
     
-    // Lógica para el método 'Deuda' (asegura que el pago sea 0 para el cálculo del saldo)
+    // 3. LÓGICA DE PAGO Y SALDO PENDIENTE
+    
+    // Si el método seleccionado es 'Deuda' (indica venta fantasma/deuda total), el pago es 0
     if (paymentMethod === 'Deuda') {
         currentPaidAmount = 0;
-        // Opcional: Si quieres que el input muestre '0.00' al elegir Deuda
-        // paidAmountInput.value = '0.00'; 
     } 
-
-    // 3. CÁLCULO DEL SALDO PENDIENTE
-    let saldoPendiente = currentGrandTotal - currentPaidAmount;
     
-    // Si la venta total es 0, aseguramos que el saldo también sea 0
-    if (currentGrandTotal <= 0) {
+    // Cálculo inicial
+    let saldoPendiente = grandTotal - currentPaidAmount;
+    
+    // Ajuste de Límites: Si la venta total es 0 o hay sobrepago, el saldo no puede ser deuda
+    if (grandTotal <= 0) {
         saldoPendiente = 0;
+    } else if (saldoPendiente < 0) {
+        // Si hay sobrepago (saldo negativo), el 'saldo pendiente' real es 0 (pero el valor negativo 
+        // muestra el cambio que se debe devolver al cliente).
     }
 
-    // 4. ACTUALIZACIÓN VISUAL DEL SALDO
-    
-    // ✅ CLAVE: Si la resta es NEGATIVA, es un sobrepago (cambio). 
-    // Si quieres que el Saldo Pendiente NUNCA sea negativo para la DEUDA, 
-    // puedes usar: if (saldoPendiente < 0) saldoPendiente = 0;
-    // PERO, si quieres que muestre el cambio, debes mantener el valor negativo.
-    
-    // Lo dejaremos como está para que muestre el cambio, y te enfocas en el color.
+    // 4. ACTUALIZACIÓN VISUAL DEL SALDO Y CLASES
     
     saldoInput.value = formatCurrency(saldoPendiente); 
 
     // Manejo visual de clases
     saldoInput.classList.remove('bg-red-100', 'bg-green-100', 'text-red-700', 'text-green-700'); 
     
-    if (saldoPendiente > 0) {
-        // Hay DEUDA pendiente (Color de advertencia)
+    if (saldoPendiente > 0.01) {
+        // Hay DEUDA pendiente (Color de advertencia/Rojo)
         saldoInput.classList.add('bg-red-100', 'text-red-700');
     } else { 
-        // Saldo 0 o Sobrepago (Color de éxito/neutro)
+        // Saldo 0, Pago exacto, o Sobrepago (Color de éxito/verde)
         saldoInput.classList.add('bg-green-100', 'text-green-700');
     }
 }
@@ -2234,7 +2226,28 @@ document.addEventListener('DOMContentLoaded', () => {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
+async function openNewProductModal() {
+    console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
+    
+    // 🚨 Esta es la llamada que debe funcionar ahora que la expusiste a window
+    if (window.loadMainProductsAndPopulateSelect) {
+        await window.loadMainProductsAndPopulateSelect(); 
+        console.log("DEBUG: Paso 2: Función de carga ejecutada (debe haber llenado el select).");
+    } else {
+        console.error("DEBUG: Paso 2: Error. La función loadMainProductsAndPopulateSelect no está en el ámbito global.");
+    }
 
+    // 3. Abrir el modal (asumo que 'openModal' existe)
+    openModal('new-product-modal'); 
+    console.log("DEBUG: Paso 3: Modal abierto.");
+    
+    // 4. Resetear el campo type para el listener
+    const typeSelect = document.getElementById('new-product-type');
+    if (typeSelect) {
+        typeSelect.value = 'PRODUCT'; 
+        window.handleProductTypeChange();
+    }
+}
 function loadProductsTable() {
     const container = document.getElementById('products-table-body');
     if (!container) return; 
@@ -2294,9 +2307,7 @@ function loadProductsTable() {
     // NOTA: Elimina el bloque de código document.querySelectorAll('.edit-product-btn').forEach(...)
     // y document.querySelectorAll('.delete-product-btn').forEach(...) que tenías antes,
     // ya que ahora usamos el onclick directo.
-}
-window.loadProductsTable = loadProductsTable; // Asegurar exposición
-
+} window.loadProductsTable = loadProductsTable; // Asegurar exposición
 /**
  * Maneja el envío del formulario de edición de precio en el modal de detalle de venta.
  * Actualiza 'detalle_ventas' y recalcula 'ventas' (total, pagado, saldo pendiente).
@@ -2422,28 +2433,6 @@ function loadProductDataToForm(productId) {
     // 4. Actualizar el título
     document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
 }
-async function openNewProductModal() {
-    console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
-    
-    // 🚨 Esta es la llamada que debe funcionar ahora que la expusiste a window
-    if (window.loadMainProductsAndPopulateSelect) {
-        await window.loadMainProductsAndPopulateSelect(); 
-        console.log("DEBUG: Paso 2: Función de carga ejecutada (debe haber llenado el select).");
-    } else {
-        console.error("DEBUG: Paso 2: Error. La función loadMainProductsAndPopulateSelect no está en el ámbito global.");
-    }
-
-    // 3. Abrir el modal (asumo que 'openModal' existe)
-    openModal('new-product-modal'); 
-    console.log("DEBUG: Paso 3: Modal abierto.");
-    
-    // 4. Resetear el campo type para el listener
-    const typeSelect = document.getElementById('new-product-type');
-    if (typeSelect) {
-        typeSelect.value = 'PRODUCT'; 
-        window.handleProductTypeChange();
-    }
-}
 window.loadMainProductsAndPopulateSelect = async function() {
     
     // 1. Obtener el elemento SELECT
@@ -2481,7 +2470,6 @@ window.loadMainProductsAndPopulateSelect = async function() {
         selectElement.appendChild(option);
     });
 }
-// ✅ FUNCIÓN DE VISIBILIDAD FALTANTE PARA EL CAMPO PADRE
 function toggleParentProductField() {
     const typeSelect = document.getElementById('new-product-type'); 
     const parentContainer = document.getElementById('parent-product-container');
@@ -4546,5 +4534,44 @@ document.addEventListener('DOMContentLoaded', () => {
         // Llama a la función asíncrona que ejecuta la eliminación en Supabase
         confirmDeleteBtn.addEventListener('click', window.confirmDeleteProduct);
         console.log("✅ Listener de confirmación de eliminación conectado.");
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    // ==========================================================
+    // 🛑 CONEXIONES CRÍTICAS PARA LA INTERFAZ DE VENTA (TPV)
+    // ==========================================================
+    
+    // 1. Conexión del SELECTOR PRINCIPAL (Maneja la carga de Subproductos y precio base)
+    const mainSelect = document.getElementById('product-main-select');
+    if (mainSelect) {
+        // Al cambiar el producto principal, disparamos la función de gestión de subproductos.
+        mainSelect.addEventListener('change', window.handleChangeProductForSale);
+        console.log('✅ Listener de Producto Principal (product-main-select) conectado.');
+    }
+
+    // 2. Conexión del SELECTOR DE SUBPRODUCTOS (Maneja la actualización del precio)
+    const subSelect = document.getElementById('subproduct-select');
+    if (subSelect) {
+        // Al cambiar el subproducto, actualizamos el campo de precio unitario con el precio del paquete.
+        subSelect.addEventListener('change', (e) => {
+            // Usamos la función updatePriceField con el ID del producto (subproducto) seleccionado
+            window.updatePriceField(e.target.value);
+        });
+        console.log('✅ Listener de Subproducto (subproduct-select) conectado.');
+    }
+    // 3. Conexión del BOTÓN/FORMULARIO DE AGREGAR AL CARRITO
+    // Asumimos que la lógica para agregar un ítem está en un formulario con ID 'add-to-sale-form'
+    const addToSaleForm = document.getElementById('add-to-sale-form'); 
+    if (addToSaleForm) {
+        // Al enviar el formulario, agregamos el producto al carrito.
+        addToSaleForm.addEventListener('submit', window.handleAddProductToSale);
+        console.log('✅ Listener de Agregar al Carrito (add-to-sale-form) conectado.');
+    } 
+    if (window.loadProductsData) {
+        loadProductsData().then(() => {
+            // Una vez que los productos están en allProducts, cargamos el selector de venta:
+            window.loadMainProductsForSaleSelect(); 
+        });
     }
 });
