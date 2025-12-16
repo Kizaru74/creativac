@@ -569,14 +569,19 @@ const subProducts = allProducts.filter(p => {
     // 🛑 CRÍTICO: Aseguramos que parentId sea un string limpio para la comparación
     const parentIdStr = String(p.parent_product || '').trim(); 
 
+    // 🛑 AÑADIR ESTOS DOS LOGS DE DIAGNÓSTICO
+    if (productType === 'PACKAGE') {
+        console.log(`[DIAG_FILTER] Paquete encontrado. Parent ID Visto: '${parentIdStr}' | Buscando ID: '${selectedIdStr}' | Coincide: ${parentIdStr === selectedIdStr}`);
+    }
+    // 🛑 FIN DE LOGS DE DIAGNÓSTICO
+
     return (
         productType === 'PACKAGE' && 
-        // 🛑 ÚLTIMA DEFENSA: Comparación estricta de strings limpios
         parentIdStr === selectedIdStr
     );
 });
 
-    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
+console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
     if (subProducts.length > 0) {
         subSelect.disabled = false; 
