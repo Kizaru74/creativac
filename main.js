@@ -2250,48 +2250,45 @@ async function openNewProductModal() {
     }
 }
 async function loadMainProductsAndPopulateSelect() {
-    if (!supabase) {
-        console.error("Supabase NO está listo.");
+    // 1. Verificación de Supabase (CRÍTICO)
+    if (!window.supabase) {
+        console.error("Error FATAL: La instancia de Supabase no está disponible globalmente.");
         return; 
     }
     
-    console.log("Iniciando consulta para productos principales...");
+    console.log("DEBUG: Consultando productos con type = 'MAIN'...");
 
-    // 🚨 CORRECCIÓN CRÍTICA: Usamos el filtro correcto basado en tu estructura.
-    // Opción 1 (la más limpia): Filtrar para obtener solo los MAIN
+    // 2. Consulta a Supabase con el filtro 'MAIN'
     const { data: mainProducts, error } = await supabase
         .from('productos')
         .select('producto_id, name')
-        .eq('type', 'MAIN'); // <--- Filtro: solo trae productos donde type es 'MAIN'
+        .eq('type', 'MAIN'); // <--- El filtro debe coincidir exactamente con el valor en tu BD
 
-    /*
-    // Opción 2: Filtrar para excluir los PACKAGE (Funciona igual si no hay otros tipos)
-    const { data: mainProducts, error } = await supabase
-        .from('productos')
-        .select('producto_id, name')
-        .neq('type', 'PACKAGE'); 
-    */
-    
     if (error) {
-        console.error('Error al cargar productos principales desde Supabase:', error);
+        console.error('Error al cargar productos principales:', error);
         return;
     }
     
-    // ----------------------------------------------------------------
-    // 🚨 DEBUG: Revisa esta línea en la consola de tu navegador
-    console.log(`Productos devueltos por la consulta: ${mainProducts.length}`);
-    // ----------------------------------------------------------------
+    // 3. DEBUG: Muestra cuántos productos encontró
+    console.warn(`DEBUG: La consulta devolvió ${mainProducts.length} productos MAIN.`); 
     
-    // ... (El resto del código de populación del select permanece igual y es correcto)
+    // 4. Obtener el SELECT y poblarlo
     const selectElement = document.getElementById('new-product-parent-select');
     if (!selectElement) return;
 
     selectElement.innerHTML = '';
-
-    // Agregamos la opción por defecto
-    // ... (Creación de defaultOption) ...
     
-    // Agregamos las opciones cargadas
+    // Placeholder que indica el estado
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = (mainProducts.length > 0) 
+        ? '--- Seleccione el Producto Principal ---'
+        : '--- (NO HAY PRODUCTOS MAIN REGISTRADOS) ---'; 
+    defaultOption.setAttribute('disabled', 'disabled');
+    defaultOption.setAttribute('selected', 'selected');
+    selectElement.appendChild(defaultOption);
+
+    // Agregar las opciones cargadas
     mainProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product.producto_id; 
