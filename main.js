@@ -508,7 +508,7 @@ async function loadProductsData() {
     // Llamadas iniciales que dependen de estos datos limpios
     window.loadMainProductsForSaleSelect(); 
     // ... otras funciones de inicialización
-}
+}window.loadProductsData = loadProductsData;
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
@@ -585,7 +585,6 @@ function loadMainProductsForSaleSelect() {
     selectElement.innerHTML = '<option value="" disabled selected>- Seleccionar Producto -</option>';
 
     // 2. Filtrar solo los productos que deben ser visibles para la venta
-    // Si usas 'MAIN' y 'PACKAGE', excluimos 'PACKAGE'.
     const availableProducts = window.allProducts.filter(p => p.type !== 'PACKAGE');
 
     // 3. Agregar las opciones al SELECT
@@ -597,14 +596,15 @@ function loadMainProductsForSaleSelect() {
     availableProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product.producto_id;
-        // Formato para que el usuario vea el precio en el select
         const priceDisplay = formatCurrency(product.price); 
         option.textContent = `${product.name} (${priceDisplay})`; 
         selectElement.appendChild(option);
     });
     
     console.log(`✅ ${availableProducts.length} productos listados en el selector de venta.`);
-}
+} 
+// ¡CRÍTICO! Asignar al ámbito global
+window.loadMainProductsForSaleSelect = loadMainProductsForSaleSelect;
 // Asume que 'allProducts' contiene todos los productos cargados
 async function loadParentProductsForSelect(selectId) {
     const select = document.getElementById(selectId);
@@ -4622,5 +4622,38 @@ document.addEventListener('DOMContentLoaded', () => {
             // Una vez que los productos están en allProducts, cargamos el selector de venta:
             window.loadMainProductsForSaleSelect(); 
         });
+    }
+
+    // ==========================================================
+    // 🛑 CONEXIONES PARA EL FILTRADO Y BÚSQUEDA DE VENTAS
+    // ==========================================================
+    const startDateFilter = document.getElementById('filter-start-date');
+    const endDateFilter = document.getElementById('filter-end-date');
+    const searchFilter = document.getElementById('filter-search-term');
+    
+    // Conectar los listeners a la función de filtrado principal
+    if (startDateFilter) {
+        startDateFilter.addEventListener('change', window.handleFilterSales);
+        console.log('✅ Listener de filtro de fecha de inicio conectado.');
+    }
+    if (endDateFilter) {
+        endDateFilter.addEventListener('change', window.handleFilterSales);
+        console.log('✅ Listener de filtro de fecha final conectado.');
+    }
+    if (searchFilter) {
+        // Usamos 'input' para un filtrado instantáneo mientras el usuario escribe
+        searchFilter.addEventListener('input', window.handleFilterSales);
+        console.log('✅ Listener de búsqueda de texto conectado.');
+    }
+
+    // 🛑 Llamada inicial de carga de datos para el Dashboard y Ventas
+    if (window.loadDashboardData) {
+        window.loadDashboardData(); 
+    }
+    // Asumimos que loadDashboardData llamará a loadSalesData o que loadSalesData se llama aparte.
+    // Si tienes una función separada loadSalesData, asegúrate de que también se llama aquí.
+    if (window.loadSalesData) {
+        window.loadSalesData().then(window.handleFilterSales);
+        // Llamamos a handleFilterSales() al final para renderizar TODAS las ventas por defecto.
     }
 });
