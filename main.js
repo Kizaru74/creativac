@@ -539,7 +539,9 @@ window.handleChangeProductForSale = function() {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
     }
-
+if (productId === '2') {
+        debugger; // <-- ¡AÑADE ESTA LÍNEA!
+    }
     // 🛑 NUEVO LOG DE DIAGNÓSTICO CRÍTICO 🛑
     console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Tipo de Producto ID: ${typeof mainSelect.value}`);
     // 🛑 FIN NUEVO LOG 🛑
@@ -561,6 +563,8 @@ window.handleChangeProductForSale = function() {
     
     // 2. Establecer el precio por defecto
     window.updatePriceField(productId);
+
+    
     
     // 3. Filtrar y buscar los subproductos (paquetes)
 const selectedIdStr = String(productId).trim(); 
