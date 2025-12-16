@@ -522,11 +522,15 @@ window.handleChangeProductForSale = function() {
 
     const productId = mainSelect.value;
     
+    // 🛑 DIAGNÓSTICO CRÍTICO: ¿Qué ID está leyendo la función?
+    console.log(`DIAGNÓSTICO DE ENTRADA: Leyendo ID "${productId}" del selector principal.`);
+    
     // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
     subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     subSelect.disabled = true; 
     priceInput.value = '0.00';
     
+    // Si el ID es vacío, sale de la función.
     if (!productId) {
         return; 
     }
@@ -536,7 +540,6 @@ window.handleChangeProductForSale = function() {
     
     // 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
-        // Asumimos p.type es limpio
         const parentIdNum = parseInt(p.parent_product, 10);
         const selectedIdNum = parseInt(productId, 10);
         
@@ -550,25 +553,18 @@ window.handleChangeProductForSale = function() {
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados.`);
 
     if (subProducts.length > 0) {
-        // 4. Si hay subproductos: Habilitar el selector y cargarlo
+        // ... (El resto del código de renderizado es correcto) ...
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub.producto_id;
-            
-            const priceDisplay = (typeof formatCurrency === 'function') 
-                ? formatCurrency(sub.price) 
-                : `$${parseFloat(sub.price).toFixed(2)}`;
-            
+            const priceDisplay = (typeof formatCurrency === 'function') ? formatCurrency(sub.price) : `$${parseFloat(sub.price).toFixed(2)}`;
             option.textContent = `${sub.name} (${priceDisplay})`; 
             subSelect.appendChild(option);
         });
-        
-        // 🛑 ÚLTIMO DIAGNÓSTICO CRÍTICO
-        console.log(`DIAGNÓSTICO DE RENDERIZADO: SubSelect ahora tiene ${subSelect.options.length} opciones.`);
-        console.log("DIAGNÓSTICO HTML: Primeras 100 caracteres del HTML del selector:", subSelect.innerHTML.substring(0, 100));
+        console.log(`DIAGNÓSTICO DE RENDERIZADO: Se inyectaron ${subProducts.length} opciones.`);
     }
 }
 function loadMainProductsForSaleSelect() {
