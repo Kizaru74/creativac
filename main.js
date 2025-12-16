@@ -545,7 +545,7 @@ window.handleChangeProductForSale = function() {
     // 2. Establecer el precio por defecto (usando la ID validada)
     window.updatePriceField(productId);
     
-    // 3. Filtrar y buscar los subproductos (paquetes)
+// 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
         
         const productType = String(p.type || '').toUpperCase(); 
@@ -557,7 +557,7 @@ window.handleChangeProductForSale = function() {
         return (
             productType === 'PACKAGE' && 
             !isNaN(parentIdNum) && parentIdNum > 0 && 
-            // 🛑 CAMBIO CRÍTICO: Usar == en lugar de === para forzar la igualdad de valor
+            // 🛑 ¡CAMBIO CRÍTICO! Usar == en lugar de === para forzar la igualdad de valor
             parentIdNum == selectedIdNum 
         );
     });
