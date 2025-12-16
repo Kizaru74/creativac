@@ -3795,7 +3795,15 @@ async function loadAndRenderClients() {
     }
 }
 
-async function loadAndRenderProducts() {
+window.loadAndRenderProducts = async function() {
+    
+    // 🛑 1. CRÍTICO: Cargar los datos frescos de la BD y esperar a que terminen.
+    // Esto asegura que window.allProducts esté lleno.
+    // Asume que la función loadProductsData() existe y es async.
+    await loadProductsData(); 
+
+    // 2. CRÍTICO: Usar la variable global corregida
+    const allProducts = window.allProducts || []; 
     const tableBody = document.getElementById('products-table-body');
     
     if (!tableBody) {
@@ -3803,7 +3811,7 @@ async function loadAndRenderProducts() {
         return;
     }
 
-    tableBody.innerHTML = ''; // 1. Limpiar la tabla
+    tableBody.innerHTML = ''; // Limpiar la tabla
 
     if (allProducts.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No hay productos registrados.</td></tr>';
@@ -3815,14 +3823,12 @@ async function loadAndRenderProducts() {
         
         // CORRECCIÓN DE DATOS ANTIGUOS: Verifica si es paquete y procede a buscar.
         if (producto.type === 'PACKAGE') { 
-            
-            // 🛑 CORRECCIÓN CLAVE: La búsqueda usa String() para evitar el error de tipo de ID
             if (producto.parent_product) {
+                // La búsqueda es correcta, usa el array local 'allProducts' que acabamos de definir.
                 const parentProduct = allProducts.find(p => 
                     String(p.producto_id) === String(producto.parent_product)
                 );
                 
-                // Si lo encuentra, muestra el nombre. Si no, significa que la ID antigua no existe.
                 parentName = parentProduct 
                              ? `<span class="text-xs text-gray-500 ml-1">(Padre: ${parentProduct.name})</span>` 
                              : '<span class="text-xs text-red-500 ml-1">(ID Padre No Válida/Eliminada)</span>'; 
@@ -3845,8 +3851,8 @@ async function loadAndRenderProducts() {
             <td class="px-3 py-2 whitespace-nowrap">${productTypeDisplay}</td>
             <td class="px-3 py-2 whitespace-nowrap">$${productPriceDisplay}</td>
             <td class="px-3 py-2 whitespace-nowrap">
-                <button data-product-id="${producto.producto_id}" class="edit-product-btn text-blue-600 hover:text-blue-800 text-sm mr-2">Editar</button>
-                <button data-product-id="${producto.producto_id}" class="delete-product-btn text-red-600 hover:text-red-800 text-sm">Eliminar</button>
+                <button onclick="handleEditProductClick(${producto.producto_id})" class="edit-product-btn text-blue-600 hover:text-blue-800 text-sm mr-2">Editar</button>
+                <button onclick="handleDeleteProductClick(${producto.producto_id})" class="delete-product-btn text-red-600 hover:text-red-800 text-sm">Eliminar</button>
             </td>
         `;
     });
