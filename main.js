@@ -2260,32 +2260,22 @@ async function openNewProductModal() {
     }
 }
 window.loadMainProductsAndPopulateSelect = async function() {
-    // 1. Verificación de Supabase (CRÍTICO)
-    if (!window.supabase) {
-        console.error("Error FATAL: La instancia de Supabase no está disponible globalmente.");
-        return; 
-    }
     
-    console.log("DEBUG: Consultando productos con type = 'MAIN'...");
-
-    // 2. Consulta a Supabase con el filtro 'MAIN'
-    const { data: mainProducts, error } = await supabase
-        .from('productos')
-        .select('producto_id, name')
-        .eq('type', 'MAIN'); 
-
-    if (error) {
-        console.error('Error al cargar productos principales:', error);
-        return;
-    }
-    
-    // 3. DEBUG: Muestra cuántos productos encontró
-    console.warn(`DEBUG: La consulta devolvió ${mainProducts.length} productos MAIN.`); 
-    
-    // 4. Obtener el SELECT y poblarlo
+    // 1. Obtener el elemento SELECT
     const selectElement = document.getElementById('new-product-parent-select');
     if (!selectElement) return;
 
+    // 🚨 CAMBIO CLAVE: Usamos los datos globales ya cargados. 
+    // Si loadProductsData() fue llamada y terminó, los datos deben estar en window.allProducts.
+    const allProducts = window.allProducts || []; 
+
+    // 2. Filtra la lista para obtener solo los productos que pueden ser padres (MAIN)
+    const mainProducts = allProducts.filter(product => product.type === 'MAIN'); 
+    
+    // 3. DEBUG: Muestra cuántos productos encontró
+    console.warn(`DEBUG: La función LOCAL devolvió ${mainProducts.length} productos MAIN.`); 
+    
+    // 4. Poblar el SELECT
     selectElement.innerHTML = '';
     
     // Placeholder que indica el estado
