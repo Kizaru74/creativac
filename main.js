@@ -568,12 +568,15 @@ const selectedIdStr = String(productId).trim();
 const subProducts = allProducts.filter(p => {
     
     // 1. Convertimos el tipo de producto a string limpio y mayúsculas
-    const productType = String(p.type || '').toUpperCase(); 
+    // String(null) da "null", por eso agregamos || '' para evitarlo si el dato es nulo
+    const rawType = p.type; 
+    const productType = String(rawType || '').toUpperCase(); 
     const parentIdStr = String(p.parent_product || '').trim(); 
 
     // 🛑 LOG DE DIAGNÓSTICO DEFINITIVO 🛑
-    // Muestra todos los productos que está procesando, no solo los paquetes
-    console.log(`[DIAG_TYPE] ID: ${p.producto_id} | Tipo Visto: '${productType}' | Parent ID: '${parentIdStr}'`);
+    // Muestra el tipo VISTO y si es un paquete
+    const isPackage = productType === 'PACKAGE';
+    console.log(`[DIAG_TYPE] ID: ${p.producto_id} | Tipo Visto: '${productType}' | Es Paquete: ${isPackage}`);
     // 🛑 FIN LOG 🛑
 
     return (
