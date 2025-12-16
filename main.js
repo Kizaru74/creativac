@@ -568,15 +568,19 @@ const selectedIdStr = String(productId).trim();
 const subProducts = allProducts.filter(p => {
     
     // 1. Convertimos el tipo de producto a string limpio y mayúsculas
-    // String(null) da "null", por eso agregamos || '' para evitarlo si el dato es nulo
     const rawType = p.type; 
     const productType = String(rawType || '').toUpperCase(); 
     const parentIdStr = String(p.parent_product || '').trim(); 
 
-    // 🛑 LOG DE DIAGNÓSTICO DEFINITIVO 🛑
-    // Muestra el tipo VISTO y si es un paquete
-    const isPackage = productType === 'PACKAGE';
-    console.log(`[DIAG_TYPE] ID: ${p.producto_id} | Tipo Visto: '${productType}' | Es Paquete: ${isPackage}`);
+    // 🛑 LOG DE DIAGNÓSTICO DEFINITIVO (Y DEPURACIÓN) 🛑
+    if (productType !== 'PACKAGE') {
+        // Si no es PACKAGE, vamos a ver qué valor TIENE.
+        console.error(`[DIAG_FINAL_TIPO] Producto ID ${p.producto_id} - TIPO FALLIDO: '${rawType}' / UPPER: '${productType}'`);
+    } else {
+        // Si es PACKAGE, confirmamos si la ID coincide.
+        const isMatch = parentIdStr === selectedIdStr;
+        console.warn(`[DIAG_FINAL_ID] Producto ID ${p.producto_id} (PAQUETE) - Parent ID: '${parentIdStr}' | Buscado: '${selectedIdStr}' | Coincide: ${isMatch}`);
+    }
     // 🛑 FIN LOG 🛑
 
     return (
