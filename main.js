@@ -511,7 +511,10 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    // Verificación de existencia de elementos y datos
+    // Si la función está vacía aquí, este console.log nunca se imprimirá
+    // y la función devolverá 'undefined'
+    console.log("DEBUG: La función handleChangeProductForSale se está ejecutando."); 
+    
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
@@ -528,42 +531,21 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    // 2. Búsqueda del producto seleccionado (Producto Base)
-    // Se fuerza a String() para manejar inconsistencias entre select.value y datos
-    const selectedProduct = allProducts.find(p => String(p.producto_id) === String(productId));
-    
-    if (!selectedProduct) {
-        console.warn(`Producto principal con ID ${productId} no encontrado en allProducts.`);
-        return;
-    }
-    
-    // 🛑 DEBUG: ID Principal Seleccionado (Debe coincidir con parent_product)
-    // console.log(`DEBUG FILTRO: ID Principal Seleccionado: ${productId}`);
-    
-    // 3. Establecer el precio por defecto (el del producto principal)
+    // 2. Búsqueda del producto seleccionado y establecer precio
     window.updatePriceField(productId);
     
     // 4. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => 
-        // a) El tipo debe ser 'PACKAGE'
         p.type && p.type.trim().toUpperCase() === 'PACKAGE' && 
-        // b) DEBE tener un parent_product no nulo
         p.parent_product &&
-        // c) Comparación estricta de IDs (ambas forzadas a String)
         String(p.parent_product) === String(productId) 
     );
     
-    // 🛑 DEBUG: Subproductos encontrados para este ID
-    // console.log(`DEBUG FILTRO: Subproductos encontrados: ${subProducts.length}`);
+    console.log(`DEBUG FILTRO: Subproductos encontrados para ID ${productId}: ${subProducts.length}`);
     
     if (subProducts.length > 0) {
         // 5. Si hay subproductos: Habilitar el selector y cargarlo
-        
-        // 🛑 DEBUG: Confirma que entramos en el bloque de renderizado
-        // console.log("DEBUG RENDER: Entrando al bloque de renderizado de subproductos."); 
-
         subSelect.disabled = false; 
-        
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
@@ -577,12 +559,7 @@ window.handleChangeProductForSale = function() {
             
             option.textContent = `${sub.name} (${priceDisplay})`; 
             subSelect.appendChild(option);
-            
-            // 🛑 DEBUG: Verifica los nombres que se agregan
-            // console.log(`DEBUG RENDER: Agregando opción: ${sub.name}`); 
         });
-        // 🛑 DEBUG: Confirmación final de la función
-        // console.log("DEBUG RENDER: Llenado de subproductos finalizado.");
     }
 }
 
@@ -3173,6 +3150,7 @@ async function handleRegisterPayment(e) {
         return;
     }
 
+    // 1. Obtener datos de la venta
     const { data: ventaActual, error: fetchError } = await supabase
         .from('ventas')
         .select('saldo_pendiente, client_id')
@@ -3191,35 +3169,58 @@ async function handleRegisterPayment(e) {
 
     const newSaldoPendiente = ventaActual.saldo_pendiente - paymentAmount;
 
-    const { error: paymentError } = await supabase
-        .from('pagos')
-        .insert([{ 
-            venta_id: venta_id, 
-            client_id: ventaActual.client_id, 
-            amount: paymentAmount, 
-            metodo_pago: metodo_pago 
-        }]);
+    try {
+        // 2. Insertar el Pago en la tabla 'pagos'
+        const { error: paymentError } = await supabase
+            .from('pagos')
+            .insert([{ 
+                venta_id: venta_id, 
+                client_id: ventaActual.client_id, 
+                amount: paymentAmount, 
+                metodo_pago: metodo_pago 
+            }]);
 
-    if (paymentError) {
-        alert('Error al registrar pago: ' + paymentError.message);
-        return;
+        if (paymentError) throw new Error('Error al registrar pago: ' + paymentError.message);
+
+        // 3. Actualizar el saldo pendiente en la tabla 'ventas'
+        const { error: updateError } = await supabase
+            .from('ventas')
+            .update({ saldo_pendiente: newSaldoPendiente })
+            .eq('venta_id', venta_id);
+
+        if (updateError) throw new Error('Abono registrado, pero falló la actualización del saldo de la venta.');
+
+        // 4. Recalcular y actualizar la deuda TOTAL del cliente
+        // Buscar todos los saldos pendientes del cliente
+        const { data: clientDebts, error: debtFetchError } = await supabase
+            .from('ventas')
+            .select('saldo_pendiente')
+            .eq('client_id', ventaActual.client_id)
+            .neq('saldo_pendiente', 0); 
+            
+        if (debtFetchError) throw new Error('Error al recalcular la deuda total del cliente.');
+
+        // Sumar todos los saldos pendientes
+        const newClientTotalDebt = clientDebts.reduce((sum, sale) => sum + sale.saldo_pendiente, 0);
+
+        // Actualizar la Deuda Total en la tabla 'clientes'
+        const { error: clientUpdateError } = await supabase
+            .from('clientes')
+            .update({ total_debt: newClientTotalDebt })
+            .eq('client_id', ventaActual.client_id);
+            
+        if (clientUpdateError) throw new Error('Fallo la actualización del saldo TOTAL del cliente.');
+
+        // 5. Finalización exitosa
+        alert('Abono registrado y saldos actualizados exitosamente.');
+        
+        closeModal('modal-detail-sale');
+        await loadDashboardData(); // Recarga general de datos
+
+    } catch (error) {
+        alert(`Ocurrió un error: ${error.message}`);
+        console.error('Error en el flujo de abono:', error);
     }
-
-    const { error: updateError } = await supabase
-        .from('ventas')
-        .update({ saldo_pendiente: newSaldoPendiente })
-        .eq('venta_id', venta_id);
-
-    if (updateError) {
-        alert('Abono registrado, pero falló la actualización del saldo. Contacte soporte.');
-        console.error('Error al actualizar venta:', updateError);
-        return;
-    }
-    
-    alert('Abono registrado y saldo actualizado exitosamente.');
-    
-    closeModal('modal-detail-sale');
-    await loadDashboardData(); 
 }
 
 window.openAbonoModal = function(id, name, remainingDebt = null) {
