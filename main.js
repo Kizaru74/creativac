@@ -468,10 +468,6 @@ window.loadProductDataToForm = function(productId) {
     
     console.log(`✅ Datos del producto ID ${productId} precargados en el modal.`);
 }
-/**
- * Carga todos los productos de la base de datos, FUERZA la tipificación de IDs a números
- * y los almacena globalmente.
- */
 window.loadProductsData = async function() {
     console.log("Cargando productos...");
     
