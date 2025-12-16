@@ -515,7 +515,6 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    // Verificación de existencia de elementos y datos
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
@@ -523,7 +522,7 @@ window.handleChangeProductForSale = function() {
 
     const productId = mainSelect.value;
     
-    // 🛑 DEFENSA CRÍTICA AÑADIDA: Evita el filtro si la data es inestable
+    // 🛑 Defensa contra Race Condition (ya la tienes, solo la menciono)
     if (!window.allProducts || window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
         return; 
@@ -534,53 +533,42 @@ window.handleChangeProductForSale = function() {
     subSelect.disabled = true; 
     priceInput.value = '0.00';
     
-    if (!productId) {
+    // 🛑 CRÍTICO: Si el ID es nulo o el placeholder, salimos
+    if (!productId || productId === 'placeholder-option-value') { 
         return; 
     }
 
     // 2. Establecer el precio por defecto (el del producto principal)
-    // Asumimos que window.updatePriceField(productId) existe y funciona correctamente.
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
-        // Asumimos p.type se ha limpiado a MAYÚSCULAS en loadProductsData.
-        
-        // Conversión robusta a número para la comparación de IDs
-        const parentIdNum = parseInt(p.parent_product, 10);
+        // Aseguramos que la conversión se haga solo con valores válidos
+        const parentIdNum = parseInt(String(p.parent_product), 10);
         const selectedIdNum = parseInt(productId, 10);
         
         return (
-            // a) El tipo DEBE ser 'PACKAGE'
             p.type === 'PACKAGE' && 
-            
-            // b) El parent_product DEBE ser un número válido (> 0) y coincidir con el producto principal
             !isNaN(parentIdNum) && parentIdNum > 0 && 
             parentIdNum === selectedIdNum 
         );
     });
     
-    // DIAGNÓSTICO: Esto debería coincidir con tu prueba manual (ej. 8)
-    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados.`);
+    // 🛑 LOGGING CRÍTICO
+    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
     if (subProducts.length > 0) {
-        // 4. Si hay subproductos: Habilitar el selector y cargarlo
+        // ... (Tu lógica de renderizado correcta aquí) ...
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub.producto_id;
-            
-            // Usamos formatCurrency si existe, o un fallback
-            const priceDisplay = (typeof window.formatCurrency === 'function') 
-                ? window.formatCurrency(sub.price) 
-                : `$${parseFloat(sub.price).toFixed(2)}`;
-            
+            const priceDisplay = (typeof window.formatCurrency === 'function') ? window.formatCurrency(sub.price) : `$${parseFloat(sub.price).toFixed(2)}`;
             option.textContent = `${sub.name} (${priceDisplay})`; 
             subSelect.appendChild(option);
         });
-        
         console.log(`DIAGNÓSTICO DE RENDERIZADO: Se inyectaron ${subProducts.length} opciones.`);
     }
 }
