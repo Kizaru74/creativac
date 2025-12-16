@@ -2235,18 +2235,19 @@ function loadProductDataToForm(productId) {
     document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
 }
 async function openNewProductModal() {
-    // 1. Asegura que la lista de productos padres esté actualizada antes de mostrar el modal.
-    await loadMainProductsAndPopulateSelect(); 
+    // 1. Aseguramos que la lista de productos padres esté actualizada 
+    //    ANTES de mostrar el modal.
+    // 🚨 LLAMADA CRÍTICA: La función que rellena el SELECT.
+    await window.loadMainProductsAndPopulateSelect(); 
     
-    // 2. Ejecuta la función global para abrir el modal (ej. muestra el div con el ID).
+    // 2. Ejecuta la lógica para abrir el modal (función que tienes definida).
     openModal('new-product-modal'); 
     
-    // 3. Opcional: Asegurar que el campo padre esté oculto al abrir el modal (estado por defecto)
-    // Esto se puede lograr llamando a la función de cambio con el valor 'PRODUCT'.
+    // 3. Opcional: Asegurar que el campo padre esté oculto por defecto
     const typeSelect = document.getElementById('new-product-type');
     if (typeSelect) {
-        typeSelect.value = 'PRODUCT'; // Establece el valor por defecto
-        handleProductTypeChange();     // Fuerza la ejecución de la lógica de ocultamiento/mostrado
+        typeSelect.value = 'PRODUCT'; // Valor por defecto
+        window.handleProductTypeChange(); // Fuerza la lógica de ocultamiento/mostrado
     }
 }
 window.loadMainProductsAndPopulateSelect = async function() {
