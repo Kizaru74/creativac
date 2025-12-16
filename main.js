@@ -536,11 +536,14 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    // ... (Verificaciones de elementos) ...
+    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
+        console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
+        return;
+    }
 
     const productId = mainSelect.value;
     
-    // 🛑 CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
+    // CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
     if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
         subSelect.disabled = true; 
@@ -548,31 +551,30 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    // 🛑 CRÍTICO 2: Defensa contra Race Condition
+    // CRÍTICO 2: Defensa contra Race Condition
     if (!window.allProducts || window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
         return; 
     }
     
-    // 2. Establecer el precio por defecto (usando la ID validada)
+    // 2. Establecer el precio por defecto
     window.updatePriceField(productId);
     
- // 3. Filtrar y buscar los subproductos (paquetes)
+    // 3. Filtrar y buscar los subproductos (paquetes)
     const selectedIdNum = parseInt(String(productId).trim(), 10); 
 
     const subProducts = allProducts.filter(p => {
+        
         const productType = String(p.type || '').toUpperCase(); 
-        const parentId = p.parent_product; // Ya es un NÚMERO gracias a loadProductsData
+        const parentId = p.parent_product; 
 
         return (
             productType === 'PACKAGE' && 
-            parentId === selectedIdNum 
+            // 🛑 ¡SOLUCIÓN FINAL! Usamos == para forzar la igualdad de valor
+            parentId == selectedIdNum 
         );
     });
 
-    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
-    
-    // LOGGING
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
     if (subProducts.length > 0) {
@@ -603,18 +605,19 @@ function loadMainProductsForSaleSelect() {
     // 2. Filtrar solo los productos que deben ser visibles para la venta
     const availableProducts = window.allProducts.filter(p => p.type !== 'PACKAGE');
 
-    // 3. Agregar las opciones al SELECT
-    if (availableProducts.length === 0) {
-        selectElement.innerHTML += '<option value="" disabled>No hay productos disponibles para la venta.</option>';
-        return;
-    }
+    // 3. Filtrar y buscar los subproductos (paquetes)
+    // Se usa parseInt aquí porque productId viene del DOM (es string)
+    const selectedIdNum = parseInt(String(productId).trim(), 10); 
 
-    availableProducts.forEach(product => {
-        const option = document.createElement('option');
-        option.value = product.producto_id;
-        const priceDisplay = formatCurrency(product.price); 
-        option.textContent = `${product.name} (${priceDisplay})`; 
-        selectElement.appendChild(option);
+    const subProducts = allProducts.filter(p => {
+        
+        const productType = String(p.type || '').toUpperCase(); 
+        const parentId = p.parent_product; 
+        return (
+            productType === 'PACKAGE' && 
+            // 🛑 SOLUCIÓN CRÍTICA: Usar == para garantizar la coincidencia de valor
+            parentId == selectedIdNum 
+        );
     });
     
     console.log(`✅ ${availableProducts.length} productos listados en el selector de venta.`);
@@ -2491,11 +2494,7 @@ window.handlePriceEditSubmit = async function(e) {
 function loadProductsTable() {
     const container = document.getElementById('products-table-body');
     if (!container) return; 
-
-    // Aseguramos que los datos estén cargados (aunque lo ideal es cargarlos antes de llamar esta func.)
-    // Si usas el código de la pregunta anterior, loadProductsData() ya está en handleEditProduct.
-    // Lo eliminamos aquí para evitar doble carga si lo llamas después de un await loadProductsData().
-    
+   
     container.innerHTML = '';
       
     // Usar la variable global corregida
@@ -2593,7 +2592,6 @@ window.loadMainProductsAndPopulateSelect = async function() {
     if (!selectElement) return;
 
     // 🚨 CAMBIO CLAVE: Usamos los datos globales ya cargados. 
-    // Si loadProductsData() fue llamada y terminó, los datos deben estar en window.allProducts.
     const allProducts = window.allProducts || []; 
 
     // 2. Filtra la lista para obtener solo los productos que pueden ser padres (MAIN)
@@ -2710,7 +2708,7 @@ window.handleEditProduct = async function(e) {
         closeModal('edit-product-modal'); // ⬅️ CORREGIDO: Usar el ID real del modal
         document.getElementById('edit-product-form')?.reset(); 
         
-        await loadProductsData();
+      //  await loadProductsData();
         await loadAndRenderProducts();
     }
     
@@ -2791,7 +2789,7 @@ async function handleNewProduct(e) {
         document.getElementById('new-product-form')?.reset(); 
         
         // Recargar datos (asumiendo que estas funciones existen)
-        await loadProductsData();
+      //  await loadProductsData();
         await loadAndRenderProducts();
     }
 }
@@ -2862,7 +2860,7 @@ window.confirmDeleteProduct = async function() {
         }
     } else {
         alert('Producto eliminado exitosamente.');
-        await loadProductsData();
+      //  await loadProductsData();
         await loadAndRenderProducts();
     }
 
@@ -4089,7 +4087,7 @@ window.loadAndRenderProducts = async function() {
     // 🛑 1. CRÍTICO: Cargar los datos frescos de la BD y esperar a que terminen.
     // Esto asegura que window.allProducts esté lleno.
     // Asume que la función loadProductsData() existe y es async.
-    await loadProductsData(); 
+   // await loadProductsData(); 
 
     // 2. CRÍTICO: Usar la variable global corregida
     const allProducts = window.allProducts || []; 
