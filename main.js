@@ -2107,95 +2107,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-async function loadClientDebtsTable() {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
-    const tbody = document.getElementById('debts-table-body');
-    const noDebtsMessage = document.getElementById('no-debts-message');
-    
-    if (!tbody || !noDebtsMessage) return; 
-
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Cargando deudas...</td></tr>';
-    noDebtsMessage.classList.add('hidden');
-
-    try {
-        // 1. Consultar ventas con saldo pendiente > 0.01
-        const { data: sales, error } = await supabase
-            .from('ventas')
-            .select(`
-                venta_id, 
-                client_id, 
-                created_at, 
-                saldo_pendiente,
-                clientes(name) 
-            `)
-            .gt('saldo_pendiente', 0.01) 
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        // 2. Agrupar las deudas por Cliente y calcular el total
-        const clientDebts = {};
-        
-        (sales || []).forEach(sale => {
-            const clientId = sale.client_id;
-            
-            if (!clientDebts[clientId]) {
-                clientDebts[clientId] = {
-                    clientId: clientId,
-                    name: sale.clientes?.name || 'Cliente Desconocido',
-                    totalDebt: 0,
-                    lastSaleDate: sale.created_at, 
-                    lastSaleId: sale.venta_id 
-                };
-            }
-            
-            clientDebts[clientId].totalDebt += sale.saldo_pendiente;
-        });
-
-        const debtList = Object.values(clientDebts);
-
-        // 3. Renderizar la tabla
-        tbody.innerHTML = ''; 
-
-        if (debtList.length === 0) {
-            noDebtsMessage.classList.remove('hidden');
-            return;
-        }
-
-        let debtsHTML = []; 
-
-        debtList.forEach(debt => {
-            const formattedDate = formatDate(debt.lastSaleDate); 
-
-            debtsHTML.push(`
-                <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <button 
-                            onclick="window.handleViewClientDebt(${debt.clientId})" 
-                            class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
-                            title="Ver historial completo de cargos y abonos"
-                        >
-                            Ver Historial (${formatCurrency(debt.totalDebt)})
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
-        
-        tbody.innerHTML = debtsHTML.join(''); // Inyección única
-
-    } catch (e) {
-        console.error('Error al cargar la tabla de deudas:', e);
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
-    }
-}
+// ====================================================================
+// 10. LÓGICA CRUD PARA PRODUCTOS
+// ====================================================================
 
 async function handlePriceEditSubmit(e) {
     // 🛑 CRÍTICO: Evita la recarga de la página (soluciona el error de navegación)
@@ -2287,9 +2201,6 @@ async function handlePriceEditSubmit(e) {
     }
 }
 
-// ====================================================================
-// 10. LÓGICA CRUD PARA PRODUCTOS
-// ====================================================================
 function loadProductDataToForm(productId) {
     // 1. Encontrar el producto en el array global
     // Usamos String() para manejar inconsistencias de tipo entre number/string
@@ -2339,33 +2250,48 @@ async function openNewProductModal() {
     }
 }
 async function loadMainProductsAndPopulateSelect() {
-    if (!supabase) return; 
+    if (!supabase) {
+        console.error("Supabase NO está listo.");
+        return; 
+    }
+    
+    console.log("Iniciando consulta para productos principales...");
 
-    // Obtener solo productos que NO son paquetes (potenciales padres)
+    // 🚨 CORRECCIÓN CRÍTICA: Usamos el filtro correcto basado en tu estructura.
+    // Opción 1 (la más limpia): Filtrar para obtener solo los MAIN
+    const { data: mainProducts, error } = await supabase
+        .from('productos')
+        .select('producto_id, name')
+        .eq('type', 'MAIN'); // <--- Filtro: solo trae productos donde type es 'MAIN'
+
+    /*
+    // Opción 2: Filtrar para excluir los PACKAGE (Funciona igual si no hay otros tipos)
     const { data: mainProducts, error } = await supabase
         .from('productos')
         .select('producto_id, name')
         .neq('type', 'PACKAGE'); 
-
+    */
+    
     if (error) {
-        console.error('Error al cargar productos principales:', error);
+        console.error('Error al cargar productos principales desde Supabase:', error);
         return;
     }
     
+    // ----------------------------------------------------------------
+    // 🚨 DEBUG: Revisa esta línea en la consola de tu navegador
+    console.log(`Productos devueltos por la consulta: ${mainProducts.length}`);
+    // ----------------------------------------------------------------
+    
+    // ... (El resto del código de populación del select permanece igual y es correcto)
     const selectElement = document.getElementById('new-product-parent-select');
     if (!selectElement) return;
 
     selectElement.innerHTML = '';
 
-    // Agregar la opción por defecto (placeholder)
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = '--- Seleccione el Producto Principal ---';
-    defaultOption.setAttribute('disabled', 'disabled');
-    defaultOption.setAttribute('selected', 'selected');
-    selectElement.appendChild(defaultOption);
-
-    // Agregar las opciones cargadas
+    // Agregamos la opción por defecto
+    // ... (Creación de defaultOption) ...
+    
+    // Agregamos las opciones cargadas
     mainProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product.producto_id; 
@@ -2674,6 +2600,95 @@ async function confirmDeleteProduct() {
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
+async function loadClientDebtsTable() {
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
+
+    const tbody = document.getElementById('debts-table-body');
+    const noDebtsMessage = document.getElementById('no-debts-message');
+    
+    if (!tbody || !noDebtsMessage) return; 
+
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Cargando deudas...</td></tr>';
+    noDebtsMessage.classList.add('hidden');
+
+    try {
+        // 1. Consultar ventas con saldo pendiente > 0.01
+        const { data: sales, error } = await supabase
+            .from('ventas')
+            .select(`
+                venta_id, 
+                client_id, 
+                created_at, 
+                saldo_pendiente,
+                clientes(name) 
+            `)
+            .gt('saldo_pendiente', 0.01) 
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        // 2. Agrupar las deudas por Cliente y calcular el total
+        const clientDebts = {};
+        
+        (sales || []).forEach(sale => {
+            const clientId = sale.client_id;
+            
+            if (!clientDebts[clientId]) {
+                clientDebts[clientId] = {
+                    clientId: clientId,
+                    name: sale.clientes?.name || 'Cliente Desconocido',
+                    totalDebt: 0,
+                    lastSaleDate: sale.created_at, 
+                    lastSaleId: sale.venta_id 
+                };
+            }
+            
+            clientDebts[clientId].totalDebt += sale.saldo_pendiente;
+        });
+
+        const debtList = Object.values(clientDebts);
+
+        // 3. Renderizar la tabla
+        tbody.innerHTML = ''; 
+
+        if (debtList.length === 0) {
+            noDebtsMessage.classList.remove('hidden');
+            return;
+        }
+
+        let debtsHTML = []; 
+
+        debtList.forEach(debt => {
+            const formattedDate = formatDate(debt.lastSaleDate); 
+
+            debtsHTML.push(`
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button 
+                            onclick="window.handleViewClientDebt(${debt.clientId})" 
+                            class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
+                            title="Ver historial completo de cargos y abonos"
+                        >
+                            Ver Historial (${formatCurrency(debt.totalDebt)})
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+        
+        tbody.innerHTML = debtsHTML.join(''); // Inyección única
+
+    } catch (e) {
+        console.error('Error al cargar la tabla de deudas:', e);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
+    }
+}
 window.loadClientsTable = async function(mode = 'gestion') {
 
     if (!supabase) {
