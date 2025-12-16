@@ -2620,7 +2620,7 @@ window.handleProductTypeChange = function() {
 window.handleEditProductClick = function(productId) {
         editingProductId = productId; // Guarda la ID en la variable global
     loadProductDataToForm(productId); // Carga los datos en el formulario
-    openModal('modal-edit-product'); // Abre el modal de edición
+    openModal('edit-product-modal'); // Abre el modal de edición
 }
 // Variable global para guardar la ID del producto a eliminar
 let deletingProductId = null; 
@@ -2643,40 +2643,36 @@ window.handleDeleteProductClick = function(productId) {
     openModal('delete-product-modal'); 
 }
 window.confirmDeleteProduct = async function() {
-    // Usamos la ID global unificada
-    if (!editingProductId) return;
+    if (!window.editingProductId) return;
 
-    // 1. Bloquear el botón de confirmación
     const confirmBtn = document.getElementById('confirm-delete-btn');
     confirmBtn.disabled = true;
-    confirmBtn.textContent = 'Eliminando...';
+    confirmBtn.textContent = 'Eliminando...'; 
 
-    // 2. Ejecutar la eliminación
+    // 🛑 VOLVEMOS A: Usar .delete()
     const { error } = await supabase
         .from('productos')
-        .delete()
-        .eq('producto_id', editingProductId); 
+        .delete() // ⬅️ Borrado físico
+        .eq('producto_id', window.editingProductId); 
 
-    // 3. Manejar el resultado
     if (error) {
-        console.error('Error al eliminar producto:', error.message);
-        alert('Error al eliminar producto: ' + error.message);
+        // 🚨 CRÍTICO: Manejar el error de clave foránea aquí
+        if (error.code === '23503') { // Código estándar para violación de FK
+            alert('¡ERROR! Este producto no se puede eliminar porque ya ha sido utilizado en una o más ventas (Historial de ventas). Considere la función "Archivar" (Borrado Lógico) en la BD.');
+        } else {
+            console.error('Error al eliminar producto:', error.message);
+            alert('Error al eliminar producto: ' + error.message);
+        }
     } else {
         alert('Producto eliminado exitosamente.');
-        
-        // 4. Recargar datos y la interfaz
         await loadProductsData();
         await loadAndRenderProducts();
     }
 
-    // 5. Restablecer el estado
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Sí, Eliminar';
-    closeModal('modal-delete-confirmation'); 
-    editingProductId = null; // CRÍTICO: Limpiar la ID global después de la acción
-
-    closeModal('delete-product-modal'); // ⬅️ CRÍTICO: Cierre el modal con el ID correcto.
-    window.editingProductId = null;
+    closeModal('delete-product-modal'); 
+    window.editingProductId = null; 
 }
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
