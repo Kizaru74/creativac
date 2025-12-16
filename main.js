@@ -2249,7 +2249,7 @@ async function openNewProductModal() {
         handleProductTypeChange();     // Fuerza la ejecución de la lógica de ocultamiento/mostrado
     }
 }
-async function loadMainProductsAndPopulateSelect() {
+window.loadMainProductsAndPopulateSelect = async function() {
     // 1. Verificación de Supabase (CRÍTICO)
     if (!window.supabase) {
         console.error("Error FATAL: La instancia de Supabase no está disponible globalmente.");
@@ -2262,7 +2262,7 @@ async function loadMainProductsAndPopulateSelect() {
     const { data: mainProducts, error } = await supabase
         .from('productos')
         .select('producto_id, name')
-        .eq('type', 'MAIN'); // <--- El filtro debe coincidir exactamente con el valor en tu BD
+        .eq('type', 'MAIN'); 
 
     if (error) {
         console.error('Error al cargar productos principales:', error);
