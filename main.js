@@ -2443,79 +2443,44 @@ function loadProductDataToForm(productId) {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
-async function handleEditProduct(e) {
-    e.preventDefault();
-
-    // 'editingProductId' debe haber sido establecido en handleEditProductClick
-    if (!supabase || !editingProductId) {
-        alert('Error: Supabase no está disponible o el ID del producto a editar es desconocido.');
+async function loadMainProductsAndPopulateSelect() {
+    if (!supabase) {
+        console.error('Supabase no está disponible para cargar productos principales.');
         return;
     }
 
-    // 1. Obtener valores del formulario de edición
-    const nameInput = document.getElementById('edit-product-name');
-    const typeInput = document.getElementById('edit-product-type'); 
-    const priceInput = document.getElementById('edit-sale-price'); 
+    const parentSelect = document.getElementById('new-product-parent-select');
     
-    // Si usaste la función loadProductDataToForm, esta parte ya está cargada
-    const name = nameInput.value.trim();
-    const type = typeInput.value; 
-    const price = parseFloat(priceInput.value);
-    
-    // El valor por defecto es NULL para el campo padre
-    let parentProductId = null; 
-
-    // 2. Validación de precio
-    if (isNaN(price) || price < 0 || priceInput.value.trim() === '') {
-        alert('El precio de venta debe ser un número válido (mayor o igual a cero).');
+    // Verificación para asegurar que el elemento existe antes de continuar
+    if (!parentSelect) {
+        console.error('No se encontró el selector de producto padre (new-product-parent-select).');
         return;
     }
-
-    // 3. Lógica para Paquetes (necesaria para manejar el campo parent_product)
-    if (type === 'PACKAGE') {
-        const parentSelect = document.getElementById('edit-parent-product-select');
-        // Obtenemos la ID del producto principal seleccionado
-        parentProductId = parentSelect?.value || null; 
-        
-        if (!parentProductId) {
-            alert('Los paquetes deben tener un Producto Principal asociado. Seleccione uno de la lista.');
-            return;
-        }
-    }
-
-    // 4. Objeto de datos a actualizar
-    const productData = { 
-        name: name, 
-        type: type, 
-        price: price, 
-        // CRÍTICO: Usamos el campo correcto 'parent_product'
-        parent_product: parentProductId 
-    };
-
-    // 5. Actualización en la base de datos
-    const { error } = await supabase
+    
+    // 1. Consulta a Supabase
+    // Filtramos para obtener solo productos que no sean 'PACKAGE' (subproductos)
+    const { data: mainProducts, error } = await supabase
         .from('productos')
-        .update(productData)
-        // CRÍTICO: Usamos el ID global para saber QUÉ producto actualizar
-        .eq('producto_id', editingProductId); // Asegúrate de que 'producto_id' es el nombre de la PK
+        .select('id, name')
+        .neq('type', 'PACKAGE') // <-- FILTRO CLAVE: Solo productos que no sean subproductos
+        .order('name', { ascending: true });
 
-    // 6. Manejo de respuesta
     if (error) {
-        console.error('Error de Supabase al actualizar producto:', error.message);
-        alert('Error al actualizar producto: ' + error.message);
-    } else {
-        alert('Producto actualizado exitosamente.');
-        
-        // Limpieza y recarga
-        closeModal('modal-edit-product'); 
-        editingProductId = null; // Reseteamos la ID global
-        document.getElementById('edit-product-form')?.reset(); 
-        
-        await loadProductsData();
-        await loadAndRenderProducts();
+        console.error('Error al cargar productos principales:', error.message);
+        parentSelect.innerHTML = '<option value="">Error al cargar</option>';
+        return;
     }
-}
 
+    // 2. Poblar el elemento select
+    let optionsHtml = '<option value="" selected disabled>Seleccione un producto principal</option>';
+    
+    mainProducts.forEach(product => {
+        // Usamos el ID del producto como valor (lo que se guardará en la base de datos)
+        optionsHtml += `<option value="${product.id}">${product.name}</option>`;
+    });
+
+    parentSelect.innerHTML = optionsHtml;
+}
 // ✅ FUNCIÓN DE VISIBILIDAD FALTANTE PARA EL CAMPO PADRE
 function toggleParentProductField() {
     const typeSelect = document.getElementById('new-product-type'); 
@@ -2537,7 +2502,90 @@ function toggleParentProductField() {
         parentSelect.value = ''; // Limpiar el valor seleccionado
     }
 }
+async function handleEditProduct(e) {
+    e.preventDefault();
 
+    if (!supabase || !editingProductId) {
+        alert('Error: Supabase no está disponible o el ID del producto a editar es desconocido.');
+        return;
+    }
+
+    // 1. Obtener valores del formulario de edición
+    const nameInput = document.getElementById('edit-product-name');
+    const typeInput = document.getElementById('edit-product-type'); 
+    
+    // ⚠️ ATENCIÓN: Confirma el ID de tu input de precio ('edit-sale-price' o 'edit-product-price')
+    const priceInput = document.getElementById('edit-sale-price'); 
+    
+    const name = nameInput.value.trim();
+    const type = typeInput.value; 
+    const price = parseFloat(priceInput.value);
+    
+    let parentProductId = null; 
+
+    // 2. Validación de precio
+    if (isNaN(price) || price < 0 || priceInput.value.trim() === '') {
+        alert('El precio de venta debe ser un número válido (mayor o igual a cero).');
+        return;
+    }
+
+    // 3. Lógica para Paquetes
+    if (type === 'PACKAGE') {
+        // ⚠️ ATENCIÓN: Confirma el ID de tu SELECT de padre ('edit-parent-product-select' o 'edit-product-parent-select')
+        const parentSelect = document.getElementById('edit-parent-product-select');
+        parentProductId = parentSelect?.value || null; 
+        
+        if (!parentProductId || parentProductId === 'placeholder-option-value') { 
+            alert('Los paquetes deben tener un Producto Principal asociado. Seleccione uno de la lista.');
+            return;
+        }
+    }
+
+    // 4. Objeto de datos a actualizar
+    const productData = { 
+        name: name, 
+        type: type, 
+        price: price, 
+        parent_product: parentProductId 
+    };
+    
+    // 5. Deshabilitar el botón de submit (Mejora UX)
+    const submitBtn = e.submitter;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Actualizando...';
+    }
+
+    // 6. Actualización en la base de datos
+    const { error } = await supabase
+        .from('productos')
+        .update(productData)
+        .eq('producto_id', editingProductId); 
+
+    // 7. Manejo de respuesta
+    if (error) {
+        console.error('Error de Supabase al actualizar producto:', error.message);
+        alert('Error al actualizar producto: ' + error.message);
+    } else {
+        alert('Producto actualizado exitosamente.');
+        
+        // Limpieza y recarga
+        closeModal('modal-edit-product'); 
+        document.getElementById('edit-product-form')?.reset(); 
+        
+        // La recarga es CRÍTICA para que la tabla refleje los cambios
+        await loadProductsData();
+        await loadAndRenderProducts();
+    }
+    
+    // 8. Restablecer el botón
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+    }
+
+    editingProductId = null; // Reseteamos la ID global SÓLO al final
+}
 async function loadProductsTable() {
     // ⚠️ CORRECCIÓN CRÍTICA: Definir la variable 'container'
     const container = document.getElementById('products-table-body');
@@ -2658,7 +2706,6 @@ async function handleNewProduct(e) {
         await loadAndRenderProducts();
     }
 }
-
 window.handleProductTypeChange = function() {
     const typeSelect = document.getElementById('new-product-type');
     const parentContainer = document.getElementById('new-product-parent-container');
@@ -2671,87 +2718,63 @@ window.handleProductTypeChange = function() {
     }
 }
 
-async function loadMainProductsAndPopulateSelect() {
-    if (!supabase) {
-        console.error('Supabase no está disponible para cargar productos principales.');
-        return;
-    }
-
-    const parentSelect = document.getElementById('new-product-parent-select');
-    
-    // Verificación para asegurar que el elemento existe antes de continuar
-    if (!parentSelect) {
-        console.error('No se encontró el selector de producto padre (new-product-parent-select).');
-        return;
-    }
-    
-    // 1. Consulta a Supabase
-    // Filtramos para obtener solo productos que no sean 'PACKAGE' (subproductos)
-    const { data: mainProducts, error } = await supabase
-        .from('productos')
-        .select('id, name')
-        .neq('type', 'PACKAGE') // <-- FILTRO CLAVE: Solo productos que no sean subproductos
-        .order('name', { ascending: true });
-
-    if (error) {
-        console.error('Error al cargar productos principales:', error.message);
-        parentSelect.innerHTML = '<option value="">Error al cargar</option>';
-        return;
-    }
-
-    // 2. Poblar el elemento select
-    let optionsHtml = '<option value="" selected disabled>Seleccione un producto principal</option>';
-    
-    mainProducts.forEach(product => {
-        // Usamos el ID del producto como valor (lo que se guardará en la base de datos)
-        optionsHtml += `<option value="${product.id}">${product.name}</option>`;
-    });
-
-    parentSelect.innerHTML = optionsHtml;
-}
-
-
 function handleEditProductClick(productId) {
     editingProductId = productId; // Guarda la ID en la variable global
     loadProductDataToForm(productId); // Carga los datos en el formulario
     openModal('modal-edit-product'); // Abre el modal de edición
 }
-
 // Variable global para guardar la ID del producto a eliminar
 let deletingProductId = null; 
 
 function handleDeleteProductClick(productId) {
-    deletingProductId = productId; // Guarda la ID globalmente
+    // 1. Asignar la ID a la variable global unificada
+    editingProductId = productId; 
     
-    // 1. Mostrar el nombre del producto en el modal (si tienes un elemento para ello)
-    const productToDelete = allProducts.find(p => String(p.producto_id) === String(productId));
-    if (productToDelete) {
-        document.getElementById('delete-product-name-placeholder').textContent = productToDelete.name;
+    // 2. Obtener el producto para mostrar un mensaje claro
+    const productToDelete = allProductsMap[String(productId)];
+
+    // 3. Mostrar el nombre del producto en el modal (si existe el placeholder)
+    const placeholder = document.getElementById('delete-product-name-placeholder');
+    if (placeholder && productToDelete) {
+        placeholder.textContent = productToDelete.name;
     }
 
-    openModal('modal-delete-confirmation'); // Abre el modal de confirmación
+    // 4. Abrir el modal de confirmación
+    openModal('modal-delete-confirmation'); 
 }
 
 async function confirmDeleteProduct() {
-    if (!deletingProductId) return;
+    // Usamos la ID global unificada
+    if (!editingProductId) return;
 
+    // 1. Bloquear el botón de confirmación
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Eliminando...';
+
+    // 2. Ejecutar la eliminación
     const { error } = await supabase
         .from('productos')
         .delete()
-        .eq('producto_id', deletingProductId); // Usa la columna ID correcta
+        .eq('producto_id', editingProductId); 
 
+    // 3. Manejar el resultado
     if (error) {
         console.error('Error al eliminar producto:', error.message);
         alert('Error al eliminar producto: ' + error.message);
     } else {
         alert('Producto eliminado exitosamente.');
-        closeModal('modal-delete-confirmation'); 
-        deletingProductId = null;
         
-        // Recargar los datos y la interfaz
+        // 4. Recargar datos y la interfaz
         await loadProductsData();
         await loadAndRenderProducts();
     }
+
+    // 5. Restablecer el estado
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Sí, Eliminar';
+    closeModal('modal-delete-confirmation'); 
+    editingProductId = null; // CRÍTICO: Limpiar la ID global después de la acción
 }
 
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
