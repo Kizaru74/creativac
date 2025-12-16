@@ -1288,11 +1288,13 @@ async function handleNewSale(e) {
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
     
     // Aseguramos que paid_amount_str sea numérico
+    // Nota: Reemplazamos caracteres de moneda o formato antes de parsear
     const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
     
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
+    // Si el método seleccionado es 'Deuda', el pago es 0
     if (payment_method === 'Deuda') {
         paid_amount = 0;
     }
@@ -1306,23 +1308,24 @@ async function handleNewSale(e) {
     if (total_amount < 0) { alert('El total de la venta no puede ser negativo.'); return; }
     
     // Lógica para venta de $0.00
-    if (total_amount === 0) {
+    if (total_amount < 0.01) { // Usar < 0.01 para capturar 0 o casi 0
         final_paid_amount = 0;
         final_saldo_pendiente = 0;
     } else if (final_saldo_pendiente < 0) {
-        final_saldo_pendiente = 0; // Evita saldos negativos por sobrepago
+        final_paid_amount = total_amount; // Si pagó de más, el pagado es el total
+        final_saldo_pendiente = 0; 
     }
     
     // Otras validaciones (pago y confirmación de deuda)
-    if (payment_method !== 'Deuda' && (final_paid_amount < 0 || final_paid_amount > total_amount)) {
+    if (final_paid_amount < 0 || final_paid_amount > total_amount) {
         alert('El monto pagado es inválido.'); return;
     }
 
-    if (final_saldo_pendiente > 0.01 && payment_method !== 'Deuda' && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar registrando esta cantidad como deuda?`)) {
+    if (final_saldo_pendiente > 0.01 && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar registrando esta cantidad como deuda?`)) {
         return;
     }
 
-    // 🛑 VALIDACIÓN CRÍTICA DE IDs (Previene el fallo de Clave Foránea con IDs 0, NULL o NaN)
+    // 🛑 VALIDACIÓN CRÍTICA DE IDs (Previene el fallo de Clave Foránea)
     const itemWithoutValidId = currentSaleItems.find(item => 
         !item.product_id || 
         isNaN(item.product_id) || 
@@ -1334,7 +1337,15 @@ async function handleNewSale(e) {
         return; 
     }
     
+    // 🛑 Control de UX del Botón (Asumimos que está en un formulario)
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Procesando Venta...';
+    }
+
     // --- 2. REGISTRO EN LA BASE DE DATOS (Transacción) ---
+    let new_venta_id = null;
     try {
         // 2.1. REGISTRAR VENTA (Tabla 'ventas')
         const { data: saleData, error: saleError } = await supabase
@@ -1351,17 +1362,16 @@ async function handleNewSale(e) {
 
         if (saleError || !saleData || saleData.length === 0) {
             console.error('Error al insertar venta (Ventas):', saleError);
-            alert(`Error al registrar la venta: ${saleError?.message || 'Desconocido'}`);
-            return;
+            throw new Error(`Error al registrar la venta principal: ${saleError?.message || 'Desconocido'}`);
         }
 
-        const new_venta_id = saleData[0].venta_id;
+        new_venta_id = saleData[0].venta_id;
 
         // 2.2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
-            product_id: parseInt(item.product_id, 10), // Aseguramos INT para la BD
-            name: item.name,
+            product_id: parseInt(item.product_id, 10),
+            // name: item.name, // ⚠️ REMOVIDO: 'name' no suele ser necesario si hay 'product_id'
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
@@ -1372,12 +1382,8 @@ async function handleNewSale(e) {
             .insert(detailsToInsert);
 
         if (detailError) {
-            // Si la venta se registró pero los detalles fallan (ej: restricción de $0.00), lanzamos el error
             console.error('🛑 ERROR BD - DETALLES FALLIDOS:', detailError);
-            let errorMessage = detailError.message || 'Error desconocido al insertar detalles.';
-            
-            // Lanza una excepción para que el bloque catch la maneje y mantenga el carrito
-            throw new Error(`BD Falló al insertar detalles (ID Venta: ${new_venta_id}). Mensaje Supabase: ${errorMessage}`);
+            throw new Error(`BD Falló al insertar detalles (ID Venta: ${new_venta_id}). Mensaje Supabase: ${detailError.message}`);
         }
 
         // 2.3. REGISTRAR PAGO (Tabla 'pagos') - Solo si se pagó algo
@@ -1389,11 +1395,41 @@ async function handleNewSale(e) {
                     amount: final_paid_amount,
                     client_id: client_id,
                     metodo_pago: payment_method,
+                    type: 'INICIAL', // Marcamos como pago inicial
                 }]);
 
             if (paymentError) {
                 console.error('Error al registrar pago inicial (Pagos):', paymentError);
+                // No es fatal, pero alertamos
                 alert(`Advertencia: El pago inicial falló. ${paymentError.message}`);
+            }
+        }
+        
+        // 2.4. 🚨 ACTUALIZAR DEUDA DEL CLIENTE (PASO FALTANTE CRÍTICO) 🚨
+        if (final_saldo_pendiente > 0) {
+            // 2.4.1 Obtener la deuda actual del cliente
+            const { data: clientData, error: clientFetchError } = await supabase
+                .from('clientes')
+                .select('deuda_total')
+                .eq('client_id', client_id)
+                .single();
+
+            if (!clientFetchError && clientData) {
+                const currentClientDebt = clientData.deuda_total || 0;
+                const newClientDebt = currentClientDebt + final_saldo_pendiente;
+
+                // 2.4.2 Actualizar la deuda total en la tabla 'clientes'
+                const { error: clientUpdateError } = await supabase
+                    .from('clientes')
+                    .update({ deuda_total: newClientDebt })
+                    .eq('client_id', client_id);
+
+                if (clientUpdateError) {
+                    console.error('Error al actualizar deuda del cliente (Clientes):', clientUpdateError);
+                    alert(`Advertencia: La venta se registró, pero falló la actualización de la deuda total del cliente. ${clientUpdateError.message}`);
+                }
+            } else {
+                 console.warn(`No se pudo obtener la deuda actual del cliente ${client_id}.`);
             }
         }
         
@@ -1401,26 +1437,35 @@ async function handleNewSale(e) {
         closeModal('new-sale-modal'); 
         
         // Limpieza de UI
-        currentSaleItems = []; 
-        updateSaleTableDisplay();
-        document.getElementById('new-sale-form').reset();
+        window.currentSaleItems = []; 
+        window.updateSaleTableDisplay(); // Función para redibujar el carrito vacío
+        e.target.reset(); // Limpia los campos del formulario
         
-        // Recarga de datos
+        // Recarga de datos para actualizar dashboards y tablas de deuda
         await loadDashboardData(); 
         await loadClientsTable('gestion'); 
 
-        // Muestra el ticket de vista previa
-        showTicketPreviewModal(new_venta_id);
+        // Muestra el ticket de vista previa (asumiendo que existe)
+        if (window.showTicketPreviewModal) {
+            showTicketPreviewModal(new_venta_id);
+        } else {
+             alert(`Venta #${new_venta_id} registrada con éxito. Saldo Pendiente: ${formatCurrency(final_saldo_pendiente)}.`);
+        }
         
     } catch (error) {
-        // Captura el error fatal (incluyendo el error lanzado en 2.2 si falló detalle_ventas)
+        // Captura el error fatal y no limpia el carrito
         console.error('Error FATAL al registrar la venta:', error);
         alert('Error fatal al registrar la venta: ' + error.message);
-        
-        // Importante: No limpiamos el carrito aquí. Mantenemos los items para que el usuario corrija.
         return; 
+    } finally {
+        // 4. RESTABLECER EL BOTÓN
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Finalizar Venta';
+        }
     }
-} window.handleNewSale = handleNewSale;
+} 
+window.handleNewSale = handleNewSale;
 
 function openPostSalePriceModal(ventaId, detalleVentaId, clientId, itemName) {
     // 1. Asignar IDs a los campos ocultos
