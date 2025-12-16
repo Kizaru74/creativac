@@ -1894,7 +1894,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         alert("Error: Cliente no encontrado para esta venta. Intente recargar la página.");
         return;
     }
-    window.viewingClientId = clientId; // Guardamos el ID del cliente que estamos viendo
+    window.viewingClientId = clientId; // Guardamos el ID del cliente que estamos viendo para el checkout
 
     try {
         // 2. CARGA DE LA VENTA PRINCIPAL (Tabla 'ventas')
@@ -1937,7 +1937,8 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         if (descriptionEl && descriptionEl.parentElement) {
             const descriptionText = sale.description || 'No se registraron comentarios adicionales para esta venta.';
             descriptionEl.textContent = descriptionText;
-            descriptionEl.parentElement.classList.remove('hidden');
+            // Solo mostrar la sección si hay una descripción o al menos la etiqueta está presente
+            // descriptionEl.parentElement.classList.remove('hidden'); 
         }
 
         document.getElementById('detail-grand-total').textContent = formatCurrency(sale.total_amount); 
@@ -1951,23 +1952,21 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         
         (items || []).forEach(item => {
             const productData = item.productos;
-            let parentName = 'N/A';
-            
+            let finalName = productData?.name || 'Ítem Desconocido'; // Nombre base
+
+            // 🛑 APLICANDO MEJORA: Mostrar el producto padre de forma limpia
             if (productData && productData.parent_product && window.allProductsMap) {
                 const parentProduct = window.allProductsMap[productData.parent_product]; 
-                if (parentProduct) {
-                    parentName = parentProduct.name;
+                // Aseguramos que el producto padre exista y que no sea el mismo que el hijo
+                if (parentProduct && productData.name !== parentProduct.name) {
+                    // Formato: Nombre del Ítem (P: Nombre del Padre)
+                    finalName = `${productData.name} <span class="text-xs text-gray-500 ml-1">(P: ${parentProduct.name})</span>`;
                 }
             }
             
-            // Usamos un formato más limpio para la descripción del producto
-            const productNameDisplay = (parentName !== 'N/A' && parentName ? parentName + ' (' : '') + 
-                                       (productData?.name || 'Producto Desconocido') + 
-                                       (parentName !== 'N/A' && parentName ? ')' : '');
-
             productsBody.innerHTML += `
                 <tr>
-                    <td class="px-4 py-2">${productNameDisplay}</td> 
+                    <td class="px-4 py-2">${finalName}</td> 
                     <td class="px-4 py-2 text-center">${item.quantity}</td>
                     <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
                     <td class="px-4 py-2 font-medium text-right">${formatCurrency(item.subtotal)}</td>
@@ -1976,19 +1975,16 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             `;
         });
         
-        // 7. RENDERIZADO DE ABONOS (Tabla detail-abonos-body) - Implementación de la corrección
+        // 7. RENDERIZADO DE ABONOS (Tabla detail-abonos-body)
         const abonosBody = document.getElementById('detail-abonos-body');
         const noAbonosMessage = document.getElementById('no-abonos-message');
         abonosBody.innerHTML = '';
 
         if (payments.length === 0) {
-            // Si no hay pagos, mostramos el mensaje de "No se han registrado abonos."
             noAbonosMessage.classList.remove('hidden');
-            abonosBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">No se han registrado pagos o abonos específicos para esta venta.</td></tr>`;
         } else {
-            noAbonosMessage.classList.add('hidden'); // Ocultamos el mensaje si hay pagos
+            noAbonosMessage.classList.add('hidden');
             payments.forEach(payment => {
-                // Aseguramos que el método de pago no sea NULL
                 const metodoPagoDisplay = payment.metodo_pago || 'Pago Inicial'; 
                 
                 abonosBody.innerHTML += `
@@ -2006,13 +2002,12 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
         // =======================================================
         
         const priceEditSection = document.getElementById('price-edit-section');
-        // El botón de abono está en el resumen financiero
         const abonoButtonInSummary = document.querySelector('[data-open-modal="abono-client-modal"]'); 
 
-        // Criterio para Venta Fantasma ($0.00): Total es ~0 Y Saldo Pendiente es ~0
-        const isZeroSalePending = (parseFloat(sale.total_amount) < 0.01) && (parseFloat(sale.saldo_pendiente) < 0.01);
+        // Criterio para Venta Fantasma ($0.00)
+        const isZeroSalePending = (parseFloat(sale.total_amount) < 0.01) && (parseFloat(sale.paid_amount) < 0.01) && (parseFloat(sale.saldo_pendiente) < 0.01);
         
-        // Criterio para Deuda Activa: Saldo Pendiente mayor a cero
+        // Criterio para Deuda Activa
         const hasActiveDebt = parseFloat(sale.saldo_pendiente) > 0.01;
         const remainingDebt = sale.saldo_pendiente; 
 
@@ -2044,7 +2039,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             } else {
                 // Si la venta está a 0 pero no tiene detalle (caso raro), ocultamos edición
                 priceEditSection?.classList.add('hidden');
-                abonoButtonInSummary?.classList.remove('hidden');
             }
             
         } else if (hasActiveDebt) {
@@ -2058,7 +2052,6 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             const debtIdInput = document.getElementById('debt-to-pay-id');
             const currentDebtSpan = document.getElementById('abono-current-debt');
 
-            // Estos elementos son usados por el modal de Abono Específico si lo implementa
             if (debtIdInput) {
                 debtIdInput.value = sale.venta_id; 
             }
@@ -2067,10 +2060,12 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
             }
             
             // Adjuntar evento para abrir el modal de abono y pasar el ID de la VENTA
-            abonoButtonInSummary.onclick = () => {
-                 // Usamos la función de abono para pasar el ID de la VENTA (no el cliente)
-                 openAbonoModal(sale.venta_id, client.name, remainingDebt); 
-            };
+            if (abonoButtonInSummary) {
+                abonoButtonInSummary.onclick = () => {
+                    // Usamos la función de abono para pasar el ID de la VENTA (no el cliente)
+                    window.openAbonoModal(sale.venta_id, client.name, remainingDebt); 
+                };
+            }
             
         } else {
             // VENTA PAGADA COMPLETAMENTE: Ocultar ambos
@@ -2083,7 +2078,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
 
     } catch (e) {
         console.error('Error al cargar detalles de venta:', e);
-        alert('Hubo un error al cargar los detalles de la venta.');
+        alert('Hubo un error al cargar los detalles de la venta. ' + (e.message || ''));
     }
 }
 
@@ -2185,7 +2180,6 @@ window.handleAbonoClientSubmit = async function(e) {
 
 document.addEventListener('DOMContentLoaded', () => {
     const editForm = document.getElementById('edit-sale-price-form');
-    
     // Verificación y Listener para el formulario de Edición de Precio
     if (editForm) {
         editForm.addEventListener('submit', handlePriceEditSubmit);
@@ -2258,8 +2252,12 @@ function loadProductsTable() {
 }
 window.loadProductsTable = loadProductsTable; // Asegurar exposición
 
-async function handlePriceEditSubmit(e) {
-    // 🛑 CRÍTICO: Evita la recarga de la página (soluciona el error de navegación)
+/**
+ * Maneja el envío del formulario de edición de precio en el modal de detalle de venta.
+ * Actualiza 'detalle_ventas' y recalcula 'ventas' (total, pagado, saldo pendiente).
+ */
+window.handlePriceEditSubmit = async function(e) {
+    // 🛑 CRÍTICO: Evita la recarga de la página
     e.preventDefault(); 
 
     if (!supabase) {
@@ -2268,27 +2266,32 @@ async function handlePriceEditSubmit(e) {
     }
 
     const form = e.target;
-    // Lectura de IDs desde el formulario (asegúrate que estos IDs coincidan con tu HTML)
+    // 🛑 Obtener el botón de submit para control de UX
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    // 1. Lectura y Validación de Datos
     const ventaId = form.elements['edit-sale-transaction-id'].value;
     const detalleId = form.elements['edit-sale-detail-id'].value;
     const newPriceValue = form.elements['edit-new-price'].value;
-
     const newPrice = parseFloat(newPriceValue);
     
-    // Asumimos que 'viewingClientId' es una variable global
-    const clientId = window.viewingClientId; 
+    const clientId = window.viewingClientId; // ID del cliente para la recarga
 
     if (!ventaId || !detalleId || isNaN(newPrice) || newPrice <= 0 || !clientId) {
-        alert("Faltan datos (Venta/Detalle/Cliente) o el precio es inválido.");
+        alert("Faltan datos (Venta/Detalle/Cliente) o el precio es inválido (debe ser > 0).");
         return;
     }
 
-    if (!confirm(`¿Está seguro de establecer el precio de la Venta #${ventaId} a ${formatCurrency(newPrice)}? Esto definirá el total y el saldo pendiente.`)) {
+    if (!confirm(`¿Está seguro de establecer el precio unitario de la Venta #${ventaId} a ${formatCurrency(newPrice)}? Esto definirá el total y el saldo pendiente.`)) {
         return;
     }
 
+    // 2. Control de UX (Deshabilitar botón)
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Actualizando y Recalculando...';
+    
     try {
-        // 1. Obtener la CANTIDAD del detalle_venta (clave si Quantity > 1)
+        // 3. Obtener la CANTIDAD del detalle_venta 
         const { data: detail, error: detailFetchError } = await supabase
             .from('detalle_ventas')
             .select('quantity')
@@ -2299,7 +2302,7 @@ async function handlePriceEditSubmit(e) {
         
         const newSubtotal = newPrice * detail.quantity; // Calcula el nuevo subtotal real
         
-        // 2. Actualizar el detalle_venta (price y subtotal)
+        // 4. Actualizar el detalle_venta (price y subtotal)
         const { error: updateDetailError } = await supabase
             .from('detalle_ventas')
             .update({ price: newPrice, subtotal: newSubtotal })
@@ -2307,13 +2310,13 @@ async function handlePriceEditSubmit(e) {
 
         if (updateDetailError) throw new Error("Error al actualizar detalle: " + updateDetailError.message);
 
-        // 3. Actualizar la tabla 'ventas' (total_amount y saldo_pendiente)
+        // 5. Actualizar la tabla 'ventas' (total_amount y saldo_pendiente)
         const { error: updateSaleError } = await supabase
             .from('ventas')
             .update({ 
                 total_amount: newSubtotal, 
-                saldo_pendiente: newSubtotal, // Nuevo precio = Saldo pendiente
-                paid_amount: 0 // Se restablece el pago a cero (asumiendo que era $0.00)
+                saldo_pendiente: newSubtotal, // Nuevo total = Saldo pendiente (se asume sin pagos previos)
+                paid_amount: 0 // Se restablece el pago a cero 
             })
             .eq('venta_id', ventaId);
 
@@ -2321,30 +2324,24 @@ async function handlePriceEditSubmit(e) {
 
         alert(`Venta #${ventaId} actualizada con éxito. El saldo pendiente ahora es de ${formatCurrency(newSubtotal)}.`);
 
-        // 4. RECARGA DE DATOS (REFRESH)
+        // 6. RECARGA DE DATOS Y REFRESH DE UI
         closeModal('modal-detail-sale');
         
-        // Carga de datos generales del dashboard (widgets, estadísticas)
-        if (window.loadDashboardData) {
-            await loadDashboardData();
-        }
+        // Recargar datos principales
+        if (window.loadDashboardData) await loadDashboardData();
+        if (window.loadMonthlySalesReport) await loadMonthlySalesReport(); 
+        if (window.loadClientsTable) await loadClientsTable('gestion'); 
         
-        // 🚨 CRÍTICO: Recargar la tabla específica de Reportes Mensuales 🚨
-        if (window.loadMonthlySalesReport) {
-            await loadMonthlySalesReport(); 
-        }
-        
-        // Recargar la tabla de clientes/deudas
-        if (window.loadClientsTable) {
-            await loadClientsTable('gestion'); 
-        }
-        
-        // Reabrir el modal con los datos frescos (para que el usuario vea la confirmación)
-        handleViewSaleDetails(ventaId, clientId);
+        // Reabrir el modal con los datos frescos para que el usuario vea la confirmación del cambio
+        await handleViewSaleDetails(ventaId, clientId);
 
     } catch (error) {
         console.error('Error al editar precio de venta:', error);
-        alert('Fallo al actualizar el precio: ' + error.message);
+        alert('Fallo al actualizar el precio: ' + (error.message || 'Error desconocido.'));
+    } finally {
+        // 7. RESTABLECER EL BOTÓN
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Actualizar Precio y Saldo';
     }
 }
 function loadProductDataToForm(productId) {
@@ -2352,10 +2349,10 @@ function loadProductDataToForm(productId) {
     // Usamos String() para manejar inconsistencias de tipo entre number/string
     const productToEdit = allProducts.find(p => String(p.producto_id) === String(productId));
 
-    if (!productToEdit) {
-        alert('Error: Producto no encontrado para edición.');
-        return;
-    }
+    //if (!productToEdit) {
+       // alert('Error: Producto no encontrado para edición.');
+       // return;
+   // }
     
     // 2. Rellenar los campos del formulario
     document.getElementById('product-id').value = productToEdit.producto_id;
