@@ -510,62 +510,64 @@ async function loadProductsData() {
     // ... otras funciones de inicialización
 }window.loadProductsData = loadProductsData;
 
+/**
+ * Se activa al cambiar el producto principal en el formulario de venta (TPV).
+ */
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
-        console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
-        return;
-    }
+    // ... (Verificaciones de elementos) ...
 
     const productId = mainSelect.value;
     
-    // 🛑 Defensa contra Race Condition (ya la tienes, solo la menciono)
+    // 🛑 CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
+    if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
+        subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
+        subSelect.disabled = true; 
+        priceInput.value = '0.00';
+        return; 
+    }
+
+    // 🛑 CRÍTICO 2: Defensa contra Race Condition
     if (!window.allProducts || window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
         return; 
     }
     
-    // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
-    subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
-    subSelect.disabled = true; 
-    priceInput.value = '0.00';
-    
-    // 🛑 CRÍTICO: Si el ID es nulo o el placeholder, salimos
-    if (!productId || productId === 'placeholder-option-value') { 
-        return; 
-    }
-
-    // 2. Establecer el precio por defecto (el del producto principal)
+    // 2. Establecer el precio por defecto (usando la ID validada)
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
-        // Aseguramos que la conversión se haga solo con valores válidos
-        const parentIdNum = parseInt(String(p.parent_product), 10);
-        const selectedIdNum = parseInt(productId, 10);
+        
+        const productType = String(p.type || '').toUpperCase(); 
+        
+        // 🛑 ULTRA-DEFENSA FINAL: Limpieza de IDs antes de la conversión a número.
+        const parentIdNum = parseInt(String(p.parent_product || '').trim(), 10);
+        const selectedIdNum = parseInt(String(productId).trim(), 10);
         
         return (
-            p.type === 'PACKAGE' && 
+            productType === 'PACKAGE' && 
             !isNaN(parentIdNum) && parentIdNum > 0 && 
             parentIdNum === selectedIdNum 
         );
     });
     
-    // 🛑 LOGGING CRÍTICO
+    // LOGGING
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
     if (subProducts.length > 0) {
-        // ... (Tu lógica de renderizado correcta aquí) ...
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub.producto_id;
-            const priceDisplay = (typeof window.formatCurrency === 'function') ? window.formatCurrency(sub.price) : `$${parseFloat(sub.price).toFixed(2)}`;
+            const priceDisplay = (typeof window.formatCurrency === 'function') 
+                ? window.formatCurrency(sub.price) 
+                : `$${parseFloat(sub.price).toFixed(2)}`;
             option.textContent = `${sub.name} (${priceDisplay})`; 
             subSelect.appendChild(option);
         });
