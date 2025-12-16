@@ -540,6 +540,9 @@ window.handleChangeProductForSale = function() {
         return;
     }
 
+    // 🛑 NUEVO LOG DE DIAGNÓSTICO CRÍTICO 🛑
+    console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Tipo de Producto ID: ${typeof mainSelect.value}`);
+    // 🛑 FIN NUEVO LOG 🛑
     const productId = mainSelect.value;
     
     // CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
@@ -560,26 +563,25 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
-// Forzamos ambos lados de la comparación a string LIMPIO
-const selectedIdStr = String(productId).trim(); 
+    // Forzamos ambos lados de la comparación a string LIMPIO
+    const selectedIdStr = String(productId).trim(); 
 
-const subProducts = allProducts.filter(p => {
-    
-    const productType = String(p.type || '').toUpperCase(); 
-    // 🛑 CRÍTICO: Aseguramos que parentId sea un string limpio para la comparación
-    const parentIdStr = String(p.parent_product || '').trim(); 
+    const subProducts = allProducts.filter(p => {
+        
+        const productType = String(p.type || '').toUpperCase(); 
+        const parentIdStr = String(p.parent_product || '').trim(); 
 
-    // 🛑 AÑADIR ESTOS DOS LOGS DE DIAGNÓSTICO
-    if (productType === 'PACKAGE') {
-        console.log(`[DIAG_FILTER] Paquete encontrado. Parent ID Visto: '${parentIdStr}' | Buscando ID: '${selectedIdStr}' | Coincide: ${parentIdStr === selectedIdStr}`);
-    }
-    // 🛑 FIN DE LOGS DE DIAGNÓSTICO
+        if (productType === 'PACKAGE') {
+            console.log(`[DIAG_FILTER] Paquete encontrado. Parent ID Visto: '${parentIdStr}' | Buscando ID: '${selectedIdStr}' | Coincide: ${parentIdStr === selectedIdStr}`);
+        }
 
-    return (
-        productType === 'PACKAGE' && 
-        parentIdStr === selectedIdStr
-    );
-});
+        return (
+            productType === 'PACKAGE' && 
+            parentIdStr === selectedIdStr
+        );
+    });
+
+    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
 console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
