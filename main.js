@@ -2249,14 +2249,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
-
-//Carga todas las ventas y las almacena globalmente para su posterior filtrado.
 window.loadSalesData = async function() {
     console.log("Cargando datos de ventas...");
     
+    // 🛑 CORRECCIÓN: Usar 'supabase' en lugar de 'window.supabase'
+    if (!supabase) {
+        console.error("Supabase no inicializado en loadSalesData.");
+        window.allSales = [];
+        return;
+    }
+    
     try {
-        // Hacemos un JOIN para traer el nombre del cliente
-        const { data: sales, error } = await window.supabase
+        const { data: sales, error } = await supabase // <-- CAMBIO AQUÍ
             .from('ventas')
             .select(`
                 venta_id, 
@@ -2264,29 +2268,20 @@ window.loadSalesData = async function() {
                 total_amount, 
                 saldo_pendiente, 
                 client_id,
-                clientes ( client_name ) // JOIN a 'clientes'
+                clientes ( client_name ) 
             `);
 
         if (error) throw error;
         
-        // Procesamos los datos para aplanar el nombre del cliente
-        window.allSales = (sales || []).map(sale => ({
-            ...sale,
-            // Si el cliente existe, extrae su nombre, sino usa 'Consumidor Final'
-            client_name: sale.clientes ? sale.clientes.client_name : 'Consumidor Final'
-        }));
-        
-        console.log(`✅ ${window.allSales.length} ventas cargadas en ámbito global.`);
-        
+        // ... (Resto del código) ...
     } catch (error) {
         console.error('Error al cargar datos de ventas:', error);
         window.allSales = [];
         alert('Fallo al cargar la lista de ventas.');
     }
-    // Retornamos el array de ventas cargadas
     return window.allSales; 
 };
-window.loadSalesData = loadSalesData; // Exposición global
+window.loadSalesData = loadSalesData;
 
 async function openNewProductModal() {
     console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
