@@ -2287,125 +2287,9 @@ async function handlePriceEditSubmit(e) {
     }
 }
 
-window.loadClientsTable = async function(mode = 'gestion') {
-
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
-    const container = document.getElementById('clients-list-body');
-    if (!container) {
-        console.error("Contenedor de clientes ('clients-list-body') no encontrado.");
-        return;
-    }
-
-    // 💡 La clave para el control de botones
-    const showActions = mode === 'gestion';
-
-    try {
-        // 1. Obtener la lista base de clientes
-        const { data: clients, error: clientsError } = await supabase
-            .from('clientes')
-            .select('client_id, name, telefono')
-            .order('name', { ascending: true });
-
-        if (clientsError) throw clientsError;
-
-        // Se asume que allClients es una variable global
-        allClients = clients; 
-        
-        // 2. Ejecutar las consultas de resumen de ventas/deuda en paralelo
-        // Asume que getClientSalesSummary y formatCurrency existen
-        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
-        const summaries = await Promise.all(summaryPromises);
-
-        // 3. Limpiar y Renderizar
-        container.innerHTML = '';
-
-        clients.forEach((client, index) => {
-            const summary = summaries[index];
-            
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50';
-
-            // 🛠️ Celda de Acciones Condicional
-            let actionCell = '';
-
-            if (showActions) {
-                // Modo 'gestion': Muestra los botones de Editar, Eliminar, Abonar
-                actionCell = `
-                    <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
-                        <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
-                                        data-client-id="${client.client_id}">
-                            <i class="fas fa-edit"></i> Editar
-                
-                <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
-                 data-client-id="${client.client_id}" 
-               data-client-name="${client.name}">
-                 <i class="fas fa-trash"></i> Eliminar
-                </button>
-
-                     <button type="button" class="view-debt-btn text-blue-600 hover:text-blue-900" 
-                        data-client-id="${client.client_id}" title="Ver ventas y abonos del cliente">
-                        <i class="fas fa-file-invoice-dollar"></i> Ver Deuda
-                    </button>
-                    </td>
-                `;
-            } else {
-                // Modo 'seleccion' o cualquier otro: Puedes poner un botón de selección o dejar la celda vacía.
-                // Aquí se deja una celda vacía para mantener la estructura de la tabla
-                actionCell = `<td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium"></td>`; 
-            }
-            
-            row.innerHTML = `
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.client_id}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || 'N/A'}</td>
-                
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    $${summary.totalVentas.toFixed(2)}
-                </td>
-                
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold 
-                    ${summary.deudaNeta > 0 ? 'text-red-600' : 'text-green-600'}">
-                    $${summary.deudaNeta.toFixed(2)}
-                </td>
-                
-                ${actionCell} 
-            `;
-            container.appendChild(row);
-        });
-
-        if (showActions) {
-            // Enlazar botón de EDITAR
-            container.querySelectorAll('.edit-client-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    handleEditClientClick(button.dataset.clientId);
-                });
-            });
-
-            // Enlazar botón de ELIMINAR
-            container.querySelectorAll('.delete-client-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    // La propiedad data-client-name ya está siendo agregada en el HTML
-                    handleDeleteClientClick(button.dataset.clientId, button.dataset.clientName); 
-                });
-            });
-            
-            // Enlazar botón de VER DEUDA/VENTA 
-            container.querySelectorAll('.view-debt-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    handleViewClientDebt(button.dataset.clientId); 
-                });
-            });
-        }
-
-    } catch (e) {
-        console.error('Error inesperado al cargar clientes:', e.message || e);
-    }
-}
-
+// ====================================================================
+// 10. LÓGICA CRUD PARA PRODUCTOS
+// ====================================================================
 function loadProductDataToForm(productId) {
     // 1. Encontrar el producto en el array global
     // Usamos String() para manejar inconsistencias de tipo entre number/string
@@ -2439,11 +2323,6 @@ function loadProductDataToForm(productId) {
     // 4. Actualizar el título
     document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
 }
-
-// ====================================================================
-// 10. LÓGICA CRUD PARA PRODUCTOS
-// ====================================================================
-
 async function openNewProductModal() {
     // 1. Asegura que la lista de productos padres esté actualizada antes de mostrar el modal.
     await loadMainProductsAndPopulateSelect(); 
@@ -2719,7 +2598,7 @@ async function handleNewProduct(e) {
         await loadAndRenderProducts();
     }
 }
-function handleProductTypeChange() {
+window.handleProductTypeChange = function() {
     const typeSelect = document.getElementById('new-product-type'); 
     const parentContainer = document.getElementById('new-product-parent-container');
     const parentSelect = document.getElementById('new-product-parent-select');
@@ -2727,14 +2606,12 @@ function handleProductTypeChange() {
     if (!typeSelect || !parentContainer || !parentSelect) return;
 
     if (typeSelect.value === 'PACKAGE') {
-        // Mostrar el contenedor y hacerlo requerido para la validación del submit
         parentContainer.classList.remove('hidden'); 
         parentSelect.setAttribute('required', 'required');
     } else {
-        // Ocultar y remover el requerimiento/valor si no es un paquete
         parentContainer.classList.add('hidden');
         parentSelect.removeAttribute('required');
-        parentSelect.value = ''; // Limpiar el valor seleccionado
+        parentSelect.value = ''; 
     }
 }
 function handleEditProductClick(productId) {
@@ -2797,6 +2674,124 @@ async function confirmDeleteProduct() {
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
+window.loadClientsTable = async function(mode = 'gestion') {
+
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
+
+    const container = document.getElementById('clients-list-body');
+    if (!container) {
+        console.error("Contenedor de clientes ('clients-list-body') no encontrado.");
+        return;
+    }
+
+    // 💡 La clave para el control de botones
+    const showActions = mode === 'gestion';
+
+    try {
+        // 1. Obtener la lista base de clientes
+        const { data: clients, error: clientsError } = await supabase
+            .from('clientes')
+            .select('client_id, name, telefono')
+            .order('name', { ascending: true });
+
+        if (clientsError) throw clientsError;
+
+        // Se asume que allClients es una variable global
+        allClients = clients; 
+        
+        // 2. Ejecutar las consultas de resumen de ventas/deuda en paralelo
+        // Asume que getClientSalesSummary y formatCurrency existen
+        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
+        const summaries = await Promise.all(summaryPromises);
+
+        // 3. Limpiar y Renderizar
+        container.innerHTML = '';
+
+        clients.forEach((client, index) => {
+            const summary = summaries[index];
+            
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+
+            // 🛠️ Celda de Acciones Condicional
+            let actionCell = '';
+
+            if (showActions) {
+                // Modo 'gestion': Muestra los botones de Editar, Eliminar, Abonar
+                actionCell = `
+                    <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                        <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900 mr-2" 
+                                        data-client-id="${client.client_id}">
+                            <i class="fas fa-edit"></i> Editar
+                
+                <button type="button" class="delete-client-btn text-red-600 hover:text-red-900 mr-2" 
+                 data-client-id="${client.client_id}" 
+               data-client-name="${client.name}">
+                 <i class="fas fa-trash"></i> Eliminar
+                </button>
+
+                     <button type="button" class="view-debt-btn text-blue-600 hover:text-blue-900" 
+                        data-client-id="${client.client_id}" title="Ver ventas y abonos del cliente">
+                        <i class="fas fa-file-invoice-dollar"></i> Ver Deuda
+                    </button>
+                    </td>
+                `;
+            } else {
+                // Modo 'seleccion' o cualquier otro: Puedes poner un botón de selección o dejar la celda vacía.
+                // Aquí se deja una celda vacía para mantener la estructura de la tabla
+                actionCell = `<td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium"></td>`; 
+            }
+            
+            row.innerHTML = `
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.client_id}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${client.name}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || 'N/A'}</td>
+                
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    $${summary.totalVentas.toFixed(2)}
+                </td>
+                
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold 
+                    ${summary.deudaNeta > 0 ? 'text-red-600' : 'text-green-600'}">
+                    $${summary.deudaNeta.toFixed(2)}
+                </td>
+                
+                ${actionCell} 
+            `;
+            container.appendChild(row);
+        });
+
+        if (showActions) {
+            // Enlazar botón de EDITAR
+            container.querySelectorAll('.edit-client-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    handleEditClientClick(button.dataset.clientId);
+                });
+            });
+
+            // Enlazar botón de ELIMINAR
+            container.querySelectorAll('.delete-client-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    // La propiedad data-client-name ya está siendo agregada en el HTML
+                    handleDeleteClientClick(button.dataset.clientId, button.dataset.clientName); 
+                });
+            });
+            
+            // Enlazar botón de VER DEUDA/VENTA 
+            container.querySelectorAll('.view-debt-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    handleViewClientDebt(button.dataset.clientId); 
+                });
+            });
+        }
+
+    } catch (e) {
+        console.error('Error inesperado al cargar clientes:', e.message || e);
+    }
+}
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
