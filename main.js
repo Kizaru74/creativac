@@ -2412,7 +2412,7 @@ async function loadProductsTable() {
     
     container.innerHTML = '';
      
-    const products = allProducts; 
+    const products = window.allProducts || [];
 
     if (products.length === 0) {
         container.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No hay productos registrados.</td></tr>';
