@@ -479,33 +479,33 @@ function handleChangeProductForSale() {
     }
 }
 
-async function loadMainProductsForSaleSelect() {
-    const select = document.getElementById('product-main-select');
-    const subSelect = document.getElementById('subproduct-select');
-    const priceInput = document.getElementById('product-unit-price');
+function loadMainProductsForSaleSelect() {
+    // 1. Obtener el elemento SELECT
+    const selectElement = document.getElementById('sale-product-select'); // ID asumida del select en el modal de venta
+    if (!selectElement || !window.allProducts) return;
 
-    if (!select || !subSelect || !priceInput) return;
+    selectElement.innerHTML = '<option value="" disabled selected>--- Seleccionar Producto ---</option>';
 
-    // ✅ Filtro corregido: Busca 'MAIN'
-    const mainProducts = allProducts.filter(p => p.type && p.type.trim().toUpperCase() === 'MAIN');
+    // 2. Filtrar solo los productos que deben ser visibles para la venta
+    // Si usas 'MAIN' y 'PACKAGE', excluimos 'PACKAGE'.
+    const availableProducts = window.allProducts.filter(p => p.type !== 'PACKAGE');
 
-    subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
-    priceInput.value = '0.00';
-    subSelect.disabled = true;
-
-    if (mainProducts.length === 0) {
-        select.innerHTML = '<option value="" disabled selected>❌ No hay Productos Base (Tipo: MAIN)</option>';
+    // 3. Agregar las opciones al SELECT
+    if (availableProducts.length === 0) {
+        selectElement.innerHTML += '<option value="" disabled>No hay productos disponibles para la venta.</option>';
         return;
     }
-    
-    select.innerHTML = '<option value="" disabled selected>Seleccione Producto Base</option>';
-    
-    mainProducts.forEach(product => {
+
+    availableProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product.producto_id;
-        option.textContent = `${product.name}`;
-        select.appendChild(option);
+        // Formato para que el usuario vea el precio en el select
+        const priceDisplay = formatCurrency(product.price); 
+        option.textContent = `${product.name} (${priceDisplay})`; 
+        selectElement.appendChild(option);
     });
+    
+    console.log(`✅ ${availableProducts.length} productos listados en el selector de venta.`);
 }
 
 // Asume que 'allProducts' contiene todos los productos cargados
@@ -2235,19 +2235,25 @@ function loadProductDataToForm(productId) {
     document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
 }
 async function openNewProductModal() {
-    // 1. Aseguramos que la lista de productos padres esté actualizada 
-    //    ANTES de mostrar el modal.
-    // 🚨 LLAMADA CRÍTICA: La función que rellena el SELECT.
-    await window.loadMainProductsAndPopulateSelect(); 
+    console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
     
-    // 2. Ejecuta la lógica para abrir el modal (función que tienes definida).
+    // 🚨 Esta es la llamada que debe funcionar ahora que la expusiste a window
+    if (window.loadMainProductsAndPopulateSelect) {
+        await window.loadMainProductsAndPopulateSelect(); 
+        console.log("DEBUG: Paso 2: Función de carga ejecutada (debe haber llenado el select).");
+    } else {
+        console.error("DEBUG: Paso 2: Error. La función loadMainProductsAndPopulateSelect no está en el ámbito global.");
+    }
+
+    // 3. Abrir el modal (asumo que 'openModal' existe)
     openModal('new-product-modal'); 
+    console.log("DEBUG: Paso 3: Modal abierto.");
     
-    // 3. Opcional: Asegurar que el campo padre esté oculto por defecto
+    // 4. Resetear el campo type para el listener
     const typeSelect = document.getElementById('new-product-type');
     if (typeSelect) {
-        typeSelect.value = 'PRODUCT'; // Valor por defecto
-        window.handleProductTypeChange(); // Fuerza la lógica de ocultamiento/mostrado
+        typeSelect.value = 'PRODUCT'; 
+        window.handleProductTypeChange();
     }
 }
 window.loadMainProductsAndPopulateSelect = async function() {
