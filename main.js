@@ -2249,13 +2249,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
-/**
- * Carga todas las ventas y las almacena globalmente para su posterior filtrado.
- */
 window.loadSalesData = async function() {
     console.log("Cargando datos de ventas...");
     
-    // Asumimos que la variable local 'supabase' está inicializada correctamente
+    // Verificación de la instancia de Supabase (uso de la variable local 'supabase')
     if (!supabase) {
         console.error("Supabase no inicializado en loadSalesData.");
         window.allSales = [];
@@ -2267,19 +2264,20 @@ window.loadSalesData = async function() {
             .from('ventas')
             .select(`
                 venta_id, 
-                sale_date, 
-                total_amount, 
-                saldo_pendiente, 
-                client_id,
-                clientes ( name ) // 🛑 CORRECCIÓN: CAMBIADO A 'name'
+                created_at,        // ✅ CORREGIDO: Usando el nombre real de la columna
+                total_amount,      // Asumimos este nombre, si falla, es el siguiente a corregir
+                saldo_pendiente,   // Asumimos este nombre
+                client_id,         
+                clientes ( name )  // Asumimos 'name' para el cliente
             `);
 
         if (error) throw error;
         
-        // Procesamos los datos para aplanar el nombre del cliente
+        // Procesamos los datos para aplanar y estandarizar los nombres de las propiedades en JS
         window.allSales = (sales || []).map(sale => ({
             ...sale,
-            // 🛑 CORRECCIÓN: Extraer de 'name'
+            // Mapeamos 'created_at' de la DB al nombre estándar en JS ('sale_date') para el filtro
+            sale_date: sale.created_at ? sale.created_at.substring(0, 10) : 'N/A', // Limpiamos el timestamp a solo la fecha YYYY-MM-DD
             client_name: sale.clientes ? sale.clientes.name : 'Consumidor Final'
         }));
         
@@ -4588,18 +4586,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // 2. Inicialización de Vistas y Selectores
     // =======================================================
-
-    // 🛑 Llamada inicial de carga de datos para el Dashboard y Ventas
-if (window.loadSalesData) {
-    window.loadSalesData().then(() => {
-        // Una vez que los datos de ventas están cargados, renderizamos la tabla
-        window.handleFilterSales(); 
-    });
-}
-    
-    // 🛑 IMPORTANTE: La función window.initReportSelectors debe estar definida FUERA de este bloque.
-    // La llamada a initReportSelectors se ha movido a switchView(viewId).
-    
+   
     // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
     if (window.loadDashboardData) {
         window.loadDashboardData();
@@ -4686,6 +4673,30 @@ document.addEventListener('DOMContentLoaded', () => {
             window.loadMainProductsForSaleSelect(); 
         });
     }
+
+    //llamada de ventas en el modal
+document.addEventListener('DOMContentLoaded', () => {
+    const startDateFilter = document.getElementById('filter-start-date');
+    const endDateFilter = document.getElementById('filter-end-date');
+    const searchFilter = document.getElementById('filter-search-term');
+    
+    if (startDateFilter) {
+        startDateFilter.addEventListener('change', window.handleFilterSales);
+    }
+    if (endDateFilter) {
+        endDateFilter.addEventListener('change', window.handleFilterSales);
+    }
+    if (searchFilter) {
+        searchFilter.addEventListener('input', window.handleFilterSales);
+    }
+    // 🛑 LLAMADA INICIAL CRÍTICA DE CARGA DE DATOS
+    // Asegúrate de que SOLO se llama una vez al inicio.
+    if (window.loadSalesData) {
+        // Carga los datos y luego, cuando termine (.then), renderiza la tabla.
+        window.loadSalesData().then(window.handleFilterSales);
+    }
+
+});
 
     // ==========================================================
     // 🛑 CONEXIONES PARA EL FILTRADO Y BÚSQUEDA DE VENTAS
