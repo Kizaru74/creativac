@@ -2114,6 +2114,68 @@ document.addEventListener('DOMContentLoaded', () => {
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
 
+function loadProductsTable() {
+    const container = document.getElementById('products-table-body');
+    if (!container) return; 
+
+    // Aseguramos que los datos estén cargados (aunque lo ideal es cargarlos antes de llamar esta func.)
+    // Si usas el código de la pregunta anterior, loadProductsData() ya está en handleEditProduct.
+    // Lo eliminamos aquí para evitar doble carga si lo llamas después de un await loadProductsData().
+    
+    container.innerHTML = '';
+      
+    // Usar la variable global corregida
+    const products = window.allProducts || []; 
+
+    if (products.length === 0) {
+        // Mostrar mensaje si no hay productos
+        document.getElementById('no-products-message')?.classList.remove('hidden');
+        return;
+    }
+    document.getElementById('no-products-message')?.classList.add('hidden');
+
+    products.forEach(product => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-100 transition-colors';
+        
+        // Formato para el precio
+        const formattedPrice = formatCurrency(product.price);
+        
+        // Indicador de Categoría
+        let categoryDisplay = product.type;
+        if (product.type === 'MAIN') categoryDisplay = 'Principal';
+        if (product.type === 'PACKAGE') categoryDisplay = 'Subproducto';
+        if (product.type === 'SERVICE') categoryDisplay = 'Servicio'; // Asumiendo SERVICE existe
+
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.producto_id}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formattedPrice}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${categoryDisplay}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                
+                <button 
+                    onclick="handleEditProductClick(${product.producto_id})" 
+                    class="text-indigo-600 hover:text-indigo-900 edit-product-btn mr-2">
+                    Editar
+                </button>
+                
+                <button 
+                    onclick="handleDeleteProductClick(${product.producto_id})" 
+                    class="text-red-600 hover:text-red-900 delete-product-btn">
+                    Eliminar
+                </button>
+            </td>
+        `;
+        container.appendChild(row);
+    });
+    
+    // NOTA: Elimina el bloque de código document.querySelectorAll('.edit-product-btn').forEach(...)
+    // y document.querySelectorAll('.delete-product-btn').forEach(...) que tenías antes,
+    // ya que ahora usamos el onclick directo.
+}
+window.loadProductsTable = loadProductsTable; // Asegurar exposición
+
 async function handlePriceEditSubmit(e) {
     // 🛑 CRÍTICO: Evita la recarga de la página (soluciona el error de navegación)
     e.preventDefault(); 
@@ -2203,7 +2265,6 @@ async function handlePriceEditSubmit(e) {
         alert('Fallo al actualizar el precio: ' + error.message);
     }
 }
-
 function loadProductDataToForm(productId) {
     // 1. Encontrar el producto en el array global
     // Usamos String() para manejar inconsistencias de tipo entre number/string
@@ -2400,55 +2461,6 @@ async function handleEditProduct(e) {
     }
 
     editingProductId = null; // Reseteamos la ID global SÓLO al final
-}
-async function loadProductsTable() {
-    // ⚠️ CORRECCIÓN CRÍTICA: Definir la variable 'container'
-    const container = document.getElementById('products-table-body');
-    
-    // Ahora 'container' ya existe
-    if (!container) return; // Si no existe (no estamos en la vista de productos), salimos.
-
-    await loadProductsData(); 
-    
-    container.innerHTML = '';
-     
-    const products = window.allProducts || [];
-
-    if (products.length === 0) {
-        container.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No hay productos registrados.</td></tr>';
-        return;
-    }
-
-    products.forEach(product => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.producto_id}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.type}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formatCurrency(product.price)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button data-product-id="${product.producto_id}" class="text-indigo-600 hover:text-indigo-900 edit-product-btn mr-2">Editar</button>
-                <button data-product-id="${product.producto_id}" class="text-red-600 hover:text-red-900 delete-product-btn">Eliminar</button>
-            </td>
-        `;
-        container.appendChild(row);
-    });
-
-    // ✅ CORRECCIÓN: Adjuntar Event Listeners después de dibujar la tabla (Soluciona modales rotos)
-    document.querySelectorAll('.edit-product-btn').forEach(button => {
-        button.onclick = () => {
-            const productId = button.getAttribute('data-product-id');
-            openEditProductModal(productId); 
-        };
-    });
-
-    document.querySelectorAll('.delete-product-btn').forEach(button => {
-        button.onclick = () => {
-            const productId = button.getAttribute('data-product-id');
-            handleDeleteProduct(productId); 
-        };
-    });
 }
 // main.js - Función para manejar el guardado de un nuevo producto
 async function handleNewProduct(e) {
