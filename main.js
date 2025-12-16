@@ -523,8 +523,7 @@ window.handleChangeProductForSale = function() {
 
     const productId = mainSelect.value;
     
-    // 🛑 DEFENSA CRÍTICA CONTRA RACE CONDITION (Condición de Carrera)
-    // Si la data global está vacía o inestable (menos de 5 productos cargados), evitamos el filtro.
+    // 🛑 DEFENSA CRÍTICA AÑADIDA: Evita el filtro si la data es inestable
     if (!window.allProducts || window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
         return; 
@@ -585,7 +584,6 @@ window.handleChangeProductForSale = function() {
         console.log(`DIAGNÓSTICO DE RENDERIZADO: Se inyectaron ${subProducts.length} opciones.`);
     }
 }
-// 🛑 Exposición Global CRÍTICA
 window.handleChangeProductForSale = window.handleChangeProductForSale;
 
 function loadMainProductsForSaleSelect() {
@@ -2245,6 +2243,85 @@ document.addEventListener('DOMContentLoaded', () => {
         editForm.addEventListener('submit', handlePriceEditSubmit);
     }
 });
+
+/**
+ * Filtra las ventas basándose en un rango de fechas y una cadena de búsqueda, y luego las renderiza.
+ */
+window.handleFilterSales = function() {
+    const startDate = document.getElementById('filter-start-date')?.value;
+    const endDate = document.getElementById('filter-end-date')?.value;
+    const searchTerm = document.getElementById('filter-search-term')?.value.toLowerCase().trim() || '';
+
+    const allSales = window.allSales || []; 
+
+    let filteredSales = allSales.filter(sale => {
+        // A. FILTRO POR FECHA
+        let dateMatch = true;
+        const saleDate = sale.sale_date; 
+        
+        if (startDate && saleDate < startDate) {
+            dateMatch = false;
+        }
+        if (endDate && saleDate > endDate) {
+            dateMatch = false;
+        }
+        
+        // B. FILTRO POR BÚSQUEDA DE TEXTO (Cliente o ID de Venta)
+        let textMatch = true;
+        if (searchTerm.length > 0) {
+            const clientName = (sale.client_name || '').toLowerCase();
+            const saleId = String(sale.venta_id);
+            
+            if (!clientName.includes(searchTerm) && !saleId.includes(searchTerm)) {
+                textMatch = false;
+            }
+        }
+        
+        return dateMatch && textMatch;
+    });
+
+    // Llama a la función de renderizado
+    window.renderSalesTable(filteredSales);
+    console.log(`Filtro aplicado. Mostrando ${filteredSales.length} ventas.`);
+}
+window.handleFilterSales = window.handleFilterSales; // Exposición global
+
+window.renderSalesTable = function(sales) {
+    const tableBody = document.getElementById('sales-table-body');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+
+    if (sales.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">No se encontraron ventas para estos criterios.</td></tr>';
+        return;
+    }
+
+    sales.forEach(sale => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+
+        // Determinar el estado visual de la deuda
+        const isPaid = sale.saldo_pendiente <= 0;
+        const debtClass = isPaid ? 'text-green-600 font-medium' : 'text-red-600 font-bold';
+        const statusText = isPaid ? 'Liquidada' : 'Pendiente';
+
+        row.innerHTML = `
+            <td class="px-3 py-2 text-sm text-gray-900">${sale.venta_id}</td>
+            <td class="px-3 py-2 text-sm text-gray-500">${sale.sale_date || 'N/A'}</td> 
+            <td class="px-3 py-2 text-sm font-medium">${sale.client_name || 'Consumidor Final'}</td>
+            <td class="px-3 py-2 text-sm text-right">${window.formatCurrency(sale.total_amount)}</td>
+            <td class="px-3 py-2 text-sm text-right ${debtClass}">${window.formatCurrency(sale.saldo_pendiente)}</td>
+            <td class="px-3 py-2 text-sm ${debtClass}">${statusText}</td>
+            <td class="px-3 py-2 text-right">
+                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="text-indigo-600 hover:text-indigo-900">Detalles</button>
+                ${!isPaid ? `<button onclick="window.openPaymentModal(${sale.venta_id}, ${sale.saldo_pendiente}, ${sale.client_id})" class="text-green-600 hover:text-green-800 ml-2">Abonar</button>` : ''}
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+};
+window.renderSalesTable = renderSalesTable; // Exposición global
 
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
@@ -4640,96 +4717,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
-    // 🛑 CONEXIONES CRÍTICAS PARA LA INTERFAZ DE VENTA (TPV)
+    // 🛑 CONEXIONES DE LISTENERS (TPV)
     // ==========================================================
-    
-    // 1. Conexión del SELECTOR PRINCIPAL (Maneja la carga de Subproductos y precio base)
     const mainSelect = document.getElementById('product-main-select');
     if (mainSelect) {
-        // Al cambiar el producto principal, disparamos la función de gestión de subproductos.
         mainSelect.addEventListener('change', window.handleChangeProductForSale);
         console.log('✅ Listener de Producto Principal (product-main-select) conectado.');
     }
-
-    // 2. Conexión del SELECTOR DE SUBPRODUCTOS (Maneja la actualización del precio)
-    const subSelect = document.getElementById('subproduct-select');
-    if (subSelect) {
-        // Al cambiar el subproducto, actualizamos el campo de precio unitario con el precio del paquete.
-        subSelect.addEventListener('change', (e) => {
-            // Usamos la función updatePriceField con el ID del producto (subproducto) seleccionado
-            window.updatePriceField(e.target.value);
-        });
-        console.log('✅ Listener de Subproducto (subproduct-select) conectado.');
+    // ... (Mantén tus otros listeners de TPV y Clientes aquí) ...
+    
+    // ==========================================================
+    // 🛑 CONEXIONES PARA EL FILTRADO DE VENTAS
+    // ==========================================================
+    const startDateFilter = document.getElementById('filter-start-date');
+    const endDateFilter = document.getElementById('filter-end-date');
+    const searchFilter = document.getElementById('filter-search-term');
+    
+    if (startDateFilter) {
+        startDateFilter.addEventListener('change', window.handleFilterSales);
     }
-    // 3. Conexión del BOTÓN/FORMULARIO DE AGREGAR AL CARRITO
-    // Asumimos que la lógica para agregar un ítem está en un formulario con ID 'add-to-sale-form'
-    const addToSaleForm = document.getElementById('add-to-sale-form'); 
-    if (addToSaleForm) {
-        // Al enviar el formulario, agregamos el producto al carrito.
-        addToSaleForm.addEventListener('submit', window.handleAddProductToSale);
-        console.log('✅ Listener de Agregar al Carrito (add-to-sale-form) conectado.');
-    } 
+    if (endDateFilter) {
+        endDateFilter.addEventListener('change', window.handleFilterSales);
+    }
+    if (searchFilter) {
+        searchFilter.addEventListener('input', window.handleFilterSales);
+    }
+
+    // ==========================================================
+    // 🛑 LLAMADA DE CARGA ÚNICA DE DATOS CRÍTICOS
+    // ==========================================================
+
+    // 1. Cargar datos de Productos (necesarios para el TPV)
     if (window.loadProductsData) {
         loadProductsData().then(() => {
-            // Una vez que los productos están en allProducts, cargamos el selector de venta:
+            // Una vez que los productos están listos, cargamos el selector de venta
             window.loadMainProductsForSaleSelect(); 
         });
     }
 
-    //llamada de ventas en el modal
-document.addEventListener('DOMContentLoaded', () => {
-    const startDateFilter = document.getElementById('filter-start-date');
-    const endDateFilter = document.getElementById('filter-end-date');
-    const searchFilter = document.getElementById('filter-search-term');
-    
-    if (startDateFilter) {
-        startDateFilter.addEventListener('change', window.handleFilterSales);
-    }
-    if (endDateFilter) {
-        endDateFilter.addEventListener('change', window.handleFilterSales);
-    }
-    if (searchFilter) {
-        searchFilter.addEventListener('input', window.handleFilterSales);
-    }
-    // 🛑 LLAMADA INICIAL CRÍTICA DE CARGA DE DATOS
-    // Asegúrate de que SOLO se llama una vez al inicio.
+    // 2. Cargar datos de Ventas (necesarios para la tabla)
     if (window.loadSalesData) {
-        // Carga los datos y luego, cuando termine (.then), renderiza la tabla.
-        window.loadSalesData().then(window.handleFilterSales);
+        window.loadSalesData().then(() => {
+            // Una vez que las ventas están listas, renderizamos la tabla por primera vez
+            window.handleFilterSales(); 
+        });
     }
 
-});
-
-    // ==========================================================
-    // 🛑 CONEXIONES PARA EL FILTRADO Y BÚSQUEDA DE VENTAS
-    // ==========================================================
-    const startDateFilter = document.getElementById('filter-start-date');
-    const endDateFilter = document.getElementById('filter-end-date');
-    const searchFilter = document.getElementById('filter-search-term');
-    
-    // Conectar los listeners a la función de filtrado principal
-    if (startDateFilter) {
-        startDateFilter.addEventListener('change', window.handleFilterSales);
-        console.log('✅ Listener de filtro de fecha de inicio conectado.');
-    }
-    if (endDateFilter) {
-        endDateFilter.addEventListener('change', window.handleFilterSales);
-        console.log('✅ Listener de filtro de fecha final conectado.');
-    }
-    if (searchFilter) {
-        // Usamos 'input' para un filtrado instantáneo mientras el usuario escribe
-        searchFilter.addEventListener('input', window.handleFilterSales);
-        console.log('✅ Listener de búsqueda de texto conectado.');
-    }
-
-    // 🛑 Llamada inicial de carga de datos para el Dashboard y Ventas
-    if (window.loadDashboardData) {
-        window.loadDashboardData(); 
-    }
-    // Asumimos que loadDashboardData llamará a loadSalesData o que loadSalesData se llama aparte.
-    // Si tienes una función separada loadSalesData, asegúrate de que también se llama aquí.
-    if (window.loadSalesData) {
-        window.loadSalesData().then(window.handleFilterSales);
-        // Llamamos a handleFilterSales() al final para renderizar TODAS las ventas por defecto.
+    // 3. Cargar otros datos (Clientes)
+    if (window.loadClientsData) {
+        window.loadClientsData();
     }
 });
