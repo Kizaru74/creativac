@@ -512,12 +512,13 @@ window.handleChangeProductForSale = function() {
     const priceInput = document.getElementById('product-unit-price');
     
     // Verificación de existencia de elementos y datos
-    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') return;
+    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
+        console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
+        return;
+    }
 
     const productId = mainSelect.value;
-    // 🛑 DEBUG 1
-    console.log(`DEBUG FILTRO: ID Principal Seleccionado: ${productId}`);
-
+    
     // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
     subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     subSelect.disabled = true; 
@@ -527,16 +528,20 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    // 2. Búsqueda robusta del producto seleccionado (Producto Base)
+    // 2. Búsqueda del producto seleccionado (Producto Base)
+    // Se fuerza a String() para manejar inconsistencias entre select.value y datos
     const selectedProduct = allProducts.find(p => String(p.producto_id) === String(productId));
     
     if (!selectedProduct) {
-        console.warn(`Producto principal con ID ${productId} no encontrado.`);
+        console.warn(`Producto principal con ID ${productId} no encontrado en allProducts.`);
         return;
     }
     
+    // 🛑 DEBUG: ID Principal Seleccionado (Debe coincidir con parent_product)
+    // console.log(`DEBUG FILTRO: ID Principal Seleccionado: ${productId}`);
+    
     // 3. Establecer el precio por defecto (el del producto principal)
-    updatePriceField(productId);
+    window.updatePriceField(productId);
     
     // 4. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => 
@@ -548,23 +553,36 @@ window.handleChangeProductForSale = function() {
         String(p.parent_product) === String(productId) 
     );
     
-    // 🛑 DEBUG 2
-    console.log(`DEBUG FILTRO: Subproductos encontrados: ${subProducts.length}`);
+    // 🛑 DEBUG: Subproductos encontrados para este ID
+    // console.log(`DEBUG FILTRO: Subproductos encontrados: ${subProducts.length}`);
+    
     if (subProducts.length > 0) {
         // 5. Si hay subproductos: Habilitar el selector y cargarlo
-        subSelect.disabled = false; // ⬅️ HABILITA EL SELECTOR
+        
+        // 🛑 DEBUG: Confirma que entramos en el bloque de renderizado
+        // console.log("DEBUG RENDER: Entrando al bloque de renderizado de subproductos."); 
+
+        subSelect.disabled = false; 
         
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub.producto_id;
-            // Si formatCurrency existe, úsala; si no, usa el precio directo
-            const priceDisplay = (typeof formatCurrency === 'function') ? formatCurrency(sub.price) : `$${sub.price.toFixed(2)}`;
+            
+            // Usamos formatCurrency si existe, o un fallback simple
+            const priceDisplay = (typeof formatCurrency === 'function') 
+                ? formatCurrency(sub.price) 
+                : `$${parseFloat(sub.price).toFixed(2)}`;
             
             option.textContent = `${sub.name} (${priceDisplay})`; 
             subSelect.appendChild(option);
+            
+            // 🛑 DEBUG: Verifica los nombres que se agregan
+            // console.log(`DEBUG RENDER: Agregando opción: ${sub.name}`); 
         });
+        // 🛑 DEBUG: Confirmación final de la función
+        // console.log("DEBUG RENDER: Llenado de subproductos finalizado.");
     }
 }
 
