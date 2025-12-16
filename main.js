@@ -515,9 +515,6 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    // console.log("DEBUG: La función handleChangeProductForSale se está ejecutando."); 
-    
-    // Verificación de existencia de elementos y datos
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
@@ -539,25 +536,18 @@ window.handleChangeProductForSale = function() {
     
     // 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
-        // NOTA: p.type se asume LIMPIO y en MAYÚSCULAS desde loadProductsData.
-        
-        // Conversión robusta a número para la comparación de IDs
+        // Asumimos p.type es limpio
         const parentIdNum = parseInt(p.parent_product, 10);
         const selectedIdNum = parseInt(productId, 10);
         
         return (
-            // a) El tipo DEBE ser 'PACKAGE'
             p.type === 'PACKAGE' && 
-            
-            // b) El parent_product DEBE ser un número válido (> 0). Esto descarta nulos o NaN.
             !isNaN(parentIdNum) && parentIdNum > 0 && 
-            
-            // c) Comparación numérica estricta de IDs
             parentIdNum === selectedIdNum 
         );
     });
     
-    // console.log(`DEBUG FILTRO: Subproductos encontrados para ID ${productId}: ${subProducts.length}`);
+    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados.`);
 
     if (subProducts.length > 0) {
         // 4. Si hay subproductos: Habilitar el selector y cargarlo
@@ -568,7 +558,6 @@ window.handleChangeProductForSale = function() {
             const option = document.createElement('option');
             option.value = sub.producto_id;
             
-            // Usamos formatCurrency si existe, o un fallback simple
             const priceDisplay = (typeof formatCurrency === 'function') 
                 ? formatCurrency(sub.price) 
                 : `$${parseFloat(sub.price).toFixed(2)}`;
@@ -576,6 +565,10 @@ window.handleChangeProductForSale = function() {
             option.textContent = `${sub.name} (${priceDisplay})`; 
             subSelect.appendChild(option);
         });
+        
+        // 🛑 ÚLTIMO DIAGNÓSTICO CRÍTICO
+        console.log(`DIAGNÓSTICO DE RENDERIZADO: SubSelect ahora tiene ${subSelect.options.length} opciones.`);
+        console.log("DIAGNÓSTICO HTML: Primeras 100 caracteres del HTML del selector:", subSelect.innerHTML.substring(0, 100));
     }
 }
 function loadMainProductsForSaleSelect() {
@@ -604,7 +597,6 @@ function loadMainProductsForSaleSelect() {
     
     console.log(`✅ ${availableProducts.length} productos listados en el selector de venta.`);
 } 
-// ¡CRÍTICO! Asignar al ámbito global
 window.loadMainProductsForSaleSelect = loadMainProductsForSaleSelect;
 // Asume que 'allProducts' contiene todos los productos cargados
 async function loadParentProductsForSelect(selectId) {
