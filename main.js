@@ -2671,10 +2671,6 @@ window.handleProductTypeChange = function() {
     }
 }
 
-/**
- * Consulta a Supabase los productos principales (no 'PACKAGE')
- * y rellena el selector de producto padre en el modal.
- */
 async function loadMainProductsAndPopulateSelect() {
     if (!supabase) {
         console.error('Supabase no está disponible para cargar productos principales.');
@@ -3796,22 +3792,28 @@ async function loadAndRenderProducts() {
 
 async function loadAllProductsMap() {
     console.log("Cargando mapa de productos...");
-    // 🛑 Usamos producto_id y name, según tu código.
+    
+    // ASUMO QUE 'supabase' ESTÁ CORRECTAMENTE INICIALIZADO AQUÍ
     const { data: products, error } = await supabase
-        .from('productos') // Asegúrate de que este es el nombre de tu tabla
-        .select('*');
+        .from('productos')
+        .select('*'); // Consulta todos los campos
 
     if (error) {
         console.error("Error al cargar datos de productos para el mapa:", error);
+        allProducts = []; // Si falla la carga, limpiar el array de renderizado
+        allProductsMap = {};
         return;
     }
 
-    // Llenar el mapa: { 'ID_DEL_PRODUCTO': 'Nombre del Producto' }
+    // 🚨 CRÍTICO: Asignar al array global para el renderizado
+    allProducts = products || []; 
+    
+    // Llenar el mapa: { 'ID_DEL_PRODUCTO': OBJETO_COMPLETO }
     allProductsMap = products.reduce((map, product) => {
-        map[product.producto_id] = product.name;
+        map[String(product.producto_id)] = product; // Convertir ID a String para consistencia
         return map;
     }, {});
-   // console.log(`Mapa de ${products.length} productos cargado.`);
+    console.log(`✅ Mapa y Array de ${products.length} productos cargados.`);
 }
 
 function formatDate(isoDateString) {
