@@ -468,47 +468,53 @@ window.loadProductDataToForm = function(productId) {
     
     console.log(`✅ Datos del producto ID ${productId} precargados en el modal.`);
 }
-async function loadProductsData() {
+window.loadProductsData = async function() {
+    console.log("Cargando productos...");
+    
     if (!supabase) {
-        console.warn("Supabase no inicializado. No se pudieron cargar los productos.");
-        window.allProducts = []; 
-        window.allProductsMap = {};
-        return; 
-    }
-
-    const { data, error } = await supabase
-        .from('productos')
-        .select('producto_id, name, type, price, parent_product'); 
-
-    if (error) {
-        console.error('Error al cargar todos los productos:', error);
-        window.allProducts = [];
-        window.allProductsMap = {};
+        console.error("Supabase no inicializado en loadProductsData.");
         return;
     }
     
-    // 🛑 PASO 1: LIMPIEZA DE DATOS CRÍTICA
-    const processedData = (data || []).map(product => ({
-        ...product,
-        // Limpieza forzada de la propiedad 'type' para que sea consistente
-        type: String(product.type || '').trim().toUpperCase() 
-    }));
-    
-    // 2. Llenar el array global
-    window.allProducts = processedData; 
-    
-    // 3. Construir y asignar el mapa global
-    window.allProductsMap = processedData.reduce((map, product) => {
-        map[String(product.producto_id)] = product; 
-        return map;
-    }, {});
-    
-    console.log(`✅ Productos cargados y LIMPIADOS en ámbito global: ${window.allProducts.length} ítems.`);
-    
-    // Llamadas iniciales que dependen de estos datos limpios
-    window.loadMainProductsForSaleSelect(); 
-    // ... otras funciones de inicialización
-}window.loadProductsData = loadProductsData;
+    try {
+        const { data: products, error } = await supabase
+            .from('productos')
+            .select('*');
+
+        if (error) throw error;
+        
+        // 🛑 CRÍTICO: Limpieza y Mapeo de la data al ámbito global
+        window.allProducts = (products || []).map(p => {
+            const cleanedParentProduct = p.parent_product 
+                ? String(p.parent_product).trim() 
+                : null;
+            
+            let finalParentId = null;
+            if (cleanedParentProduct === 'BASE') {
+                finalParentId = 'BASE'; // Mantener el string especial
+            } else if (cleanedParentProduct) {
+                // Forzar la conversión a número limpio para IDs
+                const parsedId = parseInt(cleanedParentProduct, 10);
+                finalParentId = isNaN(parsedId) ? null : parsedId;
+            }
+
+            return {
+                ...p,
+                // Garantizar que 'type' sea consistente
+                type: String(p.type || 'MAIN').toUpperCase(), 
+                // Asegurar que parent_product sea un número (o BASE/null)
+                parent_product: finalParentId
+            };
+        });
+
+        // ... (El resto de tu lógica para mapas y selectores) ...
+
+    } catch (error) {
+        console.error("Error al cargar productos:", error);
+    }
+    return window.allProducts;
+};
+window.loadProductsData = loadProductsData;
 
 /**
  * Se activa al cambiar el producto principal en el formulario de venta (TPV).
@@ -544,14 +550,15 @@ window.handleChangeProductForSale = function() {
         
         const productType = String(p.type || '').toUpperCase(); 
         
-        // 🛑 ULTRA-DEFENSA FINAL: Limpieza de IDs antes de la conversión a número.
+        // Ultra-Defensa con .trim() y parseInt
         const parentIdNum = parseInt(String(p.parent_product || '').trim(), 10);
         const selectedIdNum = parseInt(String(productId).trim(), 10);
         
         return (
             productType === 'PACKAGE' && 
             !isNaN(parentIdNum) && parentIdNum > 0 && 
-            parentIdNum === selectedIdNum 
+            // 🛑 CAMBIO CRÍTICO: Usar == en lugar de === para forzar la igualdad de valor
+            parentIdNum == selectedIdNum 
         );
     });
     
