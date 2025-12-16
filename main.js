@@ -485,9 +485,10 @@ async function loadProductsData() {
     
     // 2. Construir y asignar el mapa global
     window.allProductsMap = window.allProducts.reduce((map, product) => {
-        map[product.producto_id] = product; 
-        return map;
-    }, {});
+    // Aseguramos que la clave del mapa sea un String
+    map[String(product.producto_id)] = product; 
+    return map;
+}, {});
     
     console.log(`✅ Productos cargados en ámbito global: ${window.allProducts.length} ítems.`);
     
@@ -2618,9 +2619,12 @@ window.handleProductTypeChange = function() {
     }
 }
 window.handleEditProductClick = function(productId) {
-        editingProductId = productId; // Guarda la ID en la variable global
-    loadProductDataToForm(productId); // Carga los datos en el formulario
-    openModal('edit-product-modal'); // Abre el modal de edición
+    console.log("ID recibida del botón:", typeof productId, productId);
+    console.log("Producto encontrado en el mapa:", window.allProductsMap[String(productId)]);
+
+    window.editingProductId = productId; 
+    loadProductDataToForm(productId); 
+    openModal('edit-product-modal'); 
 }
 // Variable global para guardar la ID del producto a eliminar
 let deletingProductId = null; 
@@ -4176,7 +4180,7 @@ document.querySelectorAll('[data-view]').forEach(link => {
     const newClientForm = document.getElementById('new-client-form');
     
 if (newClientForm) {
-    console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
+    //console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
     // CÁMBIELO AQUÍ:
     newClientForm.addEventListener('submit', window.handleNewClient); // <-- AÑADA 'window.'
 }
@@ -4434,7 +4438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editForm = document.getElementById('edit-sale-price-form');
     if (editForm) {
         editForm.addEventListener('submit', handlePriceEditSubmit);
-        console.log("Listener de edición de precio enlazado.");
+       // console.log("Listener de edición de precio enlazado.");
     }
 
     // =======================================================
