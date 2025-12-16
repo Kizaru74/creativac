@@ -509,6 +509,7 @@ async function loadProductsData() {
     window.loadMainProductsForSaleSelect(); 
     // ... otras funciones de inicialización
 }window.loadProductsData = loadProductsData;
+
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
