@@ -595,34 +595,40 @@ window.handleChangeProductForSale = function() {
 }
 window.handleChangeProductForSale = window.handleChangeProductForSale;
 
-function loadMainProductsForSaleSelect() {
-    // 1. Obtener el elemento SELECT
-    const selectElement = document.getElementById('product-main-select'); // ID asumida del select en el modal de venta
-    if (!selectElement || typeof window.allProducts === 'undefined') return;
+window.loadMainProductsForSaleSelect = function() {
+    // 1. Obtener el selector principal
+    const select = document.getElementById('product-main-select');
+    if (!select || !window.allProducts) {
+        console.error("No se encontró el selector principal o los datos de productos.");
+        return;
+    }
 
-    selectElement.innerHTML = '<option value="" disabled selected>- Seleccionar Producto -</option>';
-
-    // 2. Filtrar solo los productos que deben ser visibles para la venta
-    const availableProducts = window.allProducts.filter(p => p.type !== 'PACKAGE');
-
-    // 3. Filtrar y buscar los subproductos (paquetes)
-    // Se usa parseInt aquí porque productId viene del DOM (es string)
-    const selectedIdNum = parseInt(String(productId).trim(), 10); 
-
-    const subProducts = allProducts.filter(p => {
-        
-        const productType = String(p.type || '').toUpperCase(); 
-        const parentId = p.parent_product; 
-        return (
-            productType === 'PACKAGE' && 
-            // 🛑 SOLUCIÓN CRÍTICA: Usar == para garantizar la coincidencia de valor
-            parentId == selectedIdNum 
-        );
-    });
+    // 2. Limpiar opciones antiguas e iniciar con placeholder
+    select.innerHTML = '<option value="" disabled selected>Seleccione un producto...</option>';
     
-    console.log(`✅ ${availableProducts.length} productos listados en el selector de venta.`);
-} 
-window.loadMainProductsForSaleSelect = loadMainProductsForSaleSelect;
+    // 3. Filtrar y ordenar los productos principales (MAIN y SERVICE)
+    // Usamos p.type.toUpperCase() como defensa, aunque loadProductsData ya los limpia.
+    const mainProducts = window.allProducts
+        .filter(p => p.type === 'MAIN' || p.type === 'SERVICE')
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    // 4. Llenar el selector
+    mainProducts.forEach(product => {
+        const option = document.createElement('option');
+        // El valor de la opción es la ID limpia y numerificada por loadProductsData
+        option.value = product.producto_id;
+        option.textContent = product.name;
+        select.appendChild(option);
+    });
+
+    // 5. Conectar el listener de cambio (que dispara el filtro de subproductos)
+    // Remover el listener antes de añadirlo previene duplicados.
+    select.removeEventListener('change', window.handleChangeProductForSale); 
+    select.addEventListener('change', window.handleChangeProductForSale);
+
+    console.log(`✅ ${mainProducts.length} productos listados en el selector de venta.`);
+};
+window.loadMainProductsForSaleSelect = window.loadMainProductsForSaleSelect;
 // Asume que 'allProducts' contiene todos los productos cargados
 async function loadParentProductsForSelect(selectId) {
     const select = document.getElementById(selectId);
