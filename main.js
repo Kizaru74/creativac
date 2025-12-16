@@ -2444,42 +2444,39 @@ function loadProductDataToForm(productId) {
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
 async function loadMainProductsAndPopulateSelect() {
-    if (!supabase) {
-        console.error('Supabase no está disponible para cargar productos principales.');
-        return;
-    }
+    if (!supabase) return; 
 
-    const parentSelect = document.getElementById('new-product-parent-select');
-    
-    // Verificación para asegurar que el elemento existe antes de continuar
-    if (!parentSelect) {
-        console.error('No se encontró el selector de producto padre (new-product-parent-select).');
-        return;
-    }
-    
-    // 1. Consulta a Supabase
-    // Filtramos para obtener solo productos que no sean 'PACKAGE' (subproductos)
+    // Obtener solo productos que NO son paquetes (potenciales padres)
     const { data: mainProducts, error } = await supabase
         .from('productos')
-        .select('id, name')
-        .neq('type', 'PACKAGE') // <-- FILTRO CLAVE: Solo productos que no sean subproductos
-        .order('name', { ascending: true });
+        .select('producto_id, name')
+        .neq('type', 'PACKAGE'); 
 
     if (error) {
-        console.error('Error al cargar productos principales:', error.message);
-        parentSelect.innerHTML = '<option value="">Error al cargar</option>';
+        console.error('Error al cargar productos principales:', error);
         return;
     }
-
-    // 2. Poblar el elemento select
-    let optionsHtml = '<option value="" selected disabled>Seleccione un producto principal</option>';
     
-    mainProducts.forEach(product => {
-        // Usamos el ID del producto como valor (lo que se guardará en la base de datos)
-        optionsHtml += `<option value="${product.id}">${product.name}</option>`;
-    });
+    const selectElement = document.getElementById('new-product-parent-select');
+    if (!selectElement) return;
 
-    parentSelect.innerHTML = optionsHtml;
+    selectElement.innerHTML = '';
+
+    // Agregar la opción por defecto (placeholder)
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '--- Seleccione el Producto Principal ---';
+    defaultOption.setAttribute('disabled', 'disabled');
+    defaultOption.setAttribute('selected', 'selected');
+    selectElement.appendChild(defaultOption);
+
+    // Agregar las opciones cargadas
+    mainProducts.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.producto_id; 
+        option.textContent = product.name;
+        selectElement.appendChild(option);
+    });
 }
 // ✅ FUNCIÓN DE VISIBILIDAD FALTANTE PARA EL CAMPO PADRE
 function toggleParentProductField() {
@@ -2706,15 +2703,22 @@ async function handleNewProduct(e) {
         await loadAndRenderProducts();
     }
 }
-window.handleProductTypeChange = function() {
-    const typeSelect = document.getElementById('new-product-type');
+function handleProductTypeChange() {
+    const typeSelect = document.getElementById('new-product-type'); 
     const parentContainer = document.getElementById('new-product-parent-container');
-    
-    // Verificamos si el valor seleccionado es 'PACKAGE'
+    const parentSelect = document.getElementById('new-product-parent-select');
+
+    if (!typeSelect || !parentContainer || !parentSelect) return;
+
     if (typeSelect.value === 'PACKAGE') {
-        parentContainer.classList.remove('hidden');
+        // Mostrar el contenedor y hacerlo requerido para la validación del submit
+        parentContainer.classList.remove('hidden'); 
+        parentSelect.setAttribute('required', 'required');
     } else {
+        // Ocultar y remover el requerimiento/valor si no es un paquete
         parentContainer.classList.add('hidden');
+        parentSelect.removeAttribute('required');
+        parentSelect.value = ''; // Limpiar el valor seleccionado
     }
 }
 
