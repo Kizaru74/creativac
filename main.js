@@ -509,59 +509,62 @@ async function loadProductsData() {
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
+    const priceInput = document.getElementById('product-unit-price');
     
-    if (!mainSelect || typeof allProducts === 'undefined') return;
+    // console.log("DEBUG: La función handleChangeProductForSale se está ejecutando."); 
+    
+    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
+        console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
+        return;
+    }
 
     const productId = mainSelect.value;
     
-    // 1. Limpieza inicial: Deshabilitar subselect
+    // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
     subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     subSelect.disabled = true; 
+    priceInput.value = '0.00';
     
-    if (!productId) return; 
-    
-    // Establecer el precio por defecto (el del producto principal)
+    if (!productId) {
+        return; 
+    }
+
+    // 2. Establecer el precio por defecto (el del producto principal)
     window.updatePriceField(productId);
     
-    // ==========================================================
-    // 🛑 INICIO DEL DEBUG DE DATOS CRÍTICO 🛑
-    // ==========================================================
-    const packageItemsForDebug = allProducts
-        .filter(p => p.type && p.type.trim().toUpperCase() === 'PACKAGE')
-        .map(p => ({
-            id: p.producto_id,
-            name: p.name,
-            type_found: p.type,
-            parent_id_found: p.parent_product // Valor exacto de la base de datos
-        }));
-        
-    console.log("DEBUG DATOS: Lista de todos los paquetes cargados:", packageItemsForDebug);
-    // ==========================================================
-    // 🛑 FIN DEL DEBUG DE DATOS CRÍTICO 🛑
-    // ==========================================================
-
-    // 4. Filtrar y buscar los subproductos (paquetes)
+    // 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
+        // 🛑 SOLUCIÓN CRÍTICA: Limpieza y normalización del campo 'type'
+        const productType = String(p.type || '').trim().toUpperCase(); 
+        
+        // Conversión robusta a número para la comparación de IDs
         const parentIdNum = parseInt(p.parent_product, 10);
         const selectedIdNum = parseInt(productId, 10);
         
         return (
-            p.type && p.type.trim().toUpperCase() === 'PACKAGE' && 
+            // a) El tipo DEBE ser 'PACKAGE'
+            productType === 'PACKAGE' && 
+            
+            // b) El parent_product DEBE ser un número válido (no NaN)
             !isNaN(parentIdNum) &&
+            
+            // c) Comparación numérica estricta de IDs
             parentIdNum === selectedIdNum 
         );
     });
     
-    console.log(`DEBUG FILTRO: Subproductos encontrados para ID ${productId}: ${subProducts.length}`);
+    // console.log(`DEBUG FILTRO: Subproductos encontrados para ID ${productId}: ${subProducts.length}`);
 
     if (subProducts.length > 0) {
-        // ... (código para habilitar y cargar el selector) ...
+        // 4. Si hay subproductos: Habilitar el selector y cargarlo
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub.producto_id;
+            
+            // Usamos formatCurrency si existe, o un fallback simple
             const priceDisplay = (typeof formatCurrency === 'function') 
                 ? formatCurrency(sub.price) 
                 : `$${parseFloat(sub.price).toFixed(2)}`;
@@ -4009,25 +4012,36 @@ async function loadAllProductsMap() {
     // ASUMO QUE 'supabase' ESTÁ CORRECTAMENTE INICIALIZADO AQUÍ
     const { data: products, error } = await supabase
         .from('productos')
-        .select('*'); // Consulta todos los campos
+        .select('*'); 
 
     if (error) {
         console.error("Error al cargar datos de productos para el mapa:", error);
-        allProducts = []; // Si falla la carga, limpiar el array de renderizado
-        allProductsMap = {};
+        window.allProducts = []; 
+        window.allProductsMap = {};
         return;
     }
-
-    // 🚨 CRÍTICO: Asignar al array global para el renderizado
-    allProducts = products || []; 
     
-    // Llenar el mapa: { 'ID_DEL_PRODUCTO': OBJETO_COMPLETO }
-    allProductsMap = products.reduce((map, product) => {
-        map[String(product.producto_id)] = product; // Convertir ID a String para consistencia
+    // 🛑 CRÍTICO: Procesar y limpiar los datos antes de guardarlos
+    const processedProducts = products.map(p => ({
+        ...p,
+        // Limpieza forzada de la propiedad 'type' (solución al problema persistente)
+        type: String(p.type || '').trim().toUpperCase()
+    }));
+
+    // 1. Asignar al array global para el renderizado
+    window.allProducts = processedProducts || []; 
+    
+    // 2. Llenar el mapa: { 'ID_DEL_PRODUCTO': OBJETO_COMPLETO }
+    window.allProductsMap = processedProducts.reduce((map, product) => {
+        map[String(product.producto_id)] = product; 
         return map;
     }, {});
-    console.log(`✅ Mapa y Array de ${products.length} productos cargados.`);
+    
+    console.log(`✅ Mapa y Array de ${window.allProducts.length} productos cargados y limpiados.`);
 }
+// Asegúrate de definir las variables globalmente (en main.js, fuera de funciones):
+// window.allProducts = [];
+// window.allProductsMap = {};
 
 function formatDate(isoDateString) {
     if (!isoDateString) {
