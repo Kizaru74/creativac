@@ -2625,21 +2625,22 @@ function handleEditProductClick(productId) {
 // Variable global para guardar la ID del producto a eliminar
 let deletingProductId = null; 
 
-function handleDeleteProductClick(productId) {
-    // 1. Asignar la ID a la variable global unificada
-    editingProductId = productId; 
+window.handleDeleteProductClick = function(productId) {
+    // 1. Asignar la ID a la variable global (asumimos que usas 'editingProductId' para ambas acciones)
+    window.editingProductId = productId; 
     
     // 2. Obtener el producto para mostrar un mensaje claro
-    const productToDelete = allProductsMap[String(productId)];
+    // Asumimos que allProductsMap existe y está en window.allProductsMap
+    const productToDelete = window.allProductsMap[String(productId)];
 
-    // 3. Mostrar el nombre del producto en el modal (si existe el placeholder)
+    // 3. Mostrar el nombre del producto en el placeholder
     const placeholder = document.getElementById('delete-product-name-placeholder');
     if (placeholder && productToDelete) {
         placeholder.textContent = productToDelete.name;
     }
 
-    // 4. Abrir el modal de confirmación
-    openModal('modal-delete-confirmation'); 
+    // 4. Abrir el modal (USANDO EL ID CORRECTO DEL BLOQUE HTML)
+    openModal('delete-product-modal'); 
 }
 async function confirmDeleteProduct() {
     // Usamos la ID global unificada
@@ -4482,4 +4483,13 @@ document.addEventListener('DOMContentLoaded', () => {
         window.closeModal(modalId);
     }
 });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    if (confirmDeleteBtn && typeof window.confirmDeleteProduct === 'function') {
+        // Llama a la función asíncrona que ejecuta la eliminación en Supabase
+        confirmDeleteBtn.addEventListener('click', window.confirmDeleteProduct);
+        console.log("✅ Listener de confirmación de eliminación conectado.");
+    }
 });

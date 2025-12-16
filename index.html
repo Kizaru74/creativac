@@ -222,7 +222,28 @@
         </main>
     </div>
 
-    <div id="delete-confirmation-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+<div id="delete-product-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-auto p-6">
+        <h3 class="text-xl font-bold mb-4 text-gray-800">Confirmar Eliminación</h3>
+        
+        <p id="delete-confirmation-message" class="mb-6 text-gray-600">
+            ¿Estás seguro de que deseas eliminar permanentemente el producto 
+            **<span id="delete-product-name-placeholder" class="font-bold text-red-700">[NOMBRE DEL PRODUCTO]</span>**?
+            Esta acción no se puede deshacer.
+        </p>
+
+        <div class="flex justify-end space-x-3">
+            <button data-close-modal="delete-product-modal" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors">
+                Cancelar
+            </button>
+            <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                Sí, Eliminar
+            </button>
+        </div>
+    </div>
+</div>
+
+    <div id="delete-product-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-auto p-6">
             <h3 class="text-xl font-bold mb-4 text-gray-800">Confirmar Eliminación</h3>
             <p id="delete-confirmation-message" class="mb-6 text-gray-600">¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.</p>
