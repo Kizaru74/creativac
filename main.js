@@ -356,6 +356,37 @@ async function loadDashboardData() {
 // ====================================================================
 // 5. CARGA DE DATOS PARA SELECTORES
 // ====================================================================
+async function loadClientsForSale() {
+    const select = document.getElementById('client-select');
+    if (!select) return;
+
+    select.innerHTML = '<option value="" disabled selected>Cargando clientes...</option>';
+
+    const { data, error } = await supabase
+        .from('clientes')
+        .select('client_id, name') 
+        .order('name', { ascending: true });
+
+    if (error) {
+        console.error('Error al cargar clientes para venta:', error);
+        select.innerHTML = '<option value="" disabled selected>Error al cargar (revisar consola)</option>';
+        return;
+    }
+
+    if (data.length === 0) {
+        select.innerHTML = '<option value="" disabled selected>No hay clientes activos</option>';
+        return;
+    }
+    
+    select.innerHTML = '<option value="" disabled selected>Seleccione un Cliente</option>';
+    
+    data.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client.client_id;
+        option.textContent = client.name;
+        select.appendChild(option);
+    });
+}
 
 //Llena el SELECT de Producto Padre en el modal de edición
 window.loadMainProductsForEditSelect = function() {
@@ -437,43 +468,9 @@ window.loadProductDataToForm = function(productId) {
     
     console.log(`✅ Datos del producto ID ${productId} precargados en el modal.`);
 }
-
-async function loadClientsForSale() {
-    const select = document.getElementById('client-select');
-    if (!select) return;
-
-    select.innerHTML = '<option value="" disabled selected>Cargando clientes...</option>';
-
-    const { data, error } = await supabase
-        .from('clientes')
-        .select('client_id, name') 
-        .order('name', { ascending: true });
-
-    if (error) {
-        console.error('Error al cargar clientes para venta:', error);
-        select.innerHTML = '<option value="" disabled selected>Error al cargar (revisar consola)</option>';
-        return;
-    }
-
-    if (data.length === 0) {
-        select.innerHTML = '<option value="" disabled selected>No hay clientes activos</option>';
-        return;
-    }
-    
-    select.innerHTML = '<option value="" disabled selected>Seleccione un Cliente</option>';
-    
-    data.forEach(client => {
-        const option = document.createElement('option');
-        option.value = client.client_id;
-        option.textContent = client.name;
-        select.appendChild(option);
-    });
-}
-
 async function loadProductsData() {
     if (!supabase) {
         console.warn("Supabase no inicializado. No se pudieron cargar los productos.");
-        // CRÍTICO: Asegura que las variables globales estén definidas (aunque sea vacías)
         window.allProducts = []; 
         window.allProductsMap = {};
         return; 
@@ -485,27 +482,33 @@ async function loadProductsData() {
 
     if (error) {
         console.error('Error al cargar todos los productos:', error);
-        window.allProducts = []; // Definición CORRECTA en el ámbito global
+        window.allProducts = [];
         window.allProductsMap = {};
         return;
     }
     
-    // 1. Llenar el array global (¡CORRECCIÓN APLICADA AQUÍ!)
-    window.allProducts = data || [];
+    // 🛑 PASO 1: LIMPIEZA DE DATOS CRÍTICA
+    const processedData = (data || []).map(product => ({
+        ...product,
+        // Limpieza forzada de la propiedad 'type' para que sea consistente
+        type: String(product.type || '').trim().toUpperCase() 
+    }));
     
-    // 2. Construir y asignar el mapa global
-    window.allProductsMap = window.allProducts.reduce((map, product) => {
-    // Aseguramos que la clave del mapa sea un String
-    map[String(product.producto_id)] = product; 
-    return map;
-}, {});
+    // 2. Llenar el array global
+    window.allProducts = processedData; 
     
-    console.log(`✅ Productos cargados en ámbito global: ${window.allProducts.length} ítems.`);
+    // 3. Construir y asignar el mapa global
+    window.allProductsMap = processedData.reduce((map, product) => {
+        map[String(product.producto_id)] = product; 
+        return map;
+    }, {});
     
-    // Si tienes otra función que se llama automáticamente al inicio, llámala aquí
-    // Ejemplo: loadClientsData();
+    console.log(`✅ Productos cargados y LIMPIADOS en ámbito global: ${window.allProducts.length} ítems.`);
+    
+    // Llamadas iniciales que dependen de estos datos limpios
+    window.loadMainProductsForSaleSelect(); 
+    // ... otras funciones de inicialización
 }
-
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
@@ -513,6 +516,7 @@ window.handleChangeProductForSale = function() {
     
     // console.log("DEBUG: La función handleChangeProductForSale se está ejecutando."); 
     
+    // Verificación de existencia de elementos y datos
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
@@ -534,8 +538,7 @@ window.handleChangeProductForSale = function() {
     
     // 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
-        // 🛑 SOLUCIÓN CRÍTICA: Limpieza y normalización del campo 'type'
-        const productType = String(p.type || '').trim().toUpperCase(); 
+        // NOTA: p.type se asume LIMPIO y en MAYÚSCULAS desde loadProductsData.
         
         // Conversión robusta a número para la comparación de IDs
         const parentIdNum = parseInt(p.parent_product, 10);
@@ -543,10 +546,10 @@ window.handleChangeProductForSale = function() {
         
         return (
             // a) El tipo DEBE ser 'PACKAGE'
-            productType === 'PACKAGE' && 
+            p.type === 'PACKAGE' && 
             
-            // b) El parent_product DEBE ser un número válido (no NaN)
-            !isNaN(parentIdNum) &&
+            // b) El parent_product DEBE ser un número válido (> 0). Esto descarta nulos o NaN.
+            !isNaN(parentIdNum) && parentIdNum > 0 && 
             
             // c) Comparación numérica estricta de IDs
             parentIdNum === selectedIdNum 
@@ -574,7 +577,6 @@ window.handleChangeProductForSale = function() {
         });
     }
 }
-
 function loadMainProductsForSaleSelect() {
     // 1. Obtener el elemento SELECT
     const selectElement = document.getElementById('product-main-select'); // ID asumida del select en el modal de venta
@@ -603,7 +605,6 @@ function loadMainProductsForSaleSelect() {
     
     console.log(`✅ ${availableProducts.length} productos listados en el selector de venta.`);
 }
-
 // Asume que 'allProducts' contiene todos los productos cargados
 async function loadParentProductsForSelect(selectId) {
     const select = document.getElementById(selectId);
@@ -2260,70 +2261,6 @@ async function openNewProductModal() {
         window.handleProductTypeChange();
     }
 }
-function loadProductsTable() {
-    const container = document.getElementById('products-table-body');
-    if (!container) return; 
-
-    // Aseguramos que los datos estén cargados (aunque lo ideal es cargarlos antes de llamar esta func.)
-    // Si usas el código de la pregunta anterior, loadProductsData() ya está en handleEditProduct.
-    // Lo eliminamos aquí para evitar doble carga si lo llamas después de un await loadProductsData().
-    
-    container.innerHTML = '';
-      
-    // Usar la variable global corregida
-    const products = window.allProducts || []; 
-
-    if (products.length === 0) {
-        // Mostrar mensaje si no hay productos
-        document.getElementById('no-products-message')?.classList.remove('hidden');
-        return;
-    }
-    document.getElementById('no-products-message')?.classList.add('hidden');
-
-    products.forEach(product => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-100 transition-colors';
-        
-        // Formato para el precio
-        const formattedPrice = formatCurrency(product.price);
-        
-        // Indicador de Categoría
-        let categoryDisplay = product.type;
-        if (product.type === 'MAIN') categoryDisplay = 'Principal';
-        if (product.type === 'PACKAGE') categoryDisplay = 'Subproducto';
-        if (product.type === 'SERVICE') categoryDisplay = 'Servicio'; // Asumiendo SERVICE existe
-
-        row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.producto_id}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formattedPrice}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${categoryDisplay}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                
-                <button 
-                    onclick="handleEditProductClick(${product.producto_id})" 
-                    class="text-indigo-600 hover:text-indigo-900 edit-product-btn mr-2">
-                    Editar
-                </button>
-                
-                <button 
-                    onclick="handleDeleteProductClick(${product.producto_id})" 
-                    class="text-red-600 hover:text-red-900 delete-product-btn">
-                    Eliminar
-                </button>
-            </td>
-        `;
-        container.appendChild(row);
-    });
-    
-    // NOTA: Elimina el bloque de código document.querySelectorAll('.edit-product-btn').forEach(...)
-    // y document.querySelectorAll('.delete-product-btn').forEach(...) que tenías antes,
-    // ya que ahora usamos el onclick directo.
-} window.loadProductsTable = loadProductsTable; // Asegurar exposición
-/**
- * Maneja el envío del formulario de edición de precio en el modal de detalle de venta.
- * Actualiza 'detalle_ventas' y recalcula 'ventas' (total, pagado, saldo pendiente).
- */
 window.handlePriceEditSubmit = async function(e) {
     // 🛑 CRÍTICO: Evita la recarga de la página
     e.preventDefault(); 
@@ -2412,6 +2349,71 @@ window.handlePriceEditSubmit = async function(e) {
         submitBtn.textContent = 'Actualizar Precio y Saldo';
     }
 }
+function loadProductsTable() {
+    const container = document.getElementById('products-table-body');
+    if (!container) return; 
+
+    // Aseguramos que los datos estén cargados (aunque lo ideal es cargarlos antes de llamar esta func.)
+    // Si usas el código de la pregunta anterior, loadProductsData() ya está en handleEditProduct.
+    // Lo eliminamos aquí para evitar doble carga si lo llamas después de un await loadProductsData().
+    
+    container.innerHTML = '';
+      
+    // Usar la variable global corregida
+    const products = window.allProducts || []; 
+
+    if (products.length === 0) {
+        // Mostrar mensaje si no hay productos
+        document.getElementById('no-products-message')?.classList.remove('hidden');
+        return;
+    }
+    document.getElementById('no-products-message')?.classList.add('hidden');
+
+    products.forEach(product => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-100 transition-colors';
+        
+        // Formato para el precio
+        const formattedPrice = formatCurrency(product.price);
+        
+        // Indicador de Categoría
+        let categoryDisplay = product.type;
+        if (product.type === 'MAIN') categoryDisplay = 'Principal';
+        if (product.type === 'PACKAGE') categoryDisplay = 'Subproducto';
+        if (product.type === 'SERVICE') categoryDisplay = 'Servicio'; // Asumiendo SERVICE existe
+
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.producto_id}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${product.name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold">${formattedPrice}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${categoryDisplay}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                
+                <button 
+                    onclick="handleEditProductClick(${product.producto_id})" 
+                    class="text-indigo-600 hover:text-indigo-900 edit-product-btn mr-2">
+                    Editar
+                </button>
+                
+                <button 
+                    onclick="handleDeleteProductClick(${product.producto_id})" 
+                    class="text-red-600 hover:text-red-900 delete-product-btn">
+                    Eliminar
+                </button>
+            </td>
+        `;
+        container.appendChild(row);
+    });
+    
+    // NOTA: Elimina el bloque de código document.querySelectorAll('.edit-product-btn').forEach(...)
+    // y document.querySelectorAll('.delete-product-btn').forEach(...) que tenías antes,
+    // ya que ahora usamos el onclick directo.
+} window.loadProductsTable = loadProductsTable; // Asegurar exposición
+/**
+ * Maneja el envío del formulario de edición de precio en el modal de detalle de venta.
+ * Actualiza 'detalle_ventas' y recalcula 'ventas' (total, pagado, saldo pendiente).
+ */
+
 function loadProductDataToForm(productId) {
     // 1. Encontrar el producto en el array global
     // Usamos String() para manejar inconsistencias de tipo entre number/string
