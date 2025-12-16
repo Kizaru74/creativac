@@ -663,7 +663,7 @@ function loadPackageProductsForSelect(mainProductId) {
     }
 }
 
-function updatePriceField(productId) {
+window.updatePriceField = function(productId) { // <-- ¡Añadir window!
     const priceInput = document.getElementById('product-unit-price');
     
     // Búsqueda robusta del producto (sea principal o paquete)
@@ -671,7 +671,8 @@ function updatePriceField(productId) {
     
     if (priceInput) {
         if (productData && productData.price !== undefined) {
-            priceInput.value = productData.price.toFixed(2);
+            // Usar parseFloat para mayor seguridad antes de toFixed
+            priceInput.value = parseFloat(productData.price).toFixed(2); 
         } else {
             priceInput.value = '0.00';
         }
