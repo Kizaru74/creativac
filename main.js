@@ -4662,8 +4662,7 @@ document.addEventListener('DOMContentLoaded', () => {
    
     // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
     if (window.loadDashboardData) {
-        window.loadDashboardData();
-        console.log("Datos del Dashboard cargados.");
+              console.log("Datos del Dashboard cargados.");
     }
     
     // =======================================================
