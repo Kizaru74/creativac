@@ -2249,10 +2249,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
+/**
+ * Carga todas las ventas y las almacena globalmente para su posterior filtrado.
+ */
 window.loadSalesData = async function() {
     console.log("Cargando datos de ventas...");
     
-    // Verificación de la instancia de Supabase (uso de la variable local 'supabase')
     if (!supabase) {
         console.error("Supabase no inicializado en loadSalesData.");
         window.allSales = [];
@@ -2264,11 +2266,11 @@ window.loadSalesData = async function() {
             .from('ventas')
             .select(`
                 venta_id, 
-                created_at,        // ✅ CORREGIDO: Usando el nombre real de la columna
-                total_amount,      // Asumimos este nombre, si falla, es el siguiente a corregir
-                saldo_pendiente,   // Asumimos este nombre
+                created_at,        
+                total_amount,      
+                saldo_pendiente,   
                 client_id,         
-                clientes ( name )  // Asumimos 'name' para el cliente
+                clientes ( name )  
             `);
 
         if (error) throw error;
@@ -2276,8 +2278,8 @@ window.loadSalesData = async function() {
         // Procesamos los datos para aplanar y estandarizar los nombres de las propiedades en JS
         window.allSales = (sales || []).map(sale => ({
             ...sale,
-            // Mapeamos 'created_at' de la DB al nombre estándar en JS ('sale_date') para el filtro
-            sale_date: sale.created_at ? sale.created_at.substring(0, 10) : 'N/A', // Limpiamos el timestamp a solo la fecha YYYY-MM-DD
+            // Mapeamos 'created_at' de la DB al nombre estándar en JS ('sale_date')
+            sale_date: sale.created_at ? sale.created_at.substring(0, 10) : 'N/A', 
             client_name: sale.clientes ? sale.clientes.name : 'Consumidor Final'
         }));
         
@@ -2290,7 +2292,7 @@ window.loadSalesData = async function() {
     }
     return window.allSales; 
 };
-window.loadSalesData = loadSalesData; // Exposición global
+window.loadSalesData = loadSalesData;
 
 async function openNewProductModal() {
     console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
