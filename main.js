@@ -506,7 +506,7 @@ async function loadProductsData() {
     // Ejemplo: loadClientsData();
 }
 
-function handleChangeProductForSale() {
+window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
@@ -567,7 +567,7 @@ function handleChangeProductForSale() {
 function loadMainProductsForSaleSelect() {
     // 1. Obtener el elemento SELECT
     const selectElement = document.getElementById('product-main-select'); // ID asumida del select en el modal de venta
-    if (!selectElement || !window.allProducts) return;
+    if (!selectElement || typeof window.allProducts === 'undefined') return;
 
     selectElement.innerHTML = '<option value="" disabled selected>- Seleccionar Producto -</option>';
 
