@@ -553,21 +553,30 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
-    const selectedIdNum = parseInt(String(productId).trim(), 10); // Solo parseamos la ID seleccionada
+    const selectedIdNum = parseInt(String(productId).trim(), 10); 
 
     const subProducts = allProducts.filter(p => {
         
         const productType = String(p.type || '').toUpperCase(); 
-        
-        // El parent_product ahora ya es un NÚMERO (o null/BASE) gracias a loadProductsData
-        const parentId = p.parent_product; 
+        const parentId = p.parent_product; // Debe ser un número (o null/BASE)
+
+        // 🛑 DEBUG CRÍTICO: Imprime los valores y sus tipos para el subproducto 5
+        if (p.producto_id === 5) {
+            console.log(">>> DEBUG Subproducto 5 <<<");
+            console.log(`Parent ID (p.parent_product): ${parentId}, Tipo: ${typeof parentId}`);
+            console.log(`Selected ID (selectedIdNum): ${selectedIdNum}, Tipo: ${typeof selectedIdNum}`);
+            console.log(`Resultado de Comparación (parentId === selectedIdNum): ${parentId === selectedIdNum}`);
+        }
+        // 🛑 FIN DEBUG 🛑
         
         return (
             productType === 'PACKAGE' && 
-            // 🛑 CRÍTICO FINAL: Comparamos el NÚMERO limpio con la ID seleccionada limpia
+            // Usamos === ya que ambos valores DEBEN ser números puros ahora
             parentId === selectedIdNum 
         );
     });
+
+    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
     
     // LOGGING
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
