@@ -515,7 +515,9 @@ window.handleChangeProductForSale = function() {
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') return;
 
     const productId = mainSelect.value;
-    
+    // 🛑 DEBUG 1
+    console.log(`DEBUG FILTRO: ID Principal Seleccionado: ${productId}`);
+
     // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
     subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     subSelect.disabled = true; 
@@ -546,6 +548,8 @@ window.handleChangeProductForSale = function() {
         String(p.parent_product) === String(productId) 
     );
     
+    // 🛑 DEBUG 2
+    console.log(`DEBUG FILTRO: Subproductos encontrados: ${subProducts.length}`);
     if (subProducts.length > 0) {
         // 5. Si hay subproductos: Habilitar el selector y cargarlo
         subSelect.disabled = false; // ⬅️ HABILITA EL SELECTOR
