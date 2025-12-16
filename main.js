@@ -347,7 +347,6 @@ async function loadDashboardData() {
     await loadDebts();
     await loadRecentSales();
     await loadClientsTable('gestion');
-    await loadProductsData(); 
     await loadProductsTable(); 
     await loadClientsForSale();
     await loadClientDebtsTable();
@@ -4742,11 +4741,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Cargar datos de Productos (necesarios para el TPV)
     if (window.loadProductsData) {
-        loadProductsData().then(() => {
-            // Una vez que los productos están listos, cargamos el selector de venta
-           // window.loadMainProductsForSaleSelect(); 
-        });
-    }
+    loadProductsData().then(() => {
+        // Una vez que los productos están listos, cargamos el selector de venta
+        window.loadMainProductsForSaleSelect(); // ✅ DESCOMENTAR
+    });
+}
 
     // 2. Cargar datos de Ventas (necesarios para la tabla)
     if (window.loadSalesData) {
