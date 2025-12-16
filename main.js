@@ -383,24 +383,30 @@ window.loadMainProductsForEditSelect = function() {
         selectElement.appendChild(option);
     });
 }
-window.loadProductDataToForm = async function(productId) {
+
+window.loadProductDataToForm = function(productId) {
     
     // Aseguramos que el select padre esté lleno antes de buscar el valor.
+    // Esto es necesario para que el select pueda cargarse con el valor del padre.
     window.loadMainProductsForEditSelect(); 
     
+    // Buscamos el producto en el mapa global, asegurando la conversión a String para la clave.
     const product = window.allProductsMap ? window.allProductsMap[String(productId)] : null;
 
     if (!product) {
-        alert(`Error: No se encontró el producto con ID ${productId}.`);
-        return;
+        // 🛑 CORRECCIÓN CLAVE: Eliminamos el alert() que se disparaba erróneamente.
+        // Un console.error es suficiente si la validación del ID ya se hizo en handleEditProductClick.
+        console.error(`Error de precarga: Producto no encontrado en el mapa con ID ${productId}.`);
+        return; 
     }
 
-    // 1. Determinar el valor de la Categoría para el SELECT del HTML
+    // 1. Determinar el valor de la Categoría para el SELECT del HTML (Mapeo de DB a UI)
     let categoryValue;
-    if (product.type === 'MAIN') categoryValue = 'Producto';
+    if (product.type === 'MAIN' || product.type === 'PRODUCT') categoryValue = 'Producto'; // Aceptando 'PRODUCT' si lo usas
     else if (product.type === 'SERVICE') categoryValue = 'Servicio';
     else if (product.type === 'PACKAGE') categoryValue = 'Paquete';
-    
+    else categoryValue = 'Producto'; // Default
+
     // 2. Llenar los campos del modal
     document.getElementById('edit-product-id').value = product.producto_id; 
     document.getElementById('edit-product-name').value = product.name;
@@ -413,12 +419,14 @@ window.loadProductDataToForm = async function(productId) {
     
     if (product.type === 'PACKAGE') {
         parentContainer.classList.remove('hidden');
-        parentSelect.value = product.parent_product || ''; // Selecciona el padre actual
+        parentSelect.value = product.parent_product || ''; // Selecciona el padre actual (Puede ser null)
     } else {
         parentContainer.classList.add('hidden');
+        parentSelect.value = ''; // Limpiar la selección de padre si no es paquete
     }
     
     // 4. Establecer el listener de cambio para la Categoría (para ocultar/mostrar el Padre)
+    // Se ejecuta cada vez que se abre el modal, asegurando el listener.
     document.getElementById('edit-product-category').onchange = function() {
         if (this.value === 'Paquete') {
             parentContainer.classList.remove('hidden');
@@ -426,6 +434,8 @@ window.loadProductDataToForm = async function(productId) {
             parentContainer.classList.add('hidden');
         }
     };
+    
+    console.log(`✅ Datos del producto ID ${productId} precargados en el modal.`);
 }
 
 async function loadClientsForSale() {
