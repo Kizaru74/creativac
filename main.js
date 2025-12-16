@@ -2249,10 +2249,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
+/**
+ * Carga todas las ventas y las almacena globalmente para su posterior filtrado.
+ */
 window.loadSalesData = async function() {
     console.log("Cargando datos de ventas...");
     
-    // 🛑 CORRECCIÓN: Usar 'supabase' en lugar de 'window.supabase'
+    // Asumimos que la variable local 'supabase' está inicializada correctamente
     if (!supabase) {
         console.error("Supabase no inicializado en loadSalesData.");
         window.allSales = [];
@@ -2260,7 +2263,7 @@ window.loadSalesData = async function() {
     }
     
     try {
-        const { data: sales, error } = await supabase // <-- CAMBIO AQUÍ
+        const { data: sales, error } = await supabase
             .from('ventas')
             .select(`
                 venta_id, 
@@ -2268,12 +2271,20 @@ window.loadSalesData = async function() {
                 total_amount, 
                 saldo_pendiente, 
                 client_id,
-                clientes ( client_name ) 
+                clientes ( name ) // 🛑 CORRECCIÓN: CAMBIADO A 'name'
             `);
 
         if (error) throw error;
         
-        // ... (Resto del código) ...
+        // Procesamos los datos para aplanar el nombre del cliente
+        window.allSales = (sales || []).map(sale => ({
+            ...sale,
+            // 🛑 CORRECCIÓN: Extraer de 'name'
+            client_name: sale.clientes ? sale.clientes.name : 'Consumidor Final'
+        }));
+        
+        console.log(`✅ ${window.allSales.length} ventas cargadas en ámbito global.`);
+        
     } catch (error) {
         console.error('Error al cargar datos de ventas:', error);
         window.allSales = [];
@@ -2281,7 +2292,7 @@ window.loadSalesData = async function() {
     }
     return window.allSales; 
 };
-window.loadSalesData = loadSalesData;
+window.loadSalesData = loadSalesData; // Exposición global
 
 async function openNewProductModal() {
     console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
@@ -4577,6 +4588,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // 2. Inicialización de Vistas y Selectores
     // =======================================================
+
+    // 🛑 Llamada inicial de carga de datos para el Dashboard y Ventas
+if (window.loadSalesData) {
+    window.loadSalesData().then(() => {
+        // Una vez que los datos de ventas están cargados, renderizamos la tabla
+        window.handleFilterSales(); 
+    });
+}
     
     // 🛑 IMPORTANTE: La función window.initReportSelectors debe estar definida FUERA de este bloque.
     // La llamada a initReportSelectors se ha movido a switchView(viewId).
