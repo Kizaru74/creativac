@@ -3899,44 +3899,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ====================================================================
     // 0. FUNCIONES UTILITY PARA MANEJO DE MODALES (¡CRÍTICO: VAN PRIMERO!)
     // ====================================================================
-
-    function openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            // Elimina la clase 'hidden' para mostrar el modal
-            modal.classList.remove('hidden'); 
-            // Añade 'flex' para asegurar que el modal se centre (si usas Tailwind)
-            modal.classList.add('flex');
-        } else {
-            console.error(`Error: Modal con ID '${modalId}' no encontrado.`);
-        }
+// CRÍTICO: La función base DEBE ser asíncrona.
+async function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+        console.error(`Error: Modal con ID '${modalId}' no encontrado.`);
+        return; 
     }
 
-    function closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            // Añade la clase 'hidden' para ocultar el modal
-            modal.classList.add('hidden');
-            // Quita 'flex'
-            modal.classList.remove('flex');
-            
-            // Opcional: Si el modal tiene un formulario, lo resetea
-            const form = modal.querySelector('form');
-            if (form) {
-                form.reset();
-            }
+    // 1. --- Gestión Específica por Modal (Carga de Datos) ---
+    // Si el modal es el de Producto, ejecutamos la función de precarga.
+    if (modalId === 'new-product-modal') {
+        // Asume que esta función (Paso 3) solo carga y prepara los selects, sin abrir el modal.
+        if (typeof window.openNewProductModal === 'function') {
+            await window.openNewProductModal(); 
         }
     }
-
-    // --- Apertura Universal para botones con data-open-modal ---
-    document.querySelectorAll('[data-open-modal]').forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            const modalId = button.getAttribute('data-open-modal');
-            openModal(modalId); 
-        });
-    });
+    // Si tienes más lógica de precarga, iría aquí (e.g., new-sale-modal)
     
+    // 2. --- Lógica Universal para Mostrar el Modal ---
+    modal.classList.remove('hidden'); 
+    modal.classList.add('flex');
+}
+
+// --- Apertura Universal para botones con data-open-modal ---
+document.querySelectorAll('[data-open-modal]').forEach(button => {
+    // CRÍTICO: Hacemos el listener asíncrono.
+    button.addEventListener('click', async (e) => { 
+        e.preventDefault();
+        const modalId = button.getAttribute('data-open-modal');
+        // Llamamos a la función ASÍNCRONA y esperamos a que cargue los datos
+        await openModal(modalId); 
+    });
+});
+
+// Esta función ahora solo prepara los datos y los selects del modal de producto
+window.openNewProductModal = async function() {
+    
+    // 1. Aseguramos la carga global de todos los productos (para tener datos frescos)
+    await loadProductsData();
+    
+    // 2. LLENAR EL SELECT padre (CRÍTICO: Esto usa los datos recién cargados)
+    await window.loadMainProductsAndPopulateSelect(); 
+    
+    // 3. Configuración inicial de UI (si es necesario)
+    const typeSelect = document.getElementById('new-product-type');
+    if (typeSelect && window.handleProductTypeChange) {
+        // Ponemos el valor por defecto y disparamos la función de ocultar/mostrar el select padre
+        typeSelect.value = 'PRODUCT'; 
+        window.handleProductTypeChange();
+    }
+};
+
     // --- Cierre de Modales Universal (Botones 'X' y al hacer clic fuera) ---
     document.querySelectorAll('[data-close-modal]').forEach(button => {
         button.addEventListener('click', (e) => {
