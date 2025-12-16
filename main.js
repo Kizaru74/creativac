@@ -469,25 +469,32 @@ window.loadProductDataToForm = function(productId) {
     console.log(`✅ Datos del producto ID ${productId} precargados en el modal.`);
 }
 /**
- * Carga todos los productos de la base de datos, los limpia y los almacena globalmente.
+ * Carga todos los productos de la base de datos, FUERZA la tipificación de IDs a números
+ * y los almacena globalmente.
  */
 window.loadProductsData = async function() {
     console.log("Cargando productos...");
     
     if (!supabase) {
-        console.error("Supabase no inicializado en loadProductsData.");
+        console.error("Error: Supabase no inicializado en loadProductsData.");
         return;
     }
     
     try {
+        // 1. Fetch de la data
         const { data: products, error } = await supabase
             .from('productos')
             .select('*');
 
         if (error) throw error;
         
-        // 🛑 CRÍTICO: Limpieza y Mapeo de la data al ámbito global
+        // 2. 🛑 CRÍTICO: Mapeo y FUERZA la conversión de TODOS los IDs a números puros
         window.allProducts = (products || []).map(p => {
+            
+            // Limpieza y tipificación del ID principal
+            const parsedProductId = parseInt(String(p.producto_id).trim(), 10);
+            
+            // Limpieza y tipificación del Parent ID
             const cleanedParentProduct = p.parent_product 
                 ? String(p.parent_product).trim() 
                 : null;
@@ -496,23 +503,28 @@ window.loadProductsData = async function() {
             if (cleanedParentProduct === 'BASE') {
                 finalParentId = 'BASE'; // Mantener el string especial 'BASE'
             } else if (cleanedParentProduct) {
-                // Forzar la conversión a número limpio para IDs de producto.
-                const parsedId = parseInt(cleanedParentProduct, 10);
-                // Si la conversión es exitosa (no es NaN), guardamos el número
-                finalParentId = isNaN(parsedId) ? null : parsedId;
+                const parsedParentId = parseInt(cleanedParentProduct, 10);
+                // Si la conversión es exitosa, guardamos el NÚMERO
+                finalParentId = isNaN(parsedParentId) ? null : parsedParentId;
             }
 
             return {
                 ...p,
-                // Garantizar que 'type' sea consistente
+                // Asegurar que el ID del producto sea un NÚMERO
+                producto_id: isNaN(parsedProductId) ? p.producto_id : parsedProductId, 
+                // Garantizar que 'type' sea consistente (ej. 'PACKAGE', 'MAIN')
                 type: String(p.type || 'MAIN').toUpperCase(), 
-                // Asegurar que parent_product sea un NÚMERO o null/BASE
-                parent_product: finalParentId
+                // Asegurar que parent_product sea un NÚMERO, BASE, o null
+                parent_product: finalParentId 
             };
         });
-
-        // Crea los mapas y demás lógica de post-procesamiento aquí.
-        // ... (Tu lógica para crear allProductsMap, loadMainProductsForSaleSelect, etc.) ...
+        
+        // 3. Post-procesamiento: Creación de Mapas
+        // Se crean mapas para facilitar la búsqueda por ID y mejorar el rendimiento
+        window.allProductsMap = window.allProducts.reduce((map, product) => {
+            map[product.producto_id] = product;
+            return map;
+        }, {});
         
         console.log(`✅ Productos cargados y LIMPIADOS en ámbito global: ${window.allProducts.length} ítems.`);
 
@@ -521,11 +533,8 @@ window.loadProductsData = async function() {
     }
     return window.allProducts;
 };
-window.loadProductsData = loadProductsData;
+window.loadProductsData = window.loadProductsData;
 
-/**
- * Se activa al cambiar el producto principal en el formulario de venta (TPV).
- */
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
@@ -552,26 +561,15 @@ window.handleChangeProductForSale = function() {
     // 2. Establecer el precio por defecto (usando la ID validada)
     window.updatePriceField(productId);
     
-    // 3. Filtrar y buscar los subproductos (paquetes)
+ // 3. Filtrar y buscar los subproductos (paquetes)
     const selectedIdNum = parseInt(String(productId).trim(), 10); 
 
     const subProducts = allProducts.filter(p => {
-        
         const productType = String(p.type || '').toUpperCase(); 
-        const parentId = p.parent_product; // Debe ser un número (o null/BASE)
+        const parentId = p.parent_product; // Ya es un NÚMERO gracias a loadProductsData
 
-        // 🛑 DEBUG CRÍTICO: Imprime los valores y sus tipos para el subproducto 5
-        if (p.producto_id === 5) {
-            console.log(">>> DEBUG Subproducto 5 <<<");
-            console.log(`Parent ID (p.parent_product): ${parentId}, Tipo: ${typeof parentId}`);
-            console.log(`Selected ID (selectedIdNum): ${selectedIdNum}, Tipo: ${typeof selectedIdNum}`);
-            console.log(`Resultado de Comparación (parentId === selectedIdNum): ${parentId === selectedIdNum}`);
-        }
-        // 🛑 FIN DEBUG 🛑
-        
         return (
             productType === 'PACKAGE' && 
-            // Usamos === ya que ambos valores DEBEN ser números puros ahora
             parentId === selectedIdNum 
         );
     });
