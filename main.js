@@ -515,6 +515,7 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
+    // Verificación de existencia de elementos y datos
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
@@ -522,51 +523,71 @@ window.handleChangeProductForSale = function() {
 
     const productId = mainSelect.value;
     
-    // 🛑 DIAGNÓSTICO CRÍTICO: ¿Qué ID está leyendo la función?
-    console.log(`DIAGNÓSTICO DE ENTRADA: Leyendo ID "${productId}" del selector principal.`);
+    // 🛑 DEFENSA CRÍTICA CONTRA RACE CONDITION (Condición de Carrera)
+    // Si la data global está vacía o inestable (menos de 5 productos cargados), evitamos el filtro.
+    if (!window.allProducts || window.allProducts.length < 5) {
+        console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
+        return; 
+    }
     
     // 1. Limpieza inicial: Deshabilitar subselect y limpiar precio
     subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     subSelect.disabled = true; 
     priceInput.value = '0.00';
     
-    // Si el ID es vacío, sale de la función.
     if (!productId) {
         return; 
     }
 
     // 2. Establecer el precio por defecto (el del producto principal)
+    // Asumimos que window.updatePriceField(productId) existe y funciona correctamente.
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
     const subProducts = allProducts.filter(p => {
+        // Asumimos p.type se ha limpiado a MAYÚSCULAS en loadProductsData.
+        
+        // Conversión robusta a número para la comparación de IDs
         const parentIdNum = parseInt(p.parent_product, 10);
         const selectedIdNum = parseInt(productId, 10);
         
         return (
+            // a) El tipo DEBE ser 'PACKAGE'
             p.type === 'PACKAGE' && 
+            
+            // b) El parent_product DEBE ser un número válido (> 0) y coincidir con el producto principal
             !isNaN(parentIdNum) && parentIdNum > 0 && 
             parentIdNum === selectedIdNum 
         );
     });
     
+    // DIAGNÓSTICO: Esto debería coincidir con tu prueba manual (ej. 8)
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados.`);
 
     if (subProducts.length > 0) {
-        // ... (El resto del código de renderizado es correcto) ...
+        // 4. Si hay subproductos: Habilitar el selector y cargarlo
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
         
         subProducts.forEach(sub => {
             const option = document.createElement('option');
             option.value = sub.producto_id;
-            const priceDisplay = (typeof formatCurrency === 'function') ? formatCurrency(sub.price) : `$${parseFloat(sub.price).toFixed(2)}`;
+            
+            // Usamos formatCurrency si existe, o un fallback
+            const priceDisplay = (typeof window.formatCurrency === 'function') 
+                ? window.formatCurrency(sub.price) 
+                : `$${parseFloat(sub.price).toFixed(2)}`;
+            
             option.textContent = `${sub.name} (${priceDisplay})`; 
             subSelect.appendChild(option);
         });
+        
         console.log(`DIAGNÓSTICO DE RENDERIZADO: Se inyectaron ${subProducts.length} opciones.`);
     }
 }
+// 🛑 Exposición Global CRÍTICA
+window.handleChangeProductForSale = window.handleChangeProductForSale;
+
 function loadMainProductsForSaleSelect() {
     // 1. Obtener el elemento SELECT
     const selectElement = document.getElementById('product-main-select'); // ID asumida del select en el modal de venta
@@ -2228,6 +2249,45 @@ document.addEventListener('DOMContentLoaded', () => {
 // ====================================================================
 // 10. LÓGICA CRUD PARA PRODUCTOS
 // ====================================================================
+
+//Carga todas las ventas y las almacena globalmente para su posterior filtrado.
+window.loadSalesData = async function() {
+    console.log("Cargando datos de ventas...");
+    
+    try {
+        // Hacemos un JOIN para traer el nombre del cliente
+        const { data: sales, error } = await window.supabase
+            .from('ventas')
+            .select(`
+                venta_id, 
+                sale_date, 
+                total_amount, 
+                saldo_pendiente, 
+                client_id,
+                clientes ( client_name ) // JOIN a 'clientes'
+            `);
+
+        if (error) throw error;
+        
+        // Procesamos los datos para aplanar el nombre del cliente
+        window.allSales = (sales || []).map(sale => ({
+            ...sale,
+            // Si el cliente existe, extrae su nombre, sino usa 'Consumidor Final'
+            client_name: sale.clientes ? sale.clientes.client_name : 'Consumidor Final'
+        }));
+        
+        console.log(`✅ ${window.allSales.length} ventas cargadas en ámbito global.`);
+        
+    } catch (error) {
+        console.error('Error al cargar datos de ventas:', error);
+        window.allSales = [];
+        alert('Fallo al cargar la lista de ventas.');
+    }
+    // Retornamos el array de ventas cargadas
+    return window.allSales; 
+};
+window.loadSalesData = loadSalesData; // Exposición global
+
 async function openNewProductModal() {
     console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
     
