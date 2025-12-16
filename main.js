@@ -561,21 +561,21 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
-    // Forzamos ambos lados de la comparación a string LIMPIO
-    const selectedIdStr = String(productId).trim(); 
+// Forzamos ambos lados de la comparación a string LIMPIO
+const selectedIdStr = String(productId).trim(); 
 
-    const subProducts = allProducts.filter(p => {
-        
-        const productType = String(p.type || '').toUpperCase(); 
-        // 🛑 CRÍTICO: Aseguramos que parentId sea un string limpio para la comparación
-        const parentIdStr = String(p.parent_product || '').trim(); 
+const subProducts = allProducts.filter(p => {
+    
+    const productType = String(p.type || '').toUpperCase(); 
+    // 🛑 CRÍTICO: Aseguramos que parentId sea un string limpio para la comparación
+    const parentIdStr = String(p.parent_product || '').trim(); 
 
-        return (
-            productType === 'PACKAGE' && 
-            // 🛑 ÚLTIMA DEFENSA: Comparación estricta de strings limpios
-            parentIdStr === selectedIdStr
-        );
-    });
+    return (
+        productType === 'PACKAGE' && 
+        // 🛑 ÚLTIMA DEFENSA: Comparación estricta de strings limpios
+        parentIdStr === selectedIdStr
+    );
+});
 
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
@@ -4745,7 +4745,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.loadProductsData) {
         loadProductsData().then(() => {
             // Una vez que los productos están listos, cargamos el selector de venta
-            window.loadMainProductsForSaleSelect(); 
+           // window.loadMainProductsForSaleSelect(); 
         });
     }
 
