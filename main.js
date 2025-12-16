@@ -570,7 +570,7 @@ window.handleChangeProductForSale = function() {
 
         return (
             productType === 'PACKAGE' && 
-            // 🛑 ¡SOLUCIÓN FINAL! Usamos == para forzar la igualdad de valor
+            // 🛑 SOLUCIÓN FINAL: Usar == para forzar la igualdad de valor.
             parentId == selectedIdNum 
         );
     });
@@ -607,7 +607,6 @@ window.loadMainProductsForSaleSelect = function() {
     select.innerHTML = '<option value="" disabled selected>Seleccione un producto...</option>';
     
     // 3. Filtrar y ordenar los productos principales (MAIN y SERVICE)
-    // Usamos p.type.toUpperCase() como defensa, aunque loadProductsData ya los limpia.
     const mainProducts = window.allProducts
         .filter(p => p.type === 'MAIN' || p.type === 'SERVICE')
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -615,7 +614,6 @@ window.loadMainProductsForSaleSelect = function() {
     // 4. Llenar el selector
     mainProducts.forEach(product => {
         const option = document.createElement('option');
-        // El valor de la opción es la ID limpia y numerificada por loadProductsData
         option.value = product.producto_id;
         option.textContent = product.name;
         select.appendChild(option);
@@ -1400,7 +1398,6 @@ async function handleNewSale(e) {
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: parseInt(item.product_id, 10),
-            // name: item.name, // ⚠️ REMOVIDO: 'name' no suele ser necesario si hay 'product_id'
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
@@ -2713,9 +2710,7 @@ window.handleEditProduct = async function(e) {
         // Limpieza y recarga
         closeModal('edit-product-modal'); // ⬅️ CORREGIDO: Usar el ID real del modal
         document.getElementById('edit-product-form')?.reset(); 
-        
-      //  await loadProductsData();
-        await loadAndRenderProducts();
+                await loadAndRenderProducts();
     }
     
     // ... (Restablecer el botón) ...
@@ -2795,8 +2790,7 @@ async function handleNewProduct(e) {
         document.getElementById('new-product-form')?.reset(); 
         
         // Recargar datos (asumiendo que estas funciones existen)
-      //  await loadProductsData();
-        await loadAndRenderProducts();
+              await loadAndRenderProducts();
     }
 }
 window.handleProductTypeChange = function() {
@@ -2866,8 +2860,7 @@ window.confirmDeleteProduct = async function() {
         }
     } else {
         alert('Producto eliminado exitosamente.');
-      //  await loadProductsData();
-        await loadAndRenderProducts();
+             await loadAndRenderProducts();
     }
 
     confirmBtn.disabled = false;
@@ -4089,14 +4082,7 @@ async function loadAndRenderClients() {
 }
 
 window.loadAndRenderProducts = async function() {
-    
-    // 🛑 1. CRÍTICO: Cargar los datos frescos de la BD y esperar a que terminen.
-    // Esto asegura que window.allProducts esté lleno.
-    // Asume que la función loadProductsData() existe y es async.
-   // await loadProductsData(); 
-
-    // 2. CRÍTICO: Usar la variable global corregida
-    const allProducts = window.allProducts || []; 
+     const allProducts = window.allProducts || []; 
     const tableBody = document.getElementById('products-table-body');
     
     if (!tableBody) {
@@ -4258,9 +4244,7 @@ document.querySelectorAll('[data-open-modal]').forEach(button => {
 // Esta función ahora solo prepara los datos y los selects del modal de producto
 window.openNewProductModal = async function() {
     
-    // 1. Aseguramos la carga global de todos los productos (para tener datos frescos)
-    await loadProductsData();
-    
+      
     // 2. LLENAR EL SELECT padre (CRÍTICO: Esto usa los datos recién cargados)
     await window.loadMainProductsAndPopulateSelect(); 
     
@@ -4390,7 +4374,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
         // return; // Si ya se hizo fuera del bloque, esto puede ser omitido.
     }
     // 2. Continúa con tus llamadas iniciales
-    await loadProductsData();
     await loadAllClientsMap();
     checkUserSession();
 
@@ -4424,7 +4407,6 @@ if (newClientForm) {
             document.getElementById('new-sale-form')?.reset(); 
             
             await loadClientsForSale(); 
-            await loadProductsData();
             
             // Carga los productos MAIN en el selector de venta
             loadMainProductsForSaleSelect(); 
@@ -4539,7 +4521,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listener para el botón principal (Abre la LISTA/ADMINISTRACIÓN)
     document.getElementById('open-admin-products-modal')?.addEventListener('click', async () => {
         try {
-            await loadProductsData();
             await loadAndRenderProducts(); 
             openModal('admin-products-modal'); 
         } catch (error) {
