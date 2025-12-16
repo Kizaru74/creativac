@@ -563,23 +563,24 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
-    // Forzamos ambos lados de la comparación a string LIMPIO
-    const selectedIdStr = String(productId).trim(); 
+const selectedIdStr = String(productId).trim(); 
 
-    const subProducts = allProducts.filter(p => {
-        
-        const productType = String(p.type || '').toUpperCase(); 
-        const parentIdStr = String(p.parent_product || '').trim(); 
+const subProducts = allProducts.filter(p => {
+    
+    // 1. Convertimos el tipo de producto a string limpio y mayúsculas
+    const productType = String(p.type || '').toUpperCase(); 
+    const parentIdStr = String(p.parent_product || '').trim(); 
 
-        if (productType === 'PACKAGE') {
-            console.log(`[DIAG_FILTER] Paquete encontrado. Parent ID Visto: '${parentIdStr}' | Buscando ID: '${selectedIdStr}' | Coincide: ${parentIdStr === selectedIdStr}`);
-        }
+    // 🛑 LOG DE DIAGNÓSTICO DEFINITIVO 🛑
+    // Muestra todos los productos que está procesando, no solo los paquetes
+    console.log(`[DIAG_TYPE] ID: ${p.producto_id} | Tipo Visto: '${productType}' | Parent ID: '${parentIdStr}'`);
+    // 🛑 FIN LOG 🛑
 
-        return (
-            productType === 'PACKAGE' && 
-            parentIdStr === selectedIdStr
-        );
-    });
+    return (
+        productType === 'PACKAGE' && 
+        parentIdStr === selectedIdStr
+    );
+});
 
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
