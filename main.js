@@ -529,7 +529,7 @@ window.loadProductsData = async function() {
     }
     return window.allProducts;
 };
-window.loadProductsData = window.loadProductsData;
+//window.loadProductsData = window.loadProductsData;
 
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
@@ -561,17 +561,19 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
     
     // 3. Filtrar y buscar los subproductos (paquetes)
-    const selectedIdNum = parseInt(String(productId).trim(), 10); 
+    // Forzamos ambos lados de la comparación a string LIMPIO
+    const selectedIdStr = String(productId).trim(); 
 
     const subProducts = allProducts.filter(p => {
         
         const productType = String(p.type || '').toUpperCase(); 
-        const parentId = p.parent_product; 
+        // 🛑 CRÍTICO: Aseguramos que parentId sea un string limpio para la comparación
+        const parentIdStr = String(p.parent_product || '').trim(); 
 
         return (
             productType === 'PACKAGE' && 
-            // 🛑 SOLUCIÓN FINAL: Usar == para forzar la igualdad de valor.
-            parentId == selectedIdNum 
+            // 🛑 ÚLTIMA DEFENSA: Comparación estricta de strings limpios
+            parentIdStr === selectedIdStr
         );
     });
 
