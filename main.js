@@ -566,10 +566,10 @@ function handleChangeProductForSale() {
 
 function loadMainProductsForSaleSelect() {
     // 1. Obtener el elemento SELECT
-    const selectElement = document.getElementById('sale-product-select'); // ID asumida del select en el modal de venta
+    const selectElement = document.getElementById('product-main-select'); // ID asumida del select en el modal de venta
     if (!selectElement || !window.allProducts) return;
 
-    selectElement.innerHTML = '<option value="" disabled selected>--- Seleccionar Producto ---</option>';
+    selectElement.innerHTML = '<option value="" disabled selected>- Seleccionar Producto -</option>';
 
     // 2. Filtrar solo los productos que deben ser visibles para la venta
     // Si usas 'MAIN' y 'PACKAGE', excluimos 'PACKAGE'.
