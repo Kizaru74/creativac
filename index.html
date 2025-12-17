@@ -656,7 +656,7 @@
     </div>
 </div>
     
-<div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[60] items-center justify-center">
+<div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[60] flex items-center justify-center">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8">
         <div class="flex justify-between items-center border-b pb-4 mb-6">
             <h3 class="text-2xl font-bold text-gray-800">Registrar Abono</h3>
@@ -665,27 +665,35 @@
             </button>
         </div>
         <form id="abono-client-form" onsubmit="handleAbonoSubmit(event)">
-            <input type="hidden" id="debt-to-pay-id">
+            <input type="hidden" id="abono-client-id">
             
             <div class="mb-4">
-                <p class="text-sm font-medium text-gray-700 mb-2">Deuda actual: <span id="abono-current-debt" class="font-extrabold text-red-600"></span></p>
+                <p class="text-xs font-semibold text-gray-500 uppercase">Cliente</p>
+                <p id="abono-client-name-display" class="text-lg font-bold text-gray-800 mb-2 font-mono uppercase">---</p>
+                
+                <p class="text-sm font-medium text-gray-700">Deuda actual: 
+                    <span id="abono-current-debt" class="font-extrabold text-red-600"></span>
+                </p>
             </div>
             
             <div class="mb-4">
                 <label for="abono-amount" class="block text-xs font-semibold text-gray-600 mb-1">Monto del Abono</label>
-                <input type="number" id="abono-amount" required min="1" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg text-xl font-extrabold focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors">
+                <input type="number" id="abono-amount" name="amount" required min="0.01" step="0.01" 
+                       class="w-full p-3 border border-gray-300 rounded-lg text-xl font-extrabold focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                       placeholder="0.00">
             </div>
 
             <div class="mb-6">
                 <label for="payment-method-abono" class="block text-xs font-semibold text-gray-600 mb-1">Método de Pago</label>
-                <select id="payment-method-abono" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <select id="payment-method-abono" name="method" required 
+                        class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                     <option value="" disabled selected>--- Seleccione Método ---</option>
                     <option value="Efectivo">Efectivo</option>
                     <option value="Transferencia">Transferencia</option>
                 </select>
             </div>
             
-            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg active:transform active:scale-95">
                 Confirmar Abono
             </button>
         </form>

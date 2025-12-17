@@ -1331,23 +1331,40 @@ async function handleRecordAbono(e) {
     // 6. LIMPIEZA FINAL
     window.debtToPayId = null; // Usamos window. para la variable global
 }
-function handleAbonoClick(clientId) {
-    // Buscar los datos del cliente en la lista global
-    const client = allClients.find(c => c.client_id == clientId);
+window.handleAbonoClick = function(clientId) {
+    // 1. Buscar al cliente usando comparación de strings para evitar errores de tipo
+    const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
 
     if (!client) {
-        alert('Cliente no encontrado.');
+        console.error("ID buscado:", clientId, "en lista:", window.allClients);
+        alert('Cliente no encontrado en la lista local. Intente recargar la página.');
         return;
     }
 
-    // 1. Llenar los campos del modal
-    document.getElementById('abono-client-id').value = clientId;
-    document.getElementById('abono-client-name-display').textContent = client.name;
-    document.getElementById('abono-amount').value = ''; // Limpiar el monto
+    // 2. Llenar los campos del modal (Asegúrate de que estos IDs existan en tu HTML)
+    const idInput = document.getElementById('abono-client-id');
+    const nameDisplay = document.getElementById('abono-client-name-display');
+    const debtDisplay = document.getElementById('abono-current-debt');
+    const amountInput = document.getElementById('abono-amount');
+
+    if (idInput) idInput.value = clientId;
+    if (nameDisplay) nameDisplay.textContent = client.name;
     
-    // 2. Abrir el modal
+    // Mostramos la deuda para que el cobrador sepa cuánto debe el cliente
+    if (debtDisplay) {
+        // Usamos la propiedad que devuelve tu resumen o la del objeto cliente
+        const deuda = client.deuda_total || 0;
+        debtDisplay.textContent = typeof formatCurrency === 'function' ? formatCurrency(deuda) : `$${deuda.toFixed(2)}`;
+    }
+
+    // 3. Limpiar el campo de monto y el selector de pago para una nueva entrada
+    if (amountInput) amountInput.value = '';
+    const methodSelect = document.getElementById('payment-method-abono');
+    if (methodSelect) methodSelect.selectedIndex = 0;
+
+    // 4. Abrir el modal
     openModal('abono-client-modal');
-}
+};
 
 window.handleAbonoSubmit = async function(e) {
     if (e) e.preventDefault();
