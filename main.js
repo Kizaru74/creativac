@@ -3828,6 +3828,155 @@ function initReportSelectors() {
     }, 10);
 }
 
+//Imprimir PDF de detalles de venta
+window.imprimirTicketVenta = function() {
+    const venta = window.currentSaleForPrint;
+    if (!venta) return alert("No hay datos de venta para imprimir.");
+
+    // Extraer datos actualizados del modal
+    const clientName = document.getElementById('detail-client-name').textContent;
+    const saleId = document.getElementById('detail-sale-id').textContent;
+    const saleDate = document.getElementById('detail-sale-date').textContent;
+    const metodoPago = document.getElementById('detail-payment-method').textContent;
+    const totalVenta = document.getElementById('detail-grand-total').textContent;
+    const pagado = document.getElementById('detail-paid-amount').textContent;
+    const deuda = document.getElementById('detail-remaining-debt').textContent;
+    
+    // Extraer filas de productos y abonos
+    const productosHTML = document.getElementById('detail-products-body').innerHTML;
+    const abonosHTML = document.getElementById('detail-abonos-body').innerHTML;
+    const tieneAbonos = abonosHTML.trim() !== "";
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Venta_${saleId}_${clientName.replace(/\s+/g, '_')}</title>
+            <style>
+                @page { size: letter; margin: 20mm; }
+                body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; margin: 0; line-height: 1.6; font-size: 11pt; }
+                
+                /* Header Estilo Minimalista */
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #edf2f7; padding-bottom: 20px; margin-bottom: 30px; }
+                .logo-container { display: flex; align-items: center; }
+                .logo-circle { width: 50px; height: 50px; background: #1a202c; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; margin-right: 15px; }
+                .brand-info h2 { margin: 0; font-size: 18px; letter-spacing: -0.5px; }
+                .brand-info p { margin: 0; font-size: 12px; color: #718096; }
+                
+                .doc-type { text-align: right; }
+                .doc-type h1 { margin: 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; }
+                .doc-type p { margin: 0; color: #4a5568; font-weight: bold; }
+
+                /* Grid de Información */
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+                .info-item h3 { font-size: 10px; text-transform: uppercase; color: #a0aec0; margin-bottom: 5px; letter-spacing: 1px; }
+                .info-item p { margin: 0; font-weight: 500; }
+
+                /* Tablas */
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                th { text-align: left; padding: 12px; background: #f8fafc; color: #64748b; font-size: 10px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+                td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+                .text-right { text-align: right; }
+
+                /* Resumen y Totales */
+                .footer-flex { display: flex; justify-content: space-between; margin-top: 20px; }
+                .abonos-section { width: 55%; }
+                .totals-section { width: 35%; }
+                
+                .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
+                .total-row.grand { border-top: 2px solid #1a202c; margin-top: 10px; font-weight: bold; font-size: 14pt; }
+                .text-green { color: #2f855a; }
+                .text-red { color: #c53030; }
+
+                .signature { margin-top: 60px; text-align: center; border-top: 1px solid #e2e8f0; width: 200px; padding-top: 10px; font-size: 10px; color: #718096; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="logo-container">
+                    <div class="logo-circle">C</div>
+                    <div class="brand-info">
+                        <h2>CREATIVA CORTES CNC</h2>
+                        <p>Soluciones en Diseño y Corte</p>
+                    </div>
+                </div>
+                <div class="doc-type">
+                    <h1>Comprobante</h1>
+                    <p>VENTA #${saleId}</p>
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <h3>Cliente</h3>
+                    <p>${clientName}</p>
+                </div>
+                <div class="info-item" style="text-align: right;">
+                    <h3>Fecha y Método</h3>
+                    <p>${saleDate} | ${metodoPago}</p>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Descripción</th>
+                        <th class="text-right">Cant.</th>
+                        <th class="text-right">Precio Unit.</th>
+                        <th class="text-right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${productosHTML}
+                </tbody>
+            </table>
+
+            <div class="footer-flex">
+                <div class="abonos-section">
+                    ${tieneAbonos ? `
+                        <h3 style="font-size: 10px; text-transform: uppercase; color: #a0aec0;">Historial de Pagos</h3>
+                        <table style="font-size: 10px;">
+                            ${abonosHTML}
+                        </table>
+                    ` : ''}
+                </div>
+                
+                <div class="totals-section">
+                    <div class="total-row">
+                        <span>Total Venta:</span>
+                        <span>${totalVenta}</span>
+                    </div>
+                    <div class="total-row text-green">
+                        <span>Monto Pagado:</span>
+                        <span>${pagado}</span>
+                    </div>
+                    <div class="total-row grand ${deuda !== '$0.00' ? 'text-red' : ''}">
+                        <span>Saldo Pendiente:</span>
+                        <span>${deuda}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: center;">
+                <div class="signature">Firma de Conformidad</div>
+            </div>
+
+            <script>
+                window.onload = function() {
+                    window.print();
+                    // Opcional: window.close();
+                };
+            </script>
+        </body>
+        </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+};
+
 function generateTextTicket(sale) {
     const TICKET_WIDTH = 32;
 
