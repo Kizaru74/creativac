@@ -4553,6 +4553,7 @@ document.getElementById('open-abono-from-report-btn')?.addEventListener('click',
         alert("El cliente no tiene deuda pendiente.");
     }
 });
+
 // ESCUCHADOR GLOBAL DE ENVÍO DE FORMULARIO - ABONO
 document.addEventListener('submit', async function(e) {
     // Verificamos que sea el formulario de abonos
