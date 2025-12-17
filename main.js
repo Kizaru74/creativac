@@ -544,10 +544,8 @@ window.handleChangeProductForSale = function() {
     // 2. OBTENER EL ID SELECCIONADO Y PREPARAR PARA COMPARACIÓN NUMÉRICA/STRING
     const productId = mainSelect.value;
     const selectedIdStr = String(productId).trim(); 
-    const selectedIdNum = Number(selectedIdStr); // ✅ NUEVA CONVERSIÓN A NÚMERO
+    const selectedIdNum = Number(selectedIdStr); // Conversión a Número
 
-    // 🛑 RECUERDA: ELIMINAR EL DEBUGGER si lo tenías activo para evitar que el código se detenga.
-    
     // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
     console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Tipo de Producto ID: ${typeof mainSelect.value}`);
     
@@ -569,33 +567,29 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
 
     // =======================================================
-    // 3. FILTRADO DE SUBPRODUCTOS (CORRECCIÓN DE TIPADO FINAL)
+    // 3. FILTRADO DE SUBPRODUCTOS (LIMPIEZA RIGUROSA FINAL)
     // =======================================================
 
     const subProducts = allProducts.filter(p => {
         
-        // 1. Obtener y limpiar el TIPO
         const rawType = p.type; 
-        const productType = String(rawType || '').toUpperCase(); 
         
-        // 2. Obtener y limpiar la ID del PADRE
-        const parentIdStr = String(p.parent_product || '').trim();
-        const parentIdNum = Number(parentIdStr); // ✅ Convertimos el ID del padre a Número
+        // ✅ CORRECCIÓN FINAL: Eliminamos TODOS los caracteres de espacio (\s)
+        const productType = String(rawType || '').replace(/\s/g, '').toUpperCase(); 
+        
+        // ✅ Mismo Fix para el ID Padre
+        const parentIdStr = String(p.parent_product || '').replace(/\s/g, ''); 
+        const parentIdNum = Number(parentIdStr); 
 
-        // 3. DOBLE COMPARACIÓN A PRUEBA DE BALAS: Compara tanto como Número (2 === 2) como String ('2' === '2')
+        // DOBLE COMPARACIÓN A PRUEBA DE BALAS
         const idMatch = (
-            (parentIdNum !== 0 && parentIdNum === selectedIdNum) || // Si son números válidos, compara números
-            (parentIdStr === selectedIdStr)                         // Si hay ambigüedad, compara strings
+            (parentIdNum !== 0 && parentIdNum === selectedIdNum) ||
+            (parentIdStr === selectedIdStr)
         );
 
-        if (productType === 'PACKAGE') {
-            // ... Muestra las coincidencias ID (Deberían ser 8)
-        } else {
-             // 🛑 Muestra por qué el TIPO no es PACKAGE
-            console.error(`[DIAG_FILTRO_TIPO] Producto ID ${p.producto_id} - TIPO FALLIDO: '${rawType}' / UPPER: '${productType}'`);
-        }
-        // 🛑 FIN LOG 🛑
-
+        // Ya que el problema estaba en el filtro, deshabilitamos el diagnóstico excesivo
+        // para tener un log limpio.
+        
         return (
             productType === 'PACKAGE' && 
             idMatch
