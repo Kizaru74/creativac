@@ -4298,6 +4298,9 @@ if (newClientForm) {
     // Boton añadir producto a la venta
     document.getElementById('add-product-btn')?.addEventListener('click', handleAddProductToSale);
 
+    // Listener para el envío del formulario de registro de abonos (GENERAL)
+    document.getElementById('abono-client-form')?.addEventListener('submit', handleRecordAbono);
+
     // 🛑 Listener para el envío del formulario de PAGO en el Modal de DETALLES DE VENTA
     document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
 
@@ -4463,7 +4466,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Y el listener de envío del formulario de edición también debe estar presente:
     document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
-   
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando aplicación...");
@@ -4530,6 +4533,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ✅ DEJA ESTO (Pero ajustado):
+document.getElementById('open-abono-from-report-btn')?.addEventListener('click', (e) => {
+    e.preventDefault(); // Siempre prevenir el comportamiento por defecto al hacer clic
+
+    if (!window.viewingClientId) return;
+
+    const totalDebtText = document.getElementById('client-report-total-debt')?.textContent || '$0.00';
+    const totalDebtValue = parseFloat(totalDebtText.replace(/[^0-9.-]+/g,"")); 
+
+    if (totalDebtValue > 0.01) {
+        // 1. LLAMA A TU FUNCIÓN MAESTRA (La que ya tienes y funciona bien)
+        // Esto llenará el ID, el nombre y la deuda automáticamente en el modal
+        window.handleAbonoClick(window.viewingClientId);
+
+        // 2. Cerrar el reporte anterior
+        closeModal('modal-client-debt-report');
+    } else {
+        alert("El cliente no tiene deuda pendiente.");
+    }
+});
 // ESCUCHADOR GLOBAL DE ENVÍO DE FORMULARIO - ABONO
 document.addEventListener('submit', async function(e) {
     // Verificamos que sea el formulario de abonos
@@ -4646,5 +4669,4 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.loadClientsData) {
         window.loadClientsData();
     }
-});
 });
