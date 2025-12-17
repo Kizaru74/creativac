@@ -1130,11 +1130,11 @@ function cleanCurrencyString(str) {
     return cleaned;
 }
 //Ventas a credito
-async function getClientSalesSummary(clientId) {
+window.getClientSalesSummary = async function(clientId) {
     if (!supabase) return { totalVentas: 0, deudaNeta: 0 };
     
-    // 1. Obtener todas las transacciones del cliente desde la vista consolidada
     try {
+        // 1. Obtener transacciones desde tu vista consolidada
         const { data: transactions, error } = await supabase
             .from('transacciones_deuda') 
             .select('type, amount')
@@ -1142,32 +1142,34 @@ async function getClientSalesSummary(clientId) {
 
         if (error) throw error;
 
-        let totalVentas = 0; // Solo cargos de venta
-        let deudaNeta = 0;   // Saldo acumulado (cargos - abonos)
+        let totalVentas = 0; 
+        let deudaNeta = 0;   
 
-        transactions.forEach(t => {
-            const isCharge = t.type === 'cargo_venta';
+        (transactions || []).forEach(t => {
+            // Convertimos a número por si la base de datos devuelve texto
+            const monto = parseFloat(t.amount || 0);
+            const isCharge = String(t.type).toLowerCase().includes('cargo');
             
             if (isCharge) {
-                // Suma el monto total de las ventas (cargos)
-                totalVentas += t.amount;
-                deudaNeta += t.amount;
+                totalVentas += monto;
+                deudaNeta += monto;
             } else {
-                // Resta todos los pagos (iniciales y posteriores)
-                deudaNeta -= t.amount;
+                // Se resta abono_posterior, pago_inicial, etc.
+                deudaNeta -= monto;
             }
         });
 
-        // Aseguramos que la deuda no sea negativa si el cliente pagó de más.
-        deudaNeta = Math.max(0, deudaNeta);
-        
-        return { totalVentas, deudaNeta };
+        // Limpieza de decimales (evita el error de 0.000000001 en JS)
+        return { 
+            totalVentas: Math.max(0, totalVentas), 
+            deudaNeta: Math.max(0, deudaNeta) 
+        };
 
     } catch (e) {
-        console.error(`Error al obtener resumen del cliente ${clientId}:`, e);
+        console.error(`❌ Error en resumen del cliente ${clientId}:`, e);
         return { totalVentas: 0, deudaNeta: 0 };
     }
-}
+};
 async function handleRecordAbono(e) {
     e.preventDefault();
     if (!supabase) return;
@@ -1372,18 +1374,16 @@ window.handleAbonoClick = function(clientId) {
 window.handleAbonoSubmit = async function(e) {
     if (e) e.preventDefault();
 
-    // 1. Capturar y Limpiar datos del formulario
+    // 1. Capturar y Limpiar datos
     const rawId = document.getElementById('abono-client-id')?.value;
     const clientId = rawId ? rawId.trim() : null;
     const amount = parseFloat(document.getElementById('abono-amount')?.value);
     const method = document.getElementById('payment-method-abono')?.value;
 
-    // Validaciones preventivas
-    if (!clientId) { alert("Error: No se pudo identificar al cliente. Intente abrir el modal de nuevo."); return; }
-    if (isNaN(amount) || amount <= 0) { alert("Por favor, ingresa un monto mayor a 0."); return; }
-    if (!method) { alert("Seleccione un método de pago."); return; }
+    if (!clientId) { alert("Error: No se identificó al cliente."); return; }
+    if (isNaN(amount) || amount <= 0) { alert("Ingresa un monto válido."); return; }
+    if (!method) { alert("Selecciona un método de pago."); return; }
 
-    // Bloquear botón para evitar duplicados
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if (submitBtn) {
         submitBtn.disabled = true;
@@ -1391,19 +1391,17 @@ window.handleAbonoSubmit = async function(e) {
     }
 
     try {
-        // 2. Obtener datos actuales del cliente directamente de la BD (para seguridad de cálculo)
+        // 2. Solo necesitamos el nombre del cliente para el mensaje final
         const { data: clientData, error: cError } = await supabase
             .from('clientes')
-            .select('deuda_total, name')
+            .select('name')
             .eq('client_id', clientId)
             .single();
 
-        if (cError || !clientData) {
-            console.error("Detalle del error Supabase:", cError);
-            throw new Error("No se pudo obtener la información del cliente desde la base de datos.");
-        }
+        if (cError) throw new Error("No se encontró el cliente.");
 
-        // 3. REGISTRAR EL PAGO EN LA TABLA 'PAGOS'
+        // 3. REGISTRAR EL PAGO
+        // Al insertar aquí, la VISTA 'transacciones_deuda' restará el monto automáticamente
         const { error: pError } = await supabase.from('pagos').insert([{
             client_id: clientId,
             amount: amount,
@@ -1411,43 +1409,32 @@ window.handleAbonoSubmit = async function(e) {
             type: 'ABONO_GENERAL', 
             created_at: new Date().toISOString()
         }]);
+        
         if (pError) throw pError;
 
-        // 4. ACTUALIZAR LA DEUDA TOTAL EN LA TABLA 'CLIENTES'
-        const nuevaDeuda = (clientData.deuda_total || 0) - amount;
-        const { error: uError } = await supabase
-            .from('clientes')
-            .update({ deuda_total: nuevaDeuda })
-            .eq('client_id', clientId);
-        
-        if (uError) throw uError;
-
         // --- ÉXITO ---
-        alert(`✅ Abono de ${formatCurrency(amount)} registrado para ${clientData.name}.\nNuevo saldo: ${formatCurrency(nuevaDeuda)}`);
+        alert(`✅ Abono de ${formatCurrency(amount)} registrado con éxito para ${clientData.name}.`);
         
-        // 5. LIMPIEZA DE INTERFAZ
+        // 4. LIMPIEZA
         closeModal('abono-client-modal');
         document.getElementById('abono-client-form')?.reset();
         
-        // 6. ACTUALIZACIÓN EN TIEMPO REAL
-        // Recargar tabla principal de clientes
+        // 5. ACTUALIZACIÓN (La vista hará el cálculo nuevo en estas funciones)
         if (typeof window.loadClientsTable === 'function') {
             await window.loadClientsTable('gestion');
         }
         
-        // Recargar dashboard si existe la función
         if (typeof window.loadDashboardMetrics === 'function') {
             await window.loadDashboardMetrics();
         }
 
-        // REFRESCAR EL ESTADO DE CUENTA (Si el usuario lo tiene abierto debajo)
         if (typeof window.handleViewClientDebt === 'function') {
             await window.handleViewClientDebt(clientId);
         }
 
     } catch (err) {
-        console.error("Error crítico en el proceso de abono:", err);
-        alert("Ocurrió un error al procesar el abono: " + err.message);
+        console.error("Error en abono:", err);
+        alert("Error: " + err.message);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -2876,9 +2863,9 @@ window.loadClientsTable = async function(mode = 'gestion') {
         // 1. Obtener la lista base de clientes
         // AGREGAMOS 'deuda_total' a la selección para que el modal de abono tenga el dato real
         const { data: clients, error: clientsError } = await supabase
-            .from('clientes')
-            .select('client_id, name, telefono, deuda_total') 
-            .order('name', { ascending: true });
+    .from('clientes')
+    .select('client_id, name, telefono') 
+    .order('name', { ascending: true });
 
         if (clientsError) throw clientsError;
 
