@@ -3866,61 +3866,82 @@ window.imprimirTicketVenta = function() {
     const saleId = getTxt('detail-sale-id');
     const clientName = getTxt('detail-client-name');
     const saleDate = getTxt('detail-sale-date');
-    const metodoPago = getTxt('detail-payment-method');
     const totalVenta = getTxt('detail-grand-total');
     const pagado = getTxt('detail-paid-amount');
     const deuda = getTxt('detail-remaining-debt');
-    const productosHTML = document.getElementById('detail-products-body').innerHTML;
+
+    // LIMPIEZA DE ICONOS (QUITAR LÁPIZ)
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = document.getElementById('detail-products-body').innerHTML;
+    tempContainer.querySelectorAll('button').forEach(btn => btn.remove());
+    const productosHTML = tempContainer.innerHTML;
 
     const colorOxido = "#8B4513"; 
     const fondoLigero = "#FDF8F5";
 
     const htmlContent = `
         <!DOCTYPE html>
-        <html>
+        <html lang="es">
         <head>
             <meta charset="UTF-8">
             <style>
-                @page { size: letter; margin: 15mm; }
-                body { font-family: 'Segoe UI', sans-serif; color: #333; margin: 0; }
-                .header { display: flex; justify-content: space-between; border-bottom: 4px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; }
-                .logo-box { width: 50px; height: 50px; background: ${colorOxido}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 25px; border-radius: 4px; margin-right: 12px; }
-                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: ${fondoLigero}; padding: 15px; margin-bottom: 20px; border-radius: 4px; border: 1px solid #eee; }
+                /* CONFIGURACIÓN MEDIA CARTA */
+                @page { 
+                    size: 216mm 140mm; /* Media Carta Horizontal */
+                    margin: 10mm; 
+                }
+                body { 
+                    font-family: 'Segoe UI', sans-serif; 
+                    color: #333; 
+                    margin: 0; 
+                    padding: 0;
+                    width: 196mm; /* Ajuste al ancho real de impresión */
+                }
+                
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 8px; margin-bottom: 15px; }
+                .brand-text h2 { margin: 0; color: ${colorOxido}; font-size: 18px; text-transform: uppercase; }
+                .logo-box { width: 45px; height: 45px; background: ${colorOxido}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 22px; border-radius: 4px; margin-right: 10px; }
+                
+                .data-grid { display: grid; grid-template-columns: 1.5fr 1fr; background: ${fondoLigero}; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #eee; font-size: 12px; }
+                
                 table { width: 100%; border-collapse: collapse; }
-                th { background: ${colorOxido}; color: white; padding: 10px; font-size: 11px; text-transform: uppercase; text-align: left; }
-                td { padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; }
-                .text-right { text-align: right; }
-                .totals-box { width: 250px; margin-left: auto; margin-top: 20px; background: ${fondoLigero}; padding: 15px; border-radius: 4px; border: 1px solid #eee; }
-                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 11px; border-top: 1px solid #eee; padding: 15px 0; background: white; }
-                .contact { color: ${colorOxido}; font-weight: bold; margin-bottom: 4px; }
+                th { background: ${colorOxido}; color: white; padding: 6px 10px; font-size: 10px; text-transform: uppercase; }
+                td { padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 11px; }
+                
+                .bottom-section { display: flex; justify-content: space-between; margin-top: 15px; align-items: flex-start; }
+                .totals-box { width: 220px; background: ${fondoLigero}; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
+                .total-line { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; }
+                .total-line.grand { border-top: 2px solid ${colorOxido}; margin-top: 5px; padding-top: 5px; font-weight: bold; font-size: 14px; color: ${colorOxido}; }
+
+                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
             </style>
         </head>
         <body>
             <div class="header">
                 <div style="display:flex; align-items:center;">
                     <div class="logo-box">C</div>
-                    <div>
-                        <h2 style="margin:0; color:${colorOxido}; letter-spacing:1px;">CREATIVA CORTES CNC</h2>
-                        <p style="margin:0; font-size:10px; font-weight:bold; color:#888;">DISEÑO • CORTE • PRECISIÓN</p>
+                    <div class="brand-text">
+                        <h2>CREATIVA CORTES CNC</h2>
+                        <p style="margin:0; font-size:9px; font-weight:bold; color:#666;">DISEÑO • CORTE • PRECISIÓN</p>
                     </div>
                 </div>
                 <div style="text-align:right;">
-                    <h1 style="margin:0; color:${colorOxido}; font-size:22px;">COMPROBANTE</h1>
-                    <p style="margin:0; font-weight:bold;">Nota N°: ${saleId}</p>
+                    <h1 style="margin:0; color:${colorOxido}; font-size:18px;">COMPROBANTE</h1>
+                    <p style="margin:0; font-size:12px; font-weight:bold;">Nota N°: ${saleId}</p>
                 </div>
             </div>
 
             <div class="data-grid">
-                <div><span style="font-size:9px; color:#999;">CLIENTE:</span><p style="margin:0; font-weight:bold;">${clientName}</p></div>
-                <div style="text-align:right;"><span style="font-size:9px; color:#999;">FECHA DE EMISIÓN:</span><p style="margin:0; font-weight:bold;">${saleDate}</p></div>
+                <div><strong>CLIENTE:</strong> ${clientName}</div>
+                <div style="text-align:right;"><strong>FECHA:</strong> ${saleDate}</div>
             </div>
 
             <table>
                 <thead>
                     <tr>
                         <th>Descripción del Trabajo</th>
-                        <th class="text-right">Cant.</th>
-                        <th class="text-right">Total</th>
+                        <th style="text-align:right;">Cant.</th>
+                        <th style="text-align:right;">Total</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -3928,25 +3949,27 @@ window.imprimirTicketVenta = function() {
                 </tbody>
             </table>
 
-            <div class="totals-box">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Total Venta:</span> <span>${totalVenta}</span></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#2e7d32;"><span>Monto Pagado:</span> <span>${pagado}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; font-size:16px; border-top:2px solid ${colorOxido}; margin-top:10px; padding-top:8px;">
-                    <span>PENDIENTE:</span> <span>${deuda}</span>
+            <div class="bottom-section">
+                <div style="font-size: 9px; color: #888; max-width: 300px;">
+                    * Este documento es un comprobante de control interno para trabajos de fabricación digital y servicios de corte.
+                </div>
+                <div class="totals-box">
+                    <div class="total-line"><span>Total Venta:</span> <span>${totalVenta}</span></div>
+                    <div class="total-line" style="color:#2e7d32;"><span>Abonado:</span> <span>${pagado}</span></div>
+                    <div class="total-line grand">
+                        <span>PENDIENTE:</span> <span>${deuda}</span>
+                    </div>
                 </div>
             </div>
 
             <div class="footer">
-                <div class="contact">
-                    📱 WhatsApp: 985 110 1141 &nbsp;&nbsp; | &nbsp;&nbsp; 📍 Calle 33 x 48 y 46, Col. Candelaria, Valladolid
-                </div>
-                Creativa Cortes CNC — Gracias por su preferencia.
+                📱 WhatsApp: 985 111 2233 &nbsp;&nbsp; | &nbsp;&nbsp; 📍 Calle 20 x 15 y 17, Col. Centro, Valladolid
             </div>
 
             <script>
                 window.onload = () => { 
                     window.print(); 
-                    setTimeout(() => window.close(), 500); 
+                    setTimeout(() => window.close(), 600); 
                 };
             </script>
         </body>
@@ -3954,8 +3977,10 @@ window.imprimirTicketVenta = function() {
     `;
 
     const pWin = window.open('', '_blank');
-    pWin.document.write(htmlContent);
-    pWin.document.close();
+    if(pWin) {
+        pWin.document.write(htmlContent);
+        pWin.document.close();
+    }
 };
 
 function generateTextTicket(sale) {
