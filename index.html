@@ -378,7 +378,7 @@
     </div>
 </div>
     
-    <div id="edit-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+<div id="edit-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-8">
             <div class="flex justify-between items-center border-b pb-4 mb-6">
                 <h3 class="text-2xl font-bold text-gray-800">Editar Producto/Servicio</h3>
@@ -419,9 +419,9 @@
                 </button>
             </form>
         </div>
-    </div>
+</div>
     
-    <div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+<div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-auto p-8 transform transition-all">
             
             <div class="flex justify-between items-center border-b pb-4 mb-6">
@@ -534,7 +534,7 @@
 
             </form>
         </div>
-    </div>
+</div>
 
 <div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-40 overflow-y-auto pt-4 pb-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-auto transform transition-all flex flex-col max-h-[95vh] my-4"> 
@@ -664,7 +664,7 @@
                 &times;
             </button>
         </div>
-        <form id="abono-client-form">
+        <form id="abono-client-form" onsubmit="handleAbonoSubmit(event)">
             <input type="hidden" id="debt-to-pay-id">
             
             <div class="mb-4">
