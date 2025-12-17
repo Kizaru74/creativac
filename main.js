@@ -535,17 +535,24 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
+    // 1. Verificación Inicial de Elementos
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
     }
-if (productId === '2') {
-        debugger; // <-- ¡AÑADE ESTA LÍNEA!
+    
+    // 2. OBTENER EL ID SELECCIONADO
+    const productId = mainSelect.value; // ✅ COLOCACIÓN CORRECTA DE LA DECLARACIÓN
+
+    // 🛑 DEBUGGER (USO TEMPORAL PARA DIAGNÓSTICO FINAL)
+    if (productId === '2') {
+        debugger; // La ejecución se detendrá aquí si seleccionas ID 2
     }
-    // 🛑 NUEVO LOG DE DIAGNÓSTICO CRÍTICO 🛑
+    // 🛑 FIN DEBUGGER
+
+    // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
     console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Tipo de Producto ID: ${typeof mainSelect.value}`);
     // 🛑 FIN NUEVO LOG 🛑
-    const productId = mainSelect.value;
     
     // CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
     if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
@@ -555,7 +562,7 @@ if (productId === '2') {
         return; 
     }
 
-    // CRÍTICO 2: Defensa contra Race Condition
+    // CRÍTICO 2: Defensa contra Race Condition (Ya no debería ser necesario, pero se mantiene por seguridad)
     if (!window.allProducts || window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
         return; 
@@ -564,39 +571,39 @@ if (productId === '2') {
     // 2. Establecer el precio por defecto
     window.updatePriceField(productId);
 
-    
-    
-    // 3. Filtrar y buscar los subproductos (paquetes)
-const selectedIdStr = String(productId).trim(); 
+    // =======================================================
+    // 3. FILTRADO DE SUBPRODUCTOS (CON CORRECCIÓN DE TIPADO)
+    // =======================================================
+    const selectedIdStr = String(productId).trim(); 
 
-const subProducts = allProducts.filter(p => {
-    
-    // 1. Convertimos el tipo de producto a string limpio y mayúsculas
-    const rawType = p.type; 
-    const productType = String(rawType || '').toUpperCase(); 
-    const parentIdStr = String(p.parent_product || '').trim(); 
+    const subProducts = allProducts.filter(p => {
+        
+        // CORRECCIÓN CRÍTICA: Aseguramos la limpieza de strings en ambos lados
+        const rawType = p.type; 
+        const productType = String(rawType || '').toUpperCase(); 
+        const parentIdStr = String(p.parent_product || '').trim(); 
 
-    // 🛑 LOG DE DIAGNÓSTICO DEFINITIVO (Y DEPURACIÓN) 🛑
-    if (productType !== 'PACKAGE') {
-        // Si no es PACKAGE, vamos a ver qué valor TIENE.
-        console.error(`[DIAG_FINAL_TIPO] Producto ID ${p.producto_id} - TIPO FALLIDO: '${rawType}' / UPPER: '${productType}'`);
-    } else {
-        // Si es PACKAGE, confirmamos si la ID coincide.
-        const isMatch = parentIdStr === selectedIdStr;
-        console.warn(`[DIAG_FINAL_ID] Producto ID ${p.producto_id} (PAQUETE) - Parent ID: '${parentIdStr}' | Buscado: '${selectedIdStr}' | Coincide: ${isMatch}`);
-    }
-    // 🛑 FIN LOG 🛑
+        // 🛑 LOG DE DIAGNÓSTICO FINAL (Muestra por qué falla)
+        const isPackage = productType === 'PACKAGE';
+        if (isPackage) {
+            const isMatch = parentIdStr === selectedIdStr;
+            console.warn(`[DIAG_FINAL_ID] Producto ID ${p.producto_id} (PAQUETE) - Parent ID: '${parentIdStr}' | Buscado: '${selectedIdStr}' | Coincide: ${isMatch}`);
+        } else {
+            console.error(`[DIAG_FINAL_TIPO] Producto ID ${p.producto_id} - TIPO FALLIDO: '${rawType}' / UPPER: '${productType}'`);
+        }
+        // 🛑 FIN LOG 🛑
 
-    return (
-        productType === 'PACKAGE' && 
-        parentIdStr === selectedIdStr
-    );
-});
+        return (
+            productType === 'PACKAGE' && 
+            parentIdStr === selectedIdStr
+        );
+    });
 
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
-console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
-
+    // =======================================================
+    // 4. RENDERIZADO DEL SELECTOR DE SUBPRODUCTOS
+    // =======================================================
     if (subProducts.length > 0) {
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
@@ -611,6 +618,9 @@ console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encon
             subSelect.appendChild(option);
         });
         console.log(`DIAGNÓSTICO DE RENDERIZADO: Se inyectaron ${subProducts.length} opciones.`);
+    } else {
+        subSelect.disabled = true; 
+        subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     }
 }
 window.handleChangeProductForSale = window.handleChangeProductForSale;
