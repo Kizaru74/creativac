@@ -17,12 +17,23 @@ let allProductsMap = {};
 let reportSelectorsInitialized = false;
 
 
-// ✅ CORRECCIÓN CRÍTICA: Inicializar Supabase directamente, fuera del try/catch.
-if (window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} else {
-    console.error("Error Fatal: Librería Supabase no encontrada. La aplicación no funcionará.");
-    supabase = null; // Asignar null para que las llamadas subsiguientes puedan manejarlo sin crash
+// ✅ CORRECCIÓN DE INICIALIZACIÓN
+try {
+    // Intentamos detectar si la librería está bajo 'supabase' o 'window.supabase'
+    const supabaseLib = window.supabase || supabase; 
+    
+    if (supabaseLib && typeof supabaseLib.createClient === 'function') {
+        window.supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // También asignamos a la variable local para que tus funciones la encuentren
+        supabase = window.supabase; 
+        console.log("✅ Cliente de Supabase creado con éxito.");
+    } else {
+        throw new Error("La librería Supabase no está cargada correctamente.");
+    }
+} catch (e) {
+    console.error("❌ Error Fatal al inicializar Supabase:", e.message);
+    window.supabase = null;
+    supabase = null;
 }
 
 // ====================================================================
@@ -175,6 +186,8 @@ async function checkUserSession() {
 
     const authContainer = document.getElementById('auth-container');
     const mainContent = document.getElementById('dashboard-container'); 
+
+    
     
     if (!authContainer || !mainContent) {
         console.error("Error: Los contenedores 'auth-container' o 'dashboard-container' no se encontraron en el HTML.");
