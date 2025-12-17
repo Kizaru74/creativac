@@ -2019,12 +2019,18 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
     }
 
     // 1. OBTENER DATOS DEL CLIENTE DESDE EL CACHÉ (allClients)
-    const client = allClients.find(c => c.client_id === clientId); 
+    const client = allClients.find(c => String(c.client_id) === String(clientId));
+
     if (!client) {
-        console.error("Cliente no encontrado en allClients.");
-        alert("Error: Cliente no encontrado para esta venta. Intente recargar la página.");
+    console.warn("Cliente no encontrado en allClients con ID:", clientId);
+    // Intento de respaldo usando el Mapa global que arreglamos antes
+    const backupClient = window.allClientsMap ? window.allClientsMap[clientId] : null;
+    
+    if (!backupClient) {
+        alert("Error: No se pudo localizar la información del cliente #" + clientId);
         return;
     }
+}
     window.viewingClientId = clientId; // Guardamos el ID del cliente que estamos viendo para el checkout
 
     try {
