@@ -1372,18 +1372,40 @@ window.handleAbonoClick = function(clientId) {
 };
 
 window.handleAbonoSubmit = async function(e) {
-    if (e) e.preventDefault();
+    // 1. DETENER EL REFRESCO (Crucial)
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 
-    // 1. Capturar y Limpiar datos
-    const rawId = document.getElementById('abono-client-id')?.value;
-    const clientId = rawId ? rawId.trim() : null;
-    const amount = parseFloat(document.getElementById('abono-amount')?.value);
-    const method = document.getElementById('payment-method-abono')?.value;
+    console.log("--- INICIANDO PROCESO DE ABONO ---");
 
-    if (!clientId) { alert("Error: No se identificó al cliente."); return; }
-    if (isNaN(amount) || amount <= 0) { alert("Ingresa un monto válido."); return; }
-    if (!method) { alert("Selecciona un método de pago."); return; }
+    // 2. CAPTURAR ELEMENTOS
+    const inputId = document.getElementById('abono-client-id');
+    const inputAmount = document.getElementById('abono-amount');
+    const inputMethod = document.getElementById('payment-method-abono');
 
+    const clientId = inputId ? inputId.value.trim() : null;
+    const amount = inputAmount ? parseFloat(inputAmount.value) : 0;
+    const method = inputMethod ? inputMethod.value : '';
+
+    console.log("Datos capturados:", { clientId, amount, method });
+
+    // 3. VALIDACIONES
+    if (!clientId) {
+        alert("Error: No se encontró el ID del cliente. Intenta abrir el modal de nuevo.");
+        return;
+    }
+    if (isNaN(amount) || amount <= 0) {
+        alert("Por favor, ingresa un monto válido mayor a cero.");
+        return;
+    }
+    if (!method) {
+        alert("Por favor, selecciona un método de pago.");
+        return;
+    }
+
+    // 4. BLOQUEAR BOTÓN PARA EVITAR DUPLICADOS
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if (submitBtn) {
         submitBtn.disabled = true;
@@ -1391,50 +1413,32 @@ window.handleAbonoSubmit = async function(e) {
     }
 
     try {
-        // 2. Solo necesitamos el nombre del cliente para el mensaje final
-        const { data: clientData, error: cError } = await supabase
-            .from('clientes')
-            .select('name')
-            .eq('client_id', clientId)
-            .single();
-
-        if (cError) throw new Error("No se encontró el cliente.");
-
-        // 3. REGISTRAR EL PAGO
-        // Al insertar aquí, la VISTA 'transacciones_deuda' restará el monto automáticamente
+        // 5. INSERTAR EN SUPABASE
+        console.log("Enviando a Supabase...");
         const { error: pError } = await supabase.from('pagos').insert([{
             client_id: clientId,
             amount: amount,
             metodo_pago: method,
-            type: 'ABONO_GENERAL', 
+            type: 'ABONO_GENERAL',
             created_at: new Date().toISOString()
         }]);
-        
+
         if (pError) throw pError;
 
-        // --- ÉXITO ---
-        alert(`✅ Abono de ${formatCurrency(amount)} registrado con éxito para ${clientData.name}.`);
+        // 6. ÉXITO
+        alert(`✅ Abono de ${formatCurrency(amount)} registrado con éxito.`);
         
-        // 4. LIMPIEZA
+        // LIMPIEZA
         closeModal('abono-client-modal');
-        document.getElementById('abono-client-form')?.reset();
-        
-        // 5. ACTUALIZACIÓN (La vista hará el cálculo nuevo en estas funciones)
-        if (typeof window.loadClientsTable === 'function') {
-            await window.loadClientsTable('gestion');
-        }
-        
-        if (typeof window.loadDashboardMetrics === 'function') {
-            await window.loadDashboardMetrics();
-        }
+        document.getElementById('abono-client-form').reset();
 
-        if (typeof window.handleViewClientDebt === 'function') {
-            await window.handleViewClientDebt(clientId);
-        }
+        // 7. ACTUALIZAR INTERFAZ SIN RECARGAR
+        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
+        if (typeof window.loadDashboardMetrics === 'function') await window.loadDashboardMetrics();
 
     } catch (err) {
-        console.error("Error en abono:", err);
-        alert("Error: " + err.message);
+        console.error("❌ ERROR EN EL ABONO:", err.message);
+        alert("No se pudo registrar el abono: " + err.message);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
