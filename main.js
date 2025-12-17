@@ -1372,78 +1372,56 @@ window.handleAbonoClick = function(clientId) {
 };
 
 window.handleAbonoSubmit = async function(e) {
-    // 1. DETENER EL REFRESCO (Crucial)
+    // 1. Bloqueo inmediato
     if (e) {
         e.preventDefault();
         e.stopPropagation();
     }
 
-    console.log("--- INICIANDO PROCESO DE ABONO ---");
+    console.log("🟢 Función handleAbonoSubmit detectada correctamente");
 
-    // 2. CAPTURAR ELEMENTOS
-    const inputId = document.getElementById('abono-client-id');
-    const inputAmount = document.getElementById('abono-amount');
-    const inputMethod = document.getElementById('payment-method-abono');
+    // 2. Captura segura de datos
+    const f = document.getElementById('abono-client-form');
+    const clientId = document.getElementById('abono-client-id')?.value;
+    const amount = parseFloat(document.getElementById('abono-amount')?.value);
+    const method = document.getElementById('payment-method-abono')?.value;
 
-    const clientId = inputId ? inputId.value.trim() : null;
-    const amount = inputAmount ? parseFloat(inputAmount.value) : 0;
-    const method = inputMethod ? inputMethod.value : '';
-
-    console.log("Datos capturados:", { clientId, amount, method });
-
-    // 3. VALIDACIONES
-    if (!clientId) {
-        alert("Error: No se encontró el ID del cliente. Intenta abrir el modal de nuevo.");
-        return;
-    }
-    if (isNaN(amount) || amount <= 0) {
-        alert("Por favor, ingresa un monto válido mayor a cero.");
-        return;
-    }
-    if (!method) {
-        alert("Por favor, selecciona un método de pago.");
+    if (!clientId || isNaN(amount) || amount <= 0) {
+        alert("⚠️ Datos incompletos. ID: " + clientId + " Monto: " + amount);
         return;
     }
 
-    // 4. BLOQUEAR BOTÓN PARA EVITAR DUPLICADOS
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando...';
-    }
+    // 3. Feedback visual
+    const btn = f.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
     try {
-        // 5. INSERTAR EN SUPABASE
-        console.log("Enviando a Supabase...");
-        const { error: pError } = await supabase.from('pagos').insert([{
-            client_id: clientId,
+        console.log("📡 Enviando abono a Supabase para cliente:", clientId);
+        
+        const { error } = await supabase.from('pagos').insert([{
+            client_id: parseInt(clientId),
             amount: amount,
             metodo_pago: method,
-            type: 'ABONO_GENERAL',
-            created_at: new Date().toISOString()
+            type: 'ABONO_GENERAL'
         }]);
 
-        if (pError) throw pError;
+        if (error) throw error;
 
-        // 6. ÉXITO
-        alert(`✅ Abono de ${formatCurrency(amount)} registrado con éxito.`);
+        alert("✅ Abono registrado correctamente.");
         
-        // LIMPIEZA
+        // 4. Reset y Cierre
         closeModal('abono-client-modal');
-        document.getElementById('abono-client-form').reset();
+        f.reset();
 
-        // 7. ACTUALIZAR INTERFAZ SIN RECARGAR
-        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
-        if (typeof window.loadDashboardMetrics === 'function') await window.loadDashboardMetrics();
+        // 5. Refrescar tablas
+        if (typeof loadClientsTable === 'function') await loadClientsTable('gestion');
+        if (typeof loadDashboardMetrics === 'function') await loadDashboardMetrics();
 
     } catch (err) {
-        console.error("❌ ERROR EN EL ABONO:", err.message);
-        alert("No se pudo registrar el abono: " + err.message);
+        console.error("❌ Error de Supabase:", err);
+        alert("Error al guardar: " + (err.message || "Error desconocido"));
     } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Confirmar Abono';
-        }
+        if (btn) { btn.disabled = false; btn.textContent = 'Confirmar Abono'; }
     }
 };
 
