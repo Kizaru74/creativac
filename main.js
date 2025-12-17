@@ -1372,56 +1372,70 @@ window.handleAbonoClick = function(clientId) {
 };
 
 window.handleAbonoSubmit = async function(e) {
-    // 1. Bloqueo inmediato
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+    // 1. Evitar que el formulario recargue la página
+    if (e && e.preventDefault) e.preventDefault();
 
-    console.log("🟢 Función handleAbonoSubmit detectada correctamente");
+    console.log("📡 Iniciando proceso de abono en cascada...");
 
-    // 2. Captura segura de datos
-    const f = document.getElementById('abono-client-form');
+    // 2. Obtener elementos del DOM
+    const form = document.getElementById('abono-client-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
     const clientId = document.getElementById('abono-client-id')?.value;
     const amount = parseFloat(document.getElementById('abono-amount')?.value);
     const method = document.getElementById('payment-method-abono')?.value;
 
-    if (!clientId || isNaN(amount) || amount <= 0) {
-        alert("⚠️ Datos incompletos. ID: " + clientId + " Monto: " + amount);
+    // 3. Validaciones de seguridad
+    if (!clientId || isNaN(amount) || amount <= 0 || !method) {
+        alert("⚠️ Por favor, complete todos los campos correctamente.");
         return;
     }
 
-    // 3. Feedback visual
-    const btn = f.querySelector('button[type="submit"]');
-    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+    // 4. Feedback visual (Bloquear botón)
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Procesando Cascada...';
+    }
 
     try {
-        console.log("📡 Enviando abono a Supabase para cliente:", clientId);
-        
-        const { error } = await supabase.from('pagos').insert([{
-            client_id: parseInt(clientId),
-            amount: amount,
-            metodo_pago: method,
-            type: 'ABONO_GENERAL'
-        }]);
+        // 5. LLAMADA AL RPC DE SUPABASE (La función SQL que creamos)
+        // Esto reparte el dinero entre las ventas viejas automáticamente
+        const { error } = await supabase.rpc('registrar_abono_cascada', {
+            p_client_id: parseInt(clientId),
+            p_amount: amount,
+            p_metodo_pago: method
+        });
 
         if (error) throw error;
 
-        alert("✅ Abono registrado correctamente.");
+        // 6. ÉXITO: Notificar y limpiar
+        alert(`✅ Abono de ${formatCurrency(amount)} procesado con éxito.`);
         
-        // 4. Reset y Cierre
-        closeModal('abono-client-modal');
-        f.reset();
+        // Cerrar modal y limpiar form
+        window.closeModal('abono-client-modal');
+        form.reset();
 
-        // 5. Refrescar tablas
-        if (typeof loadClientsTable === 'function') await loadClientsTable('gestion');
-        if (typeof loadDashboardMetrics === 'function') await loadDashboardMetrics();
+        // 7. RECARGA DINÁMICA DE LA UI
+        // Si el usuario estaba viendo un detalle de venta, lo refrescamos
+        const modalDetalleVenta = document.getElementById('modal-detail-sale');
+        if (modalDetalleVenta && !modalDetalleVenta.classList.contains('hidden')) {
+            const currentVentaId = document.getElementById('detail-sale-id').textContent;
+            if (currentVentaId) await window.handleViewSaleDetails(currentVentaId);
+        }
+
+        // Refrescar tablas generales
+        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
+        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
 
     } catch (err) {
-        console.error("❌ Error de Supabase:", err);
-        alert("Error al guardar: " + (err.message || "Error desconocido"));
+        console.error("❌ Error en el abono:", err);
+        alert("Hubo un error al registrar el abono: " + err.message);
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Confirmar Abono'; }
+        // 8. Restablecer botón
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Confirmar Abono';
+        }
     }
 };
 
@@ -4617,53 +4631,72 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Enlace de Formularios
     // =======================================================
     
+    // FORMULARIO: Editar Precio
     const editForm = document.getElementById('edit-sale-price-form');
     if (editForm) {
-        editForm.addEventListener('submit', handlePriceEditSubmit);
-       // console.log("Listener de edición de precio enlazado.");
+        editForm.addEventListener('submit', window.handlePriceEditSubmit);
+    }
+
+    // FORMULARIO: Registrar Abono (El nuevo que creamos hoy)
+    const abonoForm = document.getElementById('abono-client-form');
+    if (abonoForm) {
+        abonoForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log("🚀 Procesando abono en cascada...");
+            
+            // Aquí llamamos a la lógica que usa la función RPC registrar_abono_cascada
+            // Si ya definiste handleAbonoSubmit, puedes usarla aquí:
+            if (typeof window.handleAbonoSubmit === 'function') {
+                await window.handleAbonoSubmit(e);
+            }
+        });
     }
 
     // =======================================================
-    // 2. Inicialización de Vistas y Selectores
+    // 2. Inicialización de Vistas
     // =======================================================
-   
-    // Carga los datos iniciales del dashboard (widgets, estadísticas, etc.)
     if (window.loadDashboardData) {
-              console.log("Datos del Dashboard cargados.");
+        window.loadDashboardData();
+        console.log("Datos del Dashboard cargados.");
     }
     
     // =======================================================
     // 3. Listeners Globales (Delegación de Eventos)
     // =======================================================
- document.body.addEventListener('click', (e) => {
-    // Maneja botones de cierre (como la 'X')
-    const closeBtn = e.target.closest('[data-close-modal]');
-    if (closeBtn) {
-        const modalId = closeBtn.dataset.closeModal;
-        window.closeModal(modalId);
-        return; // Detiene la propagación
-    }
-
-    // Maneja botones de apertura (como el de 'Nuevo Cliente')
-    const openBtn = e.target.closest('[data-open-modal]');
-    if (openBtn) {
-        const modalId = openBtn.dataset.openModal;
-        // Solo llamar si la función de apertura especializada existe (como openRegisterClientModal)
-        if (typeof window[`open${modalId.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}`] === 'function') {
-             // Intenta llamar a una función específica (ej: window.openNewClientModal)
-             window[`open${modalId.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}`]();
-        } else {
-            // Sino, usa la función genérica
-            window.openModal(modalId);
+    document.body.addEventListener('click', (e) => {
+        // Maneja botones de cierre (X)
+        const closeBtn = e.target.closest('[data-close-modal]');
+        if (closeBtn) {
+            const modalId = closeBtn.dataset.closeModal;
+            window.closeModal(modalId);
+            return;
         }
-    }
-    
-    // Maneja el cierre del overlay (clic fuera)
-    if (e.target.classList.contains('modal-overlay')) {
-        const modalId = e.target.id;
-        window.closeModal(modalId);
-    }
-});
+
+        // Maneja botones de apertura
+        const openBtn = e.target.closest('[data-open-modal]');
+        if (openBtn) {
+            const modalId = openBtn.dataset.openModal;
+            
+            // CASO ESPECIAL: Si es el botón de abono dentro del detalle de venta
+            if (modalId === 'abono-client-modal' && window.viewingClientId) {
+                window.handleAbonoClick(window.viewingClientId);
+                return;
+            }
+
+            // Lógica estándar de apertura
+            const specializedFn = `open${modalId.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}`;
+            if (typeof window[specializedFn] === 'function') {
+                window[specializedFn]();
+            } else {
+                window.openModal(modalId);
+            }
+        }
+        
+        // Cierre por clic en el fondo (overlay)
+        if (e.target.classList.contains('modal-overlay')) {
+            window.closeModal(e.target.id);
+        }
+    });
 });
 
 document.addEventListener('DOMContentLoaded', () => {
