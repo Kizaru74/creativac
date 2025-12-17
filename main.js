@@ -2016,7 +2016,7 @@ window.printClientDebtReport = function() {
 
 window.handleViewSaleDetails = async function(venta_id) {
     try {
-        // 1. Obtener la venta (incluyendo descripción)
+        // 1. Obtener la venta
         const { data: venta, error: vError } = await supabase
             .from('ventas')
             .select('*')
@@ -2025,83 +2025,65 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         if (vError) throw vError;
 
-        // 2. Obtener productos y abonos en paralelo
+        // 2. Obtener productos y abonos (Filtrados por esta venta específica)
         const [prodRes, abonoRes] = await Promise.all([
             supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
-            supabase.from('abonos').select('*').eq('venta_id', venta_id).order('created_at', { ascending: false })
+            supabase.from('abonos').select('*').eq('venta_id', venta_id) 
         ]);
 
         const productos = prodRes.data || [];
         const abonos = abonoRes.data || [];
 
-        // Guardar para impresión
         window.currentSaleForPrint = { ...venta, productos, abonos };
 
-        // 3. Llenar Modal - Datos Básicos
+        // 3. Llenar Modal
         document.getElementById('detail-sale-id').textContent = venta.venta_id;
-        document.getElementById('detail-sale-date').textContent = new Date(venta.created_at).toLocaleString();
-        // Mostrar descripción (ajusta 'description' por el nombre real en tu BD si es distinto)
-        document.getElementById('detail-sale-description').textContent = venta.description || venta.notas || 'Sin descripción';
+        document.getElementById('detail-sale-description').textContent = venta.description || 'Sin notas adicionales';
         
         const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
         document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
 
-        // 4. Tabla de Productos
+        // 4. Llenar tabla del Modal (Aquí mostramos 4 columnas para gestión)
         const productsBody = document.getElementById('detail-products-body');
         productsBody.innerHTML = productos.map(item => `
             <tr>
-                <td class="px-4 py-2">${item.name || 'Producto'}</td>
+                <td class="px-4 py-2">${item.name}</td>
                 <td class="px-4 py-2 text-right">${item.quantity}</td>
-                <td class="px-4 py-2 text-right">${formatCurrency(item.price || 0)}</td>
-                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal || 0)}</td>
+                <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
+                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
             </tr>
         `).join('');
 
-        // 5. Tabla de Abonos (Historial)
+        // 5. Historial de Abonos
         const abonosBody = document.getElementById('detail-abonos-body');
-        if (abonos.length > 0) {
-            abonosBody.innerHTML = abonos.map(a => `
-                <tr class="text-xs border-b">
-                    <td class="py-1">${new Date(a.created_at).toLocaleDateString()}</td>
-                    <td class="py-1">${a.metodo_pago || 'Efectivo'}</td>
-                    <td class="py-1 text-right font-semibold">${formatCurrency(a.monto)}</td>
-                </tr>
-            `).join('');
-        } else {
-            abonosBody.innerHTML = '<tr><td colspan="3" class="text-center py-2 text-gray-400">No hay abonos registrados</td></tr>';
-        }
+        abonosBody.innerHTML = abonos.length > 0 ? abonos.map(a => `
+            <tr class="text-xs border-b">
+                <td class="py-1">${new Date(a.created_at).toLocaleDateString()}</td>
+                <td class="py-1">${a.metodo_pago || 'Efectivo'}</td>
+                <td class="py-1 text-right font-semibold">${formatCurrency(a.monto)}</td>
+            </tr>
+        `).join('') : '<tr><td colspan="3" class="text-center py-2 text-gray-400">Sin abonos en esta nota</td></tr>';
 
-        // 6. Totales
-        const total = venta.total_amount || 0;
-        const deuda = venta.saldo_pendiente || 0;
-        document.getElementById('detail-grand-total').textContent = formatCurrency(total);
-        document.getElementById('detail-paid-amount').textContent = formatCurrency(total - deuda);
-        document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
-
+        updateTotalUI(venta.total_amount, venta.saldo_pendiente);
         window.openModal('modal-detail-sale');
-    } catch (err) {
-        console.error("Error:", err);
-    }
+    } catch (err) { console.error(err); }
 };
 
+//imprimir pdf de detalles de la venta
 window.imprimirTicketVenta = function() {
-    const getTxt = (id) => document.getElementById(id)?.textContent || "---";
-    
-    // Extraer datos del modal
-    const saleId = getTxt('detail-sale-id');
-    const clientName = getTxt('detail-client-name');
-    const saleDate = getTxt('detail-sale-date');
-    const totalVenta = getTxt('detail-grand-total');
-    const pagado = getTxt('detail-paid-amount');
-    const deuda = getTxt('detail-remaining-debt');
-    const desc = getTxt('detail-sale-description');
+    const venta = window.currentSaleForPrint;
+    if (!venta) return alert("No hay datos para imprimir");
 
-    // Limpieza de productos para el PDF (Quitando botones y fijando columnas)
-    const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = document.getElementById('detail-products-body').innerHTML;
-    tempContainer.querySelectorAll('button').forEach(b => b.remove());
-    
     const colorOxido = "#8B4513"; 
+    
+    // Generar las filas de productos manualmente (3 columnas fijas)
+    const filasProductos = venta.productos.map(p => `
+        <tr>
+            <td style="width: 60%; text-align: left; padding: 5px; border-bottom: 1px solid #eee;">${p.name}</td>
+            <td style="width: 15%; text-align: right; padding: 5px; border-bottom: 1px solid #eee;">${p.quantity}</td>
+            <td style="width: 25%; text-align: right; padding: 5px; border-bottom: 1px solid #eee; font-weight: bold;">${formatCurrency(p.subtotal)}</td>
+        </tr>
+    `).join('');
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -2110,72 +2092,55 @@ window.imprimirTicketVenta = function() {
             <meta charset="UTF-8">
             <style>
                 @page { size: 216mm 140mm; margin: 10mm; }
-                body { font-family: 'Segoe UI', Arial; color: #333; margin: 0; font-size: 11px; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 11px; }
                 .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 5px; margin-bottom: 10px; }
-                .logo-box { width: 40px; height: 40px; background: ${colorOxido}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; border-radius: 4px; margin-right: 10px; }
-                
                 .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 8px; margin-bottom: 10px; border: 1px solid #eee; }
                 
-                /* TABLA CORREGIDA PARA QUE NO SE MUEVA */
                 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-                th { background: ${colorOxido}; color: white; padding: 5px; font-size: 10px; text-transform: uppercase; }
-                td { padding: 5px; border-bottom: 1px solid #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                th { background: ${colorOxido}; color: white; padding: 6px; font-size: 10px; text-transform: uppercase; }
                 
-                .col-desc { width: 55%; text-align: left; }
-                .col-cant { width: 15%; text-align: right; }
-                .col-total { width: 30%; text-align: right; }
-
-                .totals-box { width: 200px; margin-left: auto; margin-top: 10px; background: #fdf8f5; padding: 10px; border: 1px solid #eee; }
+                .totals-box { width: 220px; margin-left: auto; margin-top: 15px; background: #fdf8f5; padding: 10px; border: 1px solid #eee; }
                 .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
             </style>
         </head>
         <body>
             <div class="header">
                 <div style="display:flex; align-items:center;">
-                    <div class="logo-box">C</div>
+                    <div style="width:40px; height:40px; background:${colorOxido}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; border-radius:4px; margin-right:10px;">C</div>
                     <div>
                         <h2 style="margin:0; color:${colorOxido}; font-size:16px;">CREATIVA CORTES CNC</h2>
                         <p style="margin:0; font-size:8px;">DISEÑO • CORTE • PRECISIÓN</p>
                     </div>
                 </div>
                 <div style="text-align:right;">
-                    <h1 style="margin:0; color:${colorOxido}; font-size:16px;">COMPROBANTE #${saleId}</h1>
-                    <p style="margin:0; font-size:10px;">${saleDate}</p>
+                    <h1 style="margin:0; color:${colorOxido}; font-size:16px;">COMPROBANTE #${venta.venta_id}</h1>
+                    <p style="margin:0; font-size:10px;">${new Date(venta.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
 
             <div class="data-grid">
-                <div><strong>CLIENTE:</strong> ${clientName}</div>
-                <div style="text-align:right;"><strong>DESCRIPCIÓN:</strong> ${desc}</div>
+                <div><strong>CLIENTE:</strong> ${document.getElementById('detail-client-name').textContent}</div>
+                <div style="text-align:right;"><strong>ESTADO:</strong> ${venta.saldo_pendiente > 0 ? 'CON DEUDA' : 'PAGADO'}</div>
             </div>
 
-            <table>
+            <table style="width: 100%;">
                 <thead>
                     <tr>
-                        <th class="col-desc">Descripción</th>
-                        <th class="col-cant">Cant.</th>
-                        <th class="col-total">Total</th>
+                        <th style="width: 60%; text-align: left;">Descripción</th>
+                        <th style="width: 15%; text-align: right;">Cant.</th>
+                        <th style="width: 25%; text-align: right;">Total</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${tempContainer.innerHTML.replace(/<tr>/g, '<tr>').replace(/<td.*?>/g, (match, offset) => {
-                        // Inyectar las clases de ancho fijo en los TD del cuerpo
-                        if (match.includes('text-right')) return '<td class="text-right">';
-                        return '<td>';
-                    })}
+                    ${filasProductos}
                 </tbody>
             </table>
 
-            <div style="display: flex; justify-content: space-between;">
-                <div style="margin-top:10px; font-size:9px; color:#666; font-style:italic;">
-                    * Documento para control interno.
-                </div>
-                <div class="totals-box">
-                    <div style="display:flex; justify-content:space-between;"><span>Venta:</span> <span>${totalVenta}</span></div>
-                    <div style="display:flex; justify-content:space-between; color:green;"><span>Abonado:</span> <span>${pagado}</span></div>
-                    <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:1px solid #ccc; margin-top:5px; font-size:13px;">
-                        <span>SALDO:</span> <span>${deuda}</span>
-                    </div>
+            <div class="totals-box">
+                <div style="display:flex; justify-content:space-between; font-size:10px;"><span>Total Venta:</span> <span>${formatCurrency(venta.total_amount)}</span></div>
+                <div style="display:flex; justify-content:space-between; color:green; font-size:10px;"><span>Abonado:</span> <span>${formatCurrency(venta.total_amount - venta.saldo_pendiente)}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:1px solid #ccc; margin-top:5px; font-size:14px; padding-top:5px;">
+                    <span>PENDIENTE:</span> <span>${formatCurrency(venta.saldo_pendiente)}</span>
                 </div>
             </div>
 
