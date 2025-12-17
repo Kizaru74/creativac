@@ -588,11 +588,10 @@ window.handleChangeProductForSale = function() {
             (parentIdStr === selectedIdStr)                         // Si hay ambigüedad, compara strings
         );
 
-        // 🛑 LOG DE DIAGNÓSTICO FINAL (Muestra por qué falla)
         if (productType === 'PACKAGE') {
-            console.warn(`[DIAG_FILTRO] Producto ID ${p.producto_id} (PAQUETE) - Parent ID: '${parentIdStr}' (${parentIdNum}) | Buscado: '${selectedIdStr}' (${selectedIdNum}) | Coincide: ${idMatch}`);
+            // ... Muestra las coincidencias ID (Deberían ser 8)
         } else {
-             // Este log ya no debería aparecer para los paquetes si el campo 'type' es "PACKAGE"
+             // 🛑 Muestra por qué el TIPO no es PACKAGE
             console.error(`[DIAG_FILTRO_TIPO] Producto ID ${p.producto_id} - TIPO FALLIDO: '${rawType}' / UPPER: '${productType}'`);
         }
         // 🛑 FIN LOG 🛑
