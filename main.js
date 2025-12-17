@@ -546,6 +546,7 @@ window.handleChangeProductForSale = function() {
     // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
     console.log(`[DIAG_CRÍTICO] window.allProducts.length: ${window.allProducts.length} | Producto ID: ${productId} | Tipo: ${typeof productId}`);
     
+    // CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
     if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
         subSelect.disabled = true; 
@@ -553,28 +554,28 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    // Defensa contra Race Condition (usando window.allProducts)
+    // Defensa contra Race Condition
     if (window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta.");
         return; 
     }
     
+    // 2. Establecer el precio por defecto
     window.updatePriceField(productId);
 
     // =======================================================
-    // 3. FILTRADO FINAL (USANDO window.allProducts EXPLÍCITAMENTE)
+    // 3. FILTRADO FINAL Y ROBUSTO
     // =======================================================
     
-    const subProducts = window.allProducts.filter(p => { // ✅ CORRECCIÓN CLAVE: Usamos window.allProducts
+    const subProducts = window.allProducts.filter(p => { 
         
-        const productType = String(p.type || '').toUpperCase(); 
+        // 1. LIMPIEZA RIGUROSA del TIPO: Elimina cualquier espacio (\s) y convierte a mayúsculas
+        const productType = String(p.type || '').replace(/\s/g, '').toUpperCase(); 
+        
+        // 2. Comparamos la ID del padre (String) contra el ID del selector (String)
         const parentId = p.parent_product;
-
-        // DEBUG: Mantenemos un log por si acaso.
-        if (productType === 'PACKAGE' && String(parentId) === productId) {
-             console.log(`[DIAG_EXITO] Producto ID ${p.producto_id} coincide: ${p.name}`);
-        }
         
+        // El filtro verifica que el tipo sea exactamente 'PACKAGE' y que la ID coincida.
         return (
             productType === 'PACKAGE' && 
             String(parentId) === productId
@@ -583,7 +584,9 @@ window.handleChangeProductForSale = function() {
 
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
-    // ... (El resto del código de renderizado es el mismo) ...
+    // =======================================================
+    // 4. RENDERIZADO DEL SELECTOR DE SUBPRODUCTOS
+    // =======================================================
     if (subProducts.length > 0) {
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
