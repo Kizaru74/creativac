@@ -1257,7 +1257,7 @@ function handleAbonoClick(clientId) {
 // 8. MANEJO DE FORMULARIO DE NUEVA VENTA (TRANSACCIONAL)
 // ====================================================================
 
-async function handleNewSale(e) {
+window.handleNewSale = async function(e) {
     e.preventDefault();
     
     // --- 1. CAPTURAR Y VALIDAR DATOS INICIALES ---
