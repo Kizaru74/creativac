@@ -2019,7 +2019,7 @@ window.handleViewSaleDetails = async function(transactionId, clientId) {
     }
 
     // 1. OBTENER DATOS DEL CLIENTE DESDE EL CACHÉ (allClients)
-    const client = allClients.find(c => c.client_id?.toString() === clientId?.toString()); 
+    const client = allClients.find(c => c.client_id === clientId); 
     if (!client) {
         console.error("Cliente no encontrado en allClients.");
         alert("Error: Cliente no encontrado para esta venta. Intente recargar la página.");
