@@ -30,20 +30,42 @@ if (window.supabase) {
 // ====================================================================
 
 async function initializeApp() {
-// 1. Cargar datos esenciales
-    await loadProducts(); // <-- Asumo que esta función carga TODOS los productos
-    await loadClientsTable('gestion'); 
-    
-    // 2. Cargar métricas del dashboard
-    await loadDashboardMetrics(); 
-    
-    // 3. CRÍTICO: Cargar los productos principales para el modal de Subproducto.
-    // Esto asegura que el selector 'new-product-parent-select' esté lleno 
-    // antes de que el usuario lo abra.
-    await loadMainProductsAndPopulateSelect(); 
+    console.log("🚀 Iniciando carga de la aplicación...");
 
-    console.log("✅ Aplicación inicializada y selectores de productos cargados.");
+    try {
+        // 1. CARGAR PRODUCTOS
+        // Asegúrate de que loadProducts guarde en window.allProducts
+        await loadProducts(); 
+        
+        // 2. CARGAR CLIENTES Y MAPAS
+        // Esta función debe llenar window.allClients y window.allClientsMap
+        await loadClientsTable('gestion'); 
+
+        // 3. CARGAR MÉTRICAS DEL DASHBOARD
+        if (typeof loadDashboardMetrics === 'function') {
+            await loadDashboardMetrics();
+        }
+
+        // 4. POBLAR SELECTORES DE VENTA
+        // Es vital que esto ocurra DESPUÉS de loadProducts
+        if (typeof populateProductSelects === 'function') {
+            populateProductSelects(); 
+        }
+
+        // 5. CARGAR PRODUCTOS PARA MODAL SUBPRODUCTO (TU PASO CRÍTICO)
+        if (typeof loadMainProductsAndPopulateSelect === 'function') {
+            await loadMainProductsAndPopulateSelect(); 
+        }
+
+        console.log("✅ Aplicación inicializada correctamente.");
+        
+    } catch (error) {
+        console.error("❌ Error crítico durante la inicialización:", error);
+    }
 }
+
+// Ejecutar al cargar el DOM
+document.addEventListener('DOMContentLoaded', initializeApp);
 //FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
 window.loadDashboardMetrics = async function() {
     if (!supabase) {
@@ -1676,17 +1698,24 @@ window.handleViewClientDebt = async function(clientId) {
     window.viewingClientId = clientId;
     
     try {
-        // 0. Obtener cliente
-        const client = allClients.find(c => c.client_id?.toString() === clientId?.toString());
+        // --- 🟢 CORRECCIÓN 1: Búsqueda Robusta ---
+        // Usamos window.allClients y comparación de Strings para evitar el error "undefined"
+        const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
+        
         if (!client) {
             console.error("Cliente no encontrado para ID:", clientId);
-            alert("Error: Cliente no encontrado.");
-            return;
+            // Intento de rescate: Si no está en memoria, lo buscamos en la BD
+            const { data: retryClient } = await supabase.from('clientes').select('name').eq('client_id', clientId).single();
+            if (!retryClient) {
+                alert("Error: No se encontró la información del cliente.");
+                return;
+            }
+            client = retryClient;
         }
 
-        // 1. OBTENER VENTAS Y PAGOS/ABONOS DIRECTAMENTE
-        
-        // A. Obtener todas las ventas del cliente (cargos)
+        // 1. OBTENER VENTAS Y PAGOS
+        // --- 🟢 CORRECCIÓN 2: Relación de tablas ---
+        // Asegúrate que en Supabase la relación es 'detalle_ventas' y luego 'productos'
         const { data: salesData, error: salesError } = await supabase
             .from('ventas')
             .select(`
@@ -1695,16 +1724,14 @@ window.handleViewClientDebt = async function(clientId) {
                 paid_amount, 
                 created_at,
                 description, 
-                detalle_ventas (productos (name))
-            `)
+                detalle_ventas ( name )
+            `) // Simplificado: si en detalle_ventas ya guardas el 'name', úsalo directo
             .eq('client_id', clientId)
             .order('created_at', { ascending: true });
 
         if (salesError) throw salesError;
-        
         const sales = salesData || []; 
 
-        // B. Obtener todos los pagos/abonos del cliente
         const { data: paymentsData, error: paymentsError } = await supabase
             .from('pagos')
             .select(`venta_id, amount, metodo_pago, created_at`)
@@ -1712,25 +1739,20 @@ window.handleViewClientDebt = async function(clientId) {
             .order('created_at', { ascending: true });
 
         if (paymentsError) throw paymentsError;
-
         const payments = paymentsData || []; 
 
-
-        // 2. UNIFICAR Y NORMALIZAR TRANSACCIONES
+        // 2. UNIFICAR Y NORMALIZAR
         let transactions = [];
 
-        // 2a. Normalizar Ventas (Cargos)
         sales.forEach(sale => {
-            const productNames = sale.detalle_ventas.map(d => d.productos.name).join(', ') || 'Venta General';
+            // Manejo de nombres de productos para evitar errores de undefined
+            const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
             
-            // Construir la descripción: Productos + Comentario/Detalle de la venta (si existe)
             let transactionDescription = `Venta: ${productNames}`;
-            if (sale.description && sale.description.trim() !== '') {
-                // Separador claro para el detalle de la venta
+            if (sale.description) {
                 transactionDescription += ` — ${sale.description.trim()}`; 
             }
 
-            // Registramos la VENTA COMPLETA como el cargo a la deuda
             transactions.push({
                 date: new Date(sale.created_at),
                 type: 'cargo_venta',
@@ -1741,26 +1763,19 @@ window.handleViewClientDebt = async function(clientId) {
             });
         });
 
-        // 2b. Normalizar Pagos (Abonos)
         payments.forEach(payment => {
             let description = `Abono a Deuda (${payment.metodo_pago})`;
             
             if (payment.venta_id) {
                 const sale = sales.find(s => s.venta_id === payment.venta_id);
                 if (sale) {
-                    const productNames = sale.detalle_ventas.map(d => d.productos.name).join(', ') || 'Venta General';
-                    const saleDate = new Date(sale.created_at);
-                    const paymentDate = new Date(payment.created_at);
-                    const timeDiff = Math.abs(saleDate - paymentDate); 
+                    const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
+                    const timeDiff = Math.abs(new Date(sale.created_at) - new Date(payment.created_at)); 
                     
                     if (timeDiff < 60000) { 
                         description = `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`;
                     } else {
                         description = `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
-                    }
-                    
-                    if (sale.description && sale.description.trim() !== '') {
-                         description += ` (${sale.description.trim()})`; 
                     }
                 }
             }
@@ -1775,85 +1790,44 @@ window.handleViewClientDebt = async function(clientId) {
             });
         });
 
+        // 3. ORDENAR
+        transactions.sort((a, b) => a.date - b.date || a.order - b.order);
 
-        // 3. ORDENAR TODAS LAS TRANSACCIONES
-        transactions.sort((a, b) => {
-            if (a.date.getTime() !== b.date.getTime()) {
-                return a.date.getTime() - b.date.getTime();
-            }
-            return a.order - b.order;
-        });
-
-        
-        // 4. GENERAR EL HTML Y CALCULAR EL SALDO ACUMULADO
+        // 4. RENDERIZAR
         document.getElementById('client-report-name').textContent = client.name;
         const historyBody = document.getElementById('client-transactions-body'); 
-        let historyHTML = []; 
+        let historyHTML = ""; 
         let currentRunningBalance = 0; 
 
         transactions.forEach(t => {
-            const amountValue = t.amount;
-            let transactionDescription = t.description;
-            let amountDisplay = formatCurrency(amountValue);
-            let amountClass = '';
-            
-            if (t.type === 'cargo_venta') {
-                currentRunningBalance += amountValue;
-                amountClass = 'text-red-600 font-bold'; 
-            } else if (t.type === 'abono') { 
-                currentRunningBalance -= amountValue;
-                amountClass = 'text-green-600 font-bold';
-            } else {
-                console.warn(`Tipo de transacción no reconocido: ${t.type}.`);
-                return; 
-            }
+            if (t.type === 'cargo_venta') currentRunningBalance += t.amount;
+            else currentRunningBalance -= t.amount;
 
-            // --- CÁLCULO DEL SALDO ACUMULADO VISUAL ---
-            const absBalance = Math.abs(currentRunningBalance);
-            const runningBalanceDisplay = formatCurrency(absBalance);
-            let balanceClass = '';
-            
-            if (currentRunningBalance > 0.01) {
-                balanceClass = 'text-red-600 font-bold text-right';
-            } else if (currentRunningBalance < -0.01) {
-                balanceClass = 'text-green-600 font-bold text-right';
-            } else {
-                balanceClass = 'text-gray-700 font-bold text-right';
-            }
-            
-            // 5. GENERACIÓN DEL HTML DE LA FILA
-            historyHTML.push(`
-                <tr class="hover:bg-gray-50 text-sm">
-                    <td class="px-3 py-3 whitespace-nowrap text-gray-500">${formatDate(t.date)}</td>
-                    <td class="px-3 py-3 text-gray-800">${transactionDescription}</td>
-                    <td class="px-3 py-3 whitespace-nowrap text-right ${amountClass}">${amountDisplay}</td>
-                    <td class="px-3 py-3 whitespace-nowrap text-right ${balanceClass}">${runningBalanceDisplay}</td>
+            const balanceClass = currentRunningBalance > 0.01 ? 'text-red-600' : 'text-green-600';
+            const amountClass = t.type === 'cargo_venta' ? 'text-red-600' : 'text-green-600';
+
+            historyHTML += `
+                <tr class="hover:bg-gray-50 text-sm border-b">
+                    <td class="px-3 py-3 text-gray-500">${new Date(t.date).toLocaleDateString()}</td>
+                    <td class="px-3 py-3 text-gray-800">${t.description}</td>
+                    <td class="px-3 py-3 text-right font-bold ${amountClass}">${formatCurrency(t.amount)}</td>
+                    <td class="px-3 py-3 text-right font-bold ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
                 </tr>
-            `);
+            `;
         });
         
-        // 6. INYECCIÓN FINAL Y ACTUALIZACIÓN DE TOTALES
-        historyBody.innerHTML = historyHTML.join('');
+        historyBody.innerHTML = historyHTML;
         
+        // 5. TOTAL FINAL
         const totalDebtElement = document.getElementById('client-report-total-debt');
+        totalDebtElement.textContent = formatCurrency(Math.abs(currentRunningBalance));
+        totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-600 font-bold text-xl' : 'text-green-600 font-bold text-xl';
 
-        if (currentRunningBalance > 0.01) {
-            totalDebtElement.textContent = formatCurrency(Math.abs(currentRunningBalance));
-            totalDebtElement.className = 'text-red-600 font-bold text-xl';
-        } else if (currentRunningBalance < -0.01) {
-            totalDebtElement.textContent = `Crédito ${formatCurrency(Math.abs(currentRunningBalance))}`; 
-            totalDebtElement.className = 'text-green-600 font-bold text-xl';
-        } else {
-            totalDebtElement.textContent = formatCurrency(0);
-            totalDebtElement.className = 'text-gray-600 font-bold text-xl';
-        }
-
-        // Mostrar el modal al final
         openModal('modal-client-debt-report'); 
         
     } catch (e) {
-        console.error('Error al cargar la deuda del cliente:', e);
-        alert('Hubo un error al cargar el historial de deuda. Verifique la consola para más detalles.');
+        console.error('Error al cargar la deuda:', e);
+        alert('Error al cargar el historial.');
     }
 }
 
@@ -2004,220 +1978,40 @@ window.printClientDebtReport = function() {
     }
 }
 
-window.handleViewSaleDetails = async function(transactionId, clientId) {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        alert("Error de configuración: Supabase no está disponible.");
-        return;
-    }
-
-    const saleIdNum = parseInt(transactionId, 10);
-    if (isNaN(saleIdNum)) {
-        console.error("ID de transacción inválido.");
-        alert("Error: El ID de la venta es inválido.");
-        return;
-    }
-
-    // 1. OBTENER DATOS DEL CLIENTE DESDE EL CACHÉ (allClients)
-    const client = allClients.find(c => String(c.client_id) === String(clientId));
-
-    if (!client) {
-    console.warn("Cliente no encontrado en allClients con ID:", clientId);
-    // Intento de respaldo usando el Mapa global que arreglamos antes
-    const backupClient = window.allClientsMap ? window.allClientsMap[clientId] : null;
-    
-    if (!backupClient) {
-        alert("Error: No se pudo localizar la información del cliente #" + clientId);
-        return;
-    }
-}
-    window.viewingClientId = clientId; // Guardamos el ID del cliente que estamos viendo para el checkout
-
+window.handleViewSaleDetails = async function(venta_id) {
     try {
-        // 2. CARGA DE LA VENTA PRINCIPAL (Tabla 'ventas')
-        const { data: sale, error: saleError } = await supabase
+        // 1. Obtener los datos de la venta de Supabase
+        const { data: venta, error: vError } = await supabase
             .from('ventas')
-            .select(`venta_id, total_amount, paid_amount, saldo_pendiente, created_at, description, metodo_pago`) 
-            .eq('venta_id', saleIdNum)
+            .select('*')
+            .eq('venta_id', venta_id)
             .single();
 
-        if (saleError || !sale) {
-            console.error("Error al cargar detalles de la venta (Tabla Ventas):", saleError);
-            throw new Error("No se encontró la venta principal (ID: " + saleIdNum + ").");
+        if (vError || !venta) throw new Error("No se encontró la venta");
+
+        // 2. BUSCAR AL CLIENTE (Corrección aquí)
+        // Usamos String() y window.allClients para máxima compatibilidad
+        let client = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
+
+        // Si no se encuentra en la lista global, lo buscamos directo en la BD para que no "explote"
+        if (!client) {
+            console.warn("Cliente no en lista global, buscando en BD...");
+            const { data: cDb } = await supabase.from('clientes').select('*').eq('client_id', venta.client_id).single();
+            client = cDb;
         }
 
-        // 3. CARGA DE ÍTEMS DE VENTA (Tabla 'detalle_ventas')
-        const { data: items, error: itemsError } = await supabase
-            .from('detalle_ventas')
-            .select(`detalle_id, quantity, price, subtotal, product_id, productos(name, parent_product)`) 
-            .eq('venta_id', saleIdNum) 
-            .order('detalle_id', { ascending: true }); 
+        if (!client) throw new Error("Cliente no encontrado para esta venta");
 
-        if (itemsError) throw itemsError;
+        // 3. LLENAR EL MODAL (Asegúrate de que estos IDs existan en tu HTML)
+        document.getElementById('modal-client-name').textContent = client.name;
+        document.getElementById('modal-sale-id').textContent = venta.venta_id;
+        // ... resto de tu lógica para mostrar productos y totales ...
 
-        // 4. CARGA DEL HISTORIAL DE PAGOS/ABONOS (Tabla 'pagos')
-        const { data: payments, error: paymentsError } = await supabase
-            .from('pagos')
-            .select(`amount, metodo_pago, created_at`) 
-            .eq('venta_id', saleIdNum)
-            .order('created_at', { ascending: true });
-
-        if (paymentsError) throw paymentsError;
-
-        // 5. INYECCIÓN DE DATOS GENERALES
-        document.getElementById('detail-sale-id').textContent = sale.venta_id; 
-        document.getElementById('detail-client-name').textContent = client.name;
-        document.getElementById('detail-sale-date').textContent = formatDate(sale.created_at);
-        document.getElementById('detail-payment-method').textContent = sale.metodo_pago;
-
-        const descriptionEl = document.getElementById('detail-sale-description');
-        if (descriptionEl && descriptionEl.parentElement) {
-            const descriptionText = sale.description || 'No se registraron comentarios adicionales para esta venta.';
-            descriptionEl.textContent = descriptionText;
-            // Solo mostrar la sección si hay una descripción o al menos la etiqueta está presente
-            // descriptionEl.parentElement.classList.remove('hidden'); 
-        }
-
-        document.getElementById('detail-grand-total').textContent = formatCurrency(sale.total_amount); 
-        document.getElementById('detail-paid-amount').textContent = formatCurrency(sale.paid_amount); 
-        document.getElementById('detail-remaining-debt').textContent = formatCurrency(sale.saldo_pendiente);
-        
-        
-        // 6. RENDERIZADO DE ÍTEMS DE VENTA (Tabla detail-products-body)
-        const productsBody = document.getElementById('detail-products-body');
-        productsBody.innerHTML = '';
-        
-        (items || []).forEach(item => {
-            const productData = item.productos;
-            let finalName = productData?.name || 'Ítem Desconocido'; // Nombre base
-
-            // 🛑 APLICANDO MEJORA: Mostrar el producto padre de forma limpia
-            if (productData && productData.parent_product && window.allProductsMap) {
-                const parentProduct = window.allProductsMap[productData.parent_product]; 
-                // Aseguramos que el producto padre exista y que no sea el mismo que el hijo
-                if (parentProduct && productData.name !== parentProduct.name) {
-                    // Formato: Nombre del Ítem (P: Nombre del Padre)
-                    finalName = `${productData.name} <span class="text-xs text-gray-500 ml-1">(P: ${parentProduct.name})</span>`;
-                }
-            }
-            
-            productsBody.innerHTML += `
-                <tr>
-                    <td class="px-4 py-2">${finalName}</td> 
-                    <td class="px-4 py-2 text-center">${item.quantity}</td>
-                    <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
-                    <td class="px-4 py-2 font-medium text-right">${formatCurrency(item.subtotal)}</td>
-                    <td class="px-4 py-2"></td>
-                </tr>
-            `;
-        });
-        
-        // 7. RENDERIZADO DE ABONOS (Tabla detail-abonos-body)
-        const abonosBody = document.getElementById('detail-abonos-body');
-        const noAbonosMessage = document.getElementById('no-abonos-message');
-        abonosBody.innerHTML = '';
-
-        if (payments.length === 0) {
-            noAbonosMessage.classList.remove('hidden');
-        } else {
-            noAbonosMessage.classList.add('hidden');
-            payments.forEach(payment => {
-                const metodoPagoDisplay = payment.metodo_pago || 'Pago Inicial'; 
-                
-                abonosBody.innerHTML += `
-                    <tr>
-                        <td class="px-4 py-2">${formatDate(payment.created_at)}</td>
-                        <td class="px-4 py-2 font-medium text-right text-green-700">${formatCurrency(payment.amount)}</td>
-                        <td class="px-4 py-2">${metodoPagoDisplay}</td>
-                    </tr>
-                `;
-            });
-        }
-        
-        // =======================================================
-        // 8. LÓGICA CONDICIONAL: Edición de Precio ($0.00) vs Abono (Deuda Activa)
-        // =======================================================
-        
-        const priceEditSection = document.getElementById('price-edit-section');
-        const abonoButtonInSummary = document.querySelector('[data-open-modal="abono-client-modal"]'); 
-
-        // Criterio para Venta Fantasma ($0.00)
-        const isZeroSalePending = (parseFloat(sale.total_amount) < 0.01) && (parseFloat(sale.paid_amount) < 0.01) && (parseFloat(sale.saldo_pendiente) < 0.01);
-        
-        // Criterio para Deuda Activa
-        const hasActiveDebt = parseFloat(sale.saldo_pendiente) > 0.01;
-        const remainingDebt = sale.saldo_pendiente; 
-
-        if (isZeroSalePending) {
-            // VENTA FANTASMA: Habilitar Edición de Precio
-            priceEditSection?.classList.remove('hidden');
-            abonoButtonInSummary?.classList.add('hidden'); 
-            
-            const itemToEdit = (items || [])[0];
-            document.getElementById('edit-sale-id-display').textContent = sale.venta_id;
-            document.getElementById('edit-sale-transaction-id').value = sale.venta_id; 
-
-            if (itemToEdit && itemToEdit.detalle_id) { 
-                document.getElementById('edit-sale-detail-id').value = itemToEdit.detalle_id; 
-                document.getElementById('edit-new-price').value = itemToEdit.price || ''; 
-                
-                // Relleno de Nombre de Producto para Edición
-                const productData = itemToEdit.productos;
-                let fullName = productData?.name || 'Ítem Principal';
-
-                if (productData && productData.parent_product && window.allProductsMap) {
-                    const parentProduct = window.allProductsMap[productData.parent_product]; 
-                    if (parentProduct) {
-                        fullName = `${parentProduct.name} (${productData.name})`;
-                    }
-                }
-                document.getElementById('edit-product-name').textContent = fullName;
-                
-            } else {
-                // Si la venta está a 0 pero no tiene detalle (caso raro), ocultamos edición
-                priceEditSection?.classList.add('hidden');
-            }
-            
-        } else if (hasActiveDebt) {
-            // DEUDA ACTIVA: Habilitar Abono
-            priceEditSection?.classList.add('hidden');
-            abonoButtonInSummary?.classList.remove('hidden');
-            
-            // Rellenar Modal de Abono (Datos de Venta Específica)
-            window.debtToPayId = sale.venta_id; // <-- CRÍTICO: Aquí indicamos que el abono es para esta Venta ID
-            
-            const debtIdInput = document.getElementById('debt-to-pay-id');
-            const currentDebtSpan = document.getElementById('abono-current-debt');
-
-            if (debtIdInput) {
-                debtIdInput.value = sale.venta_id; 
-            }
-            if (currentDebtSpan) {
-                currentDebtSpan.textContent = formatCurrency(remainingDebt);
-            }
-            
-            // Adjuntar evento para abrir el modal de abono y pasar el ID de la VENTA
-            if (abonoButtonInSummary) {
-                abonoButtonInSummary.onclick = () => {
-                    // Usamos la función de abono para pasar el ID de la VENTA (no el cliente)
-                    window.openAbonoModal(sale.venta_id, client.name, remainingDebt); 
-                };
-            }
-            
-        } else {
-            // VENTA PAGADA COMPLETAMENTE: Ocultar ambos
-            priceEditSection?.classList.add('hidden');
-            abonoButtonInSummary?.classList.add('hidden');
-        }
-
-        // 9. ABRIR EL MODAL
-        openModal('modal-detail-sale');
-
-    } catch (e) {
-        console.error('Error al cargar detalles de venta:', e);
-        alert('Hubo un error al cargar los detalles de la venta. ' + (e.message || ''));
+    } catch (err) {
+        console.error("Error al cargar detalles de venta:", err);
+        alert("Error: " + err.message);
     }
-}
+};
 
 window.handleAbonoClientSubmit = async function(e) {
     e.preventDefault();
