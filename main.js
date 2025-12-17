@@ -1465,7 +1465,7 @@ window.handleNewSale = async function(e) {
         closeModal('new-sale-modal'); 
         window.currentSaleItems = []; 
         window.updateSaleTableDisplay(); 
-        e.target.reset(); 
+        document.getElementById('new-sale-form')?.reset(); // ✅ Esto siempre funcionará
         
         await loadDashboardData(); 
         await loadClientsTable('gestion'); 
