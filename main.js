@@ -879,88 +879,63 @@ function handleAddProductToSale(e) {
     const subSelect = document.getElementById('subproduct-select');
     const quantityInput = document.getElementById('product-quantity'); 
     const priceInput = document.getElementById('product-unit-price'); 
-    
-    // 🛑 CRÍTICO: ID REAL del "Servicio Manual" creado en Supabase
-    const MANUAL_SERVICE_ID = 32; 
 
     // 1. Obtener IDs y Cantidad
     const mainProductId = mainSelect?.value;
     const subProductId = subSelect?.value;
     const quantity = parseFloat(quantityInput?.value);
 
-    let productIdToCharge = subProductId;
-    if (!productIdToCharge) {
-        productIdToCharge = mainProductId;
-    }
+    // Priorizamos el subproducto (paquete) si existe, de lo contrario usamos el principal
+    let productIdToCharge = (subProductId && subProductId !== "") ? subProductId : mainProductId;
     
-    // Convertimos a String para la búsqueda inicial
-    const searchId = String(productIdToCharge); 
-    let productToCharge = allProducts.find(p => String(p.producto_id) === searchId); 
+    // Buscamos el objeto del producto en la data global
+    const searchIdStr = String(productIdToCharge || '').trim();
+    let productToCharge = window.allProducts.find(p => String(p.producto_id) === searchIdStr); 
 
-    // 2. Lógica de Precio (Acepta $0.00)
-    const priceStr = priceInput?.value;
-    let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
-    
-    // Si el precio manual es 0, usar el precio de la base de datos como fallback (que puede ser 0).
-    if (price === 0 && productToCharge) { 
-        price = productToCharge.price || 0; 
-    }
-    
-    // --- LÓGICA DE ID DE EMERGENCIA ---
-    // Si NO encontramos el producto en 'allProducts' Y el precio es 0, asumimos que es el Servicio Manual.
-    if (!productToCharge && (parseInt(searchId, 10) === 0 || !searchId) && price === 0) {
-        
-        // Creamos un objeto temporal con el ID válido (32) para que la inserción no falle
-        productToCharge = {
-            producto_id: MANUAL_SERVICE_ID,
-            name: "Servicio Manual / $0.00",
-            price: 0,
-            type: "MANUAL"
-        };
-        // Asignamos el ID válido para el resto del proceso
-        productIdToCharge = MANUAL_SERVICE_ID; 
-    } 
-    // --- FIN DE LÓGICA DE ID DE EMERGENCIA ---
-
-    // --- Validaciones Finales ---
+    // 2. Validaciones iniciales
     if (!productToCharge) {
-        // Esta validación final solo se ejecuta si el producto no se encontró y no era el caso de emergencia de $0.00
         alert('Por favor, selecciona un Producto o Paquete válido.');
         return;
     }
+
     if (isNaN(quantity) || quantity <= 0) {
         alert('La cantidad debe ser mayor a cero.');
         return;
     }
+
+    // 3. Lógica de Precio
+    const priceStr = priceInput?.value;
+    let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
+    
+    // Si el input de precio está en 0, intentamos usar el precio base del producto
+    if (price === 0 && productToCharge) { 
+        price = parseFloat(productToCharge.price) || 0; 
+    }
     
     const subtotal = quantity * price;
 
-    // 3. CONSTRUCCIÓN DEL NOMBRE (Producto Padre / Subcategoría)
+    // 4. Construcción del Nombre para mostrar en la tabla
     let nameDisplay = productToCharge.name; 
     
-    if (subProductId) {
-        // Aseguramos que mainProductData exista si subProductId está presente
-        const mainProductData = allProducts.find(p => String(p.producto_id) === String(mainProductId));
+    // Si es un paquete, mostramos: "Producto Principal (Nombre Paquete)"
+    if (subProductId && subProductId !== "") {
+        const mainProductData = window.allProducts.find(p => String(p.producto_id) === String(mainProductId));
         if (mainProductData) {
             nameDisplay = `${mainProductData.name} (${productToCharge.name})`; 
         }
-    } else if (productToCharge.type && productToCharge.type.trim().toUpperCase() !== 'MAIN') {
-        nameDisplay = `${productToCharge.name} (${productToCharge.type})`; 
     }
-    // ------------------------------------------------------------------------
 
+    // 5. Creación del objeto para el carrito
     const newItem = {
-        // 🛑 CRÍTICO: Forzamos la conversión a número entero. Será el ID real o el 32.
-        product_id: parseInt(productIdToCharge, 10),           
-        name: nameDisplay,             
+        product_id: parseInt(productIdToCharge, 10), 
+        name: nameDisplay, 
         quantity: quantity,
         price: price, 
         subtotal: subtotal,
         type: productToCharge.type || null, 
     };
 
-    // 4. Lógica de agregar-actualizar el carrito
-    // La búsqueda debe usar el ID numérico para coincidir con newItem
+    // 6. Lógica de agregar o actualizar cantidad si ya existe
     const searchIdNum = parseInt(productIdToCharge, 10);
     const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchIdNum);
 
@@ -971,16 +946,20 @@ function handleAddProductToSale(e) {
         currentSaleItems.push(newItem); 
     }
     
-    // 5. Renderizado y Limpieza
+    // 7. Actualizar Interfaz y Limpiar
     updateSaleTableDisplay(); 
     calculateGrandTotal(); 
 
-    // Limpieza de inputs
+    // Resetear formulario
     mainSelect.value = '';
-    subSelect.value = '';
+    subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
+    subSelect.disabled = true;
     quantityInput.value = '1';
-    updatePriceField(null); 
-    loadMainProductsForSaleSelect(); 
+    priceInput.value = '0.00';
+
+    if (typeof loadMainProductsForSaleSelect === 'function') {
+        loadMainProductsForSaleSelect(); 
+    }
 }
 
 async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
