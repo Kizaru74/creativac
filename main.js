@@ -1352,7 +1352,6 @@ function handleAbonoClick(clientId) {
 window.handleAbonoSubmit = async function(e) {
     if (e) e.preventDefault();
 
-    // Capturamos los datos del formulario
     const clientId = document.getElementById('abono-client-id')?.value;
     const amount = parseFloat(document.getElementById('abono-amount')?.value);
     const method = document.getElementById('payment-method-abono')?.value;
@@ -1365,7 +1364,6 @@ window.handleAbonoSubmit = async function(e) {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Procesando...'; }
 
     try {
-        // 1. Obtener la deuda actual del cliente directamente de la BD (para seguridad)
         const { data: clientData, error: cError } = await supabase
             .from('clientes')
             .select('deuda_total, name')
@@ -1374,18 +1372,17 @@ window.handleAbonoSubmit = async function(e) {
 
         if (cError || !clientData) throw new Error("No se pudo obtener la información del cliente.");
 
-        // 2. REGISTRAR EL PAGO EN LA TABLA 'PAGOS'
-        // (Nota: Si es un abono general al cliente, venta_id puede ser null)
+        // 1. REGISTRAR EL PAGO
         const { error: pError } = await supabase.from('pagos').insert([{
             client_id: clientId,
             amount: amount,
             metodo_pago: method,
             type: 'ABONO_GENERAL', 
-            fecha_pago: new Date().toISOString()
+            created_at: new Date().toISOString() // Asegúrate que el nombre de columna sea created_at o fecha_pago
         }]);
         if (pError) throw pError;
 
-        // 3. ACTUALIZAR LA DEUDA TOTAL DEL CLIENTE
+        // 2. ACTUALIZAR DEUDA
         const nuevaDeuda = (clientData.deuda_total || 0) - amount;
         const { error: uError } = await supabase
             .from('clientes')
@@ -1394,15 +1391,19 @@ window.handleAbonoSubmit = async function(e) {
         
         if (uError) throw uError;
 
-        // --- ÉXITO ---
-        alert(`Abono de ${amount} registrado para ${clientData.name}. Nueva deuda: ${nuevaDeuda}`);
-        
+        // --- 🟢 MEJORA 1: LIMPIEZA Y CIERRE ---
+        alert(`Abono de ${amount} registrado con éxito.`);
         closeModal('abono-client-modal');
         document.getElementById('abono-client-form')?.reset();
         
-        // Recargar las tablas para ver los cambios
+        // --- 🟢 MEJORA 2: REFRESCAR TODO SIN RECARGAR PÁGINA ---
         if (window.loadClientsTable) await window.loadClientsTable('gestion');
         if (window.loadDashboardData) await window.loadDashboardData();
+        
+        // Si el reporte de deuda del cliente está abierto, lo refrescamos automáticamente
+        if (typeof window.handleViewClientDebt === 'function') {
+            await window.handleViewClientDebt(clientId);
+        }
 
     } catch (err) {
         console.error("Error en abono:", err);
