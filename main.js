@@ -476,42 +476,24 @@ window.loadProductsData = async function() {
     }
     
     try {
-        // 1. Fetch de la data
-        const { data: products, error } = await supabase
-            .from('productos')
-            .select('*');
-
+        const { data: products, error } = await supabase.from('productos').select('*');
         if (error) throw error;
         
-        // 2. 🛑 CRÍTICO: Mapeo y LIMPIEZA de tipado
-        // Ahora, 'parent_product' se asegura de ser un STRING para la consistencia del filtro.
         window.allProducts = (products || []).map(p => {
-            
-            // Limpieza y tipificación del ID principal a NÚMERO
             const parsedProductId = parseInt(String(p.producto_id).trim(), 10);
-            
-            // Limpieza y tipificación del Parent ID (El foco de la corrección)
-            const cleanedParentProduct = p.parent_product 
-                ? String(p.parent_product).trim() 
-                : null;
-            
-            let finalParentId = null;
-            if (cleanedParentProduct === 'BASE') {
-                finalParentId = 'BASE'; // Mantener el string especial 'BASE'
-            } else if (cleanedParentProduct) {
-                // ✅ CORRECCIÓN FINAL: Guardamos el valor como STRING LIMPIO
-                // Esto es crucial para que coincida con el valor String del SELECT.
-                finalParentId = cleanedParentProduct; 
-            }
+            const cleanedParentProduct = p.parent_product ? String(p.parent_product).trim() : null;
+            let finalParentId = cleanedParentProduct; // Se mantiene como string limpio
 
+            // Limpieza rigurosa del tipo para la asignación booleana
+            const cleanType = String(p.type || '').replace(/\s/g, '').toUpperCase();
+            
             return {
                 ...p,
-                // Asegurar que el ID del producto sea un NÚMERO
                 producto_id: isNaN(parsedProductId) ? p.producto_id : parsedProductId, 
-                // Garantizar que 'type' sea consistente (ej. 'PACKAGE', 'MAIN')
-                type: String(p.type || 'MAIN').toUpperCase(), 
-                // ✅ Asegurar que parent_product sea STRING, 'BASE', o null
-                parent_product: finalParentId 
+                type: cleanType, // Mantendremos el campo type limpio si lo necesitas para otras cosas
+                parent_product: finalParentId, 
+                // ✅ NUEVA COLUMNA BOOLEANA: is_package
+                is_package: cleanType === 'PACKAGE' 
             };
         });
         
@@ -522,7 +504,7 @@ window.loadProductsData = async function() {
             return map;
         }, {});
         
-        console.log(`✅ Productos cargados y LIMPIADOS en ámbito global: ${window.allProducts.length} ítems.`);
+        console.log(`✅ Productos cargados con bandera is_package: ${window.allProducts.length} ítems.`);
 
     } catch (error) {
         console.error("Error al cargar productos:", error);
@@ -535,7 +517,7 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    // 1. Verificación Inicial de Elementos y Data Global
+    // ... (Verificaciones iniciales de elementos y data) ...
     if (!mainSelect || !subSelect || !priceInput || typeof window.allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (window.allProducts) no encontrados.");
         return;
@@ -543,10 +525,8 @@ window.handleChangeProductForSale = function() {
     
     const productId = mainSelect.value;
     
-    // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
-    console.log(`[DIAG_CRÍTICO] window.allProducts.length: ${window.allProducts.length} | Producto ID: ${productId} | Tipo: ${typeof productId}`);
+    console.log(`[DIAG_CRÍTICO] window.allProducts.length: ${window.allProducts.length} | Producto ID: ${productId}`);
     
-    // CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
     if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
         subSelect.disabled = true; 
@@ -554,39 +534,30 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    // Defensa contra Race Condition
     if (window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta.");
         return; 
     }
     
-    // 2. Establecer el precio por defecto
     window.updatePriceField(productId);
 
     // =======================================================
-    // 3. FILTRADO FINAL Y ROBUSTO
+    // 3. FILTRADO FINAL Y RÁPIDO (Usando el booleano)
     // =======================================================
     
     const subProducts = window.allProducts.filter(p => { 
         
-        // 1. LIMPIEZA RIGUROSA del TIPO: Elimina cualquier espacio (\s) y convierte a mayúsculas
-        const productType = String(p.type || '').replace(/\s/g, '').toUpperCase(); 
-        
-        // 2. Comparamos la ID del padre (String) contra el ID del selector (String)
-        const parentId = p.parent_product;
-        
-        // El filtro verifica que el tipo sea exactamente 'PACKAGE' y que la ID coincida.
+        // ✅ FILTRO ROBUSTO: Compara el booleano 'is_package' con TRUE
+        // Y compara la ID del padre (String) con la ID seleccionada (String)
         return (
-            productType === 'PACKAGE' && 
-            String(parentId) === productId
+            p.is_package === true && 
+            String(p.parent_product) === productId
         );
     });
 
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
-    // =======================================================
-    // 4. RENDERIZADO DEL SELECTOR DE SUBPRODUCTOS
-    // =======================================================
+    // ... (El resto del código de renderizado es el mismo) ...
     if (subProducts.length > 0) {
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
@@ -606,7 +577,6 @@ window.handleChangeProductForSale = function() {
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     }
 }
-//window.handleChangeProductForSale = window.handleChangeProductForSale;
 
 window.loadMainProductsForSaleSelect = function() {
     // 1. Obtener el selector principal
