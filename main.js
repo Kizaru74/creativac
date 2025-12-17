@@ -535,16 +535,16 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
-        console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
+    // 1. Verificación Inicial de Elementos y Data Global
+    if (!mainSelect || !subSelect || !priceInput || typeof window.allProducts === 'undefined') {
+        console.error("Error: Elementos de venta o datos (window.allProducts) no encontrados.");
         return;
     }
     
-    // 1. OBTENER EL ID SELECCIONADO (Es un String: '2')
     const productId = mainSelect.value;
     
     // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
-    console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Producto ID: ${productId} | Tipo: ${typeof productId}`);
+    console.log(`[DIAG_CRÍTICO] window.allProducts.length: ${window.allProducts.length} | Producto ID: ${productId} | Tipo: ${typeof productId}`);
     
     if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
@@ -553,7 +553,8 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    if (!window.allProducts || window.allProducts.length < 5) {
+    // Defensa contra Race Condition (usando window.allProducts)
+    if (window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta.");
         return; 
     }
@@ -561,16 +562,12 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
 
     // =======================================================
-    // 3. FILTRADO (AHORA SIN LIMPIEZA EXCESIVA, CONFIANDO EN LA CARGA)
+    // 3. FILTRADO FINAL (USANDO window.allProducts EXPLÍCITAMENTE)
     // =======================================================
     
-    const subProducts = allProducts.filter(p => {
+    const subProducts = window.allProducts.filter(p => { // ✅ CORRECCIÓN CLAVE: Usamos window.allProducts
         
-        // 1. Convertimos el TIPO a String y Mayúsculas (para el caso que sea 'package')
         const productType = String(p.type || '').toUpperCase(); 
-        
-        // 2. Comparamos la ID del padre (String: '2') contra el ID del selector (String: '2')
-        // No necesitamos trim() ni replace() si la carga ya es limpia.
         const parentId = p.parent_product;
 
         // DEBUG: Mantenemos un log por si acaso.
@@ -580,7 +577,7 @@ window.handleChangeProductForSale = function() {
         
         return (
             productType === 'PACKAGE' && 
-            String(parentId) === productId // Convertimos el ID del padre a String para una comparación segura
+            String(parentId) === productId
         );
     });
 
@@ -606,7 +603,6 @@ window.handleChangeProductForSale = function() {
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     }
 }
-
 //window.handleChangeProductForSale = window.handleChangeProductForSale;
 
 window.loadMainProductsForSaleSelect = function() {
