@@ -149,30 +149,19 @@ function getMonthDateRange(monthString) {
 
 window.openModal = function(modalId) {
     const modal = document.getElementById(modalId);
-    
     if (modal) {
-        // 1. Aseguramos que se muestra como un contenedor flexible
-        modal.classList.add('flex'); 
-        
-        // 2. Quitamos la clase de ocultamiento (ESTO ES CRÍTICO)
-        modal.classList.remove('hidden'); 
-        
-        // 3. Opcional: Aseguramos que el foco esté en el modal para accesibilidad
-        modal.querySelector('input, select, textarea')?.focus();
+        modal.classList.remove('hidden');
+        modal.classList.add('flex'); // Asegura que se centre si usas flexbox
     } else {
-        console.error(`Error: No se encontró el modal con ID: ${modalId}`);
+        console.error(`No se pudo encontrar el modal con ID: ${modalId}`);
     }
-}
+};
 
 window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
-    
     if (modal) {
-        // 1. Ocultamos el modal
-        modal.classList.add('hidden'); 
-        
-        // 2. Opcional: Quitamos la clase de visualización (buena práctica)
-        modal.classList.remove('flex'); 
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
     }
 };
 
@@ -2879,35 +2868,32 @@ window.loadClientsTable = async function(mode = 'gestion') {
     }
 
     const container = document.getElementById('clients-list-body');
-    if (!container) {
-        console.error("Contenedor de clientes ('clients-list-body') no encontrado.");
-        return;
-    }
+    if (!container) return;
 
     const showActions = mode === 'gestion';
 
     try {
         // 1. Obtener la lista base de clientes
+        // AGREGAMOS 'deuda_total' a la selección para que el modal de abono tenga el dato real
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
-            .select('client_id, name, telefono')
+            .select('client_id, name, telefono, deuda_total') 
             .order('name', { ascending: true });
 
         if (clientsError) throw clientsError;
 
-        // --- 🟢 CORRECCIÓN CRÍTICA: Inicializar Mapas y Globales ---
+        // --- 🟢 ACTUALIZACIÓN DE MAPAS GLOBALES ---
         window.allClients = clients; 
         window.allClientsMap = {}; 
         clients.forEach(c => {
             window.allClientsMap[c.client_id] = c;
         });
-        // -------------------------------------------------------
 
-        // 2. Ejecutar las consultas de resumen de ventas/deuda en paralelo
+        // 2. Resumen de ventas (Para mostrar en la tabla)
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Limpiar y Renderizar
+        // 3. Renderizado
         container.innerHTML = '';
 
         clients.forEach((client, index) => {
@@ -2915,39 +2901,39 @@ window.loadClientsTable = async function(mode = 'gestion') {
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50 border-b';
 
+            // Usamos summary.deudaNeta para el indicador visual de la tabla (semáforo rojo/verde)
+            const deudaVisual = summary.deudaNeta;
+
             let actionCell = '';
             if (showActions) {
-                // Agregué el botón de "Abonar" que te faltaba
                 actionCell = `
                     <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
                         <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900" 
-                                data-client-id="${client.client_id}" title="Editar Cliente">
+                                data-client-id="${client.client_id}" title="Editar">
                             <i class="fas fa-edit"></i>
                         </button>
 
                         <button type="button" class="abono-btn text-green-600 hover:text-green-900" 
-                                onclick="handleAbonoClick(${client.client_id})" title="Registrar Abono">
+                                onclick="window.handleAbonoClick(${client.client_id})" title="Abonar">
                             <i class="fas fa-hand-holding-usd"></i>
                         </button>
 
                         <button type="button" class="view-debt-btn text-blue-600 hover:text-blue-900" 
-                                data-client-id="${client.client_id}" title="Ver Estado de Cuenta">
+                                data-client-id="${client.client_id}" title="Estado de Cuenta">
                             <i class="fas fa-file-invoice-dollar"></i>
                         </button>
 
                         <button type="button" class="delete-client-btn text-red-600 hover:text-red-900" 
                                 data-client-id="${client.client_id}" 
-                                data-client-name="${client.name}" title="Eliminar Cliente">
+                                data-client-name="${client.name}" title="Eliminar">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 `;
-            } else {
-                actionCell = `<td class="px-3 py-3"></td>`; 
             }
             
             row.innerHTML = `
-                <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">#${client.client_id}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-400">#${client.client_id}</td>
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-bold text-gray-900">${client.name}</td>
                 <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || '---'}</td>
                 
@@ -2956,8 +2942,8 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 </td>
                 
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-bold 
-                    ${summary.deudaNeta > 0.01 ? 'text-red-600' : 'text-green-600'}">
-                    ${formatCurrency(summary.deudaNeta)}
+                    ${deudaVisual > 0.01 ? 'text-red-600' : 'text-green-600'}">
+                    ${formatCurrency(deudaVisual)}
                 </td>
                 
                 ${actionCell} 
@@ -2965,16 +2951,14 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // 4. Re-enlazar Event Listeners (para los botones que no usan onclick)
+        // 4. Re-enlazar Event Listeners
         if (showActions) {
             container.querySelectorAll('.edit-client-btn').forEach(btn => {
                 btn.addEventListener('click', () => handleEditClientClick(btn.dataset.clientId));
             });
-
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
                 btn.addEventListener('click', () => handleDeleteClientClick(btn.dataset.clientId, btn.dataset.clientName));
             });
-            
             container.querySelectorAll('.view-debt-btn').forEach(btn => {
                 btn.addEventListener('click', () => handleViewClientDebt(btn.dataset.clientId));
             });
@@ -2983,7 +2967,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
     } catch (e) {
         console.error('Error al cargar tabla de clientes:', e);
     }
-}
+};
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
