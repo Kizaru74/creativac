@@ -2016,6 +2016,7 @@ window.printClientDebtReport = function() {
 
 window.handleViewSaleDetails = async function(venta_id) {
     try {
+        // 1. Obtener la venta (incluyendo descripción)
         const { data: venta, error: vError } = await supabase
             .from('ventas')
             .select('*')
@@ -2024,54 +2025,172 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         if (vError) throw vError;
 
-        const { data: productos, error: pError } = await supabase
-            .from('detalle_ventas')
-            .select('*')
-            .eq('venta_id', parseInt(venta_id));
+        // 2. Obtener productos y abonos en paralelo
+        const [prodRes, abonoRes] = await Promise.all([
+            supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
+            supabase.from('abonos').select('*').eq('venta_id', venta_id).order('created_at', { ascending: false })
+        ]);
 
-        window.currentSaleForPrint = { ...venta, productos };
+        const productos = prodRes.data || [];
+        const abonos = abonoRes.data || [];
 
-        // Llenar datos básicos
+        // Guardar para impresión
+        window.currentSaleForPrint = { ...venta, productos, abonos };
+
+        // 3. Llenar Modal - Datos Básicos
         document.getElementById('detail-sale-id').textContent = venta.venta_id;
         document.getElementById('detail-sale-date').textContent = new Date(venta.created_at).toLocaleString();
+        // Mostrar descripción (ajusta 'description' por el nombre real en tu BD si es distinto)
+        document.getElementById('detail-sale-description').textContent = venta.description || venta.notas || 'Sin descripción';
         
         const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
         document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
 
-        // Llenar Tabla con opción de editar precio
+        // 4. Tabla de Productos
         const productsBody = document.getElementById('detail-products-body');
-        productsBody.innerHTML = productos.map(item => {
-            const nombre = item.name || 'Sin nombre';
-            const cant = parseFloat(item.quantity || 0);
-            const precio = parseFloat(item.price || 0);
-            const subtotal = parseFloat(item.subtotal || (cant * precio));
+        productsBody.innerHTML = productos.map(item => `
+            <tr>
+                <td class="px-4 py-2">${item.name || 'Producto'}</td>
+                <td class="px-4 py-2 text-right">${item.quantity}</td>
+                <td class="px-4 py-2 text-right">${formatCurrency(item.price || 0)}</td>
+                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal || 0)}</td>
+            </tr>
+        `).join('');
 
-            return `
-                <tr id="row-item-${item.detalle_id}">
-                    <td class="px-4 py-2 text-gray-800">${nombre}</td>
-                    <td class="px-4 py-2 text-right">${cant}</td>
-                    <td class="px-4 py-2 text-right">
-                        <div class="flex items-center justify-end gap-2">
-                            <span id="price-text-${item.detalle_id}">${formatCurrency(precio)}</span>
-                            <button onclick="editItemPrice(${item.detalle_id}, ${precio}, ${cant})" 
-                                    class="text-amber-700 hover:text-amber-900 px-1">
-                                ✏️
-                            </button>
-                        </div>
-                    </td>
-                    <td class="px-4 py-2 text-right font-bold" id="subtotal-${item.detalle_id}">
-                        ${formatCurrency(subtotal)}
-                    </td>
+        // 5. Tabla de Abonos (Historial)
+        const abonosBody = document.getElementById('detail-abonos-body');
+        if (abonos.length > 0) {
+            abonosBody.innerHTML = abonos.map(a => `
+                <tr class="text-xs border-b">
+                    <td class="py-1">${new Date(a.created_at).toLocaleDateString()}</td>
+                    <td class="py-1">${a.metodo_pago || 'Efectivo'}</td>
+                    <td class="py-1 text-right font-semibold">${formatCurrency(a.monto)}</td>
                 </tr>
-            `;
-        }).join('');
+            `).join('');
+        } else {
+            abonosBody.innerHTML = '<tr><td colspan="3" class="text-center py-2 text-gray-400">No hay abonos registrados</td></tr>';
+        }
 
-        updateTotalUI(venta.total_amount, venta.saldo_pendiente);
+        // 6. Totales
+        const total = venta.total_amount || 0;
+        const deuda = venta.saldo_pendiente || 0;
+        document.getElementById('detail-grand-total').textContent = formatCurrency(total);
+        document.getElementById('detail-paid-amount').textContent = formatCurrency(total - deuda);
+        document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
+
         window.openModal('modal-detail-sale');
-
     } catch (err) {
-        console.error("❌ Error:", err);
+        console.error("Error:", err);
     }
+};
+
+window.imprimirTicketVenta = function() {
+    const getTxt = (id) => document.getElementById(id)?.textContent || "---";
+    
+    // Extraer datos del modal
+    const saleId = getTxt('detail-sale-id');
+    const clientName = getTxt('detail-client-name');
+    const saleDate = getTxt('detail-sale-date');
+    const totalVenta = getTxt('detail-grand-total');
+    const pagado = getTxt('detail-paid-amount');
+    const deuda = getTxt('detail-remaining-debt');
+    const desc = getTxt('detail-sale-description');
+
+    // Limpieza de productos para el PDF (Quitando botones y fijando columnas)
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = document.getElementById('detail-products-body').innerHTML;
+    tempContainer.querySelectorAll('button').forEach(b => b.remove());
+    
+    const colorOxido = "#8B4513"; 
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page { size: 216mm 140mm; margin: 10mm; }
+                body { font-family: 'Segoe UI', Arial; color: #333; margin: 0; font-size: 11px; }
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 5px; margin-bottom: 10px; }
+                .logo-box { width: 40px; height: 40px; background: ${colorOxido}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; border-radius: 4px; margin-right: 10px; }
+                
+                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 8px; margin-bottom: 10px; border: 1px solid #eee; }
+                
+                /* TABLA CORREGIDA PARA QUE NO SE MUEVA */
+                table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                th { background: ${colorOxido}; color: white; padding: 5px; font-size: 10px; text-transform: uppercase; }
+                td { padding: 5px; border-bottom: 1px solid #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                
+                .col-desc { width: 55%; text-align: left; }
+                .col-cant { width: 15%; text-align: right; }
+                .col-total { width: 30%; text-align: right; }
+
+                .totals-box { width: 200px; margin-left: auto; margin-top: 10px; background: #fdf8f5; padding: 10px; border: 1px solid #eee; }
+                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div style="display:flex; align-items:center;">
+                    <div class="logo-box">C</div>
+                    <div>
+                        <h2 style="margin:0; color:${colorOxido}; font-size:16px;">CREATIVA CORTES CNC</h2>
+                        <p style="margin:0; font-size:8px;">DISEÑO • CORTE • PRECISIÓN</p>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <h1 style="margin:0; color:${colorOxido}; font-size:16px;">COMPROBANTE #${saleId}</h1>
+                    <p style="margin:0; font-size:10px;">${saleDate}</p>
+                </div>
+            </div>
+
+            <div class="data-grid">
+                <div><strong>CLIENTE:</strong> ${clientName}</div>
+                <div style="text-align:right;"><strong>DESCRIPCIÓN:</strong> ${desc}</div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-desc">Descripción</th>
+                        <th class="col-cant">Cant.</th>
+                        <th class="col-total">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tempContainer.innerHTML.replace(/<tr>/g, '<tr>').replace(/<td.*?>/g, (match, offset) => {
+                        // Inyectar las clases de ancho fijo en los TD del cuerpo
+                        if (match.includes('text-right')) return '<td class="text-right">';
+                        return '<td>';
+                    })}
+                </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: space-between;">
+                <div style="margin-top:10px; font-size:9px; color:#666; font-style:italic;">
+                    * Documento para control interno.
+                </div>
+                <div class="totals-box">
+                    <div style="display:flex; justify-content:space-between;"><span>Venta:</span> <span>${totalVenta}</span></div>
+                    <div style="display:flex; justify-content:space-between; color:green;"><span>Abonado:</span> <span>${pagado}</span></div>
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:1px solid #ccc; margin-top:5px; font-size:13px;">
+                        <span>SALDO:</span> <span>${deuda}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer">
+                📱 WhatsApp: 985 111 2233 | 📍 Valladolid, Yucatán
+            </div>
+
+            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+        </body>
+        </html>
+    `;
+
+    const pWin = window.open('', '_blank');
+    pWin.document.write(htmlContent);
+    pWin.document.close();
 };
 
 // Función auxiliar para actualizar los textos de los totales
@@ -3858,130 +3977,6 @@ function initReportSelectors() {
         }
     }, 10);
 }
-
-//Imprimir PDF de detalles de venta
-window.imprimirTicketVenta = function() {
-    const getTxt = (id) => document.getElementById(id)?.textContent || "---";
-    
-    const saleId = getTxt('detail-sale-id');
-    const clientName = getTxt('detail-client-name');
-    const saleDate = getTxt('detail-sale-date');
-    const totalVenta = getTxt('detail-grand-total');
-    const pagado = getTxt('detail-paid-amount');
-    const deuda = getTxt('detail-remaining-debt');
-
-    // LIMPIEZA DE ICONOS (QUITAR LÁPIZ)
-    const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = document.getElementById('detail-products-body').innerHTML;
-    tempContainer.querySelectorAll('button').forEach(btn => btn.remove());
-    const productosHTML = tempContainer.innerHTML;
-
-    const colorOxido = "#8B4513"; 
-    const fondoLigero = "#FDF8F5";
-
-    const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                /* CONFIGURACIÓN MEDIA CARTA */
-                @page { 
-                    size: 216mm 140mm; /* Media Carta Horizontal */
-                    margin: 10mm; 
-                }
-                body { 
-                    font-family: 'Segoe UI', sans-serif; 
-                    color: #333; 
-                    margin: 0; 
-                    padding: 0;
-                    width: 196mm; /* Ajuste al ancho real de impresión */
-                }
-                
-                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 8px; margin-bottom: 15px; }
-                .brand-text h2 { margin: 0; color: ${colorOxido}; font-size: 18px; text-transform: uppercase; }
-                .logo-box { width: 45px; height: 45px; background: ${colorOxido}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 22px; border-radius: 4px; margin-right: 10px; }
-                
-                .data-grid { display: grid; grid-template-columns: 1.5fr 1fr; background: ${fondoLigero}; padding: 10px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #eee; font-size: 12px; }
-                
-                table { width: 100%; border-collapse: collapse; }
-                th { background: ${colorOxido}; color: white; padding: 6px 10px; font-size: 10px; text-transform: uppercase; }
-                td { padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 11px; }
-                
-                .bottom-section { display: flex; justify-content: space-between; margin-top: 15px; align-items: flex-start; }
-                .totals-box { width: 220px; background: ${fondoLigero}; padding: 10px; border-radius: 4px; border: 1px solid #eee; }
-                .total-line { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; }
-                .total-line.grand { border-top: 2px solid ${colorOxido}; margin-top: 5px; padding-top: 5px; font-weight: bold; font-size: 14px; color: ${colorOxido}; }
-
-                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <div style="display:flex; align-items:center;">
-                    <div class="logo-box">C</div>
-                    <div class="brand-text">
-                        <h2>CREATIVA CORTES CNC</h2>
-                        <p style="margin:0; font-size:9px; font-weight:bold; color:#666;">DISEÑO • CORTE • PRECISIÓN</p>
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    <h1 style="margin:0; color:${colorOxido}; font-size:18px;">COMPROBANTE</h1>
-                    <p style="margin:0; font-size:12px; font-weight:bold;">Nota N°: ${saleId}</p>
-                </div>
-            </div>
-
-            <div class="data-grid">
-                <div><strong>CLIENTE:</strong> ${clientName}</div>
-                <div style="text-align:right;"><strong>FECHA:</strong> ${saleDate}</div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Descripción del Trabajo</th>
-                        <th style="text-align:right;">Cant.</th>
-                        <th style="text-align:right;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${productosHTML}
-                </tbody>
-            </table>
-
-            <div class="bottom-section">
-                <div style="font-size: 9px; color: #888; max-width: 300px;">
-                    * Este documento es un comprobante de control interno para trabajos de fabricación digital y servicios de corte.
-                </div>
-                <div class="totals-box">
-                    <div class="total-line"><span>Total Venta:</span> <span>${totalVenta}</span></div>
-                    <div class="total-line" style="color:#2e7d32;"><span>Abonado:</span> <span>${pagado}</span></div>
-                    <div class="total-line grand">
-                        <span>PENDIENTE:</span> <span>${deuda}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="footer">
-                📱 WhatsApp: 985 111 2233 &nbsp;&nbsp; | &nbsp;&nbsp; 📍 Calle 20 x 15 y 17, Col. Centro, Valladolid
-            </div>
-
-            <script>
-                window.onload = () => { 
-                    window.print(); 
-                    setTimeout(() => window.close(), 600); 
-                };
-            </script>
-        </body>
-        </html>
-    `;
-
-    const pWin = window.open('', '_blank');
-    if(pWin) {
-        pWin.document.write(htmlContent);
-        pWin.document.close();
-    }
-};
 
 function generateTextTicket(sale) {
     const TICKET_WIDTH = 32;
