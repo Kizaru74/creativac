@@ -1391,7 +1391,7 @@ window.handleAbonoSubmit = async function(e) {
             submitBtn.textContent = 'Confirmar Abono';
         }
     }
-};loadClients
+}window.loadClientsTable('gestion');
 
 // ====================================================================
 // 8. MANEJO DE FORMULARIO DE NUEVA VENTA (TRANSACCIONAL)
