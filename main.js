@@ -483,13 +483,14 @@ window.loadProductsData = async function() {
 
         if (error) throw error;
         
-        // 2. 🛑 CRÍTICO: Mapeo y FUERZA la conversión de TODOS los IDs a números puros
+        // 2. 🛑 CRÍTICO: Mapeo y LIMPIEZA de tipado
+        // Ahora, 'parent_product' se asegura de ser un STRING para la consistencia del filtro.
         window.allProducts = (products || []).map(p => {
             
-            // Limpieza y tipificación del ID principal
+            // Limpieza y tipificación del ID principal a NÚMERO
             const parsedProductId = parseInt(String(p.producto_id).trim(), 10);
             
-            // Limpieza y tipificación del Parent ID
+            // Limpieza y tipificación del Parent ID (El foco de la corrección)
             const cleanedParentProduct = p.parent_product 
                 ? String(p.parent_product).trim() 
                 : null;
@@ -498,9 +499,9 @@ window.loadProductsData = async function() {
             if (cleanedParentProduct === 'BASE') {
                 finalParentId = 'BASE'; // Mantener el string especial 'BASE'
             } else if (cleanedParentProduct) {
-                const parsedParentId = parseInt(cleanedParentProduct, 10);
-                // Si la conversión es exitosa, guardamos el NÚMERO
-                finalParentId = isNaN(parsedParentId) ? null : parsedParentId;
+                // ✅ CORRECCIÓN FINAL: Guardamos el valor como STRING LIMPIO
+                // Esto es crucial para que coincida con el valor String del SELECT.
+                finalParentId = cleanedParentProduct; 
             }
 
             return {
@@ -509,7 +510,7 @@ window.loadProductsData = async function() {
                 producto_id: isNaN(parsedProductId) ? p.producto_id : parsedProductId, 
                 // Garantizar que 'type' sea consistente (ej. 'PACKAGE', 'MAIN')
                 type: String(p.type || 'MAIN').toUpperCase(), 
-                // Asegurar que parent_product sea un NÚMERO, BASE, o null
+                // ✅ Asegurar que parent_product sea STRING, 'BASE', o null
                 parent_product: finalParentId 
             };
         });
@@ -528,7 +529,6 @@ window.loadProductsData = async function() {
     }
     return window.allProducts;
 };
-//window.loadProductsData = window.loadProductsData;
 
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
