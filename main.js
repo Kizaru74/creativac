@@ -2018,85 +2018,72 @@ window.handleViewSaleDetails = async function(venta_id) {
     try {
         console.log("🔍 Buscando Venta ID:", venta_id);
         
-        // 1. Obtener la venta y sus productos
-        // IMPORTANTE: Asegúrate que en Supabase la tabla se llame 'detalles_ventas'
+        // 1. Obtener los datos básicos de la venta
         const { data: venta, error: vError } = await supabase
             .from('ventas')
-            .select('*, detalles_ventas(*)') 
+            .select('*')
             .eq('venta_id', parseInt(venta_id))
             .maybeSingle();
 
         if (vError) throw vError;
         if (!venta) throw new Error("La venta #" + venta_id + " no existe.");
 
-        // Guardar en window para que la función de imprimir pueda leerlo después
+        // 2. Obtener los productos (Cambiamos 'detalles_ventas' por 'detalle_ventas' según el hint de Supabase)
+        // Probamos con 'detalle_ventas' (sin la 's' al final)
+        const { data: productos, error: pError } = await supabase
+            .from('detalle_ventas') // Revisa si tu tabla es 'detalle_ventas' o 'detalles_ventas'
+            .select('*')
+            .eq('venta_id', parseInt(venta_id));
+
+        if (pError) {
+            console.warn("Reintentando con 'detalles_ventas'...");
+            // Si falla, intentamos con el otro nombre común
+            const { data: pReintento } = await supabase
+                .from('detalles_ventas')
+                .select('*')
+                .eq('venta_id', parseInt(venta_id));
+            venta.productos = pReintento || [];
+        } else {
+            venta.productos = productos || [];
+        }
+
+        // 3. Guardar en memoria para la impresión
         window.currentSaleForPrint = venta;
 
-        // 2. Obtener abonos
-        const { data: pagos } = await supabase
-            .from('pagos')
-            .select('*')
-            .eq('venta_id', parseInt(venta_id))
-            .order('created_at', { ascending: false });
-
-        // 3. Llenar encabezados (Usando TUS IDs de HTML)
+        // 4. Llenar el HTML del Modal (Usando tus IDs)
         document.getElementById('detail-sale-id').textContent = venta.venta_id;
         document.getElementById('detail-sale-date').textContent = new Date(venta.created_at).toLocaleString();
         document.getElementById('detail-payment-method').textContent = venta.metodo_pago || 'N/A';
         document.getElementById('detail-sale-description').textContent = venta.description || '';
 
-        // Buscar cliente para el nombre
+        // Buscar nombre del cliente
         const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
-        document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cargando...';
+        document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
 
-        // 4. Llenar tabla de productos
+        // 5. Llenar tabla de productos
         const productsBody = document.getElementById('detail-products-body');
-        productsBody.innerHTML = (venta.detalles_ventas || []).map(item => `
+        productsBody.innerHTML = venta.productos.map(item => `
             <tr>
                 <td class="px-4 py-2">${item.product_name}</td>
-                <td class="px-4 py-2">${item.quantity}</td>
-                <td class="px-4 py-2">${formatCurrency(item.unit_price)}</td>
-                <td class="px-4 py-2 font-bold">${formatCurrency(item.subtotal)}</td>
-                <td class="px-4 py-2 text-right">
-                    <button onclick="prepararEdicionPrecio('${venta.venta_id}', '${item.id}', '${item.product_name}', ${item.unit_price})" class="text-indigo-600 hover:text-indigo-900">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </td>
+                <td class="px-4 py-2 text-right">${item.quantity}</td>
+                <td class="px-4 py-2 text-right">${formatCurrency(item.unit_price)}</td>
+                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
             </tr>
         `).join('');
 
-        // 5. Resumen Financiero
+        // 6. Totales
         const total = venta.total_amount || 0;
         const deuda = venta.saldo_pendiente || 0;
-        const pagado = total - deuda;
-
         document.getElementById('detail-grand-total').textContent = formatCurrency(total);
-        document.getElementById('detail-paid-amount').textContent = formatCurrency(pagado);
+        document.getElementById('detail-paid-amount').textContent = formatCurrency(total - deuda);
         document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
 
-        // 6. Historial de Abonos
-        const abonosBody = document.getElementById('detail-abonos-body');
-        const noAbonosMsg = document.getElementById('no-abonos-message');
-        
-        if (pagos && pagos.length > 0) {
-            noAbonosMsg.classList.add('hidden');
-            abonosBody.innerHTML = pagos.map(p => `
-                <tr>
-                    <td class="px-4 py-2">${new Date(p.created_at).toLocaleDateString()}</td>
-                    <td class="px-4 py-2 font-bold">${formatCurrency(p.amount)}</td>
-                    <td class="px-4 py-2">${p.metodo_pago}</td>
-                </tr>
-            `).join('');
-        } else {
-            abonosBody.innerHTML = '';
-            noAbonosMsg.classList.remove('hidden');
-        }
-
+        // Abrir el modal
         window.openModal('modal-detail-sale');
 
     } catch (err) {
         console.error("❌ Error en handleViewSaleDetails:", err);
-        alert("Error: " + err.message);
+        alert("Error al cargar detalles: " + err.message);
     }
 };
 
@@ -3830,151 +3817,89 @@ function initReportSelectors() {
 
 //Imprimir PDF de detalles de venta
 window.imprimirTicketVenta = function() {
-    const venta = window.currentSaleForPrint;
-    if (!venta) return alert("No hay datos de venta para imprimir.");
-
-    // Extraer datos actualizados del modal
-    const clientName = document.getElementById('detail-client-name').textContent;
-    const saleId = document.getElementById('detail-sale-id').textContent;
-    const saleDate = document.getElementById('detail-sale-date').textContent;
-    const metodoPago = document.getElementById('detail-payment-method').textContent;
-    const totalVenta = document.getElementById('detail-grand-total').textContent;
-    const pagado = document.getElementById('detail-paid-amount').textContent;
-    const deuda = document.getElementById('detail-remaining-debt').textContent;
+    const getTxt = (id) => document.getElementById(id)?.textContent || "---";
     
-    // Extraer filas de productos y abonos
+    const saleId = getTxt('detail-sale-id');
+    const clientName = getTxt('detail-client-name');
+    const saleDate = getTxt('detail-sale-date');
+    const metodoPago = getTxt('detail-payment-method');
+    const totalVenta = getTxt('detail-grand-total');
+    const pagado = getTxt('detail-paid-amount');
+    const deuda = getTxt('detail-remaining-debt');
     const productosHTML = document.getElementById('detail-products-body').innerHTML;
-    const abonosHTML = document.getElementById('detail-abonos-body').innerHTML;
-    const tieneAbonos = abonosHTML.trim() !== "";
+
+    const colorOxido = "#8B4513"; 
+    const fondoLigero = "#FDF8F5";
 
     const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Venta_${saleId}_${clientName.replace(/\s+/g, '_')}</title>
             <style>
-                @page { size: letter; margin: 20mm; }
-                body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748; margin: 0; line-height: 1.6; font-size: 11pt; }
-                
-                /* Header Estilo Minimalista */
-                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #edf2f7; padding-bottom: 20px; margin-bottom: 30px; }
-                .logo-container { display: flex; align-items: center; }
-                .logo-circle { width: 50px; height: 50px; background: #1a202c; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; margin-right: 15px; }
-                .brand-info h2 { margin: 0; font-size: 18px; letter-spacing: -0.5px; }
-                .brand-info p { margin: 0; font-size: 12px; color: #718096; }
-                
-                .doc-type { text-align: right; }
-                .doc-type h1 { margin: 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; }
-                .doc-type p { margin: 0; color: #4a5568; font-weight: bold; }
-
-                /* Grid de Información */
-                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-                .info-item h3 { font-size: 10px; text-transform: uppercase; color: #a0aec0; margin-bottom: 5px; letter-spacing: 1px; }
-                .info-item p { margin: 0; font-weight: 500; }
-
-                /* Tablas */
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th { text-align: left; padding: 12px; background: #f8fafc; color: #64748b; font-size: 10px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-                td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
-                .text-right { text-align: right; }
-
-                /* Resumen y Totales */
-                .footer-flex { display: flex; justify-content: space-between; margin-top: 20px; }
-                .abonos-section { width: 55%; }
-                .totals-section { width: 35%; }
-                
-                .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
-                .total-row.grand { border-top: 2px solid #1a202c; margin-top: 10px; font-weight: bold; font-size: 14pt; }
-                .text-green { color: #2f855a; }
-                .text-red { color: #c53030; }
-
-                .signature { margin-top: 60px; text-align: center; border-top: 1px solid #e2e8f0; width: 200px; padding-top: 10px; font-size: 10px; color: #718096; }
+                @page { size: letter; margin: 15mm; }
+                body { font-family: 'Segoe UI', sans-serif; color: #333; }
+                .header { display: flex; justify-content: space-between; border-bottom: 4px solid ${colorOxido}; padding-bottom: 10px; }
+                .logo-box { width: 50px; height: 50px; background: ${colorOxido}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 25px; border-radius: 4px; margin-right: 10px; }
+                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: ${fondoLigero}; padding: 15px; margin: 20px 0; border-radius: 5px; }
+                table { width: 100%; border-collapse: collapse; }
+                th { background: ${colorOxido}; color: white; padding: 10px; font-size: 11px; text-transform: uppercase; }
+                td { padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; }
+                .totals { width: 250px; margin-left: auto; margin-top: 20px; background: ${fondoLigero}; padding: 15px; border-radius: 5px; }
+                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 11px; border-top: 1px solid #eee; padding-top: 10px; }
+                .contact-bar { color: ${colorOxido}; font-weight: bold; margin-bottom: 4px; }
             </style>
         </head>
         <body>
             <div class="header">
-                <div class="logo-container">
-                    <div class="logo-circle">C</div>
-                    <div class="brand-info">
-                        <h2>CREATIVA CORTES CNC</h2>
-                        <p>Soluciones en Diseño y Corte</p>
+                <div style="display:flex; align-items:center;">
+                    <div class="logo-box">C</div>
+                    <div>
+                        <h2 style="margin:0; color:${colorOxido};">CREATIVA CORTES CNC</h2>
+                        <p style="margin:0; font-size:10px;">DISEÑO • CORTE • PRECISIÓN</p>
                     </div>
                 </div>
-                <div class="doc-type">
-                    <h1>Comprobante</h1>
-                    <p>VENTA #${saleId}</p>
+                <div style="text-align:right;">
+                    <h1 style="margin:0; color:${colorOxido}; font-size:20px;">COMPROBANTE</h1>
+                    <p style="margin:0;">Nota N°: ${saleId}</p>
                 </div>
             </div>
 
-            <div class="info-grid">
-                <div class="info-item">
-                    <h3>Cliente</h3>
-                    <p>${clientName}</p>
-                </div>
-                <div class="info-item" style="text-align: right;">
-                    <h3>Fecha y Método</h3>
-                    <p>${saleDate} | ${metodoPago}</p>
-                </div>
+            <div class="data-grid">
+                <div><span>CLIENTE:</span> <p style="margin:0; font-weight:bold;">${clientName}</p></div>
+                <div style="text-align:right;"><span>FECHA:</span> <p style="margin:0; font-weight:bold;">${saleDate}</p></div>
             </div>
 
             <table>
                 <thead>
-                    <tr>
-                        <th>Descripción</th>
-                        <th class="text-right">Cant.</th>
-                        <th class="text-right">Precio Unit.</th>
-                        <th class="text-right">Subtotal</th>
-                    </tr>
+                    <tr><th>Producto</th><th style="text-align:right;">Cant.</th><th style="text-align:right;">Total</th></tr>
                 </thead>
-                <tbody>
-                    ${productosHTML}
-                </tbody>
+                <tbody>${productosHTML}</tbody>
             </table>
 
-            <div class="footer-flex">
-                <div class="abonos-section">
-                    ${tieneAbonos ? `
-                        <h3 style="font-size: 10px; text-transform: uppercase; color: #a0aec0;">Historial de Pagos</h3>
-                        <table style="font-size: 10px;">
-                            ${abonosHTML}
-                        </table>
-                    ` : ''}
-                </div>
-                
-                <div class="totals-section">
-                    <div class="total-row">
-                        <span>Total Venta:</span>
-                        <span>${totalVenta}</span>
-                    </div>
-                    <div class="total-row text-green">
-                        <span>Monto Pagado:</span>
-                        <span>${pagado}</span>
-                    </div>
-                    <div class="total-row grand ${deuda !== '$0.00' ? 'text-red' : ''}">
-                        <span>Saldo Pendiente:</span>
-                        <span>${deuda}</span>
-                    </div>
+            <div class="totals">
+                <div style="display:flex; justify-content:space-between;"><span>Total:</span> <span>${totalVenta}</span></div>
+                <div style="display:flex; justify-content:space-between; color:green;"><span>Pagado:</span> <span>${pagado}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; font-size:16px; border-top:1px solid #ccc; margin-top:10px; padding-top:5px;">
+                    <span>Pendiente:</span> <span>${deuda}</span>
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: center;">
-                <div class="signature">Firma de Conformidad</div>
+            <div class="footer">
+                <div class="contact-bar">
+                    📱 WhatsApp: 985 123 4567 &nbsp;&nbsp; | &nbsp;&nbsp; 📍 Calle 20 x 15 y 17, Centro, Valladolid
+                </div>
+                Creativa Cortes CNC — Taller de Fabricación Digital
             </div>
 
-            <script>
-                window.onload = function() {
-                    window.print();
-                    // Opcional: window.close();
-                };
-            </script>
+            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
         </body>
         </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    const pWin = window.open('', '_blank');
+    pWin.document.write(htmlContent);
+    pWin.document.close();
 };
 
 function generateTextTicket(sale) {
