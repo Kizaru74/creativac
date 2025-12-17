@@ -928,7 +928,7 @@ function handleAddProductToSale(e) {
     // 5. Creación del objeto para el carrito
     const newItem = {
         product_id: parseInt(productIdToCharge, 10), 
-        name: nameDisplay, 
+        name: nameDisplay || "Producto sin nombre",
         quantity: quantity,
         price: price, 
         subtotal: subtotal,
@@ -1358,12 +1358,13 @@ async function handleNewSale(e) {
 
         // 2.2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
         const detailsToInsert = currentSaleItems.map(item => ({
-            venta_id: new_venta_id, 
-            product_id: parseInt(item.product_id, 10),
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.subtotal
-        }));
+        venta_id: new_venta_id, 
+        product_id: parseInt(item.product_id, 10),
+        name: item.name || 'Producto',
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.subtotal
+}));
         
         const { error: detailError } = await supabase
             .from('detalle_ventas') 
