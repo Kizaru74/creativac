@@ -4298,9 +4298,6 @@ if (newClientForm) {
     // Boton añadir producto a la venta
     document.getElementById('add-product-btn')?.addEventListener('click', handleAddProductToSale);
 
-    // Listener para el envío del formulario de registro de abonos (GENERAL)
-    document.getElementById('abono-client-form')?.addEventListener('submit', handleRecordAbono);
-
     // 🛑 Listener para el envío del formulario de PAGO en el Modal de DETALLES DE VENTA
     document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
 
@@ -4466,39 +4463,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Y el listener de envío del formulario de edición también debe estar presente:
     document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
-    // ====================================================================
-    // Listener para abrir el modal de abono desde el Reporte de Deuda
-    // ====================================================================
-
-    // 🛑 Listener para el formulario de Abono 🛑
-    const abonoForm = document.getElementById('abono-client-form');
-    abonoForm?.addEventListener('submit', handleAbonoClientSubmit);
-    document.getElementById('open-abono-from-report-btn')?.addEventListener('click', (e) => {
-        if (!window.viewingClientId) { 
-            e.preventDefault();
-            return;
-        }
-
-        const totalDebtText = document.getElementById('client-report-total-debt')?.textContent || '$0.00';
-        const totalDebtValue = parseFloat(totalDebtText.replace(/[^0-9.-]+/g,"").replace(',', '.')); 
-
-        if (totalDebtValue > 0.01) {
-            
-            debtToPayId = window.viewingClientId;
-
-            const abonoCurrentDebt = document.getElementById('abono-current-debt');
-            if (abonoCurrentDebt) {
-                abonoCurrentDebt.textContent = totalDebtText;
-            }
-
-            openModal('modal-record-abono'); 
-            closeModal('modal-client-debt-report');
-        } else {
-            e.preventDefault();
-            alert("El cliente no tiene deuda pendiente para registrar un abono.");
-        }
-    });
-});
+   
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Cargado. Inicializando aplicación...");
@@ -4565,6 +4530,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ESCUCHADOR GLOBAL DE ENVÍO DE FORMULARIO - ABONO
+document.addEventListener('submit', async function(e) {
+    // Verificamos que sea el formulario de abonos
+    if (e.target && e.target.id === 'abono-client-form') {
+        e.preventDefault(); // 🛑 BLOQUEA EL REFRESCO DE LA PÁGINA
+        e.stopPropagation();
+
+        console.log("🚀 Procesando abono sin recargar página...");
+
+        const form = e.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        // 1. Obtener datos del formulario que llenó handleAbonoClick
+        const clientId = document.getElementById('abono-client-id')?.value;
+        const amount = parseFloat(document.getElementById('abono-amount')?.value);
+        const method = document.getElementById('payment-method-abono')?.value;
+
+        // 2. Validación rápida
+        if (!clientId || isNaN(amount) || amount <= 0 || !method) {
+            alert("⚠️ Por favor complete todos los campos correctamente.");
+            return;
+        }
+
+        // 3. Bloquear botón
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Guardando...';
+        }
+
+        try {
+            // 4. INSERTAR EN SUPABASE (Solo tabla pagos, la deuda se calcula sola)
+            const { error } = await supabase.from('pagos').insert([{
+                client_id: clientId, // El ID que puso handleAbonoClick
+                amount: amount,
+                metodo_pago: method,
+                type: 'ABONO_GENERAL',
+                created_at: new Date().toISOString()
+            }]);
+
+            if (error) throw error;
+
+            // --- ÉXITO ---
+            alert(`✅ Abono de ${amount} registrado correctamente.`);
+            
+            // 5. Limpieza y Cierre
+            if (typeof closeModal === 'function') closeModal('abono-client-modal');
+            form.reset();
+
+            // 6. Actualizar tablas de la web (sin recargar)
+            if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
+            if (typeof window.loadDashboardMetrics === 'function') await window.loadDashboardMetrics();
+
+        } catch (err) {
+            console.error("❌ Error en Supabase:", err);
+            alert("Error al registrar el abono: " + err.message);
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Confirmar Abono';
+            }
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     // 🛑 CONEXIONES DE LISTENERS (TPV)
@@ -4617,4 +4646,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.loadClientsData) {
         window.loadClientsData();
     }
+});
 });
