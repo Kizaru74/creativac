@@ -541,18 +541,15 @@ window.handleChangeProductForSale = function() {
         return;
     }
     
-    // 2. OBTENER EL ID SELECCIONADO
-    const productId = mainSelect.value; // ✅ COLOCACIÓN CORRECTA DE LA DECLARACIÓN
+    // 2. OBTENER EL ID SELECCIONADO Y PREPARAR PARA COMPARACIÓN NUMÉRICA/STRING
+    const productId = mainSelect.value;
+    const selectedIdStr = String(productId).trim(); 
+    const selectedIdNum = Number(selectedIdStr); // ✅ NUEVA CONVERSIÓN A NÚMERO
 
-    // 🛑 DEBUGGER (USO TEMPORAL PARA DIAGNÓSTICO FINAL)
-    if (productId === '2') {
-        debugger; // La ejecución se detendrá aquí si seleccionas ID 2
-    }
-    // 🛑 FIN DEBUGGER
-
+    // 🛑 RECUERDA: ELIMINAR EL DEBUGGER si lo tenías activo para evitar que el código se detenga.
+    
     // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
     console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Tipo de Producto ID: ${typeof mainSelect.value}`);
-    // 🛑 FIN NUEVO LOG 🛑
     
     // CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
     if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
@@ -562,7 +559,7 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    // CRÍTICO 2: Defensa contra Race Condition (Ya no debería ser necesario, pero se mantiene por seguridad)
+    // CRÍTICO 2: Defensa contra Race Condition
     if (!window.allProducts || window.allProducts.length < 5) {
         console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
         return; 
@@ -572,30 +569,37 @@ window.handleChangeProductForSale = function() {
     window.updatePriceField(productId);
 
     // =======================================================
-    // 3. FILTRADO DE SUBPRODUCTOS (CON CORRECCIÓN DE TIPADO)
+    // 3. FILTRADO DE SUBPRODUCTOS (CORRECCIÓN DE TIPADO FINAL)
     // =======================================================
-    const selectedIdStr = String(productId).trim(); 
 
     const subProducts = allProducts.filter(p => {
         
-        // CORRECCIÓN CRÍTICA: Aseguramos la limpieza de strings en ambos lados
+        // 1. Obtener y limpiar el TIPO
         const rawType = p.type; 
         const productType = String(rawType || '').toUpperCase(); 
-        const parentIdStr = String(p.parent_product || '').trim(); 
+        
+        // 2. Obtener y limpiar la ID del PADRE
+        const parentIdStr = String(p.parent_product || '').trim();
+        const parentIdNum = Number(parentIdStr); // ✅ Convertimos el ID del padre a Número
+
+        // 3. DOBLE COMPARACIÓN A PRUEBA DE BALAS: Compara tanto como Número (2 === 2) como String ('2' === '2')
+        const idMatch = (
+            (parentIdNum !== 0 && parentIdNum === selectedIdNum) || // Si son números válidos, compara números
+            (parentIdStr === selectedIdStr)                         // Si hay ambigüedad, compara strings
+        );
 
         // 🛑 LOG DE DIAGNÓSTICO FINAL (Muestra por qué falla)
-        const isPackage = productType === 'PACKAGE';
-        if (isPackage) {
-            const isMatch = parentIdStr === selectedIdStr;
-            console.warn(`[DIAG_FINAL_ID] Producto ID ${p.producto_id} (PAQUETE) - Parent ID: '${parentIdStr}' | Buscado: '${selectedIdStr}' | Coincide: ${isMatch}`);
+        if (productType === 'PACKAGE') {
+            console.warn(`[DIAG_FILTRO] Producto ID ${p.producto_id} (PAQUETE) - Parent ID: '${parentIdStr}' (${parentIdNum}) | Buscado: '${selectedIdStr}' (${selectedIdNum}) | Coincide: ${idMatch}`);
         } else {
-            console.error(`[DIAG_FINAL_TIPO] Producto ID ${p.producto_id} - TIPO FALLIDO: '${rawType}' / UPPER: '${productType}'`);
+             // Este log ya no debería aparecer para los paquetes si el campo 'type' es "PACKAGE"
+            console.error(`[DIAG_FILTRO_TIPO] Producto ID ${p.producto_id} - TIPO FALLIDO: '${rawType}' / UPPER: '${productType}'`);
         }
         // 🛑 FIN LOG 🛑
 
         return (
             productType === 'PACKAGE' && 
-            parentIdStr === selectedIdStr
+            idMatch
         );
     });
 
