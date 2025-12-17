@@ -1383,37 +1383,48 @@ window.handleAbonoClick = function(clientId) {
 window.handleAbonoSubmit = async function(e) {
     if (e) e.preventDefault();
 
-    const clientId = document.getElementById('abono-client-id')?.value;
+    // 1. Capturar y Limpiar datos del formulario
+    const rawId = document.getElementById('abono-client-id')?.value;
+    const clientId = rawId ? rawId.trim() : null;
     const amount = parseFloat(document.getElementById('abono-amount')?.value);
     const method = document.getElementById('payment-method-abono')?.value;
 
-    if (!clientId) { alert("Error: No se identificó al cliente."); return; }
-    if (isNaN(amount) || amount <= 0) { alert("Ingresa un monto válido."); return; }
-    if (!method) { alert("Selecciona un método de pago."); return; }
+    // Validaciones preventivas
+    if (!clientId) { alert("Error: No se pudo identificar al cliente. Intente abrir el modal de nuevo."); return; }
+    if (isNaN(amount) || amount <= 0) { alert("Por favor, ingresa un monto mayor a 0."); return; }
+    if (!method) { alert("Seleccione un método de pago."); return; }
 
+    // Bloquear botón para evitar duplicados
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Procesando...'; }
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Procesando...';
+    }
 
     try {
+        // 2. Obtener datos actuales del cliente directamente de la BD (para seguridad de cálculo)
         const { data: clientData, error: cError } = await supabase
             .from('clientes')
             .select('deuda_total, name')
             .eq('client_id', clientId)
             .single();
 
-        if (cError || !clientData) throw new Error("No se pudo obtener la información del cliente.");
+        if (cError || !clientData) {
+            console.error("Detalle del error Supabase:", cError);
+            throw new Error("No se pudo obtener la información del cliente desde la base de datos.");
+        }
 
-        // 1. REGISTRAR EL PAGO
+        // 3. REGISTRAR EL PAGO EN LA TABLA 'PAGOS'
         const { error: pError } = await supabase.from('pagos').insert([{
             client_id: clientId,
             amount: amount,
             metodo_pago: method,
             type: 'ABONO_GENERAL', 
-            created_at: new Date().toISOString() // Asegúrate que el nombre de columna sea created_at o fecha_pago
+            created_at: new Date().toISOString()
         }]);
         if (pError) throw pError;
 
-        // 2. ACTUALIZAR DEUDA
+        // 4. ACTUALIZAR LA DEUDA TOTAL EN LA TABLA 'CLIENTES'
         const nuevaDeuda = (clientData.deuda_total || 0) - amount;
         const { error: uError } = await supabase
             .from('clientes')
@@ -1422,30 +1433,39 @@ window.handleAbonoSubmit = async function(e) {
         
         if (uError) throw uError;
 
-        // --- 🟢 MEJORA 1: LIMPIEZA Y CIERRE ---
-        alert(`Abono de ${amount} registrado con éxito.`);
+        // --- ÉXITO ---
+        alert(`✅ Abono de ${formatCurrency(amount)} registrado para ${clientData.name}.\nNuevo saldo: ${formatCurrency(nuevaDeuda)}`);
+        
+        // 5. LIMPIEZA DE INTERFAZ
         closeModal('abono-client-modal');
         document.getElementById('abono-client-form')?.reset();
         
-        // --- 🟢 MEJORA 2: REFRESCAR TODO SIN RECARGAR PÁGINA ---
-        if (window.loadClientsTable) await window.loadClientsTable('gestion');
-        if (window.loadDashboardData) await window.loadDashboardData();
+        // 6. ACTUALIZACIÓN EN TIEMPO REAL
+        // Recargar tabla principal de clientes
+        if (typeof window.loadClientsTable === 'function') {
+            await window.loadClientsTable('gestion');
+        }
         
-        // Si el reporte de deuda del cliente está abierto, lo refrescamos automáticamente
+        // Recargar dashboard si existe la función
+        if (typeof window.loadDashboardMetrics === 'function') {
+            await window.loadDashboardMetrics();
+        }
+
+        // REFRESCAR EL ESTADO DE CUENTA (Si el usuario lo tiene abierto debajo)
         if (typeof window.handleViewClientDebt === 'function') {
             await window.handleViewClientDebt(clientId);
         }
 
     } catch (err) {
-        console.error("Error en abono:", err);
-        alert("Error crítico: " + err.message);
+        console.error("Error crítico en el proceso de abono:", err);
+        alert("Ocurrió un error al procesar el abono: " + err.message);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Confirmar Abono';
         }
     }
-}
+};
 
 // ====================================================================
 // 8. MANEJO DE FORMULARIO DE NUEVA VENTA (TRANSACCIONAL)
@@ -2056,7 +2076,7 @@ window.handleAbonoClientSubmit = async function(e) {
 
     const form = e.target;
     // Asumiendo que 'debt-to-pay-id' contiene el ID de la venta (venta_id)
-    const ventaId = form.elements['debt-to-pay-id'].value; 
+    const clientId = document.getElementById('abono-client-id')?.value;
     const abonoAmount = parseFloat(form.elements['abono-amount'].value);
     
     // 💡 CORRECCIÓN: Capturar y limpiar el método de pago
