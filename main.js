@@ -2016,93 +2016,56 @@ window.printClientDebtReport = function() {
 
 window.handleViewSaleDetails = async function(venta_id) {
     try {
-        console.log("🔍 Cargando detalles de venta:", venta_id);
-
-        // 1. Obtener la venta y sus detalles (productos) de Supabase
-        // Asumiendo que tus productos están en una tabla llamada 'detalles_ventas'
+        console.log("🔍 Buscando Venta ID:", venta_id);
+        
+        // 1. Obtener la venta y sus productos
+        // IMPORTANTE: Asegúrate que en Supabase la tabla se llame 'detalles_ventas'
         const { data: venta, error: vError } = await supabase
             .from('ventas')
-            .select(`
-                *,
-                detalles_ventas (*)
-            `)
-            .eq('venta_id', venta_id)
-            .single();
+            .select('*, detalles_ventas(*)') 
+            .eq('venta_id', parseInt(venta_id))
+            .maybeSingle();
 
-        if (vError || !venta) throw new Error("No se encontró la venta");
+        if (vError) throw vError;
+        if (!venta) throw new Error("La venta #" + venta_id + " no existe.");
 
-        // Guardamos el cliente actual en una variable global por si queremos abonar desde este modal
-        window.viewingClientId = venta.client_id;
+        // Guardar en window para que la función de imprimir pueda leerlo después
+        window.currentSaleForPrint = venta;
 
-        // 2. Obtener abonos vinculados a esta venta (Generados por el RPC en cascada)
-        const { data: pagos, error: pError } = await supabase
+        // 2. Obtener abonos
+        const { data: pagos } = await supabase
             .from('pagos')
             .select('*')
-            .eq('venta_id', venta_id)
+            .eq('venta_id', parseInt(venta_id))
             .order('created_at', { ascending: false });
 
-        // 3. Buscar al cliente en la lista global
-        let client = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
-        if (!client) {
-            const { data: cDb } = await supabase.from('clientes').select('*').eq('client_id', venta.client_id).single();
-            client = cDb;
-        }
-
-        // --- 4. LLENAR ENCABEZADO ---
+        // 3. Llenar encabezados (Usando TUS IDs de HTML)
         document.getElementById('detail-sale-id').textContent = venta.venta_id;
-        document.getElementById('detail-client-name').textContent = client?.name || '---';
         document.getElementById('detail-sale-date').textContent = new Date(venta.created_at).toLocaleString();
-        document.getElementById('detail-payment-method').textContent = venta.metodo_pago || '---';
-        document.getElementById('detail-sale-description').textContent = venta.description || 'Sin descripción.';
+        document.getElementById('detail-payment-method').textContent = venta.metodo_pago || 'N/A';
+        document.getElementById('detail-sale-description').textContent = venta.description || '';
 
-        // --- 5. RENDERIZAR PRODUCTOS VENDIDOS ---
+        // Buscar cliente para el nombre
+        const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
+        document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cargando...';
+
+        // 4. Llenar tabla de productos
         const productsBody = document.getElementById('detail-products-body');
-        if (productsBody) {
-            if (venta.detalles_ventas && venta.detalles_ventas.length > 0) {
-                productsBody.innerHTML = venta.detalles_ventas.map(item => `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-4 py-3 text-gray-800 font-medium">${item.product_name || 'Producto'}</td>
-                        <td class="px-4 py-3 text-gray-600">${item.quantity}</td>
-                        <td class="px-4 py-3 text-gray-600">${formatCurrency(item.unit_price)}</td>
-                        <td class="px-4 py-3 text-gray-800 font-bold">${formatCurrency(item.subtotal)}</td>
-                        <td class="px-4 py-3 text-right">
-                             <button onclick="prepararEdicionPrecio('${venta.venta_id}', '${item.id}', '${item.product_name}', ${item.unit_price})" 
-                                     class="text-indigo-600 hover:text-indigo-900 text-xs font-bold uppercase">
-                                <i class="fas fa-edit"></i>
-                             </button>
-                        </td>
-                    </tr>
-                `).join('');
-            } else {
-                productsBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">No hay productos registrados.</td></tr>';
-            }
-        }
+        productsBody.innerHTML = (venta.detalles_ventas || []).map(item => `
+            <tr>
+                <td class="px-4 py-2">${item.product_name}</td>
+                <td class="px-4 py-2">${item.quantity}</td>
+                <td class="px-4 py-2">${formatCurrency(item.unit_price)}</td>
+                <td class="px-4 py-2 font-bold">${formatCurrency(item.subtotal)}</td>
+                <td class="px-4 py-2 text-right">
+                    <button onclick="prepararEdicionPrecio('${venta.venta_id}', '${item.id}', '${item.product_name}', ${item.unit_price})" class="text-indigo-600 hover:text-indigo-900">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
 
-        // --- 6. RENDERIZAR HISTORIAL DE ABONOS ---
-        const abonosBody = document.getElementById('detail-abonos-body');
-        const noAbonosMsg = document.getElementById('no-abonos-message');
-        
-        if (abonosBody) {
-            if (pagos && pagos.length > 0) {
-                if (noAbonosMsg) noAbonosMsg.classList.add('hidden');
-                abonosBody.innerHTML = pagos.map(p => `
-                    <tr class="hover:bg-blue-50/30 transition-colors">
-                        <td class="px-4 py-2 text-gray-600 text-xs">${new Date(p.created_at).toLocaleDateString()} ${new Date(p.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                        <td class="px-4 py-2 font-bold text-gray-800">${formatCurrency(p.amount)}</td>
-                        <td class="px-4 py-2">
-                            <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase font-bold">
-                                ${p.metodo_pago}
-                            </span>
-                        </td>
-                    </tr>
-                `).join('');
-            } else {
-                abonosBody.innerHTML = '';
-                if (noAbonosMsg) noAbonosMsg.classList.remove('hidden');
-            }
-        }
-
-        // --- 7. ACTUALIZAR RESUMEN FINANCIERO ---
+        // 5. Resumen Financiero
         const total = venta.total_amount || 0;
         const deuda = venta.saldo_pendiente || 0;
         const pagado = total - deuda;
@@ -2111,16 +2074,28 @@ window.handleViewSaleDetails = async function(venta_id) {
         document.getElementById('detail-paid-amount').textContent = formatCurrency(pagado);
         document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
 
-        // --- 8. MOSTRAR/OCULTAR SECCIÓN DE EDICIÓN ---
-        // Limpiamos la sección de edición por si estaba abierta de otra venta
-        const priceEditSection = document.getElementById('price-edit-section');
-        if (priceEditSection) priceEditSection.classList.add('hidden');
+        // 6. Historial de Abonos
+        const abonosBody = document.getElementById('detail-abonos-body');
+        const noAbonosMsg = document.getElementById('no-abonos-message');
+        
+        if (pagos && pagos.length > 0) {
+            noAbonosMsg.classList.add('hidden');
+            abonosBody.innerHTML = pagos.map(p => `
+                <tr>
+                    <td class="px-4 py-2">${new Date(p.created_at).toLocaleDateString()}</td>
+                    <td class="px-4 py-2 font-bold">${formatCurrency(p.amount)}</td>
+                    <td class="px-4 py-2">${p.metodo_pago}</td>
+                </tr>
+            `).join('');
+        } else {
+            abonosBody.innerHTML = '';
+            noAbonosMsg.classList.remove('hidden');
+        }
 
-        // Abrir el modal
-        openModal('modal-detail-sale');
+        window.openModal('modal-detail-sale');
 
     } catch (err) {
-        console.error("❌ Error al cargar detalles de venta:", err);
+        console.error("❌ Error en handleViewSaleDetails:", err);
         alert("Error: " + err.message);
     }
 };
