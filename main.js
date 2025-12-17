@@ -535,21 +535,17 @@ window.handleChangeProductForSale = function() {
     const subSelect = document.getElementById('subproduct-select');
     const priceInput = document.getElementById('product-unit-price');
     
-    // 1. Verificación Inicial de Elementos
     if (!mainSelect || !subSelect || !priceInput || typeof allProducts === 'undefined') {
         console.error("Error: Elementos de venta o datos (allProducts) no encontrados.");
         return;
     }
     
-    // 2. OBTENER EL ID SELECCIONADO Y PREPARAR PARA COMPARACIÓN NUMÉRICA/STRING
+    // 1. OBTENER EL ID SELECCIONADO (Es un String: '2')
     const productId = mainSelect.value;
-    const selectedIdStr = String(productId).trim(); 
-    const selectedIdNum = Number(selectedIdStr); // Conversión a Número
-
-    // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
-    console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Tipo de Producto ID: ${typeof mainSelect.value}`);
     
-    // CRÍTICO 1: Si el ID es nulo, vacío o el placeholder, salimos
+    // 🛑 LOG DE DIAGNÓSTICO CRÍTICO
+    console.log(`[DIAG_CRÍTICO] allProducts.length: ${window.allProducts.length} | Producto ID: ${productId} | Tipo: ${typeof productId}`);
+    
     if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
         subSelect.disabled = true; 
@@ -557,50 +553,40 @@ window.handleChangeProductForSale = function() {
         return; 
     }
 
-    // CRÍTICO 2: Defensa contra Race Condition
     if (!window.allProducts || window.allProducts.length < 5) {
-        console.warn("ADVERTENCIA: Data de productos inestable o incompleta. Retrasando filtro de subproductos.");
+        console.warn("ADVERTENCIA: Data de productos inestable o incompleta.");
         return; 
     }
     
-    // 2. Establecer el precio por defecto
     window.updatePriceField(productId);
 
     // =======================================================
-    // 3. FILTRADO DE SUBPRODUCTOS (LIMPIEZA RIGUROSA FINAL)
+    // 3. FILTRADO (AHORA SIN LIMPIEZA EXCESIVA, CONFIANDO EN LA CARGA)
     // =======================================================
-
+    
     const subProducts = allProducts.filter(p => {
         
-        const rawType = p.type; 
+        // 1. Convertimos el TIPO a String y Mayúsculas (para el caso que sea 'package')
+        const productType = String(p.type || '').toUpperCase(); 
         
-        // ✅ CORRECCIÓN FINAL: Eliminamos TODOS los caracteres de espacio (\s)
-        const productType = String(rawType || '').replace(/\s/g, '').toUpperCase(); 
-        
-        // ✅ Mismo Fix para el ID Padre
-        const parentIdStr = String(p.parent_product || '').replace(/\s/g, ''); 
-        const parentIdNum = Number(parentIdStr); 
+        // 2. Comparamos la ID del padre (String: '2') contra el ID del selector (String: '2')
+        // No necesitamos trim() ni replace() si la carga ya es limpia.
+        const parentId = p.parent_product;
 
-        // DOBLE COMPARACIÓN A PRUEBA DE BALAS
-        const idMatch = (
-            (parentIdNum !== 0 && parentIdNum === selectedIdNum) ||
-            (parentIdStr === selectedIdStr)
-        );
-
-        // Ya que el problema estaba en el filtro, deshabilitamos el diagnóstico excesivo
-        // para tener un log limpio.
+        // DEBUG: Mantenemos un log por si acaso.
+        if (productType === 'PACKAGE' && String(parentId) === productId) {
+             console.log(`[DIAG_EXITO] Producto ID ${p.producto_id} coincide: ${p.name}`);
+        }
         
         return (
             productType === 'PACKAGE' && 
-            idMatch
+            String(parentId) === productId // Convertimos el ID del padre a String para una comparación segura
         );
     });
 
     console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
 
-    // =======================================================
-    // 4. RENDERIZADO DEL SELECTOR DE SUBPRODUCTOS
-    // =======================================================
+    // ... (El resto del código de renderizado es el mismo) ...
     if (subProducts.length > 0) {
         subSelect.disabled = false; 
         subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
@@ -620,7 +606,8 @@ window.handleChangeProductForSale = function() {
         subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     }
 }
-window.handleChangeProductForSale = window.handleChangeProductForSale;
+
+//window.handleChangeProductForSale = window.handleChangeProductForSale;
 
 window.loadMainProductsForSaleSelect = function() {
     // 1. Obtener el selector principal
