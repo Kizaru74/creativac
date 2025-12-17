@@ -2016,9 +2016,6 @@ window.printClientDebtReport = function() {
 
 window.handleViewSaleDetails = async function(venta_id) {
     try {
-        console.log("🔍 Buscando Venta ID:", venta_id);
-        
-        // 1. Obtener la venta
         const { data: venta, error: vError } = await supabase
             .from('ventas')
             .select('*')
@@ -2026,73 +2023,114 @@ window.handleViewSaleDetails = async function(venta_id) {
             .maybeSingle();
 
         if (vError) throw vError;
-        if (!venta) throw new Error("La venta no existe.");
 
-        // 2. Obtener los productos (Intentamos con ambos nombres posibles de tabla)
-        let { data: productos, error: pError } = await supabase
+        const { data: productos, error: pError } = await supabase
             .from('detalle_ventas')
             .select('*')
             .eq('venta_id', parseInt(venta_id));
 
-        if (pError || !productos) {
-            const { data: pReintento } = await supabase
-                .from('detalles_ventas')
-                .select('*')
-                .eq('venta_id', parseInt(venta_id));
-            productos = pReintento || [];
-        }
-
-        console.log("📦 Productos encontrados:");
-        console.table(productos); // Esto te dirá los nombres reales de las columnas
-
-        // Guardamos en memoria
         window.currentSaleForPrint = { ...venta, productos };
 
-        // 3. Llenar Modal
-        document.getElementById('detail-sale-id').textContent = venta.venta_id || '---';
-        document.getElementById('detail-sale-date').textContent = venta.created_at ? new Date(venta.created_at).toLocaleString() : '---';
-        document.getElementById('detail-payment-method').textContent = venta.metodo_pago || 'No especificado';
-        document.getElementById('detail-sale-description').textContent = venta.description || '';
-
+        // Llenar datos básicos
+        document.getElementById('detail-sale-id').textContent = venta.venta_id;
+        document.getElementById('detail-sale-date').textContent = new Date(venta.created_at).toLocaleString();
+        
         const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
         document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
 
-        // 4. Llenar tabla (Validando cada campo para evitar undefined/NaN)
+        // Llenar Tabla con opción de editar precio
         const productsBody = document.getElementById('detail-products-body');
         productsBody.innerHTML = productos.map(item => {
-            // Validamos nombres de columnas (ajusta si en tu DB se llaman distinto)
-            const nombre = item.product_name || item.nombre_producto || 'Producto sin nombre';
-            const cant = parseFloat(item.quantity || item.cantidad || 0);
-            const precio = parseFloat(item.unit_price || item.precio_unitario || 0);
-            const subtotal = parseFloat(item.subtotal || (cant * precio) || 0);
+            const nombre = item.name || 'Sin nombre';
+            const cant = parseFloat(item.quantity || 0);
+            const precio = parseFloat(item.price || 0);
+            const subtotal = parseFloat(item.subtotal || (cant * precio));
 
             return `
-                <tr>
+                <tr id="row-item-${item.detalle_id}">
                     <td class="px-4 py-2 text-gray-800">${nombre}</td>
                     <td class="px-4 py-2 text-right">${cant}</td>
-                    <td class="px-4 py-2 text-right">${formatCurrency(precio)}</td>
-                    <td class="px-4 py-2 text-right font-bold">${formatCurrency(subtotal)}</td>
+                    <td class="px-4 py-2 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <span id="price-text-${item.detalle_id}">${formatCurrency(precio)}</span>
+                            <button onclick="editItemPrice(${item.detalle_id}, ${precio}, ${cant})" 
+                                    class="text-amber-700 hover:text-amber-900 px-1">
+                                ✏️
+                            </button>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2 text-right font-bold" id="subtotal-${item.detalle_id}">
+                        ${formatCurrency(subtotal)}
+                    </td>
                 </tr>
             `;
         }).join('');
 
-        // 5. Totales Financieros
-        const total = parseFloat(venta.total_amount || 0);
-        const deuda = parseFloat(venta.saldo_pendiente || 0);
-        const pagado = total - deuda;
-
-        document.getElementById('detail-grand-total').textContent = formatCurrency(total);
-        document.getElementById('detail-paid-amount').textContent = formatCurrency(pagado);
-        document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
-
+        updateTotalUI(venta.total_amount, venta.saldo_pendiente);
         window.openModal('modal-detail-sale');
 
     } catch (err) {
         console.error("❌ Error:", err);
-        alert("Error: " + err.message);
     }
 };
 
+// Función auxiliar para actualizar los textos de los totales
+function updateTotalUI(total, deuda) {
+    document.getElementById('detail-grand-total').textContent = formatCurrency(total);
+    document.getElementById('detail-paid-amount').textContent = formatCurrency(total - deuda);
+    document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
+}
+
+window.editItemPrice = async function(detalle_id, precioActual, cantidad) {
+    const nuevoPrecio = prompt("Ingrese el nuevo precio unitario:", precioActual);
+    
+    if (nuevoPrecio !== null && !isNaN(nuevoPrecio)) {
+        const p = parseFloat(nuevoPrecio);
+        const nuevoSubtotal = p * cantidad;
+
+        try {
+            // 1. Actualizar el detalle en la base de datos
+            const { error: pError } = await supabase
+                .from('detalle_ventas')
+                .update({ price: p, subtotal: nuevoSubtotal })
+                .eq('detalle_id', detalle_id);
+
+            if (pError) throw pError;
+
+            // 2. Recalcular el total de la venta
+            const ventaId = window.currentSaleForPrint.venta_id;
+            
+            // Obtenemos todos los detalles actualizados para sumar el nuevo total
+            const { data: todosLosDetalles } = await supabase
+                .from('detalle_ventas')
+                .select('subtotal')
+                .eq('venta_id', ventaId);
+            
+            const nuevoTotalVenta = todosLosDetalles.reduce((acc, curr) => acc + curr.subtotal, 0);
+
+            // 3. Actualizar la tabla 'ventas' (Total y Saldo Pendiente)
+            // Asumimos que si editas el precio, la diferencia se va a la deuda
+            const { error: vError } = await supabase
+                .from('ventas')
+                .update({ 
+                    total_amount: nuevoTotalVenta,
+                    saldo_pendiente: nuevoTotalVenta // O ajustar según lo ya pagado
+                })
+                .eq('venta_id', ventaId);
+
+            if (vError) throw vError;
+
+            alert("✅ Precio actualizado correctamente");
+            
+            // 4. Refrescar la vista
+            handleViewSaleDetails(ventaId);
+
+        } catch (err) {
+            console.error("Error al actualizar:", err);
+            alert("No se pudo actualizar el precio.");
+        }
+    }
+};
 /**
  * Función auxiliar para preparar la edición de precios
  */
@@ -3900,7 +3938,7 @@ window.imprimirTicketVenta = function() {
 
             <div class="footer">
                 <div class="contact">
-                    📱 WhatsApp: 985 111 2233 &nbsp;&nbsp; | &nbsp;&nbsp; 📍 Calle 20 x 15 y 17, Col. Centro, Valladolid
+                    📱 WhatsApp: 985 110 1141 &nbsp;&nbsp; | &nbsp;&nbsp; 📍 Calle 33 x 48 y 46, Col. Candelaria, Valladolid
                 </div>
                 Creativa Cortes CNC — Gracias por su preferencia.
             </div>
