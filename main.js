@@ -533,6 +533,7 @@ window.loadProductsData = async function() {
     }
     return window.allProducts;
 };
+window.loadProducts = window.loadProductsData;
 
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
