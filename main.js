@@ -861,27 +861,25 @@ window.removeItemFromSale = function(index) {
     }
 }
 
-function handleAddProductToSale(e) {
-    e.preventDefault();
+// --- FUNCIÓN A: AGREGAR AL CARRITO (Botón +) ---
+window.handleAddProductToSale = function(e) {
+    if (e) e.preventDefault();
 
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
     const quantityInput = document.getElementById('product-quantity'); 
     const priceInput = document.getElementById('product-unit-price'); 
 
-    // 1. Obtener IDs y Cantidad
     const mainProductId = mainSelect?.value;
     const subProductId = subSelect?.value;
     const quantity = parseFloat(quantityInput?.value);
 
-    // Priorizamos el subproducto (paquete) si existe, de lo contrario usamos el principal
+    // Prioridad al paquete, si no al principal
     let productIdToCharge = (subProductId && subProductId !== "") ? subProductId : mainProductId;
     
-    // Buscamos el objeto del producto en la data global
     const searchIdStr = String(productIdToCharge || '').trim();
     let productToCharge = window.allProducts.find(p => String(p.producto_id) === searchIdStr); 
 
-    // 2. Validaciones iniciales
     if (!productToCharge) {
         alert('Por favor, selecciona un Producto o Paquete válido.');
         return;
@@ -892,21 +890,17 @@ function handleAddProductToSale(e) {
         return;
     }
 
-    // 3. Lógica de Precio
     const priceStr = priceInput?.value;
     let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
     
-    // Si el input de precio está en 0, intentamos usar el precio base del producto
     if (price === 0 && productToCharge) { 
         price = parseFloat(productToCharge.price) || 0; 
     }
     
     const subtotal = quantity * price;
 
-    // 4. Construcción del Nombre para mostrar en la tabla
+    // Nombre para el detalle: "Principal (Paquete)"
     let nameDisplay = productToCharge.name; 
-    
-    // Si es un paquete, mostramos: "Producto Principal (Nombre Paquete)"
     if (subProductId && subProductId !== "") {
         const mainProductData = window.allProducts.find(p => String(p.producto_id) === String(mainProductId));
         if (mainProductData) {
@@ -914,17 +908,15 @@ function handleAddProductToSale(e) {
         }
     }
 
-    // 5. Creación del objeto para el carrito
     const newItem = {
         product_id: parseInt(productIdToCharge, 10), 
-        name: nameDisplay || "Producto sin nombre",
+        name: nameDisplay, 
         quantity: quantity,
         price: price, 
         subtotal: subtotal,
         type: productToCharge.type || null, 
     };
 
-    // 6. Lógica de agregar o actualizar cantidad si ya existe
     const searchIdNum = parseInt(productIdToCharge, 10);
     const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchIdNum);
 
@@ -935,21 +927,103 @@ function handleAddProductToSale(e) {
         currentSaleItems.push(newItem); 
     }
     
-    // 7. Actualizar Interfaz y Limpiar
-    updateSaleTableDisplay(); 
+    window.updateSaleTableDisplay(); 
     calculateGrandTotal(); 
 
-    // Resetear formulario
+    // Limpieza
     mainSelect.value = '';
     subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
     subSelect.disabled = true;
     quantityInput.value = '1';
     priceInput.value = '0.00';
+};
 
-    if (typeof loadMainProductsForSaleSelect === 'function') {
-        loadMainProductsForSaleSelect(); 
+// --- FUNCIÓN B: REGISTRAR VENTA (Botón Verde) ---
+window.handleNewSale = async function(e) {
+    if (e) e.preventDefault();
+    
+    const client_id = document.getElementById('client-select')?.value;
+    const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
+    const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
+    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
+    
+    let paid_amount = parseFloat(paid_amount_str);
+    const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
+    
+    if (payment_method === 'Deuda') paid_amount = 0;
+    
+    let final_paid_amount = (paid_amount > total_amount) ? total_amount : paid_amount;
+    let final_saldo_pendiente = total_amount - final_paid_amount; 
+
+    if (!client_id) { alert('Selecciona un cliente.'); return; }
+    if (currentSaleItems.length === 0) { alert('El carrito está vacío.'); return; }
+
+    const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Procesando...'; }
+
+    try {
+        // 1. Insertar Venta
+        const { data: saleData, error: saleError } = await supabase
+            .from('ventas')
+            .insert([{
+                client_id: client_id,
+                total_amount: total_amount, 
+                paid_amount: final_paid_amount, 
+                saldo_pendiente: final_saldo_pendiente, 
+                metodo_pago: payment_method,
+                description: sale_description,
+            }])
+            .select('venta_id'); 
+
+        if (saleError) throw saleError;
+        const new_venta_id = saleData[0].venta_id;
+
+        // 2. Insertar Detalles (CON LA COLUMNA NAME)
+        const detailsToInsert = currentSaleItems.map(item => ({
+            venta_id: new_venta_id, 
+            product_id: item.product_id,
+            name: item.name || 'Producto', 
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.subtotal
+        }));
+        
+        const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
+        if (dError) throw dError;
+
+        // 3. Registrar Pago si aplica
+        if (final_paid_amount > 0) {
+            await supabase.from('pagos').insert([{
+                venta_id: new_venta_id,
+                amount: final_paid_amount,
+                client_id: client_id,
+                metodo_pago: payment_method,
+                type: 'INICIAL'
+            }]);
+        }
+
+        // 4. Actualizar Deuda Cliente
+        if (final_saldo_pendiente > 0) {
+            const { data: c } = await supabase.from('clientes').select('deuda_total').eq('client_id', client_id).single();
+            await supabase.from('clientes').update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente }).eq('client_id', client_id);
+        }
+
+        // --- ÉXITO Y LIMPIEZA ---
+        alert('Venta registrada con éxito');
+        closeModal('new-sale-modal');
+        currentSaleItems = [];
+        window.updateSaleTableDisplay();
+        document.getElementById('new-sale-form').reset();
+        
+        if (window.loadDashboardData) await loadDashboardData();
+
+    } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+    } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Registrar Venta'; }
     }
-}
+};
 
 async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
     if (!supabase || isNaN(newUnitPrice) || newUnitPrice <= 0) {
