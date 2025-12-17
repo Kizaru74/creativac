@@ -1372,34 +1372,45 @@ window.handleAbonoClick = function(clientId) {
 };
 
 window.handleAbonoSubmit = async function(e) {
-    // 1. Evitar que el formulario recargue la página
+    // 1. Detenemos el envío automático del navegador
     if (e && e.preventDefault) e.preventDefault();
 
-    console.log("📡 Iniciando proceso de abono en cascada...");
-
-    // 2. Obtener elementos del DOM
     const form = document.getElementById('abono-client-form');
-    const submitBtn = form.querySelector('button[type="submit"]');
-    
+    const submitBtn = form?.querySelector('button[type="submit"]');
+
+    // 2. Captura de valores
     const clientId = document.getElementById('abono-client-id')?.value;
     const amount = parseFloat(document.getElementById('abono-amount')?.value);
-    const method = document.getElementById('payment-method-abono')?.value;
+    const methodSelect = document.getElementById('payment-method-abono');
+    const method = methodSelect ? methodSelect.value : "";
 
-    // 3. Validaciones de seguridad
-    if (!clientId || isNaN(amount) || amount <= 0 || !method) {
-        alert("⚠️ Por favor, complete todos los campos correctamente.");
-        return;
+    // 3. VALIDACIONES ESTRICTAS (Evitan mensajes dobles)
+    if (!clientId) {
+        alert("⚠️ Error: No se pudo identificar al cliente.");
+        return; // Detiene la función aquí
     }
 
-    // 4. Feedback visual (Bloquear botón)
+    if (isNaN(amount) || amount <= 0) {
+        alert("⚠️ Por favor, ingrese un monto válido mayor a 0.");
+        return; // Detiene la función aquí
+    }
+
+    // Si el valor es vacío o es el mensaje por defecto del select
+    if (!method || method === "" || method === "seleccionar") {
+        alert("⚠️ Por favor, selecciona un Método de Pago.");
+        return; // 🔥 CRÍTICO: Aquí se detiene y no registra nada en Supabase
+    }
+
+    // 4. Bloqueo de UI para evitar doble clic
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando Cascada...';
+        submitBtn.textContent = 'Procesando...';
     }
 
     try {
-        // 5. LLAMADA AL RPC DE SUPABASE (La función SQL que creamos)
-        // Esto reparte el dinero entre las ventas viejas automáticamente
+        console.log(`🚀 Ejecutando RPC para Cliente ${clientId}: $${amount} via ${method}`);
+
+        // 5. Llamada a la base de datos (Proceso de Cascada)
         const { error } = await supabase.rpc('registrar_abono_cascada', {
             p_client_id: parseInt(clientId),
             p_amount: amount,
@@ -1408,30 +1419,31 @@ window.handleAbonoSubmit = async function(e) {
 
         if (error) throw error;
 
-        // 6. ÉXITO: Notificar y limpiar
-        alert(`✅ Abono de ${formatCurrency(amount)} procesado con éxito.`);
+        // 6. ÉXITO
+        alert(`✅ Abono de ${formatCurrency(amount)} registrado correctamente.`);
         
-        // Cerrar modal y limpiar form
+        // Limpieza
         window.closeModal('abono-client-modal');
         form.reset();
 
-        // 7. RECARGA DINÁMICA DE LA UI
-        // Si el usuario estaba viendo un detalle de venta, lo refrescamos
-        const modalDetalleVenta = document.getElementById('modal-detail-sale');
-        if (modalDetalleVenta && !modalDetalleVenta.classList.contains('hidden')) {
-            const currentVentaId = document.getElementById('detail-sale-id').textContent;
+        // 7. ACTUALIZACIÓN DE LA INTERFAZ (Sin recargar página)
+        
+        // A. Si el detalle de venta está abierto, lo actualizamos
+        const detailModal = document.getElementById('modal-detail-sale');
+        if (detailModal && !detailModal.classList.contains('hidden')) {
+            const currentVentaId = document.getElementById('detail-sale-id')?.textContent;
             if (currentVentaId) await window.handleViewSaleDetails(currentVentaId);
         }
 
-        // Refrescar tablas generales
+        // B. Actualizamos tablas de clientes y dashboard
         if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
         if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
 
     } catch (err) {
-        console.error("❌ Error en el abono:", err);
-        alert("Hubo un error al registrar el abono: " + err.message);
+        console.error("❌ Error en Supabase:", err);
+        alert("Hubo un error técnico: " + err.message);
     } finally {
-        // 8. Restablecer botón
+        // 8. Liberar botón
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Confirmar Abono';
