@@ -4923,7 +4923,6 @@ document.getElementById('edit-product-category')?.addEventListener('change', fun
         container.classList.add('hidden');
     }
 });
-});
 
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
