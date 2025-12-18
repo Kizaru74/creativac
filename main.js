@@ -1724,6 +1724,10 @@ window.loadDashboardMetrics = async function() {
     }
 }
 
+/**
+ * ESTADO DE CUENTA: CARGA DE DATOS, RENDERIZADO Y PREPARACIÓN DE IMPRESIÓN
+ * Esta función unifica tu lógica original con el sistema de reporte.
+ */
 window.handleViewClientDebt = async function(clientId) {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
@@ -1734,13 +1738,10 @@ window.handleViewClientDebt = async function(clientId) {
     window.viewingClientId = clientId;
     
     try {
-        // --- 🟢 CORRECCIÓN 1: Búsqueda Robusta ---
-        // Usamos window.allClients y comparación de Strings para evitar el error "undefined"
-        const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
+        // 1. BÚSQUEDA DEL CLIENTE (Tu lógica robusta original)
+        let client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
         
         if (!client) {
-            console.error("Cliente no encontrado para ID:", clientId);
-            // Intento de rescate: Si no está en memoria, lo buscamos en la BD
             const { data: retryClient } = await supabase.from('clientes').select('name').eq('client_id', clientId).single();
             if (!retryClient) {
                 alert("Error: No se encontró la información del cliente.");
@@ -1749,19 +1750,10 @@ window.handleViewClientDebt = async function(clientId) {
             client = retryClient;
         }
 
-        // 1. OBTENER VENTAS Y PAGOS
-        // --- 🟢 CORRECCIÓN 2: Relación de tablas ---
-        // Asegúrate que en Supabase la relación es 'detalle_ventas' y luego 'productos'
+        // 2. OBTENER VENTAS Y PAGOS
         const { data: salesData, error: salesError } = await supabase
             .from('ventas')
-            .select(`
-                venta_id, 
-                total_amount, 
-                paid_amount, 
-                created_at,
-                description, 
-                detalle_ventas ( name )
-            `) // Simplificado: si en detalle_ventas ya guardas el 'name', úsalo directo
+            .select(`venta_id, total_amount, paid_amount, created_at, description, detalle_ventas ( name )`)
             .eq('client_id', clientId)
             .order('created_at', { ascending: true });
 
@@ -1777,17 +1769,13 @@ window.handleViewClientDebt = async function(clientId) {
         if (paymentsError) throw paymentsError;
         const payments = paymentsData || []; 
 
-        // 2. UNIFICAR Y NORMALIZAR
+        // 3. UNIFICAR Y NORMALIZAR TRANSACCIONES
         let transactions = [];
 
         sales.forEach(sale => {
-            // Manejo de nombres de productos para evitar errores de undefined
             const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
-            
             let transactionDescription = `Venta: ${productNames}`;
-            if (sale.description) {
-                transactionDescription += ` — ${sale.description.trim()}`; 
-            }
+            if (sale.description) transactionDescription += ` — ${sale.description.trim()}`; 
 
             transactions.push({
                 date: new Date(sale.created_at),
@@ -1801,18 +1789,14 @@ window.handleViewClientDebt = async function(clientId) {
 
         payments.forEach(payment => {
             let description = `Abono a Deuda (${payment.metodo_pago})`;
-            
             if (payment.venta_id) {
                 const sale = sales.find(s => s.venta_id === payment.venta_id);
                 if (sale) {
                     const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
                     const timeDiff = Math.abs(new Date(sale.created_at) - new Date(payment.created_at)); 
-                    
-                    if (timeDiff < 60000) { 
-                        description = `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`;
-                    } else {
-                        description = `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
-                    }
+                    description = timeDiff < 60000 
+                        ? `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`
+                        : `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
                 }
             }
 
@@ -1826,10 +1810,9 @@ window.handleViewClientDebt = async function(clientId) {
             });
         });
 
-        // 3. ORDENAR
+        // 4. ORDENAR Y CALCULAR SALDO DINÁMICO
         transactions.sort((a, b) => a.date - b.date || a.order - b.order);
 
-        // 4. RENDERIZAR
         document.getElementById('client-report-name').textContent = client.name;
         const historyBody = document.getElementById('client-transactions-body'); 
         let historyHTML = ""; 
@@ -1848,16 +1831,23 @@ window.handleViewClientDebt = async function(clientId) {
                     <td class="px-3 py-3 text-gray-800">${t.description}</td>
                     <td class="px-3 py-3 text-right font-bold ${amountClass}">${formatCurrency(t.amount)}</td>
                     <td class="px-3 py-3 text-right font-bold ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
-                </tr>
-            `;
+                </tr>`;
         });
         
         historyBody.innerHTML = historyHTML;
         
-        // 5. TOTAL FINAL
+        // 5. ACTUALIZAR TOTALES Y "MOCHILA" DE IMPRESIÓN
+        const totalDebtValue = Math.abs(currentRunningBalance);
         const totalDebtElement = document.getElementById('client-report-total-debt');
-        totalDebtElement.textContent = formatCurrency(Math.abs(currentRunningBalance));
+        totalDebtElement.textContent = formatCurrency(totalDebtValue);
         totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-600 font-bold text-xl' : 'text-green-600 font-bold text-xl';
+
+        // Guardar para la función de impresión
+        window.currentClientDataForPrint = {
+            nombre: client.name,
+            totalDeuda: totalDebtValue,
+            transaccionesHTML: historyHTML
+        };
 
         openModal('modal-client-debt-report'); 
         
@@ -1866,6 +1856,76 @@ window.handleViewClientDebt = async function(clientId) {
         alert('Error al cargar el historial.');
     }
 }
+
+/**
+ * FUNCIÓN PARA LANZAR EL MODAL DE ABONO DESDE EL REPORTE
+ */
+window.prepararAbonoDesdeReporte = function() {
+    if (!window.viewingClientId) return;
+    window.handleAbonoClick(window.viewingClientId);
+};
+
+/**
+ * GENERACIÓN DE PDF: ESTADO DE CUENTA PROFESIONAL
+ */
+window.imprimirEstadoCuenta = function() {
+    const data = window.currentClientDataForPrint;
+    if (!data) return alert("Cargue primero el reporte del cliente.");
+
+    const colorOxido = "#8B4513";
+    const htmlContent = `
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page { size: letter; margin: 15mm; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; }
+                .header { border-bottom: 4px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .resumen { background: #fdf8f5; border: 1px solid ${colorOxido}44; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th { background: #f4f4f4; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; }
+                td { padding: 10px; border-bottom: 1px solid #eee; }
+                .text-right { text-align: right; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div>
+                    <h1 style="margin:0; color:${colorOxido};">CREATIVA CORTES CNC</h1>
+                    <p style="margin:0; font-weight:bold;">ESTADO DE CUENTA DE CLIENTE</p>
+                </div>
+                <div style="text-align:right;">
+                    <p style="margin:0;">Fecha de emisión: <b>${new Date().toLocaleDateString()}</b></p>
+                </div>
+            </div>
+            <div class="resumen">
+                <p style="margin:0; color:#666;">CLIENTE:</p>
+                <p style="margin:0; font-size:18px; font-weight:bold;">${data.nombre.toUpperCase()}</p>
+                <p style="margin:10px 0 0 0; color:#666;">SALDO TOTAL PENDIENTE:</p>
+                <p style="margin:0; font-size:24px; font-weight:900; color:${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:15%">FECHA</th>
+                        <th style="width:55%">DESCRIPCIÓN</th>
+                        <th style="width:15%" class="text-right">MONTO</th>
+                        <th style="width:15%" class="text-right">SALDO</th>
+                    </tr>
+                </thead>
+                <tbody>${data.transaccionesHTML}</tbody>
+            </table>
+            <div style="margin-top:40px; text-align:center; font-size:10px; color:#999; border-top:1px solid #eee; padding-top:10px;">
+                Taller Creativa Cortes CNC | Valladolid, Yucatán | Comprobante Informativo
+            </div>
+            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+        </body>
+        </html>`;
+
+    const pWin = window.open('', '_blank');
+    pWin.document.write(htmlContent);
+    pWin.document.close();
+};
 
 //Imprmir PDF
 window.printClientDebtReport = function() {
@@ -2156,6 +2216,227 @@ window.imprimirTicketVenta = function() {
     const pWin = window.open('', '_blank');
     pWin.document.write(htmlContent);
     pWin.document.close();
+};
+
+window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
+    try {
+        document.getElementById('nombre-cliente-deuda').textContent = "Estado de Cuenta: " + nombreCliente;
+        window.currentClientIdForAbono = client_id; // Guardamos para el abono general
+
+        // 1. Consultar Ventas Pendientes y Historial de Abonos en paralelo
+        const [ventasRes, abonosRes] = await Promise.all([
+            supabase.from('ventas').select('*').eq('client_id', client_id).gt('saldo_pendiente', 0).order('created_at', { ascending: true }),
+            supabase.from('abonos').select('*').eq('client_id', client_id).order('created_at', { ascending: false }).limit(10)
+        ]);
+
+        const ventas = ventasRes.data || [];
+        const abonos = abonosRes.data || [];
+
+        // 2. Calcular Deuda Total
+        const deudaTotal = ventas.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
+        document.getElementById('total-deuda-general').textContent = formatCurrency(deudaTotal);
+        
+        // 3. Fecha del último abono
+        document.getElementById('fecha-ultimo-abono').textContent = abonos.length > 0 
+            ? new Date(abonos[0].created_at).toLocaleDateString() 
+            : 'Sin pagos';
+
+        // 4. Renderizar Notas Pendientes
+        const listaVentas = document.getElementById('lista-notas-pendientes');
+        listaVentas.innerHTML = ventas.length > 0 ? ventas.map(v => `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-2 font-bold">#${v.venta_id}</td>
+                <td class="px-4 py-2 text-gray-500">${new Date(v.created_at).toLocaleDateString()}</td>
+                <td class="px-4 py-2 text-right text-red-600 font-bold">${formatCurrency(v.saldo_pendiente)}</td>
+            </tr>
+        `).join('') : '<tr><td colspan="3" class="p-4 text-center text-gray-400">Sin deudas pendientes</td></tr>';
+
+        // 5. Renderizar Historial de Abonos
+        const listaAbonos = document.getElementById('historial-abonos-cliente');
+        listaAbonos.innerHTML = abonos.length > 0 ? abonos.map(a => `
+            <tr class="border-b bg-green-50/30">
+                <td class="px-4 py-2 text-xs">${new Date(a.created_at).toLocaleDateString()}</td>
+                <td class="px-4 py-2 text-xs text-gray-600">${a.metodo_pago || 'Efectivo'}</td>
+                <td class="px-4 py-2 text-right font-bold text-green-700">${formatCurrency(a.monto)}</td>
+            </tr>
+        `).join('') : '<tr><td colspan="3" class="p-4 text-center text-gray-400">No hay pagos registrados</td></tr>';
+
+        window.openModal('modal-deudas-cliente');
+
+    } catch (error) {
+        console.error("Error al cargar estado de cuenta:", error);
+        alert("No se pudo cargar la información del cliente.");
+    }
+};
+window.registrarAbonoGeneral = async function() {
+    const montoAbono = parseFloat(prompt("Ingrese el monto total del abono:"));
+    if (!montoAbono || montoAbono <= 0) return;
+
+    const metodo = prompt("Método de pago (Efectivo, Transferencia, Tarjeta):", "Efectivo");
+    const clientId = window.currentClientIdForAbono;
+    let dineroRestante = montoAbono;
+
+    try {
+        // 1. Obtener todas las ventas con deuda de este cliente (de la más vieja a la más nueva)
+        const { data: ventasPendientes, error } = await supabase
+            .from('ventas')
+            .select('*')
+            .eq('client_id', clientId)
+            .gt('saldo_pendiente', 0)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        if (ventasPendientes.length === 0) return alert("Este cliente no tiene deudas pendientes.");
+
+        // 2. Proceso de Cascada
+        for (let venta of ventasPendientes) {
+            if (dineroRestante <= 0) break;
+
+            let deudaActual = venta.saldo_pendiente;
+            let abonoParaEstaVenta = 0;
+
+            if (dineroRestante >= deudaActual) {
+                // El dinero alcanza para liquidar esta nota completa
+                abonoParaEstaVenta = deudaActual;
+                dineroRestante -= deudaActual;
+            } else {
+                // El dinero solo alcanza para una parte de esta nota
+                abonoParaEstaVenta = dineroRestante;
+                dineroRestante = 0;
+            }
+
+            // 3. Registrar el abono en la tabla 'abonos'
+            await supabase.from('abonos').insert({
+                venta_id: venta.venta_id,
+                client_id: clientId,
+                monto: abonoParaEstaVenta,
+                metodo_pago: metodo,
+                notas: "Abono General en cascada"
+            });
+
+            // 4. Actualizar el saldo en la tabla 'ventas'
+            await supabase.from('ventas')
+                .update({ saldo_pendiente: deudaActual - abonoParaEstaVenta })
+                .eq('venta_id', venta.venta_id);
+        }
+
+        alert("✅ Abono procesado con éxito.");
+        // Refrescar el modal de estado de cuenta
+        const nombreC = document.getElementById('nombre-cliente-deuda').textContent.split(": ")[1];
+        verEstadoCuentaCliente(clientId, nombreC);
+
+    } catch (err) {
+        console.error("Error en cascada:", err);
+        alert("Hubo un error al procesar el abono.");
+    }
+};
+window.imprimirEstadoCuenta = function() {
+    const nombreCliente = document.getElementById('nombre-cliente-deuda').textContent.replace("Estado de Cuenta: ", "");
+    const deudaTotal = document.getElementById('total-deuda-general').textContent;
+    const notasHTML = document.getElementById('lista-notas-pendientes').innerHTML;
+    const abonosHTML = document.getElementById('historial-abonos-cliente').innerHTML;
+    
+    const colorOxido = "#8B4513";
+    const fondoLigero = "#FDF8F5";
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>EdoCuenta_${nombreCliente}</title>
+            <style>
+                @page { size: letter; margin: 20mm; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.5; }
+                .header { border-bottom: 4px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .brand h1 { margin: 0; color: ${colorOxido}; font-size: 24px; }
+                .summary-card { background: ${fondoLigero}; border: 1px solid ${colorOxido}33; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+                .summary-card h2 { margin: 0; font-size: 12px; color: #888; text-transform: uppercase; }
+                .summary-card p { margin: 0; font-size: 28px; font-weight: 900; color: ${colorOxido}; }
+                
+                h3 { border-left: 4px solid ${colorOxido}; padding-left: 10px; font-size: 14px; text-transform: uppercase; color: #555; margin-top: 25px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+                th { background: #f4f4f4; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; }
+                td { padding: 10px; border-bottom: 1px solid #eee; }
+                .text-right { text-align: right; }
+                .text-red { color: #b91c1c; font-weight: bold; }
+                .text-green { color: #15803d; }
+                
+                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="brand">
+                    <h1>CREATIVA CORTES CNC</h1>
+                    <p style="margin:0; font-size:10px; font-weight:bold;">VALLADOLID, YUCATÁN</p>
+                </div>
+                <div style="text-align:right">
+                    <h2 style="margin:0; font-size:18px; opacity:0.6">ESTADO DE CUENTA</h2>
+                    <p style="margin:0; font-size:12px;">Fecha: ${new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <p style="margin:0; font-size:12px; color:#666;">Cliente:</p>
+                <p style="margin:0; font-size:18px; font-weight:bold;">${nombreCliente}</p>
+            </div>
+
+            <div class="summary-card">
+                <h2>Saldo Total Pendiente</h2>
+                <p>${deudaTotal}</p>
+            </div>
+
+            <h3>📂 Notas Pendientes de Pago</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Folio Nota</th>
+                        <th>Fecha de Emisión</th>
+                        <th class="text-right">Saldo Pendiente</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${notasHTML}
+                </tbody>
+            </table>
+
+            <h3>📜 Últimos Abonos Registrados</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha del Pago</th>
+                        <th>Método</th>
+                        <th class="text-right">Monto Recibido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${abonosHTML}
+                </tbody>
+            </table>
+
+            <div style="margin-top: 40px; border: 1px dashed #ccc; padding: 15px; font-size: 11px; color: #666;">
+                <strong>Nota:</strong> Este documento es informativo y refleja los saldos pendientes a la fecha actual. 
+                Cualquier aclaración favor de presentar sus comprobantes de abono anteriores.
+            </div>
+
+            <div class="footer">
+                📱 WhatsApp: 985 111 2233 | Taller de Fabricación Digital Creativa Cortes CNC
+            </div>
+
+            <script>
+                window.onload = () => {
+                    window.print();
+                    setTimeout(() => window.close(), 500);
+                }
+            </script>
+        </body>
+        </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
 };
 
 // Función auxiliar para actualizar los textos de los totales

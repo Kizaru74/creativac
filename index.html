@@ -704,9 +704,9 @@
 <div id="modal-client-debt-report" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] mx-auto overflow-y-auto">
         
-        <div class="p-6 border-b flex justify-between items-center">
-            <h3 class="text-2xl font-semibold text-gray-800">
-                <i class="fas fa-file-invoice-dollar mr-2 text-blue-600"></i> Reporte de Deuda del Cliente
+        <div class="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+            <h3 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-file-invoice-dollar mr-2 text-indigo-600"></i> Estado de Cuenta
             </h3>
             <button data-close-modal="modal-client-debt-report" class="text-gray-400 hover:text-gray-600 text-3xl transition-colors leading-none">
                 &times;
@@ -714,42 +714,46 @@
         </div>
 
         <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-xl font-bold">Cliente: <span id="client-report-name" class="text-indigo-700"></span></h4>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                 <div>
-                    <span class="text-lg font-semibold mr-2">Deuda Total Pendiente:</span>
-                    <span id="client-report-total-debt" class="text-red-600 font-extrabold text-xl">$0.00</span>
+                    <p class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Cliente</p>
+                    <h4 class="text-2xl font-black text-gray-900 uppercase" id="client-report-name">---</h4>
+                </div>
+                <div class="text-left md:text-right">
+                    <p class="text-xs font-bold text-red-600 uppercase tracking-wider">Total Pendiente</p>
+                    <span id="client-report-total-debt" class="text-3xl font-black text-red-600">$0.00</span>
                 </div>
             </div>
 
-            <div class="mb-4 text-right">
-                <button id="open-abono-from-report-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md transition-shadow">
-                    <i class="fas fa-money-bill-wave mr-2"></i> Registrar Abono a Deuda
+            <div class="flex gap-3 mb-6">
+                <button onclick="prepararAbonoDesdeReporte()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Registrar Abono
+                </button>
+                
+                <button onclick="imprimirEstadoCuenta()" class="flex-1 bg-amber-800 hover:bg-black text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center">
+                    <i class="fas fa-print mr-2"></i> Imprimir Reporte
                 </button>
             </div>
 
-            <div class="overflow-x-auto border rounded-lg">
+            <div class="overflow-x-auto border border-gray-200 rounded-xl shadow-sm">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-gray-100">
                         <tr>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Acumulado</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Fecha</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Descripción / Detalle</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Monto</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Saldo</th>
                         </tr>
                     </thead>
                     <tbody id="client-transactions-body" class="bg-white divide-y divide-gray-200">
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
         
-        <div class="p-4 border-t text-right">
-            <button onclick="printClientDebtReport()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl">
-    <i class="fas fa-print mr-2"></i> Imprimir / PDF
-</button>
-            <button data-close-modal="modal-client-debt-report" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition-colors">
-                Cerrar
+        <div class="p-4 border-t bg-gray-50 text-right rounded-b-2xl">
+            <button data-close-modal="modal-client-debt-report" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-xl transition-colors">
+                Cerrar Ventana
             </button>
         </div>
     </div>
@@ -805,6 +809,69 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<div id="modal-deudas-cliente" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-center border-bottom pb-4 mb-4">
+            <h2 class="text-2xl font-bold text-amber-900" id="nombre-cliente-deuda">Estado de Cuenta</h2>
+            <button onclick="closeModal('modal-deudas-cliente')" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <p class="text-xs text-amber-800 font-bold uppercase">Deuda Total Pendiente</p>
+                <p class="text-2xl font-black text-amber-900" id="total-deuda-general">$0.00</p>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                <p class="text-xs text-green-800 font-bold uppercase">Último Abono</p>
+                <p class="text-xl font-bold text-green-900" id="fecha-ultimo-abono">---</p>
+            </div>
+            <button onclick="abrirModalAbonoGeneral()" class="bg-amber-700 text-white font-bold rounded-lg hover:bg-amber-800 transition-colors">
+                + REGISTRAR ABONO GENERAL
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+                <h3 class="font-bold text-gray-700 mb-2 flex items-center">
+                    📂 Notas con Saldo Pendiente
+                </h3>
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+                            <tr>
+                                <th class="px-4 py-2">Nota</th>
+                                <th class="px-4 py-2">Fecha</th>
+                                <th class="px-4 py-2 text-right">Saldo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-notas-pendientes">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-gray-700 mb-2 flex items-center">
+                    📜 Historial Reciente de Pagos
+                </h3>
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+                            <tr>
+                                <th class="px-4 py-2">Fecha</th>
+                                <th class="px-4 py-2">Método</th>
+                                <th class="px-4 py-2 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historial-abonos-cliente">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
