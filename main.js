@@ -3035,57 +3035,46 @@ function toggleParentProductField() {
 }
 // La función DEBE estar expuesta globalmente si el formulario no tiene un listener en JS.
 window.handleUpdateProduct = async function(e) {
-    if (e) e.preventDefault(); // Evitar que la página se recargue
+    e.preventDefault();
 
-    // 1. Obtener la ID del producto que guardamos en la variable global al abrir el modal
-    const productId = document.getElementById('product-id')?.value;
+    const productId = document.getElementById('edit-product-id').value;
+    const name = document.getElementById('edit-product-name').value;
+    const price = parseFloat(document.getElementById('edit-product-price').value);
+    const category = document.getElementById('edit-product-category').value;
     
-    if (!productId) {
-        alert("Error: No se encontró el ID del producto para actualizar.");
-        return;
-    }
+    // Convertir de nuevo al formato de base de datos si es necesario
+    let dbType = 'PRODUCT';
+    if (category === 'Servicio') dbType = 'SERVICE';
+    if (category === 'Paquete') dbType = 'PACKAGE';
 
-    // 2. Capturar los valores actuales del formulario de edición
-    const name = document.getElementById('edit-product-name').value.trim();
-    const type = document.getElementById('edit-product-type').value;
-    const price = parseFloat(document.getElementById('edit-sale-price').value);
-    
-    let parentProductId = null;
-    if (type === 'PACKAGE') {
-        parentProductId = document.getElementById('edit-parent-product-select')?.value || null;
+    let parentId = null;
+    if (dbType === 'PACKAGE') {
+        parentId = document.getElementById('edit-product-parent').value || null;
     }
-
-    // Validación básica
-    if (!name) { alert("El nombre es obligatorio"); return; }
-    if (isNaN(price)) { alert("El precio debe ser un número válido"); return; }
 
     try {
-        // 3. Realizar el UPDATE en Supabase
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('productos')
-            .update({ 
-                name: name, 
-                type: type, 
-                price: price, 
-                parent_product: parentProductId 
+            .update({
+                name: name,
+                price: price,
+                type: dbType,
+                parent_product: parentId
             })
             .eq('producto_id', productId);
 
         if (error) throw error;
 
-        alert('✅ Producto actualizado correctamente.');
-
-        // 4. Limpiar y cerrar
-        closeModal('edit-product-modal'); 
+        alert('✅ Producto actualizado correctamente');
+        closeModal('edit-product-modal');
         
-        // 5. REFRESCAR LA TABLA (Vital para ver los cambios)
+        // Recargar la tabla
         if (typeof loadAndRenderProducts === 'function') {
-            await loadAndRenderProducts(); 
+            await loadAndRenderProducts();
         }
-
-    } catch (error) {
-        console.error('Error al actualizar:', error.message);
-        alert('Error al actualizar el producto: ' + error.message);
+    } catch (err) {
+        console.error('Error:', err);
+        alert('No se pudo actualizar: ' + err.message);
     }
 };
 // ⚠️ NECESITAS ESTA FUNCIÓN DE MAPEO:
@@ -4946,9 +4935,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Listener para el botón de confirmación de eliminación (del modal)
-    document.getElementById('confirm-delete-btn')?.addEventListener('click', confirmDeleteProduct);
-    document.getElementById('edit-product-form')?.addEventListener('submit', handleEditProduct);
+    //editar productos
+    // 1. Vincular el submit del formulario
+    const editForm = document.getElementById('edit-product-form');
+    if (editForm) {
+    editForm.addEventListener('submit', window.handleUpdateProduct);
+    }
+
+    // 2. Lógica para mostrar/ocultar el "Padre" mientras se edita (Change del select)
+    document.getElementById('edit-product-category')?.addEventListener('change', function(e) {
+    const container = document.getElementById('edit-product-parent-container');
+    if (e.target.value === 'Paquete') {
+        container.classList.remove('hidden');
+        if (typeof populateParentSelect === 'function') populateParentSelect('edit-product-parent');
+    } else {
+        container.classList.add('hidden');
+    }
+});
+
+
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
     // ====================================================================
