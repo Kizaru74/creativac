@@ -1119,6 +1119,40 @@ async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newU
     }
 }
 
+//Funcion para el producto padre
+window.refreshAllProductSelects = function() {
+    // 1. Selector en el modal de NUEVA VENTA
+    const saleProductSelect = document.getElementById('sale-product-select'); 
+    // 2. Selectores en el modal de PRODUCTOS (Padres)
+    const newProductParentSelect = document.getElementById('new-product-parent-select');
+    const editProductParentSelect = document.getElementById('edit-product-parent');
+
+    const products = window.allProducts || [];
+
+    // Función auxiliar para llenar un select
+    const fillSelect = (select, items, filterPackage = false) => {
+        if (!select) return;
+        const currentVal = select.value; // Guardar valor seleccionado actual
+        select.innerHTML = '<option value="">-- Seleccionar --</option>';
+        
+        items.forEach(p => {
+            // Si filterPackage es true, solo mostramos productos individuales (para ser padres)
+            if (filterPackage && p.type === 'PACKAGE') return;
+            
+            const opt = document.createElement('option');
+            opt.value = p.producto_id;
+            opt.textContent = p.name;
+            select.appendChild(opt);
+        });
+        select.value = currentVal; // Intentar restaurar el valor
+    };
+
+    // Llenar cada uno
+    fillSelect(saleProductSelect, products);
+    fillSelect(newProductParentSelect, products, true);
+    fillSelect(editProductParentSelect, products, true);
+};
+
 // ====================================================================
 // 7. MANEJO DEL PAGO Y LA DEUDA 
 // ====================================================================
@@ -4533,10 +4567,6 @@ async function loadAllProductsMap() {
     
     console.log(`✅ Mapa y Array de ${window.allProducts.length} productos cargados y limpiados.`);
 }
-// Asegúrate de definir las variables globalmente (en main.js, fuera de funciones):
-// window.allProducts = [];
-// window.allProductsMap = {};
-
 function formatDate(isoDateString) {
     if (!isoDateString) {
         return 'N/A';
