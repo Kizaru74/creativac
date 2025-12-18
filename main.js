@@ -2365,112 +2365,95 @@ window.registrarAbonoGeneral = async function() {
     }
 };
 window.imprimirEstadoCuenta = function() {
-    const nombreCliente = document.getElementById('nombre-cliente-deuda').textContent.replace("Estado de Cuenta: ", "");
-    const deudaTotal = document.getElementById('total-deuda-general').textContent;
-    const notasHTML = document.getElementById('lista-notas-pendientes').innerHTML;
-    const abonosHTML = document.getElementById('historial-abonos-cliente').innerHTML;
+    const data = window.currentClientDataForPrint;
     
-    const colorOxido = "#8B4513";
-    const fondoLigero = "#FDF8F5";
+    // Validación de seguridad
+    if (!data || !data.transaccionesHTML) {
+        return alert("No hay datos cargados. Por favor, abre el reporte del cliente primero.");
+    }
 
+    const colorOxido = "#8B4513";
+    
     const htmlContent = `
         <!DOCTYPE html>
-        <html lang="es">
+        <html>
         <head>
             <meta charset="UTF-8">
-            <title>EdoCuenta_${nombreCliente}</title>
             <style>
-                @page { size: letter; margin: 20mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.5; }
-                .header { border-bottom: 4px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-                .brand h1 { margin: 0; color: ${colorOxido}; font-size: 24px; }
-                .summary-card { background: ${fondoLigero}; border: 1px solid ${colorOxido}33; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
-                .summary-card h2 { margin: 0; font-size: 12px; color: #888; text-transform: uppercase; }
-                .summary-card p { margin: 0; font-size: 28px; font-weight: 900; color: ${colorOxido}; }
+                @page { size: letter; margin: 15mm; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.4; margin: 0; }
+                .header { border-bottom: 3px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .resumen { background: #fdf8f5; border: 1px solid ${colorOxido}44; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; }
                 
-                h3 { border-left: 4px solid ${colorOxido}; padding-left: 10px; font-size: 14px; text-transform: uppercase; color: #555; margin-top: 25px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-                th { background: #f4f4f4; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; }
-                td { padding: 10px; border-bottom: 1px solid #eee; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th { background: #f4f4f4; color: #666; padding: 8px; text-align: left; border-bottom: 2px solid #ddd; text-transform: uppercase; font-size: 10px; }
+                td { padding: 8px; border-bottom: 1px solid #eee; }
+                
                 .text-right { text-align: right; }
-                .text-red { color: #b91c1c; font-weight: bold; }
-                .text-green { color: #15803d; }
-                
-                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+                .text-red { color: #dc2626 !important; font-weight: bold; }
+                .text-green { color: #16a34a !important; font-weight: bold; }
+                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
             </style>
         </head>
         <body>
             <div class="header">
-                <div class="brand">
-                    <h1>CREATIVA CORTES CNC</h1>
-                    <p style="margin:0; font-size:10px; font-weight:bold;">VALLADOLID, YUCATÁN</p>
+                <div>
+                    <h1 style="margin:0; color:${colorOxido}; font-size: 22px;">CREATIVA CORTES CNC</h1>
+                    <p style="margin:0; font-size: 10px; font-weight: bold; letter-spacing: 1px;">ESTADO DE CUENTA DETALLADO</p>
                 </div>
-                <div style="text-align:right">
-                    <h2 style="margin:0; font-size:18px; opacity:0.6">ESTADO DE CUENTA</h2>
-                    <p style="margin:0; font-size:12px;">Fecha: ${new Date().toLocaleDateString()}</p>
+                <div style="text-align: right;">
+                    <p style="margin:0; font-size: 10px;">FECHA DE EMISIÓN</p>
+                    <p style="margin:0; font-weight: bold;">${new Date().toLocaleDateString()}</p>
                 </div>
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <p style="margin:0; font-size:12px; color:#666;">Cliente:</p>
-                <p style="margin:0; font-size:18px; font-weight:bold;">${nombreCliente}</p>
+            <div class="resumen">
+                <div>
+                    <p style="margin:0; font-size: 10px; color: #888;">CLIENTE</p>
+                    <p style="margin:0; font-size: 16px; font-weight: bold;">${data.nombre.toUpperCase()}</p>
+                </div>
+                <div style="text-align: right;">
+                    <p style="margin:0; font-size: 10px; color: #888;">SALDO TOTAL PENDIENTE</p>
+                    <p style="margin:0; font-size: 22px; font-weight: 900; color: ${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
+                </div>
             </div>
 
-            <div class="summary-card">
-                <h2>Saldo Total Pendiente</h2>
-                <p>${deudaTotal}</p>
-            </div>
-
-            <h3>📂 Notas Pendientes de Pago</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>Folio Nota</th>
-                        <th>Fecha de Emisión</th>
-                        <th class="text-right">Saldo Pendiente</th>
+                        <th style="width: 15%;">FECHA</th>
+                        <th style="width: 50%;">DESCRIPCIÓN / DETALLE</th>
+                        <th style="width: 17%; text-align: right;">MONTO</th>
+                        <th style="width: 18%; text-align: right;">SALDO</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${notasHTML}
+                    ${data.transaccionesHTML.replace(/text-red-600/g, 'text-red').replace(/text-green-600/g, 'text-green')}
                 </tbody>
             </table>
-
-            <h3>📜 Últimos Abonos Registrados</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha del Pago</th>
-                        <th>Método</th>
-                        <th class="text-right">Monto Recibido</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${abonosHTML}
-                </tbody>
-            </table>
-
-            <div style="margin-top: 40px; border: 1px dashed #ccc; padding: 15px; font-size: 11px; color: #666;">
-                <strong>Nota:</strong> Este documento es informativo y refleja los saldos pendientes a la fecha actual. 
-                Cualquier aclaración favor de presentar sus comprobantes de abono anteriores.
-            </div>
 
             <div class="footer">
-                📱 WhatsApp: 985 111 2233 | Taller de Fabricación Digital Creativa Cortes CNC
+                Taller Creativa Cortes CNC | Valladolid, Yucatán<br>
+                Este documento refleja todos los movimientos (Ventas y Abonos) a la fecha actual.
             </div>
 
             <script>
                 window.onload = () => {
                     window.print();
                     setTimeout(() => window.close(), 500);
-                }
+                };
             </script>
         </body>
         </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    const pWin = window.open('', '_blank');
+    if (pWin) {
+        pWin.document.write(htmlContent);
+        pWin.document.close();
+    } else {
+        alert("El navegador bloqueó la ventana emergente. Por favor, permite las ventanas emergentes para este sitio.");
+    }
 };
 
 // Función auxiliar para actualizar los textos de los totales
