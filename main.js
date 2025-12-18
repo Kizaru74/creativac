@@ -2119,16 +2119,17 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         if (vError) throw vError;
 
-        // 2. Obtener productos y abonos (Filtrados por esta venta específica)
-        const [prodRes, abonoRes] = await Promise.all([
+        // 2. Obtener productos y pagos
+        const [prodRes, pagosRes] = await Promise.all([
             supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
-            supabase.from('abonos').select('*').eq('venta_id', venta_id) 
+            supabase.from('pagos').select('*').eq('venta_id', venta_id) 
         ]);
 
         const productos = prodRes.data || [];
-        const abonos = abonoRes.data || [];
+        const pagos = pagosRes.data || [];
 
-        window.currentSaleForPrint = { ...venta, productos, abonos };
+        // Guardamos para impresión (Sin los botones)
+        window.currentSaleForPrint = { ...venta, productos, pagos };
 
         // 3. Llenar Modal
         document.getElementById('detail-sale-id').textContent = venta.venta_id;
@@ -2137,47 +2138,58 @@ window.handleViewSaleDetails = async function(venta_id) {
         const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
         document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
 
-        // 4. Llenar tabla del Modal (Aquí mostramos 4 columnas para gestión)
+        // Lógica de Crédito/Contado
+        const metodoDisplay = document.getElementById('detail-sale-method');
+        if (metodoDisplay) {
+            if (venta.saldo_pendiente > 0) {
+                metodoDisplay.textContent = "VENTA A CRÉDITO";
+                metodoDisplay.className = "text-red-600 font-bold";
+            } else {
+                metodoDisplay.textContent = "VENTA DE CONTADO";
+                metodoDisplay.className = "text-green-600 font-bold";
+            }
+        }
+
+        // 4. Llenar tabla de productos CON BOTÓN DE EDICIÓN
         const productsBody = document.getElementById('detail-products-body');
         productsBody.innerHTML = productos.map(item => `
-            <tr>
+            <tr class="border-b">
                 <td class="px-4 py-2">${item.name}</td>
                 <td class="px-4 py-2 text-right">${item.quantity}</td>
                 <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
                 <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
+                <td class="px-4 py-2 text-center">
+                    <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" 
+                            class="text-blue-600 hover:text-blue-800 transition-colors">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
             </tr>
         `).join('');
 
-        // 5. Historial de Abonos
+        // 5. Historial de Pagos
         const abonosBody = document.getElementById('detail-abonos-body');
-        abonosBody.innerHTML = abonos.length > 0 ? abonos.map(a => `
+        abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
             <tr class="text-xs border-b">
-                <td class="py-1">${new Date(a.created_at).toLocaleDateString()}</td>
-                <td class="py-1">${a.metodo_pago || 'Efectivo'}</td>
-                <td class="py-1 text-right font-semibold">${formatCurrency(a.monto)}</td>
+                <td class="py-1">${new Date(p.created_at).toLocaleDateString()}</td>
+                <td class="py-1">${p.metodo_pago || 'Efectivo'}</td>
+                <td class="py-1 text-right font-semibold text-green-700">${formatCurrency(p.amount || p.monto)}</td>
             </tr>
-        `).join('') : '<tr><td colspan="3" class="text-center py-2 text-gray-400">Sin abonos en esta nota</td></tr>';
+        `).join('') : '<tr><td colspan="3" class="text-center py-2 text-gray-400">Sin pagos registrados</td></tr>';
 
         updateTotalUI(venta.total_amount, venta.saldo_pendiente);
         window.openModal('modal-detail-sale');
     } catch (err) { console.error(err); }
 };
-
 //imprimir pdf de detalles de la venta
 window.imprimirTicketVenta = function() {
-    const venta = window.currentSaleForPrint;
-    if (!venta) return alert("No hay datos para imprimir");
+    const data = window.currentSaleForPrint;
+    if (!data) return alert("No hay datos de venta para imprimir");
 
-    const colorOxido = "#8B4513"; 
-    
-    // Generar las filas de productos manualmente (3 columnas fijas)
-    const filasProductos = venta.productos.map(p => `
-        <tr>
-            <td style="width: 60%; text-align: left; padding: 5px; border-bottom: 1px solid #eee;">${p.name}</td>
-            <td style="width: 15%; text-align: right; padding: 5px; border-bottom: 1px solid #eee;">${p.quantity}</td>
-            <td style="width: 25%; text-align: right; padding: 5px; border-bottom: 1px solid #eee; font-weight: bold;">${formatCurrency(p.subtotal)}</td>
-        </tr>
-    `).join('');
+    const colorOxido = "#8B4513";
+    // Determinar si es crédito o contado
+    const esCredito = data.saldo_pendiente > 0;
+    const textoMetodo = esCredito ? "VENTA A CRÉDITO" : "VENTA DE CONTADO";
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -2185,64 +2197,82 @@ window.imprimirTicketVenta = function() {
         <head>
             <meta charset="UTF-8">
             <style>
-                @page { size: 216mm 140mm; margin: 10mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 11px; }
-                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 5px; margin-bottom: 10px; }
-                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 8px; margin-bottom: 10px; border: 1px solid #eee; }
-                
-                table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-                th { background: ${colorOxido}; color: white; padding: 6px; font-size: 10px; text-transform: uppercase; }
-                
-                .totals-box { width: 220px; margin-left: auto; margin-top: 15px; background: #fdf8f5; padding: 10px; border: 1px solid #eee; }
-                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
+                @page { size: 80mm 200mm; margin: 0; }
+                body { font-family: 'Courier New', monospace; width: 75mm; padding: 2mm; font-size: 12px; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .bold { font-weight: bold; }
+                .divider { border-top: 1px dashed #000; margin: 5px 0; }
+                .header { margin-bottom: 10px; }
+                .metodo-destacado { 
+                    border: 1px solid #000; 
+                    padding: 5px; 
+                    margin: 10px 0; 
+                    text-align: center; 
+                    font-weight: bold;
+                    font-size: 14px;
+                }
+                table { width: 100%; border-collapse: collapse; }
             </style>
         </head>
         <body>
-            <div class="header">
-                <div style="display:flex; align-items:center;">
-                    <div style="width:40px; height:40px; background:${colorOxido}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; border-radius:4px; margin-right:10px;">C</div>
-                    <div>
-                        <h2 style="margin:0; color:${colorOxido}; font-size:16px;">CREATIVA CORTES CNC</h2>
-                        <p style="margin:0; font-size:8px;">DISEÑO • CORTE • PRECISIÓN</p>
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    <h1 style="margin:0; color:${colorOxido}; font-size:16px;">COMPROBANTE #${venta.venta_id}</h1>
-                    <p style="margin:0; font-size:10px;">${new Date(venta.created_at).toLocaleDateString()}</p>
-                </div>
+            <div class="header text-center">
+                <span class="bold" style="font-size: 16px;">CREATIVA CORTES CNC</span><br>
+                VALLADOLID, YUCATÁN<br>
+                Fecha: ${new Date(data.created_at || Date.now()).toLocaleDateString()}<br>
+                Ticket: # ${data.venta_id}
             </div>
 
-            <div class="data-grid">
-                <div><strong>CLIENTE:</strong> ${document.getElementById('detail-client-name').textContent}</div>
-                <div style="text-align:right;"><strong>ESTADO:</strong> ${venta.saldo_pendiente > 0 ? 'CON DEUDA' : 'PAGADO'}</div>
-            </div>
+            <div class="divider"></div>
+            <div>Cliente: ${document.getElementById('detail-client-name').textContent}</div>
+            <div class="metodo-destacado">${textoMetodo}</div>
+            <div class="divider"></div>
 
-            <table style="width: 100%;">
+            <table>
                 <thead>
                     <tr>
-                        <th style="width: 60%; text-align: left;">Descripción</th>
-                        <th style="width: 15%; text-align: right;">Cant.</th>
-                        <th style="width: 25%; text-align: right;">Total</th>
+                        <th class="text-left">Cant. / Descripción</th>
+                        <th class="text-right">Total</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${filasProductos}
+                    ${data.productos.map(p => `
+                        <tr>
+                            <td style="padding: 2px 0;">${p.quantity} x ${p.name.substring(0,20)}</td>
+                            <td class="text-right">${formatCurrency(p.subtotal)}</td>
+                        </tr>
+                    `).join('')}
                 </tbody>
             </table>
 
-            <div class="totals-box">
-                <div style="display:flex; justify-content:space-between; font-size:10px;"><span>Total Venta:</span> <span>${formatCurrency(venta.total_amount)}</span></div>
-                <div style="display:flex; justify-content:space-between; color:green; font-size:10px;"><span>Abonado:</span> <span>${formatCurrency(venta.total_amount - venta.saldo_pendiente)}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:1px solid #ccc; margin-top:5px; font-size:14px; padding-top:5px;">
-                    <span>PENDIENTE:</span> <span>${formatCurrency(venta.saldo_pendiente)}</span>
+            <div class="divider"></div>
+            <div class="text-right">
+                <span>TOTAL VENTA: </span><span class="bold">${formatCurrency(data.total_amount)}</span>
+            </div>
+
+            ${esCredito ? `
+                <div class="text-right">
+                    <span>ABONADO: </span><span>${formatCurrency(data.total_amount - data.saldo_pendiente)}</span>
                 </div>
+                <div class="text-right" style="font-size: 14px; margin-top: 5px;">
+                    <span class="bold">SALDO PENDIENTE: </span><span class="bold">${formatCurrency(data.saldo_pendiente)}</span>
+                </div>
+            ` : `
+                <div class="text-right bold">¡PAGADO!</div>
+            `}
+
+            <div class="divider"></div>
+            <div class="text-center" style="font-size: 10px;">
+                ${data.description ? `Nota: ${data.description}<br>` : ''}
+                ¡Gracias por su preferencia!
             </div>
 
-            <div class="footer">
-                📱 WhatsApp: 985 111 2233 | 📍 Valladolid, Yucatán
-            </div>
-
-            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+            <script>
+                window.onload = () => {
+                    window.print();
+                    setTimeout(() => window.close(), 500);
+                };
+            </script>
         </body>
         </html>
     `;
@@ -2463,77 +2493,67 @@ function updateTotalUI(total, deuda) {
     document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
 }
 
-window.editItemPrice = async function(detalle_id, precioActual, cantidad) {
+window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaId) {
     const nuevoPrecio = prompt("Ingrese el nuevo precio unitario:", precioActual);
     
-    if (nuevoPrecio !== null && !isNaN(nuevoPrecio)) {
-        const p = parseFloat(nuevoPrecio);
-        const nuevoSubtotal = p * cantidad;
+    // Validar que sea un número válido y no se haya cancelado
+    if (nuevoPrecio === null || nuevoPrecio === "" || isNaN(nuevoPrecio)) return;
 
-        try {
-            // 1. Actualizar el detalle en la base de datos
-            const { error: pError } = await supabase
-                .from('detalle_ventas')
-                .update({ price: p, subtotal: nuevoSubtotal })
-                .eq('detalle_id', detalle_id);
+    const p = parseFloat(nuevoPrecio);
+    const nuevoSubtotal = p * cantidad;
 
-            if (pError) throw pError;
+    try {
+        // 1. Actualizar el detalle en detalle_ventas
+        const { error: pError } = await supabase
+            .from('detalle_ventas')
+            .update({ price: p, subtotal: nuevoSubtotal })
+            .eq('detalle_id', detalle_id); // Asegúrate si tu columna es 'id' o 'detalle_id'
 
-            // 2. Recalcular el total de la venta
-            const ventaId = window.currentSaleForPrint.venta_id;
-            
-            // Obtenemos todos los detalles actualizados para sumar el nuevo total
-            const { data: todosLosDetalles } = await supabase
-                .from('detalle_ventas')
-                .select('subtotal')
-                .eq('venta_id', ventaId);
-            
-            const nuevoTotalVenta = todosLosDetalles.reduce((acc, curr) => acc + curr.subtotal, 0);
+        if (pError) throw pError;
 
-            // 3. Actualizar la tabla 'ventas' (Total y Saldo Pendiente)
-            // Asumimos que si editas el precio, la diferencia se va a la deuda
-            const { error: vError } = await supabase
-                .from('ventas')
-                .update({ 
-                    total_amount: nuevoTotalVenta,
-                    saldo_pendiente: nuevoTotalVenta // O ajustar según lo ya pagado
-                })
-                .eq('venta_id', ventaId);
-
-            if (vError) throw vError;
-
-            alert("✅ Precio actualizado correctamente");
-            
-            // 4. Refrescar la vista
-            handleViewSaleDetails(ventaId);
-
-        } catch (err) {
-            console.error("Error al actualizar:", err);
-            alert("No se pudo actualizar el precio.");
-        }
-    }
-};
-/**
- * Función auxiliar para preparar la edición de precios
- */
-window.prepararEdicionPrecio = function(ventaId, detalleId, nombreProd, precioActual) {
-    const section = document.getElementById('price-edit-section');
-    const inputPrice = document.getElementById('edit-new-price');
-    const inputVentaId = document.getElementById('edit-sale-transaction-id');
-    const inputDetailId = document.getElementById('edit-sale-detail-id');
-    const nameDisplay = document.getElementById('edit-product-name');
-    const idDisplay = document.getElementById('edit-sale-id-display');
-
-    if (section && inputPrice) {
-        section.classList.remove('hidden');
-        inputPrice.value = precioActual;
-        inputVentaId.value = ventaId;
-        inputDetailId.value = detalleId;
-        nameDisplay.textContent = nombreProd;
-        idDisplay.textContent = ventaId;
+        // 2. Obtener todos los detalles de esta venta para el nuevo Total
+        const { data: detalles } = await supabase
+            .from('detalle_ventas')
+            .select('subtotal')
+            .eq('venta_id', ventaId);
         
-        // Hacer scroll suave hasta la sección de edición
-        section.scrollIntoView({ behavior: 'smooth' });
+        const nuevoTotalVenta = detalles.reduce((acc, curr) => acc + curr.subtotal, 0);
+
+        // 3. Obtener cuánto ha pagado el cliente en total para esta venta
+        const { data: pagos } = await supabase
+            .from('pagos')
+            .select('amount')
+            .eq('venta_id', ventaId);
+        
+        const totalAbonado = pagos ? pagos.reduce((acc, curr) => acc + (curr.amount || 0), 0) : 0;
+
+        // 4. Calcular el nuevo saldo pendiente REAL
+        const nuevoSaldo = nuevoTotalVenta - totalAbonado;
+
+        // 5. Actualizar la tabla de VENTAS
+        const { error: vError } = await supabase
+            .from('ventas')
+            .update({ 
+                total_amount: nuevoTotalVenta,
+                saldo_pendiente: nuevoSaldo 
+            })
+            .eq('venta_id', ventaId);
+
+        if (vError) throw vError;
+
+        alert("✅ Precio y saldo actualizados.");
+        
+        // 6. Refrescar el modal de detalles para ver los cambios
+        if (typeof window.handleViewSaleDetails === 'function') {
+            window.handleViewSaleDetails(ventaId);
+        }
+        
+        // Opcional: Refrescar dashboard si tienes la función
+        if (window.loadDashboardData) window.loadDashboardData();
+
+    } catch (err) {
+        console.error("Error al actualizar:", err);
+        alert("No se pudo actualizar el precio.");
     }
 };
 
