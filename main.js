@@ -1964,6 +1964,7 @@ window.imprimirEstadoCuenta = function() {
 //Detalles de la venta
 window.handleViewSaleDetails = async function(venta_id) {
     try {
+        // 1. Obtener la información de la venta
         const { data: venta, error: vError } = await supabase
             .from('ventas')
             .select('*')
@@ -1972,25 +1973,38 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         if (vError) throw vError;
 
+        // 2. Obtener productos y PAGOS (asegurándonos de traer metodo_pago)
         const [prodRes, pagosRes] = await Promise.all([
             supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
-            supabase.from('pagos').select('*').eq('venta_id', venta_id) 
+            supabase.from('pagos').select('created_at, metodo_pago, amount').eq('venta_id', venta_id) 
         ]);
 
         const productos = prodRes.data || [];
         const pagos = pagosRes.data || [];
+
+        // Guardar para la función de impresión
         window.currentSaleForPrint = { ...venta, productos, pagos };
 
-        // Cabecera con Botón de Fecha
+        // 3. Llenar datos básicos del Modal
         document.getElementById('detail-sale-id').textContent = venta.venta_id;
-        const fechaHTML = `
-            ${new Date(venta.created_at).toLocaleDateString()} 
-            <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-2 text-blue-500 hover:text-blue-700 text-xs">
-                <i class="fas fa-calendar-alt"></i> Cambiar Fecha
-            </button>`;
-        document.getElementById('detail-sale-date').innerHTML = fechaHTML; // Asegúrate de tener este ID en tu HTML
+        document.getElementById('detail-sale-description').textContent = venta.description || 'Sin notas adicionales';
         
-        // Tabla de Productos con Editar y Eliminar
+        const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
+        document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
+
+        // Lógica de Condición (Crédito/Contado)
+        const metodoDisplay = document.getElementById('detail-sale-method');
+        if (metodoDisplay) {
+            if (venta.saldo_pendiente > 0.01) {
+                metodoDisplay.textContent = "VENTA A CRÉDITO";
+                metodoDisplay.className = "text-red-600 font-bold";
+            } else {
+                metodoDisplay.textContent = "VENTA DE CONTADO";
+                metodoDisplay.className = "text-green-600 font-bold";
+            }
+        }
+
+        // 4. Llenar tabla de productos con botones de Acción (Editar/Eliminar)
         const productsBody = document.getElementById('detail-products-body');
         productsBody.innerHTML = productos.map(item => `
             <tr class="border-b">
@@ -1998,21 +2012,47 @@ window.handleViewSaleDetails = async function(venta_id) {
                 <td class="px-4 py-2 text-right">${item.quantity}</td>
                 <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
                 <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
-                <td class="px-4 py-2 text-center flex justify-center gap-2">
-                    <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" class="text-blue-600 hover:text-blue-800" title="Editar Precio">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" class="text-red-600 hover:text-red-800" title="Eliminar Producto">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                <td class="px-4 py-2 text-center">
+                    <div class="flex justify-center gap-2">
+                        <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" 
+                                class="text-blue-600 hover:text-blue-800" title="Editar Precio">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" 
+                                class="text-red-600 hover:text-red-800" title="Eliminar Producto">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
 
-        // ... (resto de la función igual para pagos y totales)
-        updateTotalUI(venta.total_amount, venta.saldo_pendiente);
+        // 5. CORRECCIÓN AQUÍ: Historial de Pagos con MÉTODO DE PAGO
+        const abonosBody = document.getElementById('detail-abonos-body');
+        abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
+            <tr class="text-xs border-b hover:bg-gray-50">
+                <td class="py-2 px-2">${new Date(p.created_at).toLocaleDateString()}</td>
+                <td class="py-2 px-2 font-medium text-gray-700">${p.metodo_pago || 'Efectivo'}</td>
+                <td class="py-2 px-2 text-right font-bold text-green-700">${formatCurrency(p.amount)}</td>
+            </tr>
+        `).join('') : '<tr><td colspan="3" class="text-center py-4 text-gray-400">No hay pagos registrados en esta nota</td></tr>';
+
+        // 6. Actualizar Totales en el Modal
+        if (typeof updateTotalUI === 'function') {
+            updateTotalUI(venta.total_amount, venta.saldo_pendiente);
+        } else {
+            // Si no tienes esa función, actualizamos directo:
+            const totalE = document.getElementById('detail-total-amount');
+            const saldoE = document.getElementById('detail-pending-amount');
+            if (totalE) totalE.textContent = formatCurrency(venta.total_amount);
+            if (saldoE) saldoE.textContent = formatCurrency(venta.saldo_pendiente);
+        }
+
         window.openModal('modal-detail-sale');
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error("Error al cargar detalles:", err);
+        alert("No se pudieron cargar los detalles de la venta.");
+    }
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
 window.editSaleDate = async function(ventaId, fechaActual) {
@@ -2071,13 +2111,19 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
 };
 //imprimir pdf de detalles de la venta
 window.imprimirTicketVenta = function() {
-    const data = window.currentSaleForPrint;
-    if (!data) return alert("No hay datos de venta para imprimir");
+    const venta = window.currentSaleForPrint;
+    if (!venta) return alert("No hay datos para imprimir");
 
-    const colorOxido = "#8B4513";
-    // Determinar si es crédito o contado
-    const esCredito = data.saldo_pendiente > 0;
-    const textoMetodo = esCredito ? "VENTA A CRÉDITO" : "VENTA DE CONTADO";
+    const colorOxido = "#8B4513"; 
+    
+    // Generar las filas de productos manualmente (3 columnas fijas)
+    const filasProductos = venta.productos.map(p => `
+        <tr>
+            <td style="width: 60%; text-align: left; padding: 5px; border-bottom: 1px solid #eee;">${p.name}</td>
+            <td style="width: 15%; text-align: right; padding: 5px; border-bottom: 1px solid #eee;">${p.quantity}</td>
+            <td style="width: 25%; text-align: right; padding: 5px; border-bottom: 1px solid #eee; font-weight: bold;">${formatCurrency(p.subtotal)}</td>
+        </tr>
+    `).join('');
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -2085,82 +2131,64 @@ window.imprimirTicketVenta = function() {
         <head>
             <meta charset="UTF-8">
             <style>
-                @page { size: 80mm 200mm; margin: 0; }
-                body { font-family: 'Courier New', monospace; width: 75mm; padding: 2mm; font-size: 12px; }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .bold { font-weight: bold; }
-                .divider { border-top: 1px dashed #000; margin: 5px 0; }
-                .header { margin-bottom: 10px; }
-                .metodo-destacado { 
-                    border: 1px solid #000; 
-                    padding: 5px; 
-                    margin: 10px 0; 
-                    text-align: center; 
-                    font-weight: bold;
-                    font-size: 14px;
-                }
-                table { width: 100%; border-collapse: collapse; }
+                @page { size: 216mm 140mm; margin: 10mm; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 11px; }
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 5px; margin-bottom: 10px; }
+                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 8px; margin-bottom: 10px; border: 1px solid #eee; }
+                
+                table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                th { background: ${colorOxido}; color: white; padding: 6px; font-size: 10px; text-transform: uppercase; }
+                
+                .totals-box { width: 220px; margin-left: auto; margin-top: 15px; background: #fdf8f5; padding: 10px; border: 1px solid #eee; }
+                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
             </style>
         </head>
         <body>
-            <div class="header text-center">
-                <span class="bold" style="font-size: 16px;">CREATIVA CORTES CNC</span><br>
-                VALLADOLID, YUCATÁN<br>
-                Fecha: ${new Date(data.created_at || Date.now()).toLocaleDateString()}<br>
-                Ticket: # ${data.venta_id}
+            <div class="header">
+                <div style="display:flex; align-items:center;">
+                    <div style="width:40px; height:40px; background:${colorOxido}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; border-radius:4px; margin-right:10px;">C</div>
+                    <div>
+                        <h2 style="margin:0; color:${colorOxido}; font-size:16px;">CREATIVA CORTES CNC</h2>
+                        <p style="margin:0; font-size:8px;">DISEÑO • CORTE • PRECISIÓN</p>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <h1 style="margin:0; color:${colorOxido}; font-size:16px;">COMPROBANTE #${venta.venta_id}</h1>
+                    <p style="margin:0; font-size:10px;">${new Date(venta.created_at).toLocaleDateString()}</p>
+                </div>
             </div>
 
-            <div class="divider"></div>
-            <div>Cliente: ${document.getElementById('detail-client-name').textContent}</div>
-            <div class="metodo-destacado">${textoMetodo}</div>
-            <div class="divider"></div>
+            <div class="data-grid">
+                <div><strong>CLIENTE:</strong> ${document.getElementById('detail-client-name').textContent}</div>
+                <div style="text-align:right;"><strong>ESTADO:</strong> ${venta.saldo_pendiente > 0 ? 'CON DEUDA' : 'PAGADO'}</div>
+            </div>
 
-            <table>
+            <table style="width: 100%;">
                 <thead>
                     <tr>
-                        <th class="text-left">Cant. / Descripción</th>
-                        <th class="text-right">Total</th>
+                        <th style="width: 60%; text-align: left;">Descripción</th>
+                        <th style="width: 15%; text-align: right;">Cant.</th>
+                        <th style="width: 25%; text-align: right;">Total</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.productos.map(p => `
-                        <tr>
-                            <td style="padding: 2px 0;">${p.quantity} x ${p.name.substring(0,20)}</td>
-                            <td class="text-right">${formatCurrency(p.subtotal)}</td>
-                        </tr>
-                    `).join('')}
+                    ${filasProductos}
                 </tbody>
             </table>
 
-            <div class="divider"></div>
-            <div class="text-right">
-                <span>TOTAL VENTA: </span><span class="bold">${formatCurrency(data.total_amount)}</span>
+            <div class="totals-box">
+                <div style="display:flex; justify-content:space-between; font-size:10px;"><span>Total Venta:</span> <span>${formatCurrency(venta.total_amount)}</span></div>
+                <div style="display:flex; justify-content:space-between; color:green; font-size:10px;"><span>Abonado:</span> <span>${formatCurrency(venta.total_amount - venta.saldo_pendiente)}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:1px solid #ccc; margin-top:5px; font-size:14px; padding-top:5px;">
+                    <span>PENDIENTE:</span> <span>${formatCurrency(venta.saldo_pendiente)}</span>
+                </div>
             </div>
 
-            ${esCredito ? `
-                <div class="text-right">
-                    <span>ABONADO: </span><span>${formatCurrency(data.total_amount - data.saldo_pendiente)}</span>
-                </div>
-                <div class="text-right" style="font-size: 14px; margin-top: 5px;">
-                    <span class="bold">SALDO PENDIENTE: </span><span class="bold">${formatCurrency(data.saldo_pendiente)}</span>
-                </div>
-            ` : `
-                <div class="text-right bold">¡PAGADO!</div>
-            `}
-
-            <div class="divider"></div>
-            <div class="text-center" style="font-size: 10px;">
-                ${data.description ? `Nota: ${data.description}<br>` : ''}
-                ¡Gracias por su preferencia!
+            <div class="footer">
+                📱 WhatsApp: 985 111 2233 | 📍 Valladolid, Yucatán
             </div>
 
-            <script>
-                window.onload = () => {
-                    window.print();
-                    setTimeout(() => window.close(), 500);
-                };
-            </script>
+            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
         </body>
         </html>
     `;
