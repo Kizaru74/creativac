@@ -4430,60 +4430,102 @@ async function loadAndRenderClients() {
 }
 
 window.loadAndRenderProducts = async function() {
-     const allProducts = window.allProducts || []; 
-    const tableBody = document.getElementById('products-table-body');
-    
-    if (!tableBody) {
-        console.error("Error: No se encontró el <tbody> con ID 'products-table-body'.");
-        return;
-    }
+    try {
+        // 1. OBTENER DATOS FRESCOS DE SUPABASE
+        // Esto garantiza que después de editar o borrar, veas la realidad de la BD
+        const { data: freshProducts, error } = await supabase
+            .from('productos')
+            .select('*')
+            .order('producto_id', { ascending: false });
 
-    tableBody.innerHTML = ''; // Limpiar la tabla
-
-    if (allProducts.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">No hay productos registrados.</td></tr>';
-        return;
-    }
-
-    allProducts.forEach(producto => {
-        let parentName = '';
-        
-        // CORRECCIÓN DE DATOS ANTIGUOS: Verifica si es paquete y procede a buscar.
-        if (producto.type === 'PACKAGE') { 
-            if (producto.parent_product) {
-                // La búsqueda es correcta, usa el array local 'allProducts' que acabamos de definir.
-                const parentProduct = allProducts.find(p => 
-                    String(p.producto_id) === String(producto.parent_product)
-                );
-                
-                parentName = parentProduct 
-                             ? `<span class="text-xs text-gray-500 ml-1">(Padre: ${parentProduct.name})</span>` 
-                             : '<span class="text-xs text-red-500 ml-1">(ID Padre No Válida/Eliminada)</span>'; 
-            } else {
-                 parentName = '<span class="text-xs text-red-500 ml-1">(Sin Padre Asociado)</span>';
-            }
+        if (error) {
+            console.error("Error al obtener productos de la base de datos:", error.message);
+            return;
         }
 
-        const productTypeDisplay = producto.type === 'PACKAGE' ? 'Paquete/Servicio' : 'Producto Individual';
-        const productPriceDisplay = producto.price ? parseFloat(producto.price).toFixed(2) : '0.00';
-        
-        const row = tableBody.insertRow();
-        row.className = 'hover:bg-gray-50';
+        // 2. ACTUALIZAR ESTADO GLOBAL
+        // Esto es vital para que las funciones de Editar y Eliminar no usen datos viejos
+        window.allProducts = freshProducts || [];
+        window.allProductsMap = Object.fromEntries(
+            window.allProducts.map(p => [String(p.producto_id), p])
+        );
 
-        row.innerHTML = `
-            <td class="px-3 py-2 whitespace-nowrap">${producto.producto_id}</td>
-            <td class="px-3 py-2 whitespace-nowrap font-medium">
-                ${producto.name} ${parentName}
-            </td>
-            <td class="px-3 py-2 whitespace-nowrap">${productTypeDisplay}</td>
-            <td class="px-3 py-2 whitespace-nowrap">$${productPriceDisplay}</td>
-            <td class="px-3 py-2 whitespace-nowrap">
-                <button onclick="handleEditProductClick(${producto.producto_id})" class="edit-product-btn text-blue-600 hover:text-blue-800 text-sm mr-2">Editar</button>
-                <button onclick="handleDeleteProductClick(${producto.producto_id})" class="delete-product-btn text-red-600 hover:text-red-800 text-sm">Eliminar</button>
-            </td>
-        `;
-    });
-}
+        const tableBody = document.getElementById('products-table-body');
+        if (!tableBody) {
+            console.error("Error: No se encontró el <tbody> 'products-table-body'.");
+            return;
+        }
+
+        tableBody.innerHTML = ''; // Limpiar la tabla actual
+
+        if (window.allProducts.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400 italic font-light">No hay productos registrados aún.</td></tr>';
+            return;
+        }
+
+        // 3. RENDERIZAR FILAS
+        window.allProducts.forEach(producto => {
+            let parentName = '';
+            
+            // Lógica para mostrar el Producto Principal si es un Paquete
+            if (producto.type === 'PACKAGE') { 
+                if (producto.parent_product) {
+                    const parentProduct = window.allProducts.find(p => 
+                        String(p.producto_id) === String(producto.parent_product)
+                    );
+                    
+                    parentName = parentProduct 
+                        ? `<span class="block text-[10px] text-indigo-500 font-medium italic">Padre: ${parentProduct.name}</span>` 
+                        : '<span class="block text-[10px] text-red-400">ID Padre No Encontrada</span>'; 
+                } else {
+                     parentName = '<span class="block text-[10px] text-orange-400 italic">(Sin Padre Asociado)</span>';
+                }
+            }
+
+            // Formateo de etiquetas y precios
+            const productTypeDisplay = producto.type === 'PACKAGE' ? 
+                '<span class="px-2 py-1 text-[10px] bg-purple-50 text-purple-600 rounded-full font-bold border border-purple-100 uppercase">Paquete</span>' : 
+                '<span class="px-2 py-1 text-[10px] bg-blue-50 text-blue-600 rounded-full font-bold border border-blue-100 uppercase">Individual</span>';
+            
+            const productPriceDisplay = producto.price ? parseFloat(producto.price).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00';
+            
+            const row = tableBody.insertRow();
+            row.className = 'hover:bg-gray-50 transition-colors border-b border-gray-100';
+
+            row.innerHTML = `
+                <td class="px-4 py-3 text-xs text-gray-400 font-mono">${producto.producto_id}</td>
+                <td class="px-4 py-3 text-sm">
+                    <div class="flex flex-col">
+                        <span class="font-bold text-gray-800">${producto.name}</span>
+                        ${parentName}
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-center">${productTypeDisplay}</td>
+                <td class="px-4 py-3 text-right font-mono font-semibold text-gray-700">$${productPriceDisplay}</td>
+                <td class="px-4 py-3 text-right">
+                    <div class="flex justify-end gap-3">
+                        <button onclick="handleEditProductClick(${producto.producto_id})" class="text-indigo-600 hover:text-indigo-900 transition-colors tooltip" title="Editar">
+                            <i class="fas fa-edit"></i> <span class="text-xs ml-1 font-semibold">Editar</span>
+                        </button>
+                        <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-red-400 hover:text-red-600 transition-colors tooltip" title="Eliminar">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+        });
+
+        // 4. ACTUALIZAR SELECTORES AUTOMÁTICAMENTE
+        // Esto asegura que si cambias un nombre, los selectores de "Padre" se actualicen sin refresh
+        if (typeof window.populateParentSelect === 'function') {
+            window.populateParentSelect('new-product-parent-select');
+            window.populateParentSelect('edit-product-parent');
+        }
+
+    } catch (err) {
+        console.error("Error crítico en loadAndRenderProducts:", err);
+    }
+};
 
 async function loadAllProductsMap() {
     console.log("Cargando mapa de productos...");
@@ -5030,12 +5072,36 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-    if (confirmDeleteBtn && typeof window.confirmDeleteProduct === 'function') {
-        // Llama a la función asíncrona que ejecuta la eliminación en Supabase
-        confirmDeleteBtn.addEventListener('click', window.confirmDeleteProduct);
-        console.log("✅ Listener de confirmación de eliminación conectado.");
-    }
+    // Listener único para el botón de confirmar eliminación
+const btnEliminarConfirmar = document.getElementById('confirm-delete-btn');
+if (btnEliminarConfirmar) {
+    btnEliminarConfirmar.addEventListener('click', async () => {
+        if (!window.productIdToDelete) return;
+
+        btnEliminarConfirmar.disabled = true;
+        btnEliminarConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+
+        const { error } = await supabase
+            .from('productos')
+            .delete()
+            .eq('producto_id', window.productIdToDelete);
+
+        if (error) {
+            if (error.code === '23503') {
+                alert("No se puede eliminar porque este producto está en una venta.");
+            } else {
+                alert("Error al eliminar: " + error.message);
+            }
+        } else {
+            alert("Producto eliminado.");
+            closeModal('delete-product-modal');
+            await window.loadAndRenderProducts(); // Esto ahora sí refrescará la tabla
+        }
+
+        btnEliminarConfirmar.disabled = false;
+        btnEliminarConfirmar.textContent = 'Sí, Eliminar';
+    });
+}
 });
 
 // ✅ DEJA ESTO (Pero ajustado):
