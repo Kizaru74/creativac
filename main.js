@@ -1964,6 +1964,7 @@ window.imprimirEstadoCuenta = function() {
 //Detalles de la venta
 window.handleViewSaleDetails = async function(venta_id) {
     try {
+        // 1. Obtener datos de Supabase
         const { data: venta, error: vError } = await supabase
             .from('ventas')
             .select('*')
@@ -1981,32 +1982,7 @@ window.handleViewSaleDetails = async function(venta_id) {
         const pagos = pagosRes.data || [];
         window.currentSaleForPrint = { ...venta, productos, pagos };
 
-        // --- LLENADO SEGURO DE DATOS ---
-        
-        // 1. Método de Pago (El que pediste de la tabla ventas)
-        const elMetodo = document.getElementById('detail-payment-method');
-        if (elMetodo) {
-            const txt = venta.metodo_pago || 'No especificado';
-            elMetodo.innerHTML = `
-                <span class="font-bold">${txt}</span>
-                <button onclick="window.editSalePaymentMethod(${venta.venta_id}, '${txt}')" class="ml-2 text-blue-400 hover:text-blue-600">
-                    <i class="fas fa-edit" style="font-size: 10px;"></i>
-                </button>
-            `;
-        }
-
-        // 2. Fecha con edición
-        const elFecha = document.getElementById('detail-sale-date');
-        if (elFecha) {
-            elFecha.innerHTML = `
-                <span>${new Date(venta.created_at).toLocaleDateString()}</span>
-                <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-2 text-indigo-500">
-                    <i class="fas fa-calendar-alt"></i>
-                </button>
-            `;
-        }
-
-        // 3. ID de Venta y Cliente
+        // 2. Llenar datos de Cabecera (IDs de tu HTML)
         const elId = document.getElementById('detail-sale-id');
         if (elId) elId.textContent = venta.venta_id;
 
@@ -2016,15 +1992,31 @@ window.handleViewSaleDetails = async function(venta_id) {
             elCliente.textContent = c ? c.name : 'Cliente General';
         }
 
-        // 4. Estado (Badge)
-        const elEstado = document.getElementById('detail-sale-method');
-        if (elEstado) {
-            elEstado.innerHTML = venta.saldo_pendiente > 0.05 
-                ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold uppercase text-center">Deuda</span>` 
-                : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase text-center">Pagado</span>`;
+        const elFecha = document.getElementById('detail-sale-date');
+        if (elFecha) {
+            elFecha.innerHTML = `
+                ${new Date(venta.created_at).toLocaleDateString()}
+                <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-1 text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-edit" style="font-size: 10px;"></i>
+                </button>
+            `;
         }
 
-        // 5. Tabla de Productos
+        const elMetodo = document.getElementById('detail-payment-method');
+        if (elMetodo) {
+            const txt = venta.metodo_pago || 'No especificado';
+            elMetodo.innerHTML = `
+                ${txt}
+                <button onclick="window.editSalePaymentMethod(${venta.venta_id}, '${txt}')" class="ml-1 text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-edit" style="font-size: 10px;"></i>
+                </button>
+            `;
+        }
+
+        const elDesc = document.getElementById('detail-sale-description');
+        if (elDesc) elDesc.textContent = venta.description || 'Sin notas adicionales';
+
+        // 3. Tabla de Productos (Con Editar y Borrar)
         const productsBody = document.getElementById('detail-products-body');
         if (productsBody) {
             productsBody.innerHTML = productos.map(item => `
@@ -2043,31 +2035,33 @@ window.handleViewSaleDetails = async function(venta_id) {
             `).join('');
         }
 
-        // 6. Historial de Abonos
+        // 4. Resumen Financiero (IDs de tu HTML corregidos)
+        const elTotal = document.getElementById('detail-grand-total');
+        if (elTotal) elTotal.textContent = formatCurrency(venta.total_amount);
+
+        const elPagado = document.getElementById('detail-paid-amount');
+        if (elPagado) elPagado.textContent = formatCurrency(venta.total_amount - (venta.saldo_pendiente || 0));
+
+        const elDeuda = document.getElementById('detail-remaining-debt');
+        if (elDeuda) elDeuda.textContent = formatCurrency(venta.saldo_pendiente || 0);
+
+        // 5. Historial de Abonos
         const abonosBody = document.getElementById('detail-abonos-body');
         if (abonosBody) {
             abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
-                <tr class="text-xs border-b italic">
-                    <td class="py-2 px-3 text-gray-500">${new Date(p.created_at).toLocaleDateString()}</td>
-                    <td class="py-2 px-3 font-bold text-indigo-600 uppercase">${p.metodo_pago || 'EFECTIVO'}</td>
-                    <td class="py-2 px-3 text-right font-bold">${formatCurrency(p.amount || p.monto)}</td>
+                <tr class="text-xs border-b">
+                    <td class="py-2 px-4">${new Date(p.created_at).toLocaleDateString()}</td>
+                    <td class="py-2 px-4 font-bold text-green-700">${formatCurrency(p.amount || p.monto)}</td>
+                    <td class="py-2 px-4 uppercase text-gray-600">${p.metodo_pago || 'EFECTIVO'}</td>
                 </tr>
             `).join('') : '<tr><td colspan="3" class="text-center py-4 text-gray-400">Sin abonos</td></tr>';
         }
 
-        // 7. Totales Finales
-        const elTotal = document.getElementById('detail-total-amount');
-        if (elTotal) elTotal.textContent = formatCurrency(venta.total_amount);
-
-        const elSaldo = document.getElementById('detail-pending-amount');
-        if (elSaldo) {
-            elSaldo.textContent = formatCurrency(venta.saldo_pendiente);
-            elSaldo.className = venta.saldo_pendiente > 0.05 ? "text-2xl font-black text-red-600" : "text-2xl font-black text-green-600";
-        }
-
+        // 6. Abrir el modal
         window.openModal('modal-detail-sale');
-    } catch (err) { 
-        console.error("Error en handleViewSaleDetails:", err);
+
+    } catch (err) {
+        console.error("Error crítico en handleViewSaleDetails:", err);
     }
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
