@@ -2108,78 +2108,61 @@ window.printClientDebtReport = function() {
     }
 }
 
-window.handleViewSaleDetails = async function(venta_id) {
+// --- FUNCIÓN PARA CAMBIAR LA FECHA ---
+window.editSaleDate = async function(ventaId, fechaActual) {
+    // Formatear fecha para el prompt (YYYY-MM-DD)
+    const fechaBase = new Date(fechaActual).toISOString().split('T')[0];
+    const nuevaFecha = prompt("Ingrese la nueva fecha (AAAA-MM-DD):", fechaBase);
+
+    if (!nuevaFecha || nuevaFecha === fechaBase) return;
+
     try {
-        // 1. Obtener la venta
-        const { data: venta, error: vError } = await supabase
+        const { error } = await supabase
             .from('ventas')
-            .select('*')
-            .eq('venta_id', parseInt(venta_id))
-            .maybeSingle();
+            .update({ created_at: nuevaFecha })
+            .eq('venta_id', ventaId);
 
-        if (vError) throw vError;
+        if (error) throw error;
+        alert("✅ Fecha actualizada.");
+        window.handleViewSaleDetails(ventaId);
+    } catch (err) {
+        alert("Error al cambiar fecha. Use formato AAAA-MM-DD");
+    }
+};
 
-        // 2. Obtener productos y pagos
-        const [prodRes, pagosRes] = await Promise.all([
-            supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
-            supabase.from('pagos').select('*').eq('venta_id', venta_id) 
-        ]);
+// --- FUNCIÓN PARA ELIMINAR UN PRODUCTO DE LA VENTA ---
+window.deleteItemFromSale = async function(detalleId, ventaId) {
+    if (!confirm("¿Estás seguro de eliminar este producto? El total de la venta y el saldo se recalcularán.")) return;
 
-        const productos = prodRes.data || [];
-        const pagos = pagosRes.data || [];
+    try {
+        // 1. Eliminar el renglón
+        const { error: delError } = await supabase
+            .from('detalle_ventas')
+            .delete()
+            .eq('detalle_id', detalleId);
 
-        // Guardamos para impresión (Sin los botones)
-        window.currentSaleForPrint = { ...venta, productos, pagos };
+        if (delError) throw delError;
 
-        // 3. Llenar Modal
-        document.getElementById('detail-sale-id').textContent = venta.venta_id;
-        document.getElementById('detail-sale-description').textContent = venta.description || 'Sin notas adicionales';
+        // 2. Recalcular todo (Usamos la lógica de actualización que ya tenemos)
+        const { data: detalles } = await supabase.from('detalle_ventas').select('subtotal').eq('venta_id', ventaId);
+        const nuevoTotalVenta = detalles.reduce((acc, curr) => acc + curr.subtotal, 0);
+
+        const { data: pagos } = await supabase.from('pagos').select('amount').eq('venta_id', ventaId);
+        const totalAbonado = pagos ? pagos.reduce((acc, curr) => acc + (curr.amount || 0), 0) : 0;
         
-        const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
-        document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
+        const nuevoSaldo = nuevoTotalVenta - totalAbonado;
 
-        // Lógica de Crédito/Contado
-        const metodoDisplay = document.getElementById('detail-sale-method');
-        if (metodoDisplay) {
-            if (venta.saldo_pendiente > 0) {
-                metodoDisplay.textContent = "VENTA A CRÉDITO";
-                metodoDisplay.className = "text-red-600 font-bold";
-            } else {
-                metodoDisplay.textContent = "VENTA DE CONTADO";
-                metodoDisplay.className = "text-green-600 font-bold";
-            }
-        }
+        // 3. Actualizar la venta principal
+        await supabase.from('ventas')
+            .update({ total_amount: nuevoTotalVenta, saldo_pendiente: nuevoSaldo })
+            .eq('venta_id', ventaId);
 
-        // 4. Llenar tabla de productos CON BOTÓN DE EDICIÓN
-        const productsBody = document.getElementById('detail-products-body');
-        productsBody.innerHTML = productos.map(item => `
-            <tr class="border-b">
-                <td class="px-4 py-2">${item.name}</td>
-                <td class="px-4 py-2 text-right">${item.quantity}</td>
-                <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
-                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
-                <td class="px-4 py-2 text-center">
-                    <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" 
-                            class="text-blue-600 hover:text-blue-800 transition-colors">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
-
-        // 5. Historial de Pagos
-        const abonosBody = document.getElementById('detail-abonos-body');
-        abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
-            <tr class="text-xs border-b">
-                <td class="py-1">${new Date(p.created_at).toLocaleDateString()}</td>
-                <td class="py-1">${p.metodo_pago || 'Efectivo'}</td>
-                <td class="py-1 text-right font-semibold text-green-700">${formatCurrency(p.amount || p.monto)}</td>
-            </tr>
-        `).join('') : '<tr><td colspan="3" class="text-center py-2 text-gray-400">Sin pagos registrados</td></tr>';
-
-        updateTotalUI(venta.total_amount, venta.saldo_pendiente);
-        window.openModal('modal-detail-sale');
-    } catch (err) { console.error(err); }
+        alert("✅ Producto eliminado y totales actualizados.");
+        window.handleViewSaleDetails(ventaId);
+    } catch (err) {
+        console.error(err);
+        alert("Error al eliminar el producto.");
+    }
 };
 //imprimir pdf de detalles de la venta
 window.imprimirTicketVenta = function() {
