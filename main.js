@@ -4976,14 +4976,17 @@ document.getElementById('edit-product-category')?.addEventListener('change', fun
 
 // Listener para confirmar la eliminación
 document.addEventListener('DOMContentLoaded', () => {
-    const btnEliminar = document.getElementById('confirm-delete-client-btn');
-    
-    if (btnEliminar) {
-        btnEliminar.onclick = async function() {
-            if (!window.clientIdToDelete) return;
+   setTimeout(() => {
+    const btnConfirm = document.getElementById('confirm-delete-client-btn');
+    if (btnConfirm) {
+        btnConfirm.onclick = async function() {
+            if (!window.clientIdToDelete) {
+                console.error("No hay un ID de cliente seleccionado para eliminar.");
+                return;
+            }
 
-            btnEliminar.disabled = true;
-            btnEliminar.textContent = 'Eliminando...';
+            btnConfirm.disabled = true;
+            btnConfirm.textContent = 'Eliminando...';
 
             try {
                 const { error } = await supabase
@@ -4993,24 +4996,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (error) {
                     if (error.code === '23503') {
-                        alert('No se puede eliminar: El cliente tiene historial de ventas o deudas.');
+                        alert('No se puede eliminar: El cliente tiene ventas registradas.');
                     } else { throw error; }
                 } else {
-                    alert('✅ Cliente eliminado con éxito');
+                    alert('✅ Cliente eliminado con éxito.');
                     closeModal('delete-client-modal');
-                    // Refrescar la tabla
+                    // Recargar tabla de clientes
                     if (window.loadClientsTable) await window.loadClientsTable();
                 }
             } catch (err) {
-                console.error("Error al eliminar:", err);
-                alert("Error al eliminar el cliente.");
+                alert('Error al eliminar: ' + err.message);
             } finally {
-                btnEliminar.disabled = false;
-                btnEliminar.textContent = 'Sí, Eliminar Cliente';
-                window.clientIdToDelete = null;
+                btnConfirm.disabled = false;
+                btnConfirm.textContent = 'Sí, Eliminar Cliente';
             }
         };
     }
+}, 1000); // Pequeño retraso para asegurar que el DOM esté listo
 });
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
