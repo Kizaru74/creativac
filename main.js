@@ -2939,21 +2939,18 @@ function loadProductsTable() {
     // y document.querySelectorAll('.delete-product-btn').forEach(...) que tenías antes,
     // ya que ahora usamos el onclick directo.
 } window.loadProductsTable = loadProductsTable; // Asegurar exposición
-/**
- * Maneja el envío del formulario de edición de precio en el modal de detalle de venta.
- * Actualiza 'detalle_ventas' y recalcula 'ventas' (total, pagado, saldo pendiente).
- */
 
 function loadProductDataToForm(product) {
     if (!product) return;
 
-    // 1. Asignar valores a los campos usando los IDs exactos de tu bloque HTML
+    // Llenar campos básicos
     document.getElementById('edit-product-id').value = product.producto_id;
     document.getElementById('edit-product-name').value = product.name || '';
     document.getElementById('edit-product-price').value = product.price || 0;
     
-    // Mapeo de tipos: en tu BD es 'PRODUCT'/'PACKAGE' pero en tu HTML es 'Producto'/'Paquete'
     const categorySelect = document.getElementById('edit-product-category');
+    
+    // Normalizar el tipo para el select del HTML
     if (product.type === 'PACKAGE' || product.type === 'Paquete') {
         categorySelect.value = "Paquete";
     } else if (product.type === 'SERVICE' || product.type === 'Servicio') {
@@ -2962,16 +2959,17 @@ function loadProductDataToForm(product) {
         categorySelect.value = "Producto";
     }
 
-    // 2. Lógica del Producto Padre (Paquetes)
     const parentContainer = document.getElementById('edit-product-parent-container');
     const parentSelect = document.getElementById('edit-product-parent');
 
+    // Lógica para el Padre
     if (categorySelect.value === 'Paquete') {
         parentContainer.classList.remove('hidden');
-        // Llenar el select de padres si tienes la función
-        if (typeof populateParentSelect === 'function') {
-            populateParentSelect('edit-product-parent'); 
-        }
+        
+        // --- CRÍTICO: Poblar el select ANTES de asignar el valor ---
+        window.populateParentSelect('edit-product-parent', product.producto_id);
+        
+        // Ahora sí, asignar el padre que ya tenía
         parentSelect.value = product.parent_product || '';
     } else {
         parentContainer.classList.add('hidden');
@@ -3033,6 +3031,29 @@ function toggleParentProductField() {
         parentSelect.value = ''; // Limpiar el valor seleccionado
     }
 }
+
+window.populateParentSelect = function(selectId, currentProductId = null) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    // 1. Limpiar opciones actuales
+    select.innerHTML = '<option value="">-- Seleccione Producto Principal --</option>';
+
+    // 2. Filtrar productos que pueden ser "Padres" (usualmente los que NO son paquetes)
+    // Y excluimos el producto que estamos editando para evitar circularidad
+    const potentialParents = window.allProducts.filter(p => 
+        String(p.producto_id) !== String(currentProductId) && 
+        p.type !== 'PACKAGE'
+    );
+
+    // 3. Agregar opciones al select
+    potentialParents.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.producto_id;
+        option.textContent = `${p.name} (ID: ${p.producto_id})`;
+        select.appendChild(option);
+    });
+};
 // La función DEBE estar expuesta globalmente si el formulario no tiene un listener en JS.
 window.handleUpdateProduct = async function(e) {
     e.preventDefault();
@@ -4893,12 +4914,15 @@ if (editForm) {
 // 2. Lógica para mostrar/ocultar el "Padre" mientras se edita (Change del select)
 document.getElementById('edit-product-category')?.addEventListener('change', function(e) {
     const container = document.getElementById('edit-product-parent-container');
+    const currentId = document.getElementById('edit-product-id').value;
+    
     if (e.target.value === 'Paquete') {
         container.classList.remove('hidden');
-        if (typeof populateParentSelect === 'function') populateParentSelect('edit-product-parent');
+        window.populateParentSelect('edit-product-parent', currentId);
     } else {
         container.classList.add('hidden');
     }
+});
 });
 
     // ====================================================================
