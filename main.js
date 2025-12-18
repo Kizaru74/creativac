@@ -3169,6 +3169,7 @@ window.handleProductTypeChange = function() {
         parentSelect.value = ''; 
     }
 }
+let deletingProductId = null; 
 window.handleEditProductClick = function(productId) {
     console.log("ID recibida del botón:", typeof productId, productId);
     
@@ -3188,56 +3189,23 @@ window.handleEditProductClick = function(productId) {
     }
 }
 // Variable global para guardar la ID del producto a eliminar
-let deletingProductId = null; 
-
 window.handleDeleteProductClick = function(productId) {
-    // 1. Asignar la ID a la variable global (asumimos que usas 'editingProductId' para ambas acciones)
-    window.editingProductId = productId; 
+    // 1. Guardamos el ID en una variable global para que el otro botón lo encuentre
+    window.productIdToDelete = productId; 
     
-    // 2. Obtener el producto para mostrar un mensaje claro
-    // Asumimos que allProductsMap existe y está en window.allProductsMap
-    const productToDelete = window.allProductsMap[String(productId)];
-
-    // 3. Mostrar el nombre del producto en el placeholder
+    // 2. Buscamos el producto para mostrar el nombre en el modal
+    const product = window.allProductsMap[String(productId)];
     const placeholder = document.getElementById('delete-product-name-placeholder');
-    if (placeholder && productToDelete) {
-        placeholder.textContent = productToDelete.name;
+    
+    if (placeholder && product) {
+        placeholder.textContent = product.name;
     }
 
-    // 4. Abrir el modal (USANDO EL ID CORRECTO DEL BLOQUE HTML)
-    openModal('delete-product-modal'); 
-}
-window.confirmDeleteProduct = async function() {
-    if (!window.editingProductId) return;
+    // 3. Abrir modal
+    openModal('delete-product-modal');
+};
 
-    const confirmBtn = document.getElementById('confirm-delete-btn');
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = 'Eliminando...'; 
 
-    // 🛑 VOLVEMOS A: Usar .delete()
-    const { error } = await supabase
-        .from('productos')
-        .delete() // ⬅️ Borrado físico
-        .eq('producto_id', window.editingProductId); 
-
-    if (error) {
-        // 🚨 CRÍTICO: Manejar el error de clave foránea aquí
-        if (error.code === '23503') { // Código estándar para violación de FK
-            alert('¡ERROR! Este producto no se puede eliminar porque ya ha sido utilizado en una o más ventas (Historial de ventas). Considere la función "Archivar" (Borrado Lógico) en la BD.');
-        } else {
-            console.error('Error al eliminar producto:', error.message);
-            alert('Error al eliminar producto: ' + error.message);
-        }
-    } else {
-        alert('Producto eliminado exitosamente.');
-             await loadAndRenderProducts();
-    }
-
-    confirmBtn.disabled = false;
-    confirmBtn.textContent = 'Sí, Eliminar';
-    closeModal('delete-product-modal'); 
-    window.editingProductId = null; 
-}
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
@@ -4915,35 +4883,15 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePriceField(e.target.value); 
     });
     
-    // ✅ DELEGACIÓN DE EVENTOS PRODUCTOS
-    // Adjuntamos el listener al <tbody>, que es estático
-    document.getElementById('products-table-body')?.addEventListener('click', (e) => {
-        if (!e.target.hasAttribute('data-product-id')) return;
-        
-        const productId = e.target.getAttribute('data-product-id');
-
-        // 1. Botón de Edición
-        if (e.target.classList.contains('edit-product-btn')) {
-            e.preventDefault();
-            handleEditProductClick(productId); 
-        }
-        
-        // 2. Botón de Eliminación
-        if (e.target.classList.contains('delete-product-btn')) {
-            e.preventDefault();
-            handleDeleteProductClick(productId); 
-        }
-    });
-    
-    //editar productos
-    // 1. Vincular el submit del formulario
-    const editForm = document.getElementById('edit-product-form');
-    if (editForm) {
+ // zeditar producto
+// 1. Vincular el submit del formulario
+const editForm = document.getElementById('edit-product-form');
+if (editForm) {
     editForm.addEventListener('submit', window.handleUpdateProduct);
-    }
+}
 
-    // 2. Lógica para mostrar/ocultar el "Padre" mientras se edita (Change del select)
-    document.getElementById('edit-product-category')?.addEventListener('change', function(e) {
+// 2. Lógica para mostrar/ocultar el "Padre" mientras se edita (Change del select)
+document.getElementById('edit-product-category')?.addEventListener('change', function(e) {
     const container = document.getElementById('edit-product-parent-container');
     if (e.target.value === 'Paquete') {
         container.classList.remove('hidden');
@@ -4952,7 +4900,6 @@ document.addEventListener('DOMContentLoaded', () => {
         container.classList.add('hidden');
     }
 });
-
 
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
