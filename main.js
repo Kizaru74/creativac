@@ -4975,7 +4975,6 @@ document.getElementById('edit-product-category')?.addEventListener('change', fun
 });
 
 // Listener para confirmar la eliminación
-document.addEventListener('DOMContentLoaded', () => {
    document.addEventListener('click', async function(e) {
     // Detectamos si el clic fue en el botón de confirmar eliminación
     if (e.target && e.target.id === 'confirm-delete-client-btn') {
@@ -5026,7 +5025,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
-});
+
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
     // ====================================================================
