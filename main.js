@@ -4430,100 +4430,73 @@ async function loadAndRenderClients() {
 }
 
 window.loadAndRenderProducts = async function() {
+    console.log("🔄 Recargando productos desde la base de datos...");
+    
     try {
-        // 1. OBTENER DATOS FRESCOS DE SUPABASE
-        // Esto garantiza que después de editar o borrar, veas la realidad de la BD
-        const { data: freshProducts, error } = await supabase
+        // 1. OBTENER DATOS REALES DE SUPABASE
+        const { data, error } = await supabase
             .from('productos')
             .select('*')
             .order('producto_id', { ascending: false });
 
-        if (error) {
-            console.error("Error al obtener productos de la base de datos:", error.message);
-            return;
-        }
+        if (error) throw error;
 
-        // 2. ACTUALIZAR ESTADO GLOBAL
-        // Esto es vital para que las funciones de Editar y Eliminar no usen datos viejos
-        window.allProducts = freshProducts || [];
+        // 2. ACTUALIZAR LAS VARIABLES GLOBALES (Esto es lo que evita el refresh)
+        window.allProducts = data || [];
+        // Actualizamos el mapa para que handleEditProductClick encuentre los datos nuevos
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
         );
 
         const tableBody = document.getElementById('products-table-body');
-        if (!tableBody) {
-            console.error("Error: No se encontró el <tbody> 'products-table-body'.");
-            return;
-        }
+        if (!tableBody) return;
 
-        tableBody.innerHTML = ''; // Limpiar la tabla actual
+        tableBody.innerHTML = ''; // Limpiar tabla
 
         if (window.allProducts.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400 italic font-light">No hay productos registrados aún.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No hay productos.</td></tr>';
             return;
         }
 
-        // 3. RENDERIZAR FILAS
+        // 3. DIBUJAR LA TABLA
         window.allProducts.forEach(producto => {
             let parentName = '';
-            
-            // Lógica para mostrar el Producto Principal si es un Paquete
-            if (producto.type === 'PACKAGE') { 
-                if (producto.parent_product) {
-                    const parentProduct = window.allProducts.find(p => 
-                        String(p.producto_id) === String(producto.parent_product)
-                    );
-                    
-                    parentName = parentProduct 
-                        ? `<span class="block text-[10px] text-indigo-500 font-medium italic">Padre: ${parentProduct.name}</span>` 
-                        : '<span class="block text-[10px] text-red-400">ID Padre No Encontrada</span>'; 
-                } else {
-                     parentName = '<span class="block text-[10px] text-orange-400 italic">(Sin Padre Asociado)</span>';
-                }
+            if (producto.type === 'PACKAGE' && producto.parent_product) {
+                const parent = window.allProducts.find(p => String(p.producto_id) === String(producto.parent_product));
+                parentName = parent ? `<span class="text-xs text-indigo-500 italic block">Padre: ${parent.name}</span>` : '';
             }
 
-            // Formateo de etiquetas y precios
-            const productTypeDisplay = producto.type === 'PACKAGE' ? 
-                '<span class="px-2 py-1 text-[10px] bg-purple-50 text-purple-600 rounded-full font-bold border border-purple-100 uppercase">Paquete</span>' : 
-                '<span class="px-2 py-1 text-[10px] bg-blue-50 text-blue-600 rounded-full font-bold border border-blue-100 uppercase">Individual</span>';
-            
-            const productPriceDisplay = producto.price ? parseFloat(producto.price).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00';
-            
             const row = tableBody.insertRow();
-            row.className = 'hover:bg-gray-50 transition-colors border-b border-gray-100';
-
+            row.className = 'hover:bg-gray-50 border-b border-gray-100';
             row.innerHTML = `
-                <td class="px-4 py-3 text-xs text-gray-400 font-mono">${producto.producto_id}</td>
+                <td class="px-4 py-3 text-xs text-gray-400">${producto.producto_id}</td>
                 <td class="px-4 py-3 text-sm">
-                    <div class="flex flex-col">
-                        <span class="font-bold text-gray-800">${producto.name}</span>
-                        ${parentName}
-                    </div>
+                    <span class="font-bold text-gray-800">${producto.name}</span>
+                    ${parentName}
                 </td>
-                <td class="px-4 py-3 text-center">${productTypeDisplay}</td>
-                <td class="px-4 py-3 text-right font-mono font-semibold text-gray-700">$${productPriceDisplay}</td>
+                <td class="px-4 py-3 text-center">
+                    <span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${producto.type === 'PACKAGE' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
+                        ${producto.type === 'PACKAGE' ? 'Paquete' : 'Individual'}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-right font-semibold">$${parseFloat(producto.price || 0).toFixed(2)}</td>
                 <td class="px-4 py-3 text-right">
-                    <div class="flex justify-end gap-3">
-                        <button onclick="handleEditProductClick(${producto.producto_id})" class="text-indigo-600 hover:text-indigo-900 transition-colors tooltip" title="Editar">
-                            <i class="fas fa-edit"></i> <span class="text-xs ml-1 font-semibold">Editar</span>
-                        </button>
-                        <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-red-400 hover:text-red-600 transition-colors tooltip" title="Eliminar">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
+                    <button onclick="handleEditProductClick(${producto.producto_id})" class="text-blue-600 hover:underline mr-3">Editar</button>
+                    <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-red-500 hover:underline">Eliminar</button>
                 </td>
             `;
         });
 
-        // 4. ACTUALIZAR SELECTORES AUTOMÁTICAMENTE
-        // Esto asegura que si cambias un nombre, los selectores de "Padre" se actualicen sin refresh
+        // 4. ACTUALIZAR SELECTORES DE "PADRE" (Para que el nuevo nombre salga en los otros selects)
         if (typeof window.populateParentSelect === 'function') {
             window.populateParentSelect('new-product-parent-select');
             window.populateParentSelect('edit-product-parent');
         }
 
+        console.log("✅ Tabla y variables globales actualizadas con éxito.");
+
     } catch (err) {
-        console.error("Error crítico en loadAndRenderProducts:", err);
+        console.error("Error en loadAndRenderProducts:", err.message);
     }
 };
 
