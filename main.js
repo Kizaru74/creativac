@@ -2388,7 +2388,7 @@ window.imprimirEstadoCuenta = function() {
             </table>
 
             <div class="footer">
-                Taller Creativa Cortes CNC | Valladolid, Yucatán<br>
+                Creativa Cortes CNC | Valladolid, Yucatán<br>
                 Este documento refleja todos los movimientos (Ventas y Abonos) a la fecha actual.
             </div>
 
