@@ -1964,7 +1964,7 @@ window.imprimirEstadoCuenta = function() {
 //Detalles de la venta
 window.handleViewSaleDetails = async function(venta_id) {
     try {
-        // 1. Obtener la información de la venta
+        // 1. Obtener la venta
         const { data: venta, error: vError } = await supabase
             .from('ventas')
             .select('*')
@@ -1973,7 +1973,7 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         if (vError) throw vError;
 
-        // 2. Obtener productos y PAGOS (asegurándonos de traer metodo_pago)
+        // 2. Obtener productos y pagos (aquí está la clave del método)
         const [prodRes, pagosRes] = await Promise.all([
             supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
             supabase.from('pagos').select('created_at, metodo_pago, amount').eq('venta_id', venta_id) 
@@ -1981,45 +1981,51 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         const productos = prodRes.data || [];
         const pagos = pagosRes.data || [];
-
-        // Guardar para la función de impresión
         window.currentSaleForPrint = { ...venta, productos, pagos };
 
-        // 3. Llenar datos básicos del Modal
+        // 3. LLENAR CABECERA (ID y NOMBRE)
         document.getElementById('detail-sale-id').textContent = venta.venta_id;
-        document.getElementById('detail-sale-description').textContent = venta.description || 'Sin notas adicionales';
-        
         const cliente = window.allClients?.find(c => String(c.client_id) === String(venta.client_id));
         document.getElementById('detail-client-name').textContent = cliente ? cliente.name : 'Cliente General';
 
-        // Lógica de Condición (Crédito/Contado)
+        // 4. OPCIÓN DE CAMBIAR FECHA (Insertamos el botón junto a la fecha)
+        const fechaContenedor = document.getElementById('detail-sale-date');
+        if (fechaContenedor) {
+            fechaContenedor.innerHTML = `
+                <span class="font-medium">${new Date(venta.created_at).toLocaleDateString()}</span>
+                <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" 
+                        class="ml-2 text-indigo-600 hover:text-indigo-800 text-xs border border-indigo-200 px-2 py-1 rounded bg-white transition-all">
+                    <i class="fas fa-calendar-alt mr-1"></i> Cambiar Fecha
+                </button>
+            `;
+        }
+
+        // 5. MOSTRAR SI ES CRÉDITO O CONTADO (A un lado)
         const metodoDisplay = document.getElementById('detail-sale-method');
         if (metodoDisplay) {
-            if (venta.saldo_pendiente > 0.01) {
-                metodoDisplay.textContent = "VENTA A CRÉDITO";
-                metodoDisplay.className = "text-red-600 font-bold";
+            if (venta.saldo_pendiente > 0.05) {
+                metodoDisplay.innerHTML = `<span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">⚠️ VENTA A CRÉDITO</span>`;
             } else {
-                metodoDisplay.textContent = "VENTA DE CONTADO";
-                metodoDisplay.className = "text-green-600 font-bold";
+                metodoDisplay.innerHTML = `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">✅ PAGADO (CONTADO)</span>`;
             }
         }
 
-        // 4. Llenar tabla de productos con botones de Acción (Editar/Eliminar)
+        // 6. TABLA DE PRODUCTOS (Con Editar y Borrar)
         const productsBody = document.getElementById('detail-products-body');
         productsBody.innerHTML = productos.map(item => `
-            <tr class="border-b">
-                <td class="px-4 py-2">${item.name}</td>
-                <td class="px-4 py-2 text-right">${item.quantity}</td>
-                <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
-                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
-                <td class="px-4 py-2 text-center">
-                    <div class="flex justify-center gap-2">
+            <tr class="border-b hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 text-gray-800">${item.name}</td>
+                <td class="px-4 py-3 text-right text-gray-600">${item.quantity}</td>
+                <td class="px-4 py-3 text-right text-gray-600">${formatCurrency(item.price)}</td>
+                <td class="px-4 py-3 text-right font-bold text-gray-900">${formatCurrency(item.subtotal)}</td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex justify-center gap-3">
                         <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" 
-                                class="text-blue-600 hover:text-blue-800" title="Editar Precio">
+                                class="text-blue-500 hover:text-blue-700 p-1" title="Editar Precio">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" 
-                                class="text-red-600 hover:text-red-800" title="Eliminar Producto">
+                                class="text-red-400 hover:text-red-600 p-1" title="Eliminar Producto">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
@@ -2027,31 +2033,29 @@ window.handleViewSaleDetails = async function(venta_id) {
             </tr>
         `).join('');
 
-        // 5. CORRECCIÓN AQUÍ: Historial de Pagos con MÉTODO DE PAGO
+        // 7. TABLA DE PAGOS (Mostrando el método de pago de cada abono)
         const abonosBody = document.getElementById('detail-abonos-body');
         abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
-            <tr class="text-xs border-b hover:bg-gray-50">
-                <td class="py-2 px-2">${new Date(p.created_at).toLocaleDateString()}</td>
-                <td class="py-2 px-2 font-medium text-gray-700">${p.metodo_pago || 'Efectivo'}</td>
-                <td class="py-2 px-2 text-right font-bold text-green-700">${formatCurrency(p.amount)}</td>
+            <tr class="text-xs border-b hover:bg-indigo-50/30">
+                <td class="py-2 px-3 text-gray-500">${new Date(p.created_at).toLocaleDateString()}</td>
+                <td class="py-2 px-3 font-semibold text-indigo-700 uppercase">${p.metodo_pago || 'EFECTIVO'}</td>
+                <td class="py-2 px-3 text-right font-black text-green-600">${formatCurrency(p.amount || p.monto)}</td>
             </tr>
-        `).join('') : '<tr><td colspan="3" class="text-center py-4 text-gray-400">No hay pagos registrados en esta nota</td></tr>';
+        `).join('') : '<tr><td colspan="3" class="text-center py-6 text-gray-400 italic">No se han registrado pagos para esta nota</td></tr>';
 
-        // 6. Actualizar Totales en el Modal
-        if (typeof updateTotalUI === 'function') {
-            updateTotalUI(venta.total_amount, venta.saldo_pendiente);
-        } else {
-            // Si no tienes esa función, actualizamos directo:
-            const totalE = document.getElementById('detail-total-amount');
-            const saldoE = document.getElementById('detail-pending-amount');
-            if (totalE) totalE.textContent = formatCurrency(venta.total_amount);
-            if (saldoE) saldoE.textContent = formatCurrency(venta.saldo_pendiente);
+        // 8. TOTALES FINALES
+        const totalE = document.getElementById('detail-total-amount');
+        const saldoE = document.getElementById('detail-pending-amount');
+        if (totalE) totalE.textContent = formatCurrency(venta.total_amount);
+        if (saldoE) {
+            saldoE.textContent = formatCurrency(venta.saldo_pendiente);
+            saldoE.className = venta.saldo_pendiente > 0 ? "text-2xl font-black text-red-600" : "text-2xl font-black text-green-600";
         }
 
         window.openModal('modal-detail-sale');
     } catch (err) { 
-        console.error("Error al cargar detalles:", err);
-        alert("No se pudieron cargar los detalles de la venta.");
+        console.error("Error detallado:", err);
+        alert("Ocurrió un error al cargar la información.");
     }
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
