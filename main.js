@@ -1981,74 +1981,94 @@ window.handleViewSaleDetails = async function(venta_id) {
         const pagos = pagosRes.data || [];
         window.currentSaleForPrint = { ...venta, productos, pagos };
 
-        // --- LLENAR CAMPO MÉTODO DE PAGO + BOTÓN EDITAR ---
-        const detailPaymentMethod = document.getElementById('detail-payment-method');
-        if (detailPaymentMethod) {
-            // Usamos la columna metodo_pago de tu tabla Ventas
-            const metodoTexto = venta.metodo_pago || 'No especificado';
-            detailPaymentMethod.innerHTML = `
-                <span class="font-bold text-indigo-700">${metodoTexto}</span>
-                <button onclick="window.editSalePaymentMethod(${venta.venta_id}, '${metodoTexto}')" 
-                        class="ml-2 text-gray-400 hover:text-blue-600 transition-colors" title="Cambiar método">
-                    <i class="fas fa-pen text-[10px]"></i>
+        // --- LLENADO SEGURO DE DATOS ---
+        
+        // 1. Método de Pago (El que pediste de la tabla ventas)
+        const elMetodo = document.getElementById('detail-payment-method');
+        if (elMetodo) {
+            const txt = venta.metodo_pago || 'No especificado';
+            elMetodo.innerHTML = `
+                <span class="font-bold">${txt}</span>
+                <button onclick="window.editSalePaymentMethod(${venta.venta_id}, '${txt}')" class="ml-2 text-blue-400 hover:text-blue-600">
+                    <i class="fas fa-edit" style="font-size: 10px;"></i>
                 </button>
             `;
         }
 
-        // --- FECHA CON BOTÓN EDITAR ---
-        const fechaContenedor = document.getElementById('detail-sale-date');
-        if (fechaContenedor) {
-            fechaContenedor.innerHTML = `
+        // 2. Fecha con edición
+        const elFecha = document.getElementById('detail-sale-date');
+        if (elFecha) {
+            elFecha.innerHTML = `
                 <span>${new Date(venta.created_at).toLocaleDateString()}</span>
-                <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-2 text-blue-500 hover:text-blue-700">
+                <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-2 text-indigo-500">
                     <i class="fas fa-calendar-alt"></i>
                 </button>
             `;
         }
 
-        // --- ESTADO (CRÉDITO / CONTADO) ---
-        const metodoDisplay = document.getElementById('detail-sale-method');
-        if (metodoDisplay) {
-            metodoDisplay.innerHTML = venta.saldo_pendiente > 0.05 
-                ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">DEUDA</span>` 
-                : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">PAGADO</span>`;
+        // 3. ID de Venta y Cliente
+        const elId = document.getElementById('detail-sale-id');
+        if (elId) elId.textContent = venta.venta_id;
+
+        const elCliente = document.getElementById('detail-client-name');
+        if (elCliente) {
+            const c = window.allClients?.find(cl => String(cl.client_id) === String(venta.client_id));
+            elCliente.textContent = c ? c.name : 'Cliente General';
         }
 
-        // --- TABLA DE PRODUCTOS (CON EDITAR Y BORRAR) ---
+        // 4. Estado (Badge)
+        const elEstado = document.getElementById('detail-sale-method');
+        if (elEstado) {
+            elEstado.innerHTML = venta.saldo_pendiente > 0.05 
+                ? `<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold uppercase text-center">Deuda</span>` 
+                : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase text-center">Pagado</span>`;
+        }
+
+        // 5. Tabla de Productos
         const productsBody = document.getElementById('detail-products-body');
-        productsBody.innerHTML = productos.map(item => `
-            <tr class="border-b">
-                <td class="px-4 py-2">${item.name}</td>
-                <td class="px-4 py-2 text-right">${item.quantity}</td>
-                <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
-                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
-                <td class="px-4 py-2 text-center flex justify-center gap-2">
-                    <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" class="text-blue-500"><i class="fas fa-edit"></i></button>
-                    <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" class="text-red-400"><i class="fas fa-trash-alt"></i></button>
-                </td>
-            </tr>
-        `).join('');
+        if (productsBody) {
+            productsBody.innerHTML = productos.map(item => `
+                <tr class="border-b">
+                    <td class="px-4 py-2">${item.name}</td>
+                    <td class="px-4 py-2 text-right">${item.quantity}</td>
+                    <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
+                    <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
+                    <td class="px-4 py-2 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" class="text-blue-500"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" class="text-red-400"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
-        // --- HISTORIAL DE ABONOS ---
+        // 6. Historial de Abonos
         const abonosBody = document.getElementById('detail-abonos-body');
-        abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
-            <tr class="text-xs border-b">
-                <td class="py-2 px-3">${new Date(p.created_at).toLocaleDateString()}</td>
-                <td class="py-2 px-3 uppercase font-bold text-indigo-600">${p.metodo_pago || 'EFECTIVO'}</td>
-                <td class="py-2 px-3 text-right font-bold">${formatCurrency(p.amount || p.monto)}</td>
-            </tr>
-        `).join('') : '<tr><td colspan="3" class="text-center py-4 text-gray-400 italic">Sin abonos registrados</td></tr>';
+        if (abonosBody) {
+            abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
+                <tr class="text-xs border-b italic">
+                    <td class="py-2 px-3 text-gray-500">${new Date(p.created_at).toLocaleDateString()}</td>
+                    <td class="py-2 px-3 font-bold text-indigo-600 uppercase">${p.metodo_pago || 'EFECTIVO'}</td>
+                    <td class="py-2 px-3 text-right font-bold">${formatCurrency(p.amount || p.monto)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" class="text-center py-4 text-gray-400">Sin abonos</td></tr>';
+        }
 
-        // --- TOTALES ---
-        document.getElementById('detail-total-amount').textContent = formatCurrency(venta.total_amount);
-        const saldoE = document.getElementById('detail-pending-amount');
-        if (saldoE) {
-            saldoE.textContent = formatCurrency(venta.saldo_pendiente);
-            saldoE.className = venta.saldo_pendiente > 0.05 ? "text-2xl font-black text-red-600" : "text-2xl font-black text-green-600";
+        // 7. Totales Finales
+        const elTotal = document.getElementById('detail-total-amount');
+        if (elTotal) elTotal.textContent = formatCurrency(venta.total_amount);
+
+        const elSaldo = document.getElementById('detail-pending-amount');
+        if (elSaldo) {
+            elSaldo.textContent = formatCurrency(venta.saldo_pendiente);
+            elSaldo.className = venta.saldo_pendiente > 0.05 ? "text-2xl font-black text-red-600" : "text-2xl font-black text-green-600";
         }
 
         window.openModal('modal-detail-sale');
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error("Error en handleViewSaleDetails:", err);
+    }
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
 window.editSaleDate = async function(ventaId, fechaActual) {
@@ -2403,7 +2423,25 @@ function updateTotalUI(total, deuda) {
     document.getElementById('detail-paid-amount').textContent = formatCurrency(total - deuda);
     document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
 }
+window.editSalePaymentMethod = async function(ventaId, metodoActual) {
+    const nuevoMetodo = prompt("Ingrese el nuevo método de pago (Efectivo, Transferencia, Tarjeta, etc.):", metodoActual);
+    
+    if (nuevoMetodo === null || nuevoMetodo.trim() === "") return;
 
+    try {
+        const { error } = await supabase
+            .from('ventas')
+            .update({ metodo_pago: nuevoMetodo.toUpperCase() })
+            .eq('venta_id', ventaId);
+
+        if (error) throw error;
+        
+        alert("✅ Método de pago actualizado.");
+        window.handleViewSaleDetails(ventaId); // Refrescar modal
+    } catch (err) {
+        alert("Error al actualizar el método de pago.");
+    }
+};
 window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaId) {
     const nuevoPrecio = prompt("Ingrese el nuevo precio unitario:", precioActual);
     
