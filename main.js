@@ -2154,13 +2154,14 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
     }
 };
 //imprimir pdf de detalles de la venta
-window.imprimirTicketVenta = function() {
+// Generar PDF y Vista Previa de la venta
+window.generarPDFVenta = function() {
     const venta = window.currentSaleForPrint;
-    if (!venta) return alert("No hay datos para imprimir");
+    if (!venta) return alert("No hay datos para generar el PDF");
 
     const colorOxido = "#8B4513"; 
     
-    // Generar las filas de productos manualmente (3 columnas fijas)
+    // Generar las filas de productos
     const filasProductos = venta.productos.map(p => `
         <tr>
             <td style="width: 60%; text-align: left; padding: 5px; border-bottom: 1px solid #eee;">${p.name}</td>
@@ -2174,65 +2175,97 @@ window.imprimirTicketVenta = function() {
         <html>
         <head>
             <meta charset="UTF-8">
+            <title>Vista Previa - Nota ${venta.venta_id}</title>
             <style>
-                @page { size: 216mm 140mm; margin: 10mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 11px; }
-                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 5px; margin-bottom: 10px; }
-                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 8px; margin-bottom: 10px; border: 1px solid #eee; }
+                @page { size: letter; margin: 15mm; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 12px; background-color: #f4f4f4; padding: 20px; }
+                .sheet { 
+                    background: white; 
+                    width: 210mm; 
+                    min-height: 140mm; 
+                    margin: 0 auto; 
+                    padding: 15mm; 
+                    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                    border-radius: 5px;
+                    position: relative;
+                }
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 15px; }
+                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 10px; margin-bottom: 15px; border: 1px solid #eee; }
+                table { width: 100%; border-collapse: collapse; }
+                th { background: ${colorOxido}; color: white; padding: 8px; font-size: 11px; text-transform: uppercase; }
+                .totals-box { width: 250px; margin-left: auto; margin-top: 20px; background: #fdf8f5; padding: 12px; border: 1px solid #eee; border-radius: 4px; }
+                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
                 
-                table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-                th { background: ${colorOxido}; color: white; padding: 6px; font-size: 10px; text-transform: uppercase; }
-                
-                .totals-box { width: 220px; margin-left: auto; margin-top: 15px; background: #fdf8f5; padding: 10px; border: 1px solid #eee; }
-                .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
+                /* Estilos para el botón de acción en pantalla */
+                .actions-bar { 
+                    max-width: 210mm; 
+                    margin: 0 auto 10px auto; 
+                    display: flex; 
+                    justify-content: flex-end; 
+                }
+                .btn-print { 
+                    background: ${colorOxido}; color: white; border: none; padding: 10px 20px; 
+                    border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px;
+                }
+                .btn-print:hover { opacity: 0.9; }
+
+                @media print {
+                    body { background: white; padding: 0; }
+                    .sheet { box-shadow: none; width: 100%; margin: 0; padding: 0; }
+                    .actions-bar { display: none; }
+                }
             </style>
         </head>
         <body>
-            <div class="header">
-                <div style="display:flex; align-items:center;">
-                    <div style="width:40px; height:40px; background:${colorOxido}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:20px; border-radius:4px; margin-right:10px;">C</div>
-                    <div>
-                        <h2 style="margin:0; color:${colorOxido}; font-size:16px;">CREATIVA CORTES CNC</h2>
-                        <p style="margin:0; font-size:8px;">DISEÑO • CORTE • PRECISIÓN</p>
+            <div class="actions-bar">
+                <button class="btn-print" onclick="window.print()">🖨️ Imprimir o Guardar PDF</button>
+            </div>
+
+            <div class="sheet">
+                <div class="header">
+                    <div style="display:flex; align-items:center;">
+                        <div style="width:45px; height:45px; background:${colorOxido}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:24px; border-radius:4px; margin-right:12px;">C</div>
+                        <div>
+                            <h2 style="margin:0; color:${colorOxido}; font-size:18px;">CREATIVA CORTES CNC</h2>
+                            <p style="margin:0; font-size:9px; letter-spacing: 1px;">DISEÑO • CORTE • PRECISIÓN</p>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <h1 style="margin:0; color:${colorOxido}; font-size:18px;">NOTA DE VENTA #${venta.venta_id}</h1>
+                        <p style="margin:0; font-size:11px;">${new Date(venta.created_at).toLocaleDateString()}</p>
                     </div>
                 </div>
-                <div style="text-align:right;">
-                    <h1 style="margin:0; color:${colorOxido}; font-size:16px;">COMPROBANTE #${venta.venta_id}</h1>
-                    <p style="margin:0; font-size:10px;">${new Date(venta.created_at).toLocaleDateString()}</p>
+
+                <div class="data-grid">
+                    <div><strong>CLIENTE:</strong> ${document.getElementById('detail-client-name').textContent}</div>
+                    <div style="text-align:right;"><strong>ESTADO:</strong> ${venta.saldo_pendiente > 0 ? 'PENDIENTE' : 'LIQUIDADO'}</div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 60%; text-align: left;">Descripción del Producto</th>
+                            <th style="width: 15%; text-align: right;">Cant.</th>
+                            <th style="width: 25%; text-align: right;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filasProductos}
+                    </tbody>
+                </table>
+
+                <div class="totals-box">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Subtotal:</span> <span>${formatCurrency(venta.total_amount)}</span></div>
+                    <div style="display:flex; justify-content:space-between; color:green; margin-bottom:4px;"><span>Abonado:</span> <span>${formatCurrency(venta.total_amount - venta.saldo_pendiente)}</span></div>
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:2px solid ${colorOxido}; margin-top:8px; font-size:15px; padding-top:8px;">
+                        <span>SALDO:</span> <span>${formatCurrency(venta.saldo_pendiente)}</span>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    📱 WhatsApp: 985 111 2233 | 📍 Valladolid, Yucatán | Creativa Cortes CNC
                 </div>
             </div>
-
-            <div class="data-grid">
-                <div><strong>CLIENTE:</strong> ${document.getElementById('detail-client-name').textContent}</div>
-                <div style="text-align:right;"><strong>ESTADO:</strong> ${venta.saldo_pendiente > 0 ? 'CON DEUDA' : 'PAGADO'}</div>
-            </div>
-
-            <table style="width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="width: 60%; text-align: left;">Descripción</th>
-                        <th style="width: 15%; text-align: right;">Cant.</th>
-                        <th style="width: 25%; text-align: right;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${filasProductos}
-                </tbody>
-            </table>
-
-            <div class="totals-box">
-                <div style="display:flex; justify-content:space-between; font-size:10px;"><span>Total Venta:</span> <span>${formatCurrency(venta.total_amount)}</span></div>
-                <div style="display:flex; justify-content:space-between; color:green; font-size:10px;"><span>Abonado:</span> <span>${formatCurrency(venta.total_amount - venta.saldo_pendiente)}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:1px solid #ccc; margin-top:5px; font-size:14px; padding-top:5px;">
-                    <span>PENDIENTE:</span> <span>${formatCurrency(venta.saldo_pendiente)}</span>
-                </div>
-            </div>
-
-            <div class="footer">
-                📱 WhatsApp: 985 111 2233 | 📍 Valladolid, Yucatán
-            </div>
-
-            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
         </body>
         </html>
     `;
@@ -2353,10 +2386,9 @@ window.registrarAbonoGeneral = async function() {
         alert("Hubo un error al procesar el abono.");
     }
 };
-window.imprimirEstadoCuenta = function() {
+window.generarPDFEstadoCuenta = function() {
     const data = window.currentClientDataForPrint;
     
-    // Validación de seguridad
     if (!data || !data.transaccionesHTML) {
         return alert("No hay datos cargados. Por favor, abre el reporte del cliente primero.");
     }
@@ -2368,70 +2400,72 @@ window.imprimirEstadoCuenta = function() {
         <html>
         <head>
             <meta charset="UTF-8">
+            <title>Estado de Cuenta - ${data.nombre}</title>
             <style>
                 @page { size: letter; margin: 15mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.4; margin: 0; }
-                .header { border-bottom: 3px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-                .resumen { background: #fdf8f5; border: 1px solid ${colorOxido}44; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; }
-                
-                table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                th { background: #f4f4f4; color: #666; padding: 8px; text-align: left; border-bottom: 2px solid #ddd; text-transform: uppercase; font-size: 10px; }
-                td { padding: 8px; border-bottom: 1px solid #eee; }
-                
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.4; margin: 0; background-color: #f0f0f0; padding: 20px; }
+                .sheet { background: white; max-width: 210mm; margin: 0 auto; padding: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-radius: 8px; }
+                .header { border-bottom: 3px solid ${colorOxido}; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .resumen { background: #fdf8f5; border: 1px solid ${colorOxido}44; padding: 20px; border-radius: 8px; margin-bottom: 25px; display: flex; justify-content: space-between; }
+                table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                th { background: #f4f4f4; color: #444; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; text-transform: uppercase; font-size: 11px; }
+                td { padding: 10px; border-bottom: 1px solid #eee; }
                 .text-right { text-align: right; }
                 .text-red { color: #dc2626 !important; font-weight: bold; }
                 .text-green { color: #16a34a !important; font-weight: bold; }
-                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+                .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }
+                .actions-bar { max-width: 210mm; margin: 0 auto 10px; display: flex; justify-content: flex-end; }
+                .btn-pdf { background: ${colorOxido}; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+                @media print {
+                    body { background: white; padding: 0; }
+                    .sheet { box-shadow: none; max-width: 100%; margin: 0; padding: 0; }
+                    .actions-bar { display: none; }
+                }
             </style>
         </head>
         <body>
-            <div class="header">
-                <div>
-                    <h1 style="margin:0; color:${colorOxido}; font-size: 22px;">CREATIVA CORTES CNC</h1>
-                    <p style="margin:0; font-size: 10px; font-weight: bold; letter-spacing: 1px;">ESTADO DE CUENTA DETALLADO</p>
+            <div class="actions-bar">
+                <button class="btn-pdf" onclick="window.print()">📥 Guardar como PDF / Imprimir</button>
+            </div>
+            <div class="sheet">
+                <div class="header">
+                    <div>
+                        <h1 style="margin:0; color:${colorOxido}; font-size: 26px;">CREATIVA CORTES CNC</h1>
+                        <p style="margin:0; font-size: 11px; font-weight: bold; letter-spacing: 2px; color: #666;">ESTADO DE CUENTA DETALLADO</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="margin:0; font-size: 11px; color: #888;">FECHA DE EMISIÓN</p>
+                        <p style="margin:0; font-weight: bold; font-size: 14px;">${new Date().toLocaleDateString()}</p>
+                    </div>
                 </div>
-                <div style="text-align: right;">
-                    <p style="margin:0; font-size: 10px;">FECHA DE EMISIÓN</p>
-                    <p style="margin:0; font-weight: bold;">${new Date().toLocaleDateString()}</p>
+                <div class="resumen">
+                    <div>
+                        <p style="margin:0; font-size: 11px; color: #888;">DATOS DEL CLIENTE</p>
+                        <p style="margin:0; font-size: 20px; font-weight: bold; color: #222;">${data.nombre.toUpperCase()}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="margin:0; font-size: 11px; color: #888;">SALDO TOTAL A LA FECHA</p>
+                        <p style="margin:0; font-size: 28px; font-weight: 900; color: ${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">FECHA</th>
+                            <th style="width: 50%;">DESCRIPCIÓN DE MOVIMIENTO</th>
+                            <th style="width: 17%; text-align: right;">CARGO/ABONO</th>
+                            <th style="width: 18%; text-align: right;">SALDO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.transaccionesHTML.replace(/text-red-600/g, 'text-red').replace(/text-green-600/g, 'text-green')}
+                    </tbody>
+                </table>
+                <div class="footer">
+                    <strong>Creativa Cortes CNC</strong> | Valladolid, Yucatán<br>
+                    <span style="font-size: 9px; margin-top: 10px; display: block;">Documento informativo de saldos y movimientos.</span>
                 </div>
             </div>
-
-            <div class="resumen">
-                <div>
-                    <p style="margin:0; font-size: 10px; color: #888;">CLIENTE</p>
-                    <p style="margin:0; font-size: 16px; font-weight: bold;">${data.nombre.toUpperCase()}</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin:0; font-size: 10px; color: #888;">SALDO TOTAL PENDIENTE</p>
-                    <p style="margin:0; font-size: 22px; font-weight: 900; color: ${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
-                </div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 15%;">FECHA</th>
-                        <th style="width: 50%;">DESCRIPCIÓN / DETALLE</th>
-                        <th style="width: 17%; text-align: right;">MONTO</th>
-                        <th style="width: 18%; text-align: right;">SALDO</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${data.transaccionesHTML.replace(/text-red-600/g, 'text-red').replace(/text-green-600/g, 'text-green')}
-                </tbody>
-            </table>
-
-            <div class="footer">
-                Creativa Cortes CNC | Valladolid, Yucatán<br>
-                Este documento refleja todos los movimientos (Ventas y Abonos) a la fecha actual.
-            </div>
-
-            <script>
-                window.onload = () => {
-                    window.print();
-                    setTimeout(() => window.close(), 500);
-                };
-            </script>
         </body>
         </html>
     `;
@@ -2440,10 +2474,9 @@ window.imprimirEstadoCuenta = function() {
     if (pWin) {
         pWin.document.write(htmlContent);
         pWin.document.close();
-    } else {
-        alert("El navegador bloqueó la ventana emergente. Por favor, permite las ventanas emergentes para este sitio.");
     }
 };
+
 
 // Función auxiliar para actualizar los textos de los totales
 function updateTotalUI(total, deuda) {
