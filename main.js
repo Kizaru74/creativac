@@ -3467,7 +3467,7 @@ let clientToDeleteId = null;
 window.handleDeleteClientClick = function(clientId) {
     window.clientIdToDelete = clientId;
     
-    // Buscar el cliente en el array de clientes
+    // 1. Buscar el cliente en el array global para mostrar su nombre
     const cliente = window.allClients?.find(c => String(c.client_id) === String(clientId));
     const placeholder = document.getElementById('delete-client-name-placeholder');
     
@@ -3475,8 +3475,9 @@ window.handleDeleteClientClick = function(clientId) {
         placeholder.textContent = cliente.name;
     }
 
-    // ABRIMOS EL MODAL USANDO EL ID QUE PUSIMOS ARRIBA
-    openModal('delete-client-modal');
+    // 2. LA CORRECCIÓN CLAVE:
+    // Cambia 'client-delete-confirmation' por 'delete-client-modal'
+    openModal('delete-client-modal'); 
 };
 
 async function confirmDeleteClient() {
@@ -4972,13 +4973,10 @@ document.getElementById('edit-product-category')?.addEventListener('change', fun
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    const confirmBtnClient = document.getElementById('confirm-delete-client-btn');
-if (confirmBtnClient) {
-    confirmBtnClient.onclick = async function() {
+    const btnConfirm = document.getElementById('confirm-delete-client-btn');
+if (btnConfirm) {
+    btnConfirm.onclick = async function() {
         if (!window.clientIdToDelete) return;
-
-        confirmBtnClient.disabled = true;
-        confirmBtnClient.textContent = 'Eliminando...';
 
         try {
             const { error } = await supabase
@@ -4986,22 +4984,17 @@ if (confirmBtnClient) {
                 .delete()
                 .eq('client_id', window.clientIdToDelete);
 
-            if (error) {
-                if (error.code === '23503') {
-                    alert('No se puede eliminar: Este cliente tiene ventas o deudas registradas.');
-                } else { throw error; }
-            } else {
-                alert('✅ Cliente eliminado con éxito.');
-                closeModal('delete-client-modal');
-                // Llama a tu función para refrescar la tabla de clientes
-                if (window.loadAndRenderClients) await window.loadAndRenderClients();
+            if (error) throw error;
+
+            closeModal('delete-client-modal');
+            alert('Cliente eliminado con éxito');
+            
+            // Refrescar tabla de clientes
+            if (typeof loadAndRenderClients === 'function') {
+                await loadAndRenderClients();
             }
         } catch (err) {
-            console.error(err);
-            alert('Error al intentar eliminar.');
-        } finally {
-            confirmBtnClient.disabled = false;
-            confirmBtnClient.textContent = 'Sí, Eliminar Cliente';
+            alert('Error: ' + err.message);
         }
     };
 }
