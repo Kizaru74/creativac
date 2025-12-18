@@ -4976,43 +4976,56 @@ document.getElementById('edit-product-category')?.addEventListener('change', fun
 
 // Listener para confirmar la eliminación
 document.addEventListener('DOMContentLoaded', () => {
-   setTimeout(() => {
-    const btnConfirm = document.getElementById('confirm-delete-client-btn');
-    if (btnConfirm) {
-        btnConfirm.onclick = async function() {
-            if (!window.clientIdToDelete) {
-                console.error("No hay un ID de cliente seleccionado para eliminar.");
-                return;
-            }
+   document.addEventListener('click', async function(e) {
+    // Detectamos si el clic fue en el botón de confirmar eliminación
+    if (e.target && e.target.id === 'confirm-delete-client-btn') {
+        const btn = e.target;
+        
+        if (!window.clientIdToDelete) {
+            console.error("No hay un ID de cliente seleccionado para eliminar.");
+            return;
+        }
 
-            btnConfirm.disabled = true;
-            btnConfirm.textContent = 'Eliminando...';
+        console.log("Intentando eliminar cliente ID:", window.clientIdToDelete);
 
-            try {
-                const { error } = await supabase
-                    .from('clientes')
-                    .delete()
-                    .eq('client_id', window.clientIdToDelete);
+        // Estado visual de carga
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Eliminando...';
 
-                if (error) {
-                    if (error.code === '23503') {
-                        alert('No se puede eliminar: El cliente tiene ventas registradas.');
-                    } else { throw error; }
+        try {
+            const { error } = await supabase
+                .from('clientes')
+                .delete()
+                .eq('client_id', window.clientIdToDelete);
+
+            if (error) {
+                // Manejo de error de integridad (si tiene ventas)
+                if (error.code === '23503') {
+                    alert('No se puede eliminar: El cliente tiene ventas o deudas registradas.');
                 } else {
-                    alert('✅ Cliente eliminado con éxito.');
-                    closeModal('delete-client-modal');
-                    // Recargar tabla de clientes
-                    if (window.loadClientsTable) await window.loadClientsTable();
+                    throw error;
                 }
-            } catch (err) {
-                alert('Error al eliminar: ' + err.message);
-            } finally {
-                btnConfirm.disabled = false;
-                btnConfirm.textContent = 'Sí, Eliminar Cliente';
+            } else {
+                console.log("✅ Cliente eliminado de la base de datos.");
+                alert('Cliente eliminado correctamente.');
+                closeModal('delete-client-modal');
+                
+                // Refrescar la tabla automáticamente
+                if (typeof window.loadClientsTable === 'function') {
+                    await window.loadClientsTable();
+                }
             }
-        };
+        } catch (err) {
+            console.error('Error crítico al borrar:', err);
+            alert('Error al intentar eliminar: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            window.clientIdToDelete = null; // Limpiamos la variable
+        }
     }
-}, 1000); // Pequeño retraso para asegurar que el DOM esté listo
+});
 });
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
