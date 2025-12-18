@@ -2945,37 +2945,55 @@ function loadProductsTable() {
  */
 
 function loadProductDataToForm(productId) {
-    // 1. Encontrar el producto en el array global
-    // Usamos String() para manejar inconsistencias de tipo entre number/string
+    // 1. Intentar encontrar el producto en el array global
+    // Importante: Asegúrate de que 'allProducts' sea accesible aquí
     const productToEdit = allProducts.find(p => String(p.producto_id) === String(productId));
 
-    //if (!productToEdit) {
-       // alert('Error: Producto no encontrado para edición.');
-       // return;
-   // }
+    // Si no lo encuentra en el array, intentamos en el mapa por si acaso
+    const finalProduct = productToEdit || window.allProductsMap?.[String(productId)];
+
+    if (!finalProduct) {
+        console.error('Error: Producto no encontrado para edición con ID:', productId);
+        return;
+    }
     
-    // 2. Rellenar los campos del formulario
-    document.getElementById('product-id').value = productToEdit.producto_id;
-    document.getElementById('edit-product-name').value = productToEdit.name;
-    document.getElementById('edit-product-type').value = productToEdit.type;
+    // 2. Rellenar los campos del formulario (con validación de existencia)
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+
+    setVal('product-id', finalProduct.producto_id);
+    setVal('edit-product-name', finalProduct.name);
+    setVal('edit-product-type', finalProduct.type);
     
-    // Usamos el ID del HTML 'edit-sale-price' que detecté en tu snippet
-    document.getElementById('edit-sale-price').value = productToEdit.price || 0; 
+    // El ID que mencionaste 'edit-sale-price'
+    setVal('edit-sale-price', finalProduct.price || 0); 
     
     // 3. Lógica para el campo de Padre (si es Paquete)
     const parentContainer = document.getElementById('edit-parent-product-container');
-    if (productToEdit.type === 'PACKAGE') {
-        parentContainer.classList.remove('hidden');
-        // Debes tener una función para cargar la lista de productos padres en ese selector
-        loadParentProductsForSelect('edit-parent-product-select'); 
-        // Selecciona la ID del padre que ya tiene guardada
-        document.getElementById('edit-parent-product-select').value = productToEdit.parent_product; 
-    } else {
-        parentContainer.classList.add('hidden');
+    const parentSelect = document.getElementById('edit-parent-product-select');
+
+    if (parentContainer) {
+        if (finalProduct.type === 'PACKAGE') {
+            parentContainer.classList.remove('hidden');
+            
+            // Si tienes la función para cargar el select, llámala
+            if (typeof loadParentProductsForSelect === 'function') {
+                loadParentProductsForSelect('edit-parent-product-select'); 
+            }
+            
+            // Seleccionamos el valor del padre
+            if (parentSelect) parentSelect.value = finalProduct.parent_product || ''; 
+        } else {
+            parentContainer.classList.add('hidden');
+            if (parentSelect) parentSelect.value = '';
+        }
     }
 
     // 4. Actualizar el título
-    document.getElementById('product-modal-title').textContent = 'Editar Producto: ' + productToEdit.name;
+    const title = document.getElementById('product-modal-title');
+    if (title) title.textContent = 'Editar Producto: ' + finalProduct.name;
 }
 window.loadMainProductsAndPopulateSelect = async function() {
     
@@ -3200,11 +3218,21 @@ window.handleProductTypeChange = function() {
 }
 window.handleEditProductClick = function(productId) {
     console.log("ID recibida del botón:", typeof productId, productId);
-    console.log("Producto encontrado en el mapa:", window.allProductsMap[String(productId)]);
+    
+    // 1. Obtener el objeto completo del mapa usando el ID
+    const productToEdit = window.allProductsMap[String(productId)];
+    
+    console.log("Producto encontrado en el mapa:", productToEdit);
 
-    window.editingProductId = productId; 
-    loadProductDataToForm(productId); 
-    openModal('edit-product-modal'); 
+    if (productToEdit) {
+        window.editingProductId = productId; 
+        // 2. PASAMOS EL OBJETO COMPLETO, no solo el ID
+        loadProductDataToForm(productToEdit); 
+        openModal('edit-product-modal'); 
+    } else {
+        console.error("No se encontró el producto en el mapa global.");
+        alert("Error al cargar los datos del producto.");
+    }
 }
 // Variable global para guardar la ID del producto a eliminar
 let deletingProductId = null; 
