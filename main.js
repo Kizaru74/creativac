@@ -3464,19 +3464,20 @@ window.loadClientsTable = async function(mode = 'gestion') {
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
 
-function handleDeleteClientClick(clientId, clientName) { 
-    clientToDeleteId = clientId; 
+window.handleDeleteClientClick = function(clientId) {
+    window.clientIdToDelete = clientId;
     
-    // Muestra el nombre del cliente en el modal (si el elemento existe)
-    const namePlaceholder = document.getElementById('delete-client-name-placeholder');
-    if (namePlaceholder) {
-        // Usa el nombre que se pasó como argumento
-        namePlaceholder.textContent = clientName; 
+    // Buscar el cliente en el array de clientes
+    const cliente = window.allClients?.find(c => String(c.client_id) === String(clientId));
+    const placeholder = document.getElementById('delete-client-name-placeholder');
+    
+    if (placeholder && cliente) {
+        placeholder.textContent = cliente.name;
     }
-    
-    // Abre el modal de confirmación
-    openModal('client-delete-confirmation'); 
-}
+
+    // ABRIMOS EL MODAL USANDO EL ID QUE PUSIMOS ARRIBA
+    openModal('delete-client-modal');
+};
 
 async function confirmDeleteClient() {
     const idToDelete = clientToDeleteId; 
@@ -3512,6 +3513,8 @@ async function confirmDeleteClient() {
     
     await loadDashboardData(); 
 }
+
+
 
 window.handleNewClient = async function(e) {
     // 🛑 CRÍTICO: Detiene el envío nativo del formulario.
@@ -3665,9 +3668,6 @@ async function handleEditClient(e) {
         closeModal('edit-client-modal'); 
     }
 }
-
-// CRÍTICO: Asegúrate de que el botón de confirmación tenga su listener
-document.getElementById('confirm-delete-client-btn')?.addEventListener('click', confirmDeleteClient);
 
 // 11. DETALLE Y ABONO DE VENTA 
 async function handleRegisterPayment(e) {
@@ -4948,7 +4948,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('subproduct-select')?.addEventListener('change', (e) => {
         updatePriceField(e.target.value); 
     });
-    
+
+document.addEventListener('DOMContentLoaded', () => {
  // zeditar producto
 // 1. Vincular el submit del formulario
 const editForm = document.getElementById('edit-product-form');
@@ -4968,7 +4969,43 @@ document.getElementById('edit-product-category')?.addEventListener('change', fun
         container.classList.add('hidden');
     }
 });
+});
 
+document.addEventListener('DOMContentLoaded', () => {
+    const confirmBtnClient = document.getElementById('confirm-delete-client-btn');
+if (confirmBtnClient) {
+    confirmBtnClient.onclick = async function() {
+        if (!window.clientIdToDelete) return;
+
+        confirmBtnClient.disabled = true;
+        confirmBtnClient.textContent = 'Eliminando...';
+
+        try {
+            const { error } = await supabase
+                .from('clientes')
+                .delete()
+                .eq('client_id', window.clientIdToDelete);
+
+            if (error) {
+                if (error.code === '23503') {
+                    alert('No se puede eliminar: Este cliente tiene ventas o deudas registradas.');
+                } else { throw error; }
+            } else {
+                alert('✅ Cliente eliminado con éxito.');
+                closeModal('delete-client-modal');
+                // Llama a tu función para refrescar la tabla de clientes
+                if (window.loadAndRenderClients) await window.loadAndRenderClients();
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error al intentar eliminar.');
+        } finally {
+            confirmBtnClient.disabled = false;
+            confirmBtnClient.textContent = 'Sí, Eliminar Cliente';
+        }
+    };
+}
+});
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
     // ====================================================================
