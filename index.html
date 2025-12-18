@@ -7,329 +7,884 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="style.css">
     <style>
-        /* Forzamos el tema oscuro Premium */
-        body { background-color: #121212 !important; color: #e5e7eb; }
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
-        
-        /* Estilos del Menú Lateral para legibilidad */
-        .menu-item { color: #9ca3af; transition: all 0.2s; }
-        .menu-item:hover { color: #ffffff; background-color: rgba(255,255,255,0.05); }
-        
-        /* Clase que inyecta el JS para marcar la vista actual */
-        .active-menu-item { 
-            background-color: rgba(255, 255, 255, 0.08) !important; 
-            color: #ffffff !important;
-            border-left: 4px solid #f97316;
-            border-radius: 0 12px 12px 0;
-        }
-        
-        /* Tablas oscuras */
-        thead { background-color: rgba(255, 255, 255, 0.02); }
-        tr { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-
-        /* Scrollbars */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #121212; }
-        ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 10px; }
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.6); }
+        #add-product-btn { line-height: 1; }
+        .active-menu-item { background-color: #f3f4f6; color: #1f2937; /* light gray bg for active */ }
     </style>
 </head>
-<body class="min-h-screen font-sans">
-
+<body class="bg-gray-550 min-h-screen font-sans">
+    
     <div id="auth-container" class="min-h-screen flex items-center justify-center hidden">
-        <div class="bg-[#1c1c1c] p-10 rounded-3xl shadow-2xl w-full max-w-sm border border-white/5 text-center">
-            <h2 class="text-3xl font-extrabold mb-8 text-white">Creativa <span class="text-orange-500">POS</span></h2>
-            <form id="login-form" class="text-left">
-                <div class="mb-4">
-                    <label class="block text-gray-500 text-xs font-bold mb-2 uppercase tracking-widest">Email</label>
-                    <input type="email" id="login-email" class="w-full p-3 bg-[#2a2a2a] border border-white/5 rounded-xl text-white outline-none focus:ring-2 focus:ring-orange-500" required>
+        <div class="bg-white p-10 rounded-xl shadow-2xl w-full max-w-sm">
+            <h2 class="text-3xl font-bold mb-8 text-center text-gray-800">Iniciar Sesión</h2>
+            <form id="login-form">
+                <div class="mb-5">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                    <input type="email" id="email" required class="w-full p-3 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                 </div>
                 <div class="mb-6">
-                    <label class="block text-gray-500 text-xs font-bold mb-2 uppercase tracking-widest">Contraseña</label>
-                    <input type="password" id="login-password" class="w-full p-3 bg-[#2a2a2a] border border-white/5 rounded-xl text-white outline-none focus:ring-2 focus:ring-orange-500" required>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                    <input type="password" id="password" required class="w-full p-3 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                 </div>
-                <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all uppercase tracking-widest">Entrar</button>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
+                    Acceder
+                </button>
             </form>
+            <p id="auth-error-message" class="text-red-500 text-center mt-4 hidden"></p>
         </div>
     </div>
 
     <div id="dashboard-container" class="flex min-h-screen hidden">
         
-        <aside class="w-64 bg-[#1c1c1c] flex flex-col fixed h-full z-30 border-r border-white/5">
-            <div class="p-8 text-center">
-                <h1 class="text-2xl font-black text-white tracking-tighter">CREATIVA <span class="text-orange-500">POS</span></h1>
+        <aside class="w-64 bg-white shadow-xl flex flex-col fixed h-full z-30">
+            <div class="p-6 border-b">
+                <h1 class="text-2xl font-extrabold text-gray-900">Creativa <span class="text-blue-600">POS</span></h1>
             </div>
             
             <nav class="flex-grow p-4 space-y-2">
-                <a href="#" data-view="home-view" class="menu-item flex items-center p-3 rounded-xl font-semibold">
-                    <i class="fas fa-wallet w-6"></i><span class="ml-3">Deudas</span>
+                
+                <a href="#" data-view="home-view" class="menu-item flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 font-semibold active-menu-item">
+                    <i class="fas fa-home w-6"></i>
+                    <span class="ml-3">Inicio (Deudas)</span>
                 </a>
-                <a href="#" data-view="products-view" class="menu-item flex items-center p-3 rounded-xl font-semibold">
-                    <i class="fas fa-boxes w-6"></i><span class="ml-3">Productos</span>
+                <a href="#" data-view="products-view" class="menu-item flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 font-semibold">
+                    <i class="fas fa-box-open w-6"></i>
+                    <span class="ml-3">Admin. Productos</span>
                 </a>
-                <a href="#" data-view="clients-view" class="menu-item flex items-center p-3 rounded-xl font-semibold">
-                    <i class="fas fa-user-friends w-6"></i><span class="ml-3">Clientes</span>
+                <a href="#" data-view="clients-view" class="menu-item flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 font-semibold">
+                    <i class="fas fa-users w-6"></i>
+                    <span class="ml-3">Admin. Clientes</span>
                 </a>
-                <a href="#" data-view="report-view" class="menu-item flex items-center p-3 rounded-xl font-semibold">
-                    <i class="fas fa-chart-pie w-6"></i><span class="ml-3">Reportes</span>
+                <a href="#" data-view="report-view" class="menu-item flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 font-semibold">
+                    <i class="fas fa-chart-line w-6"></i>
+                    <span class="ml-3">Reportes</span>
                 </a>
 
-                <div class="pt-6 mt-6 border-t border-white/5">
-                    <button id="open-sale-modal-btn" class="w-full flex items-center p-4 bg-orange-600 text-white rounded-2xl hover:bg-orange-700 font-black shadow-lg shadow-orange-900/20 transition-all">
-                        <i class="fas fa-plus-circle text-xl"></i>
-                        <span class="ml-3 uppercase text-xs tracking-tighter">Nueva Venta</span>
-                    </button>
+                <div class="pt-4 mt-4 border-t border-gray-100 space-y-2">
+                    <div class="pt-4 mt-4 border-t border-gray-100 space-y-2">
+    <button id="open-sale-modal-btn" class="w-full text-left flex items-center p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold transition-colors shadow-md">
+        <i class="fas fa-cash-register w-6"></i>
+        <span class="ml-3">Nueva Venta</span>
+    </button>
+    
+    <button data-open-modal="new-product-modal" class="w-full text-left flex items-center p-3 bg-yellow-600 text-white rounded-xl hover:bg-yellow-700 font-semibold transition-colors shadow-md">
+        <i class="fas fa-box w-6"></i>
+        <span class="ml-3">Nuevo Producto</span>
+    </button>
+            </div>
                 </div>
             </nav>
-
-            <div class="p-6 border-t border-white/5 flex items-center justify-between">
-                <div class="flex flex-col">
-                    <span class="text-xs text-gray-500 font-bold uppercase">Usuario</span>
-                    <span id="user-display" class="text-white text-sm font-medium">---</span>
-                </div>
-                <button id="logout-btn" class="text-red-500 p-2 hover:bg-red-500/10 rounded-xl transition-all">
-                    <i class="fas fa-power-off"></i>
+            
+            <div class="p-4 border-t flex items-center justify-between text-sm">
+                <span id="user-display" class="text-gray-600 font-medium"></span>
+                <button id="logout-btn" class="text-red-500 hover:text-red-700 transition-colors p-1 rounded-lg">
+                    <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
-        </aside>
+    </aside>
 
-        <main class="flex-grow ml-64 p-10">
+        <main class="bg-gray-350 flex-grow ml-64 p-8">
             
             <section id="home-view" class="dashboard-view">
-                <header class="mb-10">
-                    <h2 class="text-4xl font-black text-white italic">Gestión de <span class="text-orange-500">Deudas</span></h2>
-                    <p class="text-gray-500 font-medium">Control de saldos pendientes de clientes.</p>
-                </header>
-                <div class="bg-[#1c1c1c] rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
-                    <table class="w-full text-left">
-                        <thead class="text-xs text-gray-500 uppercase font-bold tracking-widest">
-                            <tr>
-                                <th class="px-8 py-5">Cliente</th>
-                                <th class="px-8 py-5">Saldo Pendiente</th>
-                                <th class="px-8 py-5">Último Movimiento</th>
-                                <th class="px-8 py-5 text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="debts-table-body" class="text-sm"></tbody>
-                    </table>
-                    <div id="no-debts-message" class="p-10 text-center text-gray-600 hidden">No hay deudas activas.</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Inicio / Deudas Pendientes</h2>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deuda Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Venta</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="debts-table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                                </tbody>
+                        </table>
+                    </div>
+                    <p id="no-debts-message" class="text-center text-gray-500 mt-4 hidden">No hay deudas pendientes actualmente.</p>
                 </div>
             </section>
 
             <section id="products-view" class="dashboard-view hidden">
-                <div class="flex justify-between items-end mb-10">
-                    <div>
-                        <h2 class="text-4xl font-black text-white italic">Inventario</h2>
-                        <p class="text-gray-500 font-medium">Administra tu catálogo de productos.</p>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Administración de Productos</h2>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex justify-end mb-4">
+                        <button data-open-modal="new-product-modal" class="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-plus mr-2"></i> Nuevo Producto
+                        </button>
                     </div>
-                    <button data-open-modal="new-product-modal" class="bg-white/5 border border-white/10 text-white px-6 py-3 rounded-2xl font-bold hover:bg-white/10 transition-all">
-                        + Añadir Producto
-                    </button>
-                </div>
-                <div class="bg-[#1c1c1c] rounded-3xl border border-white/5 overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="text-xs text-gray-500 uppercase font-bold tracking-widest">
-                            <tr>
-                                <th class="px-8 py-5">ID</th>
-                                <th class="px-8 py-5">Nombre</th>
-                                <th class="px-8 py-5">Precio</th>
-                                <th class="px-8 py-5 text-right">Opciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="products-table-body" class="text-sm"></tbody>
-                    </table>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                                </tbody>
+                        </table>
+                    </div>
+                    <p id="no-products-message" class="text-center text-gray-500 mt-4 hidden">No hay productos o servicios registrados.</p>
                 </div>
             </section>
 
             <section id="clients-view" class="dashboard-view hidden">
-                <div class="flex justify-between items-end mb-10">
-                    <div>
-                        <h2 class="text-4xl font-black text-white italic">Directorio</h2>
-                        <p class="text-gray-500 font-medium">Base de datos de clientes registrados.</p>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Administración de Clientes</h2>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex justify-end mb-4">
+                        <button data-open-modal="new-client-modal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-plus mr-2"></i> Nuevo Cliente
+                        </button>
                     </div>
-                    <button data-open-modal="new-client-modal" class="bg-orange-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20">
-                        + Nuevo Cliente
-                    </button>
-                </div>
-                <div class="bg-[#1c1c1c] rounded-3xl border border-white/5 overflow-hidden">
-                    <table class="w-full text-left">
-                        <tbody id="clients-list-body" class="text-sm"></tbody>
-                    </table>
-                    <div id="no-clients-message" class="p-10 text-center text-gray-600 hidden">No hay clientes.</div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clients-list-body" class="bg-white divide-y divide-gray-200 text-sm">
+                                </tbody>
+                        </table>
+                    </div>
+                    <p id="no-clients-message" class="text-center text-gray-500 mt-4 hidden">No hay clientes registrados.</p>
                 </div>
             </section>
-
+            
             <section id="report-view" class="dashboard-view hidden">
-                <div class="flex justify-between items-center mb-10">
-                    <h2 class="text-4xl font-black text-white italic italic">Análisis <span class="text-orange-500">Mensual</span></h2>
-                    <div class="flex gap-3">
-                        <select id="report-month-select" class="bg-[#2a2a2a] border-none rounded-xl p-3 text-white font-bold outline-none"></select>
-                        <select id="report-year-select" class="bg-[#2a2a2a] border-none rounded-xl p-3 text-white font-bold outline-none"></select>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                    <div class="bg-gradient-to-br from-green-900/20 to-transparent border border-green-500/20 p-8 rounded-3xl">
-                        <p class="text-xs font-bold text-green-500 uppercase tracking-widest mb-2">Ingresos Totales</p>
-                        <p id="report-total-sales" class="text-5xl font-black text-white">$0.00</p>
-                    </div>
-                    <div class="bg-gradient-to-br from-orange-900/20 to-transparent border border-orange-500/20 p-8 rounded-3xl">
-                        <p class="text-xs font-bold text-orange-500 uppercase tracking-widest mb-2">Deuda Pendiente</p>
-                        <p id="report-total-debt-generated" class="text-5xl font-black text-white">$0.00</p>
-                    </div>
-                </div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Reportes Mensuales</h2>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    
+                    <div class="grid grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white overflow-hidden shadow rounded-xl p-6 border-l-4 border-green-500">
+                            <div class="flex items-center">
+                                <i class="fas fa-dollar-sign text-3xl text-green-500 mr-4"></i>
+                                <div>
+                                    <p class="text-lg font-bold text-gray-500 truncate">Total Ventas del Mes</p>
+                                    <p id="report-total-sales" class="text-3xl font-extrabold text-green-700">$0.00</p>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="bg-[#1c1c1c] rounded-3xl border border-white/5 overflow-hidden">
-                    <table class="w-full text-left text-sm">
-                        <tbody id="monthly-sales-report-body"></tbody>
-                    </table>
-                    <div id="monthly-report-no-data" class="p-10 text-center text-gray-600 hidden">Sin movimientos en este periodo.</div>
+                        <div class="bg-white overflow-hidden shadow rounded-xl p-6 border-l-4 border-red-500">
+                            <div class="flex items-center">
+                                <i class="fas fa-hand-holding-usd text-3xl text-red-500 mr-4"></i>
+                                <div>
+                                    <p class="text-lg font-bold text-gray-500 truncate">Deuda Generada en el Mes</p>
+                                    <p id="report-total-debt-generated" class="text-3xl font-extrabold text-red-600">$0.00</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="report-month-select" class="block text-xs font-semibold text-gray-600 mb-1">MES</label>
+                                <select id="report-month-select" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                                    <option value="" disabled selected>Cargando Meses...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="report-year-select" class="block text-xs font-semibold text-gray-600 mb-1">AÑO</label>
+                                <select id="report-year-select" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                                    <option value="" disabled selected>Cargando Años...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-y-auto max-h-[60vh]">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deuda</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthly-sales-report-body" class="bg-white divide-y divide-gray-200 text-sm">
+                            </tbody>
+                        </table>
+                        <p id="monthly-report-no-data" class="text-center text-gray-500 mt-8 hidden">No se encontraron ventas para este período.</p>
+                    </div>
                 </div>
             </section>
+
         </main>
     </div>
 
-    <div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] rounded-[2rem] w-full max-w-4xl border border-white/10 overflow-hidden shadow-2xl">
-            <div class="bg-[#242424] p-8 flex justify-between items-center border-b border-white/5">
-                <h3 class="text-2xl font-black text-white">GENERAR VENTA</h3>
-                <button data-close-modal="new-sale-modal" class="text-gray-500 hover:text-white text-3xl">&times;</button>
-            </div>
-            <div class="p-10">
-                <div class="grid grid-cols-2 gap-6 mb-8">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cliente</label>
-                        <select id="sale-client-select" class="w-full bg-[#2a2a2a] p-4 rounded-2xl border-none text-white font-bold outline-none focus:ring-2 focus:ring-orange-500"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Método Inicial</label>
-                        <select id="sale-payment-method" class="w-full bg-[#2a2a2a] p-4 rounded-2xl border-none text-white font-bold outline-none focus:ring-2 focus:ring-orange-500">
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Transferencia">Transferencia</option>
-                        </select>
-                    </div>
-                </div>
+<div id="delete-product-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-auto p-6">
+        <h3 class="text-xl font-bold mb-4 text-gray-800">Confirmar Eliminación</h3>
+        
+        <p id="delete-confirmation-message" class="mb-6 text-gray-600">
+            ¿Estás seguro de que deseas eliminar permanentemente el producto 
+            **<span id="delete-product-name-placeholder" class="font-bold text-red-700">[NOMBRE DEL PRODUCTO]</span>**?
+            Esta acción no se puede deshacer.
+        </p>
 
-                <div class="bg-[#242424] p-8 rounded-[2rem] border border-white/5 mb-8">
-                    <div class="flex gap-4 mb-6">
-                        <select id="sale-product-select" class="flex-grow bg-[#121212] p-4 rounded-xl border-none text-white outline-none"></select>
-                        <input type="number" id="sale-quantity-input" value="1" min="1" class="w-24 bg-[#121212] p-4 rounded-xl border-none text-white text-center font-bold">
-                        <button id="add-product-btn" class="bg-white text-black px-8 rounded-xl font-black hover:bg-orange-500 hover:text-white transition-all">AÑADIR</button>
-                    </div>
-                    <table class="w-full text-sm">
-                        <tbody id="sale-items-table-body"></tbody> </table>
-                </div>
-
-                <div class="flex flex-col md:flex-row justify-between items-center">
-                    <div>
-                        <p class="text-xs font-bold text-gray-500 uppercase mb-1">Total a Liquidar</p>
-                        <p id="sale-total-display" class="text-6xl font-black text-white tracking-tighter">$0.00</p>
-                    </div>
-                    <div class="flex gap-4 mt-6 md:mt-0">
-                        <button id="save-debt-btn" class="bg-[#333] px-10 py-4 rounded-2xl font-black hover:bg-[#444] transition-all uppercase text-xs">Anotar Deuda</button>
-                        <button id="complete-sale-btn" class="bg-orange-600 px-10 py-4 rounded-2xl font-black hover:bg-orange-700 transition-all shadow-xl shadow-orange-900/40 uppercase text-xs">Pago Completo</button>
-                    </div>
-                </div>
-            </div>
+        <div class="flex justify-end space-x-3">
+            <button data-close-modal="delete-product-modal" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors">
+                Cancelar
+            </button>
+            <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                Sí, Eliminar
+            </button>
         </div>
     </div>
+</div>
 
-    <div id="client-report-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] rounded-[2rem] w-full max-w-6xl border border-white/10 h-[85vh] overflow-y-auto p-10 text-white shadow-2xl">
-            <header class="flex justify-between items-start mb-10 border-b border-white/5 pb-8">
-                <div>
-                    <h3 id="report-client-name" class="text-5xl font-black uppercase tracking-tighter">CLIENTE</h3>
-                    <p class="text-orange-500 font-bold uppercase text-xs tracking-widest mt-2">Detalle de créditos y pagos</p>
-                </div>
-                <button data-close-modal="client-report-modal" class="text-4xl text-gray-600 hover:text-white">&times;</button>
-            </header>
+<div id="delete-client-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-auto p-6">
+        <h3 class="text-xl font-bold mb-4 text-gray-800">Confirmar Eliminación</h3>
+        
+        <p id="delete-client-confirmation-message" class="mb-6 text-gray-600">
+            ¿Estás seguro de que deseas eliminar permanentemente al cliente 
+            **<span id="delete-client-name-placeholder" class="font-bold text-red-700">[NOMBRE DEL CLIENTE]</span>**?
+            Esta acción no se puede deshacer.
+        </p>
+
+        <div class="flex justify-end space-x-3">
+            <button data-close-modal="delete-client-modal" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors">
+                Cancelar
+            </button>
+            <button id="confirm-delete-client-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                Sí, Eliminar Cliente
+            </button>
+        </div>
+    </div>
+</div>
+
+    <div id="modal-ticket-preview" class="modal-overlay hidden fixed inset-0 z-[70] items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-auto p-6">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-bold">Previsualización de Ticket</h3>
+                <button data-close-modal="modal-ticket-preview" class="text-gray-400 hover:text-gray-700 text-3xl leading-none">
+                    &times;
+                </button>
+            </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                <div class="bg-[#242424] p-8 rounded-3xl border border-white/5 h-fit shadow-xl">
-                    <h4 class="text-sm font-black text-white mb-6 uppercase tracking-widest">Registrar Abono</h4>
-                    <div class="space-y-4">
-                        <input type="number" id="abono-monto" class="w-full bg-[#121212] p-4 rounded-xl border-none text-white text-2xl font-black" placeholder="0.00">
-                        <select id="abono-metodo" class="w-full bg-[#121212] p-4 rounded-xl border-none text-white font-bold">
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Transferencia">Transferencia</option>
-                        </select>
-                        <button id="btn-confirmar-abono" class="w-full bg-green-600 py-5 rounded-2xl font-black hover:bg-green-700 transition-all shadow-lg shadow-green-900/20">CONFIRMAR ABONO</button>
-                    </div>
-                </div>
-                <div class="lg:col-span-2 space-y-10">
-                    <div>
-                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-4 tracking-widest">Notas Pendientes de Pago</h4>
-                        <div class="bg-[#121212] rounded-2xl border border-white/5 overflow-hidden">
-                            <table class="w-full text-sm text-left"><tbody id="lista-notas-pendientes"></tbody></table>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-4 tracking-widest">Historial de Transacciones</h4>
-                        <div class="bg-[#121212] rounded-2xl border border-white/5 overflow-hidden">
-                            <table class="w-full text-sm text-left"><tbody id="historial-abonos-cliente"></tbody></table>
-                        </div>
-                    </div>
-                </div>
+            <div id="ticket-preview-content" class="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50 max-h-96 overflow-y-auto font-mono text-xs">
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button data-close-modal="modal-ticket-preview" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition-colors">
+                    Cerrar
+                </button>
+                <button id="print-ticket-qz-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-xl transition-colors">
+                    <i class="fas fa-print mr-2"></i>Imprimir Ticket
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 max-w-lg w-full text-white">
-            <h3 class="text-2xl font-black mb-6">Detalle de Operación</h3>
-            <div id="detail-sale-content" class="text-sm space-y-3 font-medium text-gray-300"></div>
-            <button data-close-modal="modal-detail-sale" class="mt-8 w-full bg-white/5 py-4 rounded-2xl font-bold hover:bg-white/10 transition-all">Cerrar</button>
+    <div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto p-6">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 id="client-modal-title" class="text-2xl font-bold text-gray-800">Registrar Nuevo Cliente</h3>
+            <button type="button" data-close-modal="new-client-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="new-client-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700">Nombre</label>
+                <input type="text" id="new-client-name" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+            </div>
+            <div>
+                <label for="phone" class="block text-sm font-medium text-gray-700">Teléfono</label>
+                <input type="tel" id="new-client-phone" class="w-full border-gray-300 rounded-md shadow-sm p-2">
+            </div>
+            <div class="md:col-span-2 flex justify-end">
+                <button type="submit" id="save-client-btn" class="bg-green-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-150">
+                    <i class="fas fa-user-plus mr-2"></i> Guardar Cliente
+                </button>
+            </div>
+        </form>
+    </div>
+    </div>
+    
+    <div id="edit-client-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8">
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">Editar Cliente</h3>
+                <button data-close-modal="edit-client-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                    &times;
+                </button>
+            </div>
+            <form id="edit-client-form">
+                <input type="hidden" id="edit-client-id">
+                <div class="mb-4">
+                    <label for="edit-client-name" class="block text-xs font-semibold text-gray-600 mb-1">Nombre Completo</label>
+                    <input type="text" id="edit-client-name" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
+                <div class="mb-6">
+                    <label for="edit-client-phone" class="block text-xs font-semibold text-gray-600 mb-1">Teléfono</label>
+                    <input type="tel" id="edit-client-phone" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
+                    Guardar Cambios
+                </button>
+            </form>
         </div>
     </div>
+    
+    <div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-8">
+        <div class="flex justify-between items-center border-b pb-4 mb-6">
+            <h3 class="text-2xl font-bold text-gray-800">Registrar Producto/Servicio</h3>
+            <button data-close-modal="new-product-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                &times;
+            </button>
+        </div>
+        <form id="new-product-form">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="new-product-name" class="block text-xs font-semibold text-gray-600 mb-1">Nombre</label>
+                    <input type="text" id="new-product-name" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                </div>
+                <div>
+                    <label for="new-product-price" class="block text-xs font-semibold text-gray-600 mb-1">Precio Unitario</label>
+                    <input type="number" id="new-product-price" required min="0" step="0.01" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label for="new-product-type" class="block text-xs font-semibold text-gray-600 mb-1">Categoría</label>
+                    <select 
+                        id="new-product-type" 
+                        required 
+                        class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors"
+                        onchange="handleProductTypeChange()" >
+                        <option value="PRODUCT">Producto</option>
+                        <option value="PACKAGE">Subproducto</option>
+                    </select>
+                </div>
+                <div id="new-product-parent-container" class="hidden"> 
+                    <label for="new-product-parent-select" class="block text-xs font-semibold text-gray-600 mb-1">Producto Padre (Para Paquetes)</label>
+                    <select id="new-product-parent-select" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                        </select>
+                </div>
+                <div id="new-product-placeholder" class="col-span-1"></div> 
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all">
+                Guardar Producto
+            </button>
+        </form>
+    </div>
+</div>
+    
+<div id="edit-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-8">
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">Editar Producto/Servicio</h3>
+                <button data-close-modal="edit-product-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                    &times;
+                </button>
+            </div>
+            <form id="edit-product-form">
+                <input type="hidden" id="edit-product-id">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="edit-product-name" class="block text-xs font-semibold text-gray-600 mb-1">Nombre</label>
+                        <input type="text" id="edit-product-name" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                    </div>
+                    <div>
+                        <label for="edit-product-price" class="block text-xs font-semibold text-gray-600 mb-1">Precio Unitario</label>
+                        <input type="number" id="edit-product-price" required min="0" step="0.01" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label for="edit-product-category" class="block text-xs font-semibold text-gray-600 mb-1">Categoría</label>
+                        <select id="edit-product-category" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                            <option value="Producto">Producto</option>
+                            <option value="Servicio">Servicio</option>
+                            <option value="Paquete">Paquete/Subproducto</option>
+                        </select>
+                    </div>
+                    <div id="edit-product-parent-container" class="hidden">
+                        <label for="edit-product-parent" class="block text-xs font-semibold text-gray-600 mb-1">Producto Padre (Para Paquetes)</label>
+                        <select id="edit-product-parent" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+                            </select>
+                    </div>
+                    <div id="edit-product-placeholder" class="col-span-1"></div> 
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
+                    Guardar Cambios
+                </button>
+            </form>
+        </div>
+</div>
+    
+<div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-auto p-8 transform transition-all">
+            
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">Registrar Nueva Venta</h3>
+                <button data-close-modal="new-sale-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                    &times;
+                </button>
+            </div>
 
-    <div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <form id="product-form" class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 w-full max-w-md text-white">
-            <h3 class="text-2xl font-black mb-6 italic">Producto</h3>
-            <div class="space-y-4">
-                <input type="text" id="product-name" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="Nombre del artículo" required>
-                <input type="number" id="product-price" step="0.01" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="Precio $" required>
-                <select id="product-category" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none">
-                    <option value="Corte CNC">Corte CNC</option>
-                    <option value="Diseño">Diseño</option>
-                    <option value="Material">Material</option>
+            <form id="new-sale-form" onsubmit="handleNewSale(event)">
+                
+                <div class="grid grid-cols-12 gap-4 mb-6 items-end">
+                    
+                    <div class="col-span-4">
+                        <label for="product-main-select" class="block text-xs font-semibold text-gray-600 mb-1">PRODUCTO / SERVICIO</label>
+                        <select id="product-main-select" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            </select>
+                    </div>
+
+                    <div class="col-span-2">
+                        <label for="subproduct-select" class="block text-xs font-semibold text-gray-600 mb-1">PAQUETE</label>
+                        <select id="subproduct-select" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            </select>
+                    </div>
+                    
+                    <div class="col-span-2">
+                        <label for="product-quantity" class="block text-xs font-semibold text-gray-600 mb-1">CANT.</label>
+                        <input type="number" id="product-quantity" value="1" min="1" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+                    
+                    <div class="col-span-3">
+                        <label for="product-unit-price" class="block text-xs font-semibold text-gray-600 mb-1">PRECIO UNITARIO</label>
+                        <input type="number" id="product-unit-price" placeholder="0.00" min="0" step="0.01" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+
+                    <div class="col-span-1 flex justify-end">
+                        <button type="button" id="add-product-btn" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-md hover:shadow-lg">
+                            +
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-6 overflow-y-auto max-h-52 border border-gray-200 rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cant.</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="sale-items-table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6">
+    <label for="sale-details" class="block text-sm font-semibold text-gray-700 mb-1">Comentarios y Detalles de la Venta (Opcional)</label>
+    <textarea id="sale-details" rows="3" class="w-full p-3 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="Escribe aquí cualquier detalle importante de la venta."></textarea>
+</div>
+
+                <div class="grid grid-cols-3 gap-4 mb-6 pt-4 border-t">
+
+                    <div class="col-span-1">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">TOTAL VENTA</label>
+                        <input type="text" id="total-amount" value="0.00" class="w-full rounded-lg p-3 text-xl font-extrabold bg-gray-100 text-gray-800 border-none" readonly>
+                    </div>
+
+                    <div class="col-span-1">
+                        <label for="paid-amount" class="block text-xs font-semibold text-gray-600 mb-1">MONTO PAGADO</label>
+                        <input type="number" id="paid-amount" value="0.00" min="0" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg text-xl font-extrabold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+
+                    <div class="col-span-1">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">SALDO PENDIENTE</label>
+                        <input type="text" id="display-saldo-pendiente" value="0.00" class="w-full rounded-lg p-3 text-xl font-extrabold border-2" readonly>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="col-span-1">
+                        <label for="client-select" class="block text-xs font-semibold text-gray-600 mb-1">CLIENTE</label>
+                        <select id="client-select" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            </select>
+                    </div>
+                    <div class="col-span-1">
+                        <label for="payment-method" class="block text-xs font-semibold text-gray-600 mb-1">MÉTODO DE PAGO</label>
+                        <select id="payment-method" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Transferencia">Transferencia</option>
+                            <option value="Deuda">Deuda/Crédito</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t">
+                    <button data-close-modal="new-sale-modal" type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="button" 
+        onclick="handleNewSale(event)" 
+        class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-xl transition-shadow shadow-md hover:shadow-lg">
+    Registrar Venta
+</button>
+                </div>
+
+            </form>
+        </div>
+</div>
+
+<div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-40 overflow-y-auto pt-4 pb-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-auto transform transition-all flex flex-col max-h-[95vh] my-4"> 
+        
+        <div class="flex justify-between items-center border-b pb-4 mb-4 p-8">
+            <h3 class="text-2xl font-bold text-gray-800">Detalles de Venta #<span id="detail-sale-id"></span></h3>
+            <button data-close-modal="modal-detail-sale" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                &times;
+            </button>
+        </div>
+
+        <div class="overflow-y-auto flex-grow px-8 pt-0 pb-4"> 
+            
+            <div class="grid grid-cols-3 gap-6 mb-4 text-sm">
+                <div><span class="font-semibold text-gray-800">Cliente:</span> <span id="detail-client-name" class="font-medium text-gray-800"></span></div>
+                <div><span class="font-semibold text-gray-800">Fecha:</span> <span id="detail-sale-date" class="font-medium text-gray-800"></span></div>
+                <div><span class="font-semibold text-gray-800">Método de Pago:</span> <span id="detail-payment-method" class="font-medium text-gray-800"></span></div>
+            </div>
+
+            <div class="mb-4 pt-2 border-t border-dashed">
+                <h4 class="text-lg font-bold text-gray-900 mb-1">Detalles de la Venta:</h4>
+                <p id="detail-sale-description" class="text-gray-600 italic whitespace-pre-wrap"></p>
+            </div>
+            
+            <h4 class="text-lg font-semibold mb-3 text-gray-900 border-b pb-2">Productos Vendidos</h4>
+            <div class="mb-4 border border-gray-200 rounded-lg overflow-x-auto"> 
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0"> 
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Unitario</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-products-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+                </table>
+            </div>
+            
+            <h4 class="text-lg font-semibold mb-3 text-gray-900 border-b pb-2">Resumen Financiero</h4>
+            <div class="grid grid-cols-4 gap-6 mb-4">
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <span class="block text-xs font-semibold text-gray-600">TOTAL VENTA:</span>
+                    <span id="detail-grand-total" class="text-xl font-extrabold text-gray-800"></span>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <span class="block text-xs font-semibold text-gray-600">MONTO PAGADO:</span>
+                    <span id="detail-paid-amount" class="text-xl font-extrabold text-green-700"></span>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <span class="block text-xs font-semibold text-gray-600">DEUDA PENDIENTE:</span>
+                    <span id="detail-remaining-debt" class="text-xl font-extrabold text-red-700"></span>
+                </div>
+                <button data-open-modal="abono-client-modal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg flex items-center justify-center space-x-2">
+                    <i class="fas fa-wallet"></i>
+                    <span>Registrar Abono</span>
+                </button>
+            </div>
+
+            <h4 class="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">Historial de Abonos</h4>
+            <div class="overflow-y-auto max-h-32 mb-4 border border-gray-200 rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Abono</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Método</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-abonos-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    </tbody>
+                </table>
+                <p id="no-abonos-message" class="text-center text-gray-500 py-3 hidden">No se han registrado abonos.</p>
+            </div>
+
+            <h4 class="text-lg font-semibold mb-3 text-gray-800 border-b pb-2">Gestión de Deuda y Precios</h4>
+            <div id="price-edit-section" class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 hidden mb-4">
+                <h5 class="text-md font-bold text-yellow-800 mb-3">Editar Precio de Deuda (Venta #<span id="edit-sale-id-display"></span>)</h5>
+                <form id="edit-sale-price-form">
+                    <input type="hidden" id="edit-sale-transaction-id">
+                    <input type="hidden" id="edit-sale-detail-id">
+                    
+                    <div class="grid grid-cols-3 gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Producto a Editar:</label>
+                            <p id="edit-product-name" class="text-base font-semibold text-gray-900 mt-1">Nombre del Producto</p>
+                        </div>
+                        
+                        <div>
+                            <label for="edit-new-price" class="block text-sm font-medium text-gray-700">Nuevo Precio Unitario ($)</label>
+                            <input type="number" step="0.01" min="0" id="edit-new-price" name="new_price" required 
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                        </div>
+
+                        <div>
+                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">
+                                Actualizar Precio y Saldo
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <p class="text-xs text-yellow-700 mt-2">Nota: Esta acción actualizará el precio unitario del primer ítem y recalculará los totales y la deuda.</p>
+            </div>
+            <div id="abono-form-container" class="mt-4 hidden">
+                <p class="text-sm text-gray-500 italic">El formulario de abono se mostraría aquí cuando haya deuda real.</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4 border-t p-8">
+            <button id="detail-print-ticket-btn" onclick="generarPDFVenta()" class="...">
+             <i class="fas fa-receipt mr-2"></i>Imprimir PDF
+            </button>
+            
+            <button data-close-modal="modal-detail-sale" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition-colors">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+    
+<div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[67] flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8">
+        <div class="flex justify-between items-center border-b pb-4 mb-6">
+            <h3 class="text-2xl font-bold text-gray-800">Registrar Abono</h3>
+            <button data-close-modal="abono-client-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                &times;
+            </button>
+        </div>
+        <form id="abono-client-form" onsubmit="console.log('Formulario enviado'); window.handleAbonoSubmit(event); return false;">
+            <input type="hidden" id="abono-client-id">
+            
+            <div class="mb-4">
+                <p class="text-xs font-semibold text-gray-500 uppercase">Cliente</p>
+                <p id="abono-client-name-display" class="text-lg font-bold text-gray-800 mb-2 font-mono uppercase">---</p>
+                
+                <p class="text-sm font-medium text-gray-700">Deuda actual: 
+                    <span id="abono-current-debt" class="font-extrabold text-red-600"></span>
+                </p>
+            </div>
+            
+            <div class="mb-4">
+                <label for="abono-amount" class="block text-xs font-semibold text-gray-600 mb-1">Monto del Abono</label>
+                <input type="number" id="abono-amount" name="amount" required min="0.01" step="0.01" 
+                       class="w-full p-3 border border-gray-300 rounded-lg text-xl font-extrabold focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                       placeholder="0.00">
+            </div>
+
+            <div class="mb-6">
+                <label for="payment-method-abono" class="block text-xs font-semibold text-gray-600 mb-1">Método de Pago</label>
+                <select id="payment-method-abono" name="method" required 
+                        class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    <option value="" disabled selected>--- Seleccione Método ---</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
                 </select>
             </div>
-            <div class="flex gap-3 mt-8">
-                <button type="button" data-close-modal="new-product-modal" class="flex-grow bg-white/5 py-4 rounded-xl">Cerrar</button>
-                <button type="submit" class="flex-grow bg-orange-600 py-4 rounded-xl font-black shadow-lg">Guardar</button>
+            
+            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg active:transform active:scale-95">
+                Confirmar Abono
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="modal-client-debt-report" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] mx-auto overflow-y-auto">
+        
+        <div class="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+            <h3 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-file-invoice-dollar mr-2 text-indigo-600"></i> Estado de Cuenta
+            </h3>
+            <button data-close-modal="modal-client-debt-report" class="text-gray-400 hover:text-gray-600 text-3xl transition-colors leading-none">
+                &times;
+            </button>
+        </div>
+
+        <div class="p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <div>
+                    <p class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Cliente</p>
+                    <h4 class="text-2xl font-black text-gray-900 uppercase" id="client-report-name">---</h4>
+                </div>
+                <div class="text-left md:text-right">
+                    <p class="text-xs font-bold text-red-600 uppercase tracking-wider">Total Pendiente</p>
+                    <span id="client-report-total-debt" class="text-3xl font-black text-red-600">$0.00</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mb-6">
+                <button onclick="prepararAbonoDesdeReporte()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Registrar Abono
+                </button>
+                
+                <button onclick="generarPDFEstadoCuenta()" class="flex-1 bg-amber-800 hover:bg-black text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center">
+                    <i class="fas fa-print mr-2"></i> Imprimir Reporte
+                </button>
+            </div>
+
+            <div class="overflow-x-auto border border-gray-200 rounded-xl shadow-sm">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Fecha</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Descripción / Detalle</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Monto</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-transactions-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 text-right rounded-b-2xl">
+            <button data-close-modal="modal-client-debt-report" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-xl transition-colors">
+                Cerrar Ventana
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-record-abono" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+        
+        <div class="p-6 border-b flex justify-between items-center">
+            <h3 class="text-2xl font-semibold text-gray-800">
+                <i class="fas fa-hand-holding-dollar mr-2 text-green-600"></i> Registrar Abono de Cliente
+            </h3>
+            <button onclick="closeModal('modal-record-abono')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="abono-client-form">
+            <div class="p-6 space-y-4">
+                
+                <input type="hidden" id="abono-client-id-input" name="client_id">
+
+                <p class="text-sm text-gray-600">
+                    Abono para el cliente: 
+                    <span id="abono-client-name-display" class="font-semibold text-indigo-700">Cargando...</span>
+                </p>
+
+                <div>
+                    <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
+                    <input type="number" step="0.01" min="1" id="abono-amount" name="amount" required
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500 text-lg">
+                </div>
+
+                <div>
+                    <label for="abono-method" class="block text-sm font-medium text-gray-700">Método de Pago</label>
+                    <select id="abono-method" name="method" required
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
+                        <option value="">Seleccione un método</option>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Transferencia">Transferencia</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t bg-gray-50 flex justify-end">
+                <button type="button" onclick="closeModal('modal-record-abono')" 
+                        class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg mr-2 transition duration-150">
+                    Cancelar
+                </button>
+                <button type="submit" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
+                    <i class="fas fa-check mr-2"></i> Registrar Abono
+                </button>
             </div>
         </form>
     </div>
+</div>
 
-    <div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <form id="client-form" class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 w-full max-w-md text-white shadow-2xl">
-            <h3 class="text-2xl font-black mb-6 italic">Cliente</h3>
-            <div class="space-y-4">
-                <input type="text" id="client-name" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="Nombre completo" required>
-                <input type="text" id="client-phone" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="WhatsApp / Teléfono">
-            </div>
-            <div class="flex gap-3 mt-8">
-                <button type="button" data-close-modal="new-client-modal" class="flex-grow bg-white/5 py-4 rounded-xl">Cerrar</button>
-                <button type="submit" class="flex-grow bg-orange-600 py-4 rounded-xl font-black shadow-lg">Registrar</button>
-            </div>
-        </form>
-    </div>
+<div id="modal-deudas-cliente" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-center border-bottom pb-4 mb-4">
+            <h2 class="text-2xl font-bold text-amber-900" id="nombre-cliente-deuda">Estado de Cuenta</h2>
+            <button onclick="closeModal('modal-deudas-cliente')" class="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+        </div>
 
-    <div id="delete-product-modal" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 max-w-sm w-full text-white text-center shadow-2xl">
-            <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-trash-alt text-red-500 text-3xl"></i>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <p class="text-xs text-amber-800 font-bold uppercase">Deuda Total Pendiente</p>
+                <p class="text-2xl font-black text-amber-900" id="total-deuda-general">$0.00</p>
             </div>
-            <h3 class="text-2xl font-black mb-2 italic">¿Eliminar?</h3>
-            <p class="text-gray-500 text-sm mb-8">Esta acción es permanente y afectará los registros vinculados.</p>
-            <div class="flex gap-3">
-                <button data-close-modal="delete-product-modal" class="flex-grow bg-white/5 py-4 rounded-2xl font-bold">No</button>
-                <button id="confirm-delete-product-btn" class="flex-grow bg-red-600 py-4 rounded-2xl font-black">Sí, borrar</button>
+            <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                <p class="text-xs text-green-800 font-bold uppercase">Último Abono</p>
+                <p class="text-xl font-bold text-green-900" id="fecha-ultimo-abono">---</p>
+            </div>
+            <button onclick="abrirModalAbonoGeneral()" class="bg-amber-700 text-white font-bold rounded-lg hover:bg-amber-800 transition-colors">
+                + REGISTRAR ABONO GENERAL
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+                <h3 class="font-bold text-gray-700 mb-2 flex items-center">
+                    📂 Notas con Saldo Pendiente
+                </h3>
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+                            <tr>
+                                <th class="px-4 py-2">Nota</th>
+                                <th class="px-4 py-2">Fecha</th>
+                                <th class="px-4 py-2 text-right">Saldo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-notas-pendientes">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-gray-700 mb-2 flex items-center">
+                    📜 Historial Reciente de Pagos
+                </h3>
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+                            <tr>
+                                <th class="px-4 py-2">Fecha</th>
+                                <th class="px-4 py-2">Método</th>
+                                <th class="px-4 py-2 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historial-abonos-cliente">
+                            </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script type="module" src="main.js"></script>
+<script type="module" src="main.js"></script>
+
 </body>
 </html>
