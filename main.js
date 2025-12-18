@@ -1337,16 +1337,15 @@ async function handleRecordAbono(e) {
     window.debtToPayId = null; // Usamos window. para la variable global
 }
 window.handleAbonoClick = function(clientId) {
-    // 1. Buscar al cliente usando comparación de strings para evitar errores de tipo
+    // Buscamos al cliente en la lista global para obtener su nombre y deuda actual
     const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
 
     if (!client) {
-        console.error("ID buscado:", clientId, "en lista:", window.allClients);
-        alert('Cliente no encontrado en la lista local. Intente recargar la página.');
+        alert('Cliente no encontrado en la lista. Intente recargar.');
         return;
     }
 
-    // 2. Llenar los campos del modal (Asegúrate de que estos IDs existan en tu HTML)
+    // Llenamos los campos del modal de abono (el de z-60)
     const idInput = document.getElementById('abono-client-id');
     const nameDisplay = document.getElementById('abono-client-name-display');
     const debtDisplay = document.getElementById('abono-current-debt');
@@ -1355,19 +1354,16 @@ window.handleAbonoClick = function(clientId) {
     if (idInput) idInput.value = clientId;
     if (nameDisplay) nameDisplay.textContent = client.name;
     
-    // Mostramos la deuda para que el cobrador sepa cuánto debe el cliente
+    // Mostramos la deuda que calculó el sistema
     if (debtDisplay) {
-        // Usamos la propiedad que devuelve tu resumen o la del objeto cliente
         const deuda = client.deuda_total || 0;
-        debtDisplay.textContent = typeof formatCurrency === 'function' ? formatCurrency(deuda) : `$${deuda.toFixed(2)}`;
+        debtDisplay.textContent = formatCurrency(deuda);
     }
 
-    // 3. Limpiar el campo de monto y el selector de pago para una nueva entrada
+    // Limpiamos el campo de monto para un nuevo abono
     if (amountInput) amountInput.value = '';
-    const methodSelect = document.getElementById('payment-method-abono');
-    if (methodSelect) methodSelect.selectedIndex = 0;
-
-    // 4. Abrir el modal
+    
+    // Abrimos el modal pequeño
     openModal('abono-client-modal');
 };
 
@@ -1861,8 +1857,21 @@ window.handleViewClientDebt = async function(clientId) {
  * FUNCIÓN PARA LANZAR EL MODAL DE ABONO DESDE EL REPORTE
  */
 window.prepararAbonoDesdeReporte = function() {
-    if (!window.viewingClientId) return;
-    window.handleAbonoClick(window.viewingClientId);
+    // Usamos la variable global que definimos en handleViewClientDebt
+    const clientId = window.viewingClientId; 
+    
+    if (!clientId) {
+        alert("No se pudo identificar al cliente para el abono.");
+        return;
+    }
+
+    // Llamamos a la función que ya tienes para preparar el modal de abono
+    // Esta función se encarga de llenar el nombre, deuda y ID en el modal pequeño
+    if (typeof window.handleAbonoClick === 'function') {
+        window.handleAbonoClick(clientId);
+    } else {
+        console.error("La función handleAbonoClick no está definida.");
+    }
 };
 
 /**
@@ -1879,46 +1888,71 @@ window.imprimirEstadoCuenta = function() {
             <meta charset="UTF-8">
             <style>
                 @page { size: letter; margin: 15mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; }
                 .header { border-bottom: 4px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
                 .resumen { background: #fdf8f5; border: 1px solid ${colorOxido}44; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
-                table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                th { background: #f4f4f4; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; }
-                td { padding: 10px; border-bottom: 1px solid #eee; }
+                table { width: 100%; border-collapse: collapse; font-size: 10px; }
+                th { background: #f4f4f4; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; font-weight: bold; text-transform: uppercase; }
+                td { padding: 8px 10px; border-bottom: 1px solid #eee; }
                 .text-right { text-align: right; }
+                /* Colores dinámicos para el PDF */
+                .text-red { color: #dc2626; font-weight: bold; }
+                .text-green { color: #16a34a; font-weight: bold; }
+                .text-bold { font-weight: bold; color: #000; }
             </style>
         </head>
         <body>
             <div class="header">
                 <div>
-                    <h1 style="margin:0; color:${colorOxido};">CREATIVA CORTES CNC</h1>
-                    <p style="margin:0; font-weight:bold;">ESTADO DE CUENTA DE CLIENTE</p>
+                    <h1 style="margin:0; color:${colorOxido}; font-size: 24px;">CREATIVA CORTES CNC</h1>
+                    <p style="margin:0; font-size: 12px; font-weight: bold;">ESTADO DE CUENTA PROFESIONAL</p>
                 </div>
                 <div style="text-align:right;">
-                    <p style="margin:0;">Fecha de emisión: <b>${new Date().toLocaleDateString()}</b></p>
+                    <p style="margin:0; font-size: 11px;">Fecha de emisión:</p>
+                    <p style="margin:0; font-size: 14px; font-weight: bold;">${new Date().toLocaleDateString()}</p>
                 </div>
             </div>
+
             <div class="resumen">
-                <p style="margin:0; color:#666;">CLIENTE:</p>
-                <p style="margin:0; font-size:18px; font-weight:bold;">${data.nombre.toUpperCase()}</p>
-                <p style="margin:10px 0 0 0; color:#666;">SALDO TOTAL PENDIENTE:</p>
-                <p style="margin:0; font-size:24px; font-weight:900; color:${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
+                <table style="width: 100%; background: none; border: none;">
+                    <tr>
+                        <td style="border:none; padding:0;">
+                            <p style="margin:0; color:#666; font-size: 10px;">CLIENTE</p>
+                            <p style="margin:0; font-size: 18px; font-weight: bold;">${data.nombre.toUpperCase()}</p>
+                        </td>
+                        <td style="border:none; padding:0; text-align: right;">
+                            <p style="margin:0; color:#666; font-size: 10px;">SALDO TOTAL PENDIENTE</p>
+                            <p style="margin:0; font-size: 26px; font-weight: 900; color:${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
+                        </td>
+                    </tr>
+                </table>
             </div>
+
             <table>
                 <thead>
                     <tr>
-                        <th style="width:15%">FECHA</th>
-                        <th style="width:55%">DESCRIPCIÓN</th>
-                        <th style="width:15%" class="text-right">MONTO</th>
-                        <th style="width:15%" class="text-right">SALDO</th>
+                        <th style="width:12%">FECHA</th>
+                        <th style="width:58%">DESCRIPCIÓN / CONCEPTO</th>
+                        <th style="width:15%" class="text-right">MOVIMIENTO</th>
+                        <th style="width:15%" class="text-right">SALDO ACUM.</th>
                     </tr>
                 </thead>
-                <tbody>${data.transaccionesHTML}</tbody>
+                <tbody>
+                    ${data.transaccionesHTML.replace(/text-red-600/g, 'text-red').replace(/text-green-600/g, 'text-green')}
+                </tbody>
             </table>
+
             <div style="margin-top:40px; text-align:center; font-size:10px; color:#999; border-top:1px solid #eee; padding-top:10px;">
-                Taller Creativa Cortes CNC | Valladolid, Yucatán | Comprobante Informativo
+                Taller Creativa Cortes CNC | Valladolid, Yucatán <br>
+                Este documento es un comprobante informativo de saldos y movimientos.
             </div>
-            <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+
+            <script>
+                window.onload = () => { 
+                    window.print(); 
+                    setTimeout(() => window.close(), 500); 
+                }
+            </script>
         </body>
         </html>`;
 
