@@ -2108,6 +2108,59 @@ window.printClientDebtReport = function() {
     }
 }
 
+//Detalles de la venta
+window.handleViewSaleDetails = async function(venta_id) {
+    try {
+        const { data: venta, error: vError } = await supabase
+            .from('ventas')
+            .select('*')
+            .eq('venta_id', parseInt(venta_id))
+            .maybeSingle();
+
+        if (vError) throw vError;
+
+        const [prodRes, pagosRes] = await Promise.all([
+            supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
+            supabase.from('pagos').select('*').eq('venta_id', venta_id) 
+        ]);
+
+        const productos = prodRes.data || [];
+        const pagos = pagosRes.data || [];
+        window.currentSaleForPrint = { ...venta, productos, pagos };
+
+        // Cabecera con Botón de Fecha
+        document.getElementById('detail-sale-id').textContent = venta.venta_id;
+        const fechaHTML = `
+            ${new Date(venta.created_at).toLocaleDateString()} 
+            <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-2 text-blue-500 hover:text-blue-700 text-xs">
+                <i class="fas fa-calendar-alt"></i> Cambiar Fecha
+            </button>`;
+        document.getElementById('detail-sale-date').innerHTML = fechaHTML; // Asegúrate de tener este ID en tu HTML
+        
+        // Tabla de Productos con Editar y Eliminar
+        const productsBody = document.getElementById('detail-products-body');
+        productsBody.innerHTML = productos.map(item => `
+            <tr class="border-b">
+                <td class="px-4 py-2">${item.name}</td>
+                <td class="px-4 py-2 text-right">${item.quantity}</td>
+                <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
+                <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
+                <td class="px-4 py-2 text-center flex justify-center gap-2">
+                    <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" class="text-blue-600 hover:text-blue-800" title="Editar Precio">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" class="text-red-600 hover:text-red-800" title="Eliminar Producto">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        // ... (resto de la función igual para pagos y totales)
+        updateTotalUI(venta.total_amount, venta.saldo_pendiente);
+        window.openModal('modal-detail-sale');
+    } catch (err) { console.error(err); }
+};
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
 window.editSaleDate = async function(ventaId, fechaActual) {
     // Formatear fecha para el prompt (YYYY-MM-DD)
@@ -2129,7 +2182,6 @@ window.editSaleDate = async function(ventaId, fechaActual) {
         alert("Error al cambiar fecha. Use formato AAAA-MM-DD");
     }
 };
-
 // --- FUNCIÓN PARA ELIMINAR UN PRODUCTO DE LA VENTA ---
 window.deleteItemFromSale = async function(detalleId, ventaId) {
     if (!confirm("¿Estás seguro de eliminar este producto? El total de la venta y el saldo se recalcularán.")) return;
@@ -2264,7 +2316,6 @@ window.imprimirTicketVenta = function() {
     pWin.document.write(htmlContent);
     pWin.document.close();
 };
-
 window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
     try {
         document.getElementById('nombre-cliente-deuda').textContent = "Estado de Cuenta: " + nombreCliente;
