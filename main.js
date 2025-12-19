@@ -416,18 +416,75 @@ async function loadClientsForSale() {
         select.appendChild(option);
     });
 }
-window.loadDebts = async function() {
-    console.log("Refrescando datos de deudas...");
+window.loadDebtsTable = async function() {
+    const tableBody = document.getElementById('debts-table-body');
+    const noDebtsMsg = document.getElementById('no-debts-message');
     
-    // 1. Llamamos a la función que ya tienes para cargar la tabla
-    // En tu main.js se llama loadDebtsTable
-    if (typeof loadDebtsTable === 'function') {
-        await loadDebtsTable();
-    }
-    
-    // 2. Actualizamos las métricas (tarjetas superiores)
-    if (typeof actualizarMetricasDeudas === 'function') {
-        actualizarMetricasDeudas(window.allClients);
+    if (!tableBody) return;
+
+    try {
+        // 1. Obtener clientes con deuda directamente de la base de datos
+        const { data: deudores, error } = await supabase
+            .from('clientes')
+            .select('*')
+            .gt('deuda_total', 0.01) // Solo los que deben más de 1 centavo
+            .order('deuda_total', { ascending: false });
+
+        if (error) throw error;
+
+        // 2. Si no hay deudores, limpiar y mostrar mensaje
+        if (!deudores || deudores.length === 0) {
+            tableBody.innerHTML = '';
+            if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
+            actualizarMetricasDeudas(0, 0, 0);
+            return;
+        }
+
+        if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
+
+        // 3. Calcular valores para las tarjetas (Métricas)
+        const totalGlobal = deudores.reduce((sum, c) => sum + (c.deuda_total || 0), 0);
+        const totalClientes = deudores.length;
+        const deudaMaxima = Math.max(...deudores.map(c => c.deuda_total || 0));
+
+        // Actualizar las tarjetas superiores
+        actualizarMetricasDeudas(totalGlobal, totalClientes, deudaMaxima);
+
+        // 4. Renderizar la Tabla con el estilo premium
+        tableBody.innerHTML = deudores.map(client => `
+            <tr class="hover:bg-white/[0.02] transition-colors group border-b border-white/5">
+                <td class="px-10 py-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 font-bold">
+                            ${client.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div class="font-bold text-white text-base">${client.name}</div>
+                            <div class="text-[10px] text-gray-600 font-bold uppercase tracking-widest">${client.phone || 'Sin teléfono'}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-center">
+                    <div class="text-xl font-black text-orange-500 tracking-tighter">
+                        ${formatCurrency(client.deuda_total)}
+                    </div>
+                </td>
+                <td class="px-10 py-6">
+                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${client.deuda_total > 5000 ? 'bg-red-500/10 text-red-500' : 'bg-orange-500/10 text-orange-500'}">
+                        ${client.deuda_total > 5000 ? 'Riesgo Crítico' : 'Pendiente'}
+                    </span>
+                </td>
+                <td class="px-10 py-6 text-right">
+                    <button onclick="window.handleViewClientPayments(${client.client_id})" 
+                            class="bg-white/5 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-orange-900/20">
+                        Gestionar Pagos
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error("Error en loadDebtsTable:", err);
     }
 };
 //Llena el SELECT de Producto Padre en el modal de edición
@@ -984,36 +1041,65 @@ window.handleAddProductToSale = function(e) {
 
 // --- FUNCIÓN B: REGISTRAR VENTA (Botón Verde) ---
 window.handleNewSale = async function(e) {
-    if (e) e.preventDefault();
+    e.preventDefault();
     
-    // 1. Obtención de datos del formulario
-    const client_id = document.getElementById('client-select')?.value;
+    // --- 1. CAPTURAR Y VALIDAR DATOS INICIALES ---
+    const client_id = document.getElementById('client-select')?.value ?? null;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
-    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     
+    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
+    
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
-    if (payment_method === 'Deuda') paid_amount = 0;
+    if (payment_method === 'Deuda') {
+        paid_amount = 0;
+    }
     
-    let final_paid_amount = (paid_amount > total_amount) ? total_amount : paid_amount;
-    let final_saldo_pendiente = total_amount - final_paid_amount; 
+    let final_paid_amount = paid_amount;
+    let final_saldo_pendiente = total_amount - paid_amount; 
 
-    // Validaciones
-    if (!client_id) { alert('Selecciona un cliente.'); return; }
-    if (currentSaleItems.length === 0) { alert('El carrito está vacío.'); return; }
-
-    const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
-    if (submitBtn) { 
-        submitBtn.disabled = true; 
-        submitBtn.textContent = 'Procesando...'; 
+    // Validaciones de UI
+    if (!client_id) { alert('Por favor, selecciona un cliente.'); return; }
+    if (currentSaleItems.length === 0) { alert('Debes agregar al menos un producto a la venta.'); return; }
+    if (total_amount < 0) { alert('El total de la venta no puede ser negativo.'); return; }
+    
+    if (total_amount < 0.01) {
+        final_paid_amount = 0;
+        final_saldo_pendiente = 0;
+    } else if (final_saldo_pendiente < 0) {
+        final_paid_amount = total_amount; 
+        final_saldo_pendiente = 0; 
+    }
+    
+    if (final_paid_amount < 0 || final_paid_amount > total_amount) {
+        alert('El monto pagado es inválido.'); return;
     }
 
-    try {
-        // --- PROCESO EN SUPABASE ---
+    if (final_saldo_pendiente > 0.01 && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar?`)) {
+        return;
+    }
 
-        // 1. Insertar la Venta principal
+    // Validación de IDs en el carrito
+    const itemWithoutValidId = currentSaleItems.find(item => 
+        !item.product_id || isNaN(item.product_id) || parseInt(item.product_id, 10) === 0
+    );
+    
+    if (itemWithoutValidId) {
+        alert(`Error: El ítem "${itemWithoutValidId.name}" tiene un ID inválido.`); 
+        return; 
+    }
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Procesando Venta...';
+    }
+
+    let new_venta_id = null;
+    try {
+        // 2.1. REGISTRAR VENTA (Tabla 'ventas')
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
@@ -1026,87 +1112,89 @@ window.handleNewSale = async function(e) {
             }])
             .select('venta_id'); 
 
-        if (saleError) throw saleError;
-        const new_venta_id = saleData[0].venta_id;
+        if (saleError || !saleData || saleData.length === 0) {
+            throw new Error(`Error al registrar venta principal: ${saleError?.message}`);
+        }
 
-        // 2. Insertar Detalles de la Venta
+        new_venta_id = saleData[0].venta_id;
+
+        // 2.2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
+        // ✅ CORRECCIÓN: Se agrega 'name' para evitar el error de restricción NOT NULL
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
-            product_id: item.product_id,
-            name: item.name || 'Producto', 
+            product_id: parseInt(item.product_id, 10),
+            name: item.name || 'Producto', // Nombre del producto/paquete
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
         }));
         
-        const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
-        if (dError) throw dError;
+        const { error: detailError } = await supabase
+            .from('detalle_ventas') 
+            .insert(detailsToInsert);
 
-        // 3. Registrar Pago inicial (si el cliente pagó algo en el momento)
-        if (final_paid_amount > 0) {
-            await supabase.from('pagos').insert([{
-                venta_id: new_venta_id,
-                amount: final_paid_amount,
-                client_id: client_id,
-                metodo_pago: payment_method,
-                type: 'INICIAL'
-            }]);
+        if (detailError) {
+            console.error('🛑 ERROR BD - DETALLES FALLIDOS:', detailError);
+            throw new Error(`BD Falló al insertar detalles. Mensaje: ${detailError.message}`);
         }
 
-        // 4. Actualizar Deuda del Cliente (Si quedó saldo pendiente)
+        // 2.3. REGISTRAR PAGO (Tabla 'pagos')
+        if (final_paid_amount > 0) { 
+            const { error: paymentError } = await supabase
+                .from('pagos')
+                .insert([{
+                    venta_id: new_venta_id,
+                    amount: final_paid_amount,
+                    client_id: client_id,
+                    metodo_pago: payment_method,
+                    type: 'INICIAL',
+                }]);
+
+            if (paymentError) alert(`Advertencia: El pago falló. ${paymentError.message}`);
+        }
+        
+        // 2.4. ACTUALIZAR DEUDA DEL CLIENTE
         if (final_saldo_pendiente > 0) {
-            const { data: c } = await supabase
+            const { data: clientData, error: clientFetchError } = await supabase
                 .from('clientes')
                 .select('deuda_total')
                 .eq('client_id', client_id)
                 .single();
-            
-            await supabase
-                .from('clientes')
-                .update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente })
-                .eq('client_id', client_id);
-        }
 
-        // --- ÉXITO Y ACTUALIZACIÓN DE INTERFAZ (Corrección aquí) ---
+            if (!clientFetchError && clientData) {
+                const newClientDebt = (clientData.deuda_total || 0) + final_saldo_pendiente;
+                await supabase
+                    .from('clientes')
+                    .update({ deuda_total: newClientDebt })
+                    .eq('client_id', client_id);
+            }
+        }
         
-        alert('Venta registrada con éxito');
-        closeModal('new-sale-modal');
-
-        // Limpieza de UI del TPV
-        currentSaleItems = [];
-        if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
-        document.getElementById('new-sale-form')?.reset();
-
-        // RECARGA DE DATOS PARA REPORTES Y TABLAS
-        console.log("🔄 Sincronizando datos tras venta...");
+        // --- 3. FINALIZACIÓN Y LIMPIEZA ---
+        closeModal('new-sale-modal'); 
+        window.currentSaleItems = []; 
+        window.updateSaleTableDisplay(); 
+        document.getElementById('new-sale-form')?.reset(); // ✅ Esto siempre funcionará
         
-        // A. Recargar array global de ventas (Vital para Reportes)
-        if (typeof window.loadSalesData === 'function') {
-            await window.loadSalesData();
-            // Refrescar la tabla de ventas si el usuario está en esa vista
-            if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
-        }
+        await loadDashboardData(); 
+        await loadClientsTable('gestion'); 
 
-        // B. Recargar Dashboard (Métricas de ventas diarias)
-        if (typeof window.loadDashboardData === 'function') {
-            await window.loadDashboardData();
+        if (window.showTicketPreviewModal) {
+            showTicketPreviewModal(new_venta_id);
+        } else {
+             alert(`Venta #${new_venta_id} registrada con éxito.`);
         }
-
-        // C. Recargar Clientes (Si hubo cambio en deuda)
-        if (final_saldo_pendiente > 0 && typeof window.loadClientsTable === 'function') {
-            await window.loadClientsTable('gestion');
-        }
-
-    } catch (err) {
-        console.error('Error al procesar venta:', err);
-        alert('Error: ' + err.message);
+        
+    } catch (error) {
+        console.error('Error FATAL:', error);
+        alert('Error: ' + error.message);
     } finally {
-        if (submitBtn) { 
-            submitBtn.disabled = false; 
-            submitBtn.textContent = 'Registrar Venta'; 
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Finalizar Venta';
         }
     }
-};
+}
 
 async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
     if (!supabase || isNaN(newUnitPrice) || newUnitPrice <= 0) {
@@ -2030,30 +2118,88 @@ window.handleAbonoClick = function(clientId) {
     openModal('abono-client-modal');
 };
 
-window.actualizarMetricasDeudas = function(clientes) {
-    // Si 'clientes' no llega, usamos un array vacío para que .reduce no falle
-    const data = clientes || [];
+window.loadDebtsTable = async function() {
+    const tableBody = document.getElementById('debts-table-body');
+    const noDebtsMsg = document.getElementById('no-debts-message');
     
-    console.log("Calculando métricas con:", data.length, "clientes");
+    try {
+        // 1. Traer datos frescos de la DB
+        const { data: clients, error } = await supabase
+            .from('clientes')
+            .select('*')
+            .gt('deuda_total', 0.01) // Solo los que deben
+            .order('deuda_total', { ascending: false });
 
-    // Calculamos el total sumando el campo deuda_total (o total_debt según tu DB)
-    const totalDeudaGlobal = data.reduce((acc, c) => {
-        const monto = parseFloat(c.deuda_total || c.total_debt || 0);
-        return acc + monto;
-    }, 0);
+        if (error) throw error;
 
-    const clientesConDeuda = data.filter(c => {
-        const monto = parseFloat(c.deuda_total || c.total_debt || 0);
-        return monto > 0;
-    }).length;
+        // 2. Si no hay clientes con deuda
+        if (!clients || clients.length === 0) {
+            if (tableBody) tableBody.innerHTML = '';
+            if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
+            
+            // Ponemos las métricas en 0
+            actualizarMetricasConData([]);
+            return;
+        }
 
-    // Actualizamos el DOM
+        // 3. Ocultar mensaje de "Cartera Limpia" y mostrar tabla
+        if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
+
+        // 4. Actualizar las Métricas de las Tarjetas Superiores
+        actualizarMetricasConData(clients);
+
+        // 5. Renderizar la Tabla
+        if (tableBody) {
+            tableBody.innerHTML = clients.map(client => `
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                    <td class="px-10 py-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 font-bold">
+                                ${client.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <div class="font-bold text-white text-base">${client.name}</div>
+                                <div class="text-[10px] text-gray-600 font-bold uppercase tracking-widest">${client.phone || 'Sin teléfono'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-10 py-6 text-center text-xl font-black text-orange-500 tracking-tighter">
+                        ${formatCurrency(client.deuda_total)}
+                    </td>
+                    <td class="px-10 py-6">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-orange-500/10 text-orange-500">
+                            Pendiente
+                        </span>
+                    </td>
+                    <td class="px-10 py-6 text-right">
+                        <button onclick="window.handleViewClientPayments(${client.client_id})" 
+                                class="bg-white/5 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                            Gestionar Pagos
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+    } catch (err) {
+        console.error("Error cargando tabla de deudas:", err);
+    }
+};
+
+// Esta es tu función adaptada para recibir la data fresca
+function actualizarMetricasConData(data) {
+    const totalDeudaGlobal = data.reduce((acc, c) => acc + parseFloat(c.deuda_total || 0), 0);
+    const clientesConDeuda = data.length;
+    const maxDeudaIndividual = data.length > 0 ? Math.max(...data.map(c => parseFloat(c.deuda_total || 0))) : 0;
+
     const metricTotal = document.getElementById('total-deuda-global');
     const metricCount = document.getElementById('total-clientes-deuda');
+    const metricMax = document.getElementById('max-deuda-individual');
 
-    if (metricTotal) metricTotal.textContent = `$${totalDeudaGlobal.toFixed(2)}`;
+    if (metricTotal) metricTotal.textContent = formatCurrency(totalDeudaGlobal);
     if (metricCount) metricCount.textContent = clientesConDeuda;
-};
+    if (metricMax) metricMax.textContent = formatCurrency(maxDeudaIndividual);
+}
 
 /**
  * GENERACIÓN DE PDF: ESTADO DE CUENTA PROFESIONAL
@@ -2380,46 +2526,29 @@ window.handleViewSaleDetails = async function(venta_id) {
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
 window.editSaleDate = async function(ventaId, fechaActual) {
-    // --- CORRECCIÓN DE DESFASE ---
-    // En lugar de usar new Date(), extraemos directamente la parte de la fecha 
-    // de la cadena que viene de Supabase (que suele ser YYYY-MM-DDTHH:mm...)
     const fechaBase = fechaActual.split('T')[0]; 
-    
     const nuevaFecha = prompt("Ingrese la nueva fecha (AAAA-MM-DD):", fechaBase);
 
     if (!nuevaFecha || nuevaFecha === fechaBase) return;
 
-    // Validar formato básico AAAA-MM-DD antes de enviar
-    const regexFecha = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regexFecha.test(nuevaFecha)) {
-        alert("Formato inválido. Use AAAA-MM-DD (ejemplo: 2025-12-02)");
-        return;
-    }
-
     try {
-        // Para evitar que Supabase lo guarde como el día anterior a las 00:00 local,
-        // le enviamos la fecha con una hora neutra (T12:00:00) o solo la fecha
         const { error } = await supabase
             .from('ventas')
-            .update({ created_at: `${nuevaFecha}T12:00:00Z` }) // Guardamos al mediodía UTC
+            .update({ created_at: `${nuevaFecha}T12:00:00Z` }) 
             .eq('venta_id', ventaId);
 
         if (error) throw error;
         
-        alert("✅ Fecha actualizada.");
+        // Sincronizar UI
+        await window.handleViewSaleDetails(ventaId); 
+        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); 
         
-        // Recargar el modal de detalles para ver el cambio
-        if (window.handleViewSaleDetails) {
-            window.handleViewSaleDetails(ventaId);
+        // RECARGA LAS MÉTRICAS (Evita que el botón de Deudas se reinicie)
+        if (window.loadDashboardMetrics) {
+            await window.loadDashboardMetrics();
         }
         
-        // Opcional: Recargar la tabla de reportes si está abierta de fondo
-        if (window.loadMonthlySalesReport) {
-            window.loadMonthlySalesReport();
-        }
-
     } catch (err) {
-        console.error(err);
         alert("Error al cambiar fecha.");
     }
 };
@@ -2802,21 +2931,24 @@ window.editSalePaymentMethod = async function(ventaId, metodoActual) {
         if (error) throw error;
         
         alert("✅ Método de pago actualizado.");
-        window.handleViewSaleDetails(ventaId); // Refrescar modal
+        
+        // --- RECARGA TOTAL ---
+        await window.handleViewSaleDetails(ventaId); // Refrescar modal
+        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); // Refrescar tabla fondo
+        
     } catch (err) {
         alert("Error al actualizar el método de pago.");
     }
 };
 window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaId) {
     const nuevoPrecio = prompt("Ingrese el nuevo precio unitario:", precioActual);
-    
     if (nuevoPrecio === null || nuevoPrecio === "" || isNaN(nuevoPrecio)) return;
 
     const p = parseFloat(nuevoPrecio);
     const nuevoSubtotal = p * cantidad;
 
     try {
-        // 1. Actualizar el detalle en detalle_ventas
+        // 1. Actualizar el detalle
         const { error: pError } = await supabase
             .from('detalle_ventas')
             .update({ price: p, subtotal: nuevoSubtotal })
@@ -2824,7 +2956,7 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
 
         if (pError) throw pError;
 
-        // 2. Obtener todos los detalles de esta venta para el nuevo Total
+        // 2. Recalcular Total de la Venta
         const { data: detalles } = await supabase
             .from('detalle_ventas')
             .select('subtotal')
@@ -2832,54 +2964,34 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
         
         const nuevoTotalVenta = detalles.reduce((acc, curr) => acc + curr.subtotal, 0);
 
-        // 3. Obtener cuánto ha pagado el cliente en total para esta venta
+        // 3. Recalcular Saldo Pendiente
         const { data: pagos } = await supabase
             .from('pagos')
             .select('amount')
             .eq('venta_id', ventaId);
         
         const totalAbonado = pagos ? pagos.reduce((acc, curr) => acc + (curr.amount || 0), 0) : 0;
-
-        // 4. Calcular el nuevo saldo pendiente REAL
         const nuevoSaldo = nuevoTotalVenta - totalAbonado;
 
-        // 5. Actualizar la tabla de VENTAS
-        const { error: vError } = await supabase
+        // 4. Actualizar tabla Ventas
+        await supabase
             .from('ventas')
-            .update({ 
-                total_amount: nuevoTotalVenta,
-                saldo_pendiente: nuevoSaldo 
-            })
+            .update({ total_amount: nuevoTotalVenta, saldo_pendiente: nuevoSaldo })
             .eq('venta_id', ventaId);
-
-        if (vError) throw vError;
 
         alert("✅ Precio y saldo actualizados.");
         
-        // --- 6. SINCRONIZACIÓN TOTAL ---
+        // --- SINCRONIZACIÓN TOTAL ---
+        await window.handleViewSaleDetails(ventaId); // Refrescar modal
+        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); // Refrescar reportes
         
-        // Refrescar el modal de detalles
-        if (typeof window.handleViewSaleDetails === 'function') {
-            await window.handleViewSaleDetails(ventaId);
-        }
-        
-        // Refrescar la tabla de reportes mensuales (para ver el nuevo saldo/total)
-        if (typeof window.loadMonthlySalesReport === 'function') {
-            window.loadMonthlySalesReport();
-        }
-        
-        // Refrescar dashboard (totales de arriba)
-        if (window.loadDashboardData) {
-            window.loadDashboardData();
-        }
-        
-        // Refrescar tabla de clientes (por si cambió la deuda total del cliente)
-        if (window.loadClientsTable) {
-            window.loadClientsTable('gestion');
+        // RECARGA LAS MÉTRICAS (Para que el botón de Deudas no se vuelva 0)
+        if (window.loadDashboardMetrics) {
+            await window.loadDashboardMetrics();
         }
 
     } catch (err) {
-        console.error("Error al actualizar:", err);
+        console.error(err);
         alert("No se pudo actualizar el precio.");
     }
 };
@@ -5126,22 +5238,21 @@ window.switchView = async function(viewId) {
         } 
         
         else if (viewId === 'deudas-view') {
-    // 1. Aseguramos que existan datos de clientes para las métricas
-    if (!window.allClients || window.allClients.length === 0) {
-        const { data } = await supabase.from('clientes').select('client_id, name');
-        window.allClients = data;
-    }
-
-    // 2. Ejecutamos la carga de la tabla (Asegúrate de usar loadDebts que es la que definimos)
-    if (typeof loadDebts === 'function') {
-        await loadDebts();
-    } 
-    
-    // 3. Forzamos la actualización de las tarjetas (KPIs)
-    if (typeof actualizarMetricasDeudas === 'function') {
-        actualizarMetricasDeudas(window.allClients);
-    }
-}
+            console.log("💰 Cargando Control de Deudas...");
+            
+            // 1. Cargamos la tabla y las métricas juntas desde la DB
+            // Usamos la función loadDebtsTable que creamos antes, 
+            // ya que ella misma obtiene los datos frescos de Supabase.
+            if (typeof window.loadDebtsTable === 'function') {
+                await window.loadDebtsTable();
+            } else if (typeof window.loadDebts === 'function') {
+                await window.loadDebts();
+            }
+            
+            // 2. Si manejas un buscador global para esta tabla, asegúrate de limpiarlo
+            const searchInput = document.getElementById('search-debts');
+            if (searchInput) searchInput.value = '';
+        }
 
         else if (viewId === 'report-view') {
             console.log("📊 Refrescando reportes...");
