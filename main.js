@@ -1959,6 +1959,95 @@ window.imprimirEstadoCuenta = function() {
     pWin.document.close();
 };
 
+window.generarComprobanteAbono = function(datos) {
+    const fecha = new Date().toLocaleDateString('es-MX', {
+        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    const numRecibo = "REC-" + Math.floor(Math.random() * 900000 + 100000);
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Comprobante de Pago - ${datos.cliente}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                body { font-family: 'Inter', sans-serif; padding: 40px; color: #1a1a1a; line-height: 1.6; background: #f3f4f6; }
+                .ticket { background: white; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 20px; shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; }
+                .header { text-align: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 20px; margin-bottom: 20px; }
+                .business-name { font-weight: 900; font-size: 24px; letter-spacing: -1px; text-transform: uppercase; color: #000; }
+                .receipt-label { background: #000; color: #fff; display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-top: 10px; }
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; font-size: 14px; }
+                .info-item b { display: block; color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+                .monto-principal { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px; }
+                .monto-principal span { display: block; color: #166534; font-size: 12px; font-weight: bold; }
+                .monto-principal h2 { margin: 0; color: #15803d; font-size: 32px; font-weight: 900; }
+                table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                th { text-align: left; padding: 12px; border-bottom: 2px solid #f3f4f6; color: #6b7280; }
+                td { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+                .total-deuda { margin-top: 30px; padding-top: 20px; border-top: 2px solid #000; text-align: right; }
+                .btn-print { background: #000; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: 0.3s; }
+                .btn-print:hover { background: #374151; }
+                @media print { .no-print { display: none; } body { background: white; padding: 0; } .ticket { border: none; shadow: none; max-width: 100%; } }
+            </style>
+        </head>
+        <body>
+            <div class="no-print" style="text-align: center;">
+                <button class="btn-print" onclick="window.print()">Descargar PDF / Imprimir</button>
+            </div>
+
+            <div class="ticket">
+                <div class="header">
+                    <div class="business-name">CREATIVAC GESTIÓN</div>
+                    <div class="receipt-label">COMPROBANTE DE ABONO</div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item"><b>Fecha y Hora</b>${fecha}</div>
+                    <div class="info-item"><b>No. de Recibo</b>${numRecibo}</div>
+                    <div class="info-item"><b>Cliente</b>${datos.cliente}</div>
+                    <div class="info-item"><b>Método de Pago</b>${datos.metodo}</div>
+                </div>
+
+                <div class="monto-principal">
+                    <span>CANTIDAD RECIBIDA</span>
+                    <h2>$${datos.montoTotal.toFixed(2)}</h2>
+                </div>
+
+                <b>DETALLE DE APLICACIÓN (FIFO)</b>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Folio de Venta</th>
+                            <th style="text-align: right;">Monto Aplicado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${datos.distribucion.map(item => `
+                            <tr>
+                                <td>Abono a Venta #${item.id}</td>
+                                <td style="text-align: right; font-weight: bold;">$${item.monto.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="total-deuda">
+                    <span style="font-size: 12px; color: #6b7280;">SALDO PENDIENTE TOTAL</span>
+                    <div style="font-size: 20px; font-weight: 900;">$${datos.deudaRestante.toFixed(2)}</div>
+                </div>
+
+                <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">
+                    Este documento es un comprobante de operación interna.<br>Gracias por su preferencia.
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
 //Detalles de la venta
 window.handleViewSaleDetails = async function(venta_id) {
     try {
@@ -3673,27 +3762,30 @@ async function handleEditClient(e) {
 async function handleRegisterPayment(e) {
     if (e) e.preventDefault();
     
-    // 1. Obtener valores del formulario y variables globales
+    // 1. Obtener valores del formulario y variables
     const clientId = document.getElementById('abono-client-id')?.value;
     const amountStr = document.getElementById('abono-amount')?.value.trim();
     const metodo_pago = document.getElementById('payment-method-abono')?.value;
     const paymentAmount = parseFloat(amountStr);
+    const nombreCliente = document.getElementById('abono-client-name-display')?.textContent || "Cliente";
 
     // Validaciones de seguridad
     if (!clientId) return alert('⚠️ Error: No se detectó el ID del cliente.');
     if (isNaN(paymentAmount) || paymentAmount <= 0) return alert('⚠️ Ingresa un monto válido.');
-    if (!metodo_pago) return alert('⚠️ Selecciona un método de pago.');
+    if (!metodo_pago || metodo_pago === "") return alert('⚠️ Selecciona un método de pago.');
 
     const btn = document.getElementById('btn-confirm-abono');
+    const logContainer = document.getElementById('log-container-fifo');
+    const logBody = document.getElementById('recent-payments-log');
 
     try {
-        // Bloquear interfaz
+        // Bloquear botón para evitar doble envío
         if (btn) { 
             btn.disabled = true; 
             btn.innerText = "PROCESANDO PAGO..."; 
         }
 
-        // 2. Obtener deudas del cliente (FIFO: de la más antigua a la más nueva)
+        // 2. Obtener deudas del cliente (Orden: de la más antigua a la más nueva)
         const { data: ventasPendientes, error: fetchError } = await supabase
             .from('ventas')
             .select('venta_id, saldo_pendiente, paid_amount')
@@ -3710,7 +3802,7 @@ async function handleRegisterPayment(e) {
         let montoRestante = paymentAmount;
         let historialDistribucion = []; 
 
-        // 3. Bucle de reparto FIFO
+        // 3. Bucle de reparto FIFO (Cascada)
         for (let venta of ventasPendientes) {
             if (montoRestante <= 0) break;
 
@@ -3719,7 +3811,7 @@ async function handleRegisterPayment(e) {
             let nuevoSaldoVenta = deudaVenta - pagoParaEstaVenta;
             let nuevoPagadoAcumulado = (parseFloat(venta.paid_amount) || 0) + pagoParaEstaVenta;
 
-            // A. Registrar el movimiento en la tabla 'pagos'
+            // A. Registrar el pago individual
             const { error: pError } = await supabase
                 .from('pagos')
                 .insert([{ 
@@ -3730,7 +3822,7 @@ async function handleRegisterPayment(e) {
                 }]);
             if (pError) throw pError;
 
-            // B. Actualizar la tabla 'ventas'
+            // B. Actualizar la venta específica
             const { error: uError } = await supabase
                 .from('ventas')
                 .update({ 
@@ -3740,16 +3832,13 @@ async function handleRegisterPayment(e) {
                 .eq('venta_id', venta.venta_id);
             if (uError) throw uError;
 
-            // Guardar para el log visual
+            // Guardar para el log visual y el PDF
             historialDistribucion.push({ id: venta.venta_id, monto: pagoParaEstaVenta });
             
             montoRestante -= pagoParaEstaVenta;
         }
 
-        // 4. Llenar la tabla de "Abonos Recientes" en el modal
-        const logContainer = document.getElementById('log-container-fifo');
-        const logBody = document.getElementById('recent-payments-log');
-        
+        // 4. Llenar la tabla de "Distribución" en el modal para feedback visual
         if (logBody) {
             if (logContainer) logContainer.classList.remove('hidden');
             logBody.innerHTML = historialDistribucion.map(item => `
@@ -3760,7 +3849,7 @@ async function handleRegisterPayment(e) {
             `).join('');
         }
 
-        // 5. Recalcular y actualizar la deuda TOTAL del cliente
+        // 5. Actualizar la deuda TOTAL del cliente en la tabla 'clientes'
         const { data: todasLasVentas } = await supabase
             .from('ventas')
             .select('saldo_pendiente')
@@ -3770,34 +3859,40 @@ async function handleRegisterPayment(e) {
 
         await supabase
             .from('clientes')
-            .update({ deuda_total: nuevaDeudaTotal }) // Asegúrate de que el nombre sea 'deuda_total' o 'total_debt'
+            .update({ deuda_total: nuevaDeudaTotal })
             .eq('client_id', clientId);
 
-        // 6. Finalización y refresco de interfaz
-        alert(`✅ Abono procesado con éxito. Se aplicó a ${historialDistribucion.length} ticket(s).`);
+        // 6. ÉXITO E IMPRESIÓN PREMIUM
+        alert(`✅ Abono de $${paymentAmount.toFixed(2)} registrado correctamente.`);
 
+        // Preguntar por el comprobante
+        if (confirm("¿Deseas generar el comprobante de pago Premium en PDF?")) {
+            if (typeof window.generarComprobanteAbono === 'function') {
+                window.generarComprobanteAbono({
+                    cliente: nombreCliente,
+                    montoTotal: paymentAmount,
+                    metodo: metodo_pago,
+                    distribucion: historialDistribucion,
+                    deudaRestante: nuevaDeudaTotal
+                });
+            }
+        }
+
+        // 7. Cierre y Refresco
         setTimeout(() => {
             closeModal('abono-client-modal');
-            
-            // Limpiar formulario y ocultar log
             document.getElementById('abono-client-form').reset();
             if (logContainer) logContainer.classList.add('hidden');
-
-            // Recargar datos globales para que las tablas se actualicen
-            if (typeof loadDebts === 'function') loadDebts();
-            if (typeof loadDashboardData === 'function') loadDashboardData();
             
-            // Si el modal de detalles de venta estaba abierto, refrescarlo también
-            const detailModal = document.getElementById('modal-detail-sale');
-            if (detailModal && !detailModal.classList.contains('hidden')) {
-                const currentVentaId = document.getElementById('detail-sale-id')?.textContent;
-                if (currentVentaId) window.handleViewSaleDetails(currentVentaId);
-            }
-        }, 2000);
+            // Refrescar todas las vistas
+            if (typeof loadDebtsTable === 'function') loadDebtsTable();
+            if (typeof loadDashboardData === 'function') loadDashboardData();
+            if (typeof loadClientsTable === 'function') loadClientsTable('gestion');
+        }, 1500);
 
     } catch (error) {
-        console.error('Error en handleRegisterPayment:', error);
-        alert('Ocurrió un error técnico al procesar el pago.');
+        console.error('Error detallado:', error);
+        alert('Ocurrió un error técnico al procesar el pago. Revisa la consola.');
     } finally {
         if (btn) {
             btn.disabled = false;
