@@ -4539,9 +4539,9 @@ window.loadAndRenderProducts = async function() {
             const row = tableBody.insertRow();
             row.className = 'hover:bg-gray-50 border-b border-gray-100';
             row.innerHTML = `
-                <td class="px-4 py-3 text-xs text-gray-400">${producto.producto_id}</td>
+                <td class="px-4 py-3 text-xs">${producto.producto_id}</td>
                 <td class="px-4 py-3 text-sm">
-                    <span class="font-bold text-gray-800">${producto.name}</span>
+                    <span class="font-bold">${producto.name}</span>
                     ${parentName}
                 </td>
                 <td class="px-4 py-3 text-center">
