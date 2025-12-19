@@ -155,22 +155,60 @@
     <main class="flex-grow ml-64 p-10 bg-[#121212] min-h-screen">
         
         <section id="home-view" class="dashboard-view">
-            <div class="mb-12">
-                <p class="text-orange-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Panel de Control</p>
-                <h2 class="text-5xl font-black text-white italic tracking-tighter uppercase">Bienvenido, <span class="text-gray-400" id="user-display-name">Admin</span></h2>
-                <p class="text-gray-500 mt-2 font-medium">Resumen general de tu negocio hoy.</p>
+    <div class="mb-12">
+        <p class="text-orange-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Panel de Control</p>
+        <h2 class="text-5xl font-black text-white italic tracking-tighter uppercase">Bienvenido</h2>
+        <p class="text-gray-500 mt-2 font-medium">Selecciona una sección para comenzar a gestionar.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <button onclick="switchView('deudas-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-orange-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-orange-600/5 rounded-full blur-3xl group-hover:bg-orange-600/10 transition-all"></div>
+            <div class="bg-orange-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-wallet text-white text-xl"></i>
             </div>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Deudas</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Cobros y saldos pendientes</p>
+        </button>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                <button onclick="document.getElementById('open-sale-modal-btn').click()" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-orange-500/50 transition-all shadow-2xl overflow-hidden">
-                    <div class="bg-orange-600 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-900/20">
-                        <i class="fas fa-plus text-white"></i>
-                    </div>
-                    <h3 class="text-lg font-black text-white uppercase italic tracking-tighter">Vender</h3>
-                </button>
-                </div>
+        <button onclick="switchView('products-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-blue-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-600/5 rounded-full blur-3xl group-hover:bg-blue-600/10 transition-all"></div>
+            <div class="bg-blue-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-boxes text-white text-xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Productos</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Inventario y catálogo</p>
+        </button>
 
-        </section>
+        <button onclick="switchView('clients-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-emerald-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-600/5 rounded-full blur-3xl group-hover:bg-emerald-600/10 transition-all"></div>
+            <div class="bg-emerald-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-user-friends text-white text-xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Clientes</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Directorio y registros</p>
+        </button>
+
+        <button onclick="switchView('report-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-purple-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-600/5 rounded-full blur-3xl group-hover:bg-purple-600/10 transition-all"></div>
+            <div class="bg-purple-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-chart-pie text-white text-xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Reportes</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Análisis de ventas</p>
+        </button>
+
+        <button onclick="document.getElementById('open-sale-modal-btn').click()" class="group relative bg-orange-600/10 border border-orange-500/20 p-8 rounded-[2.5rem] text-left hover:bg-orange-600 transition-all shadow-2xl overflow-hidden lg:col-span-2">
+            <div class="bg-orange-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:bg-white group-hover:text-orange-600 transition-all">
+                <i class="fas fa-plus text-xl"></i>
+            </div>
+            <h3 class="text-2xl font-black text-white uppercase italic tracking-tighter group-hover:text-white">Registrar Nueva Venta</h3>
+            <p class="text-orange-500 text-xs mt-2 font-bold uppercase tracking-widest group-hover:text-orange-100">Abrir terminal de punto de venta</p>
+        </button>
+
+    </div>
+</section>
 
         <section id="deudas-view" class="dashboard-view hidden">
             <header class="mb-10">
