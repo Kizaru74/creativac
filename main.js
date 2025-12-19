@@ -1360,243 +1360,31 @@ window.getClientSalesSummary = async function(clientId) {
         return { totalVentas: 0, deudaNeta: 0 };
     }
 };
-async function handleRecordAbono(e) {
-    e.preventDefault();
-    if (!supabase) return;
 
-    // 1. Obtener los datos del formulario (Usando las IDs de tu HTML)
-    const abonoAmount = parseFloat(document.getElementById('abono-amount').value);
-    const paymentMethod = document.getElementById('abono-method')?.value; 
-    
-    // 2. Validaciones
-    if (isNaN(abonoAmount) || abonoAmount <= 0) {
-        alert('Por favor, ingresa un monto válido para el abono (mayor a cero).');
-        return;
-    }
-    if (!paymentMethod || paymentMethod === '') {
-        alert('Por favor, selecciona un Método de Pago.');
-        return;
-    }
-
-    // 3. DETERMINAR EL TIPO DE ABONO: Venta específica o Deuda del Cliente
-    const idToUpdate = window.debtToPayId; // ID del cliente o de la venta
-    
-    // Asumimos que si el ID existe en allClientsMap, es un abono general.
-    const isClientDebtAbono = window.allClientsMap[idToUpdate] !== undefined; 
-    
-    let salesToUpdate = []; 
-    let finalClientId = null;
-    let totalPaidAmount = 0; // Para la alerta final
-
-    if (isClientDebtAbono) {
-        // 3a. ABONO A DEUDA GENERAL DEL CLIENTE (FIFO)
-        // [Su lógica FIFO es correcta y se mantiene]
-
-        const clientId = idToUpdate;
-        finalClientId = clientId;
-        
-        // Obtenemos todas las ventas pendientes del cliente (FIFO)
-        const { data: pendingSales, error: fetchError } = await supabase
-            .from('ventas')
-            .select('venta_id, saldo_pendiente, paid_amount, client_id, created_at') // 💡 Añadimos paid_amount
-            .eq('client_id', clientId)
-            .gt('saldo_pendiente', 0.01)
-            .order('created_at', { ascending: true }); 
-
-        if (fetchError) {
-            console.error("Error al buscar ventas pendientes:", fetchError);
-            alert('Error al buscar ventas pendientes para abonar.');
-            return;
-        }
-        if (pendingSales.length === 0) {
-            alert('El cliente no tiene ventas pendientes para abonar.');
-            return;
-        }
-
-        let remainingAbono = abonoAmount;
-        totalPaidAmount = abonoAmount; // Es el total abonado
-
-        // Aplicar el abono a las ventas pendientes por orden de antigüedad
-        for (const sale of pendingSales) {
-            if (remainingAbono <= 0) break;
-
-            const debtToSale = sale.saldo_pendiente;
-            const amountApplied = Math.min(remainingAbono, debtToSale);
-            
-            salesToUpdate.push({
-                venta_id: sale.venta_id,
-                client_id: sale.client_id,
-                amount: amountApplied,
-                // Calculamos el nuevo paid_amount y el nuevo saldo
-                new_paid_amount: sale.paid_amount + amountApplied, // <-- ¡CORRECCIÓN!
-                new_saldo_pendiente: debtToSale - amountApplied 
-            });
-
-            remainingAbono -= amountApplied;
-        }
-        
-    } else {
-        // 3b. ABONO A VENTA ESPECÍFICA
-        // [Su lógica específica es correcta y se mantiene]
-        
-        const ventaId = idToUpdate; 
-        
-        const { data: saleData, error: fetchError } = await supabase
-            .from('ventas')
-            .select('saldo_pendiente, paid_amount, client_id') // 💡 Añadimos paid_amount
-            .eq('venta_id', ventaId)
-            .single();
-
-        if (fetchError || !saleData) {
-            alert('Error al obtener la venta para abonar.');
-            return;
-        }
-        
-        if (abonoAmount > saleData.saldo_pendiente) {
-            alert(`El abono excede el saldo pendiente (${formatCurrency(saleData.saldo_pendiente)}). Ajuste el monto.`);
-            return;
-        }
-        
-        finalClientId = saleData.client_id;
-        totalPaidAmount = abonoAmount; // Es el total abonado
-
-        salesToUpdate.push({
-            venta_id: ventaId,
-            client_id: saleData.client_id,
-            amount: abonoAmount,
-            // Calculamos el nuevo paid_amount y el nuevo saldo
-            new_paid_amount: saleData.paid_amount + abonoAmount, // <-- ¡CORRECCIÓN!
-            new_saldo_pendiente: saleData.saldo_pendiente - abonoAmount
-        });
-    }
-
-    // 4. REGISTRAR TRANSACCIONES Y ACTUALIZAR VENTA(S)
-    try {
-        for (const update of salesToUpdate) {
-            // A. Insertar el abono en la tabla 'pagos'
-            const { error: paymentError } = await supabase
-                .from('pagos')
-                .insert([{ 
-                    venta_id: update.venta_id, 
-                    client_id: update.client_id,
-                    amount: update.amount, 
-                    metodo_pago: paymentMethod 
-                }]);
-            if (paymentError) throw paymentError;
-
-            // B. Actualizar el saldo y el monto pagado de la tabla 'ventas' (¡CRÍTICO!)
-            const { error: updateError } = await supabase
-                .from('ventas')
-                .update({ 
-                    saldo_pendiente: update.new_saldo_pendiente,
-                    paid_amount: update.new_paid_amount // <-- ¡ESTO ES LO NUEVO!
-                })
-                .eq('venta_id', update.venta_id);
-            if (updateError) throw updateError;
-        }
-
-        alert(`¡Abono de ${formatCurrency(totalPaidAmount)} registrado con éxito!`);
-        document.getElementById('abono-client-form').reset();
-        closeModal('modal-record-abono'); 
-        
-        // 5. RECARGAR DATOS
-        
-        // Si el reporte de deuda está abierto, lo recargamos para ver el cambio
-        const debtModal = document.getElementById('modal-client-debt-report');
-        if (debtModal && !debtModal.classList.contains('hidden') && finalClientId) {
-            await handleViewClientDebt(finalClientId); 
-        }
-
-        // Si el modal de Detalle de Venta está abierto y acabamos de abonar a una venta específica, ¡recargarlo!
-        const detailSaleModal = document.getElementById('modal-detail-sale');
-        if (detailSaleModal && !detailSaleModal.classList.contains('hidden') && !isClientDebtAbono) {
-            // Recargamos los detalles de la venta que acabamos de abonar
-            // Usamos el ID de la venta y el ID del cliente que guardamos.
-            await handleViewSaleDetails(idToUpdate, finalClientId); 
-        }
-        
-        await loadDashboardData(); 
-        await loadClientsTable('gestion'); 
-
-    } catch (e) {
-        console.error('Error al registrar abono:', e.message || e);
-        alert('Hubo un error al registrar el abono. Intente nuevamente.');
-    }
-    
-    // 6. LIMPIEZA FINAL
-    window.debtToPayId = null; // Usamos window. para la variable global
-}
-window.handleAbonoClick = function(clientId) {
-    // Buscamos al cliente en la lista global para obtener su nombre y deuda actual
-    const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
-
-    if (!client) {
-        alert('Cliente no encontrado en la lista. Intente recargar.');
-        return;
-    }
-
-    // Llenamos los campos del modal de abono (el de z-60)
-    const idInput = document.getElementById('abono-client-id');
-    const nameDisplay = document.getElementById('abono-client-name-display');
-    const debtDisplay = document.getElementById('abono-current-debt');
-    const amountInput = document.getElementById('abono-amount');
-
-    if (idInput) idInput.value = clientId;
-    if (nameDisplay) nameDisplay.textContent = client.name;
-    
-    // Mostramos la deuda que calculó el sistema
-    if (debtDisplay) {
-        const deuda = client.deuda_total || 0;
-        debtDisplay.textContent = formatCurrency(deuda);
-    }
-
-    // Limpiamos el campo de monto para un nuevo abono
-    if (amountInput) amountInput.value = '';
-    
-    // Abrimos el modal pequeño
-    openModal('abono-client-modal');
-};
-
+//Abono boton
 window.handleAbonoSubmit = async function(e) {
-    // 1. Detenemos el envío automático del navegador
     if (e && e.preventDefault) e.preventDefault();
 
     const form = document.getElementById('abono-client-form');
     const submitBtn = form?.querySelector('button[type="submit"]');
 
-    // 2. Captura de valores
     const clientId = document.getElementById('abono-client-id')?.value;
     const amount = parseFloat(document.getElementById('abono-amount')?.value);
     const methodSelect = document.getElementById('payment-method-abono');
     const method = methodSelect ? methodSelect.value : "";
 
-    // 3. VALIDACIONES ESTRICTAS (Evitan mensajes dobles)
-    if (!clientId) {
-        alert("⚠️ Error: No se pudo identificar al cliente.");
-        return; // Detiene la función aquí
-    }
+    // Validaciones
+    if (!clientId) return alert("⚠️ Error: Cliente no identificado.");
+    if (isNaN(amount) || amount <= 0) return alert("⚠️ Ingrese un monto mayor a 0.");
+    if (!method || method === "" || method === "seleccionar") return alert("⚠️ Selecciona un Método de Pago.");
 
-    if (isNaN(amount) || amount <= 0) {
-        alert("⚠️ Por favor, ingrese un monto válido mayor a 0.");
-        return; // Detiene la función aquí
-    }
-
-    // Si el valor es vacío o es el mensaje por defecto del select
-    if (!method || method === "" || method === "seleccionar") {
-        alert("⚠️ Por favor, selecciona un Método de Pago.");
-        return; // 🔥 CRÍTICO: Aquí se detiene y no registra nada en Supabase
-    }
-
-    // 4. Bloqueo de UI para evitar doble clic
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando...';
+        submitBtn.textContent = 'Procesando Cascada...';
     }
 
     try {
-        console.log(`🚀 Ejecutando RPC para Cliente ${clientId}: $${amount} via ${method}`);
-
-        // 5. Llamada a la base de datos (Proceso de Cascada)
+        // 1. Ejecutamos el proceso en el servidor (RPC)
         const { error } = await supabase.rpc('registrar_abono_cascada', {
             p_client_id: parseInt(clientId),
             p_amount: amount,
@@ -1605,31 +1393,54 @@ window.handleAbonoSubmit = async function(e) {
 
         if (error) throw error;
 
-        // 6. ÉXITO
-        alert(`✅ Abono de ${formatCurrency(amount)} registrado correctamente.`);
-        
-        // Limpieza
-        window.closeModal('abono-client-modal');
-        form.reset();
+        // 2. MOSTRAR DISTRIBUCIÓN: Consultamos los últimos pagos registrados para este cliente
+        // Esto llenará la tablita que añadimos al HTML
+        const { data: pagosRecientes, error: errorPagos } = await supabase
+            .from('pagos')
+            .select('venta_id, amount')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false })
+            .limit(5); // Traemos los últimos 5 para mostrar el desglose
 
-        // 7. ACTUALIZACIÓN DE LA INTERFAZ (Sin recargar página)
+        const logContainer = document.getElementById('log-container-fifo');
+        const logBody = document.getElementById('recent-payments-log');
         
-        // A. Si el detalle de venta está abierto, lo actualizamos
-        const detailModal = document.getElementById('modal-detail-sale');
-        if (detailModal && !detailModal.classList.contains('hidden')) {
-            const currentVentaId = document.getElementById('detail-sale-id')?.textContent;
-            if (currentVentaId) await window.handleViewSaleDetails(currentVentaId);
+        if (logBody && pagosRecientes) {
+            if (logContainer) logContainer.classList.remove('hidden');
+            logBody.innerHTML = pagosRecientes.map(p => `
+                <tr class="border-b border-white/5">
+                    <td class="py-2 text-gray-500 font-mono text-[10px]">Venta #${p.venta_id}</td>
+                    <td class="py-2 text-right text-green-500 font-bold">-$${p.amount.toFixed(2)}</td>
+                </tr>
+            `).join('');
         }
 
-        // B. Actualizamos tablas de clientes y dashboard
-        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
-        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        // 3. ÉXITO
+        alert(`✅ Abono de ${formatCurrency(amount)} aplicado correctamente.`);
+        
+        // Esperamos 2 segundos para que el usuario vea la distribución en el log
+        setTimeout(async () => {
+            window.closeModal('abono-client-modal');
+            form.reset();
+            if (logContainer) logContainer.classList.add('hidden');
+
+            // 4. ACTUALIZACIÓN SILENCIOSA DE VISTAS
+            if (typeof window.loadDebts === 'function') await window.loadDebts();
+            if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
+            if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+            
+            // Si el detalle de venta estaba abierto, refrescarlo
+            const detailModal = document.getElementById('modal-detail-sale');
+            if (detailModal && !detailModal.classList.contains('hidden')) {
+                const currentVentaId = document.getElementById('detail-sale-id')?.textContent;
+                if (currentVentaId) await window.handleViewSaleDetails(currentVentaId);
+            }
+        }, 2000);
 
     } catch (err) {
-        console.error("❌ Error en Supabase:", err);
-        alert("Hubo un error técnico: " + err.message);
+        console.error("❌ Error:", err);
+        alert("Error técnico: " + err.message);
     } finally {
-        // 8. Liberar botón
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Confirmar Abono';
@@ -3863,47 +3674,38 @@ async function handleEditClient(e) {
 
 // 11. DETALLE Y ABONO DE VENTA 
 async function handleRegisterPayment(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     
-    // Obtenemos los valores del formulario
+    // 1. Obtener valores del formulario (IDs del modal blanco)
+    const clientId = document.getElementById('abono-client-id').value;
     const amountStr = document.getElementById('abono-amount').value.trim();
     const metodo_pago = document.getElementById('payment-method-abono').value;
     const paymentAmount = parseFloat(amountStr);
 
-    // IMPORTANTE: Para el FIFO necesitamos el ID del cliente. 
-    // Si tu modal no tiene un campo oculto con el client_id, podemos obtenerlo 
-    // de la variable global 'editingClientId' que ya declaraste al inicio de tu main.js
-    const client_id = editingClientId; 
-
-    if (!client_id) {
-        alert('Error: No se detectó el ID del cliente.');
-        return;
-    }
-
-    if (amountStr === '' || isNaN(paymentAmount) || paymentAmount <= 0) {
-        alert('Por favor, ingresa un monto válido para el abono.');
-        return;
-    }
+    // Validación de seguridad
+    if (!clientId) return alert('Error: No se detectó el ID del cliente.');
+    if (isNaN(paymentAmount) || paymentAmount <= 0) return alert('Ingresa un monto válido.');
 
     try {
-        // 1. Obtener TODAS las ventas con saldo del cliente, de la más antigua a la más nueva
+        // Bloquear botón para evitar doble clic
+        const btn = e.target.querySelector('button[type="submit"]');
+        if (btn) { btn.disabled = true; btn.innerText = "PROCESANDO..."; }
+
+        // 2. Obtener deudas (FIFO)
         const { data: ventasPendientes, error: fetchError } = await supabase
             .from('ventas')
             .select('venta_id, saldo_pendiente')
-            .eq('client_id', client_id)
+            .eq('client_id', clientId)
             .gt('saldo_pendiente', 0)
             .order('created_at', { ascending: true });
 
-        if (fetchError) throw new Error('Error al obtener deudas: ' + fetchError.message);
-        
-        if (ventasPendientes.length === 0) {
-            alert('Este cliente no tiene deudas pendientes.');
-            return;
-        }
+        if (fetchError) throw fetchError;
+        if (ventasPendientes.length === 0) return alert('No hay deudas pendientes.');
 
         let montoRestante = paymentAmount;
+        let historialDistribucion = []; // Para llenar la tabla de abonos recientes
 
-        // 2. Iniciar el reparto FIFO
+        // 3. Reparto FIFO
         for (let venta of ventasPendientes) {
             if (montoRestante <= 0) break;
 
@@ -3911,56 +3713,77 @@ async function handleRegisterPayment(e) {
             let pagoParaEstaVenta = Math.min(montoRestante, deudaVenta);
             let nuevoSaldoVenta = deudaVenta - pagoParaEstaVenta;
 
-            // 3. Registrar el pago en la tabla 'pagos'
+            // Registrar el pago
             const { error: pError } = await supabase
                 .from('pagos')
                 .insert([{ 
                     venta_id: venta.venta_id, 
-                    client_id: client_id, 
+                    client_id: clientId, 
                     amount: pagoParaEstaVenta, 
                     metodo_pago: metodo_pago 
                 }]);
             if (pError) throw pError;
 
-            // 4. Actualizar el saldo de la venta específica
+            // Actualizar saldo de la venta
             const { error: uError } = await supabase
                 .from('ventas')
                 .update({ saldo_pendiente: nuevoSaldoVenta })
                 .eq('venta_id', venta.venta_id);
             if (uError) throw uError;
 
+            // Guardar en nuestro historial local para mostrarlo en el modal
+            historialDistribucion.push({ id: venta.venta_id, monto: pagoParaEstaVenta });
+            
             montoRestante -= pagoParaEstaVenta;
         }
 
-        // 5. Recalcular la deuda TOTAL del cliente (para la tabla clientes)
-        const { data: todasLasDeudas } = await supabase
+        // 4. Llenar la tabla de "Distribución del abono" en el modal
+        const logContainer = document.getElementById('log-container-fifo');
+        const logBody = document.getElementById('recent-payments-log');
+        
+        if (logBody) {
+            if (logContainer) logContainer.classList.remove('hidden');
+            logBody.innerHTML = historialDistribucion.map(item => `
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-gray-500 font-mono text-[10px]">Venta #${item.id}</td>
+                    <td class="py-2 text-right text-green-600 font-bold">-$${item.monto.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 5. Actualizar deuda TOTAL en la tabla 'clientes'
+        const { data: deudasRestantes } = await supabase
             .from('ventas')
             .select('saldo_pendiente')
-            .eq('client_id', client_id);
+            .eq('client_id', clientId);
         
-        const nuevaDeudaTotal = todasLasDeudas.reduce((s, v) => s + (parseFloat(v.saldo_pendiente) || 0), 0);
+        const nuevaDeudaTotal = deudasRestantes.reduce((s, v) => s + (parseFloat(v.saldo_pendiente) || 0), 0);
 
         await supabase
             .from('clientes')
             .update({ total_debt: nuevaDeudaTotal })
-            .eq('client_id', client_id);
+            .eq('client_id', clientId);
 
-        // 6. Finalización
-        alert(`Abono procesado correctamente. Se aplicó a las deudas más antiguas.`);
+        // 6. Finalización con retraso para ver el log
+        alert(`Abono procesado. Se aplicó a ${historialDistribucion.length} venta(s).`);
         
-        // Limpiamos el campo de monto
-        document.getElementById('abono-amount').value = '';
-        
-        // Cerramos modal y recargamos datos
-        closeModal('modal-detail-sale'); 
-        
-        // RECARGAR VISTAS: Asegúrate de llamar a loadDebts para que la tabla de deudores se actualice
-        if (typeof loadDebts === 'function') await loadDebts();
-        await loadDashboardData();
+        setTimeout(() => {
+            closeModal('abono-client-modal');
+            // Limpiar log y formulario
+            if (logContainer) logContainer.classList.add('hidden');
+            document.getElementById('abono-amount').value = '';
+            
+            // Refrescar vistas
+            if (typeof loadDebts === 'function') loadDebts();
+            if (window.loadDashboardData) loadDashboardData();
+        }, 1500);
 
     } catch (error) {
-        alert(`Ocurrió un error: ${error.message}`);
-        console.error('Error en el flujo de abono FIFO:', error);
+        alert(`Error: ${error.message}`);
+        console.error('Error FIFO:', error);
+    } finally {
+        const btn = e.target.querySelector('button[type="submit"]');
+        if (btn) { btn.disabled = false; btn.innerText = "CONFIRMAR ABONO"; }
     }
 }
 
