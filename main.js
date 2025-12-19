@@ -1834,7 +1834,7 @@ window.handleAbonoClick = function(clientId) {
     openModal('abono-client-modal');
 };
 
-window.actualizarMetricasDeudas = function(clientId) {
+window.actualizarMetricasDeudas = function(clientes) {
     const totalDeudaGlobal = clientes.reduce((acc, c) => acc + (parseFloat(c.total_debt) || 0), 0);
     const clientesConDeuda = clientes.filter(c => (parseFloat(c.total_debt) || 0) > 0).length;
 
