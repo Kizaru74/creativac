@@ -1521,11 +1521,10 @@ window.handleNewSale = async function(e) {
         new_venta_id = saleData[0].venta_id;
 
         // 2.2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
-        // ✅ CORRECCIÓN: Se agrega 'name' para evitar el error de restricción NOT NULL
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: parseInt(item.product_id, 10),
-            name: item.name || 'Producto', // Nombre del producto/paquete
+            name: item.name || 'Producto', 
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
@@ -1552,7 +1551,7 @@ window.handleNewSale = async function(e) {
                     type: 'INICIAL',
                 }]);
 
-            if (paymentError) alert(`Advertencia: El pago falló. ${paymentError.message}`);
+            if (paymentError) console.warn(`El registro del pago falló: ${paymentError.message}`);
         }
         
         // 2.4. ACTUALIZAR DEUDA DEL CLIENTE
@@ -1573,23 +1572,42 @@ window.handleNewSale = async function(e) {
         }
         
         // --- 3. FINALIZACIÓN Y LIMPIEZA ---
-        closeModal('new-sale-modal'); 
-        window.currentSaleItems = []; 
-        window.updateSaleTableDisplay(); 
-        document.getElementById('new-sale-form')?.reset(); // ✅ Esto siempre funcionará
         
-        await loadDashboardData(); 
-        await loadClientsTable('gestion'); 
-
-        if (window.showTicketPreviewModal) {
-            showTicketPreviewModal(new_venta_id);
-        } else {
-             alert(`Venta #${new_venta_id} registrada con éxito.`);
+        // Cerrar el modal de nueva venta
+        if (typeof closeModal === 'function') {
+            closeModal('new-sale-modal'); 
         }
+
+        // Limpiar el carrito local y la UI del formulario
+        window.currentSaleItems = []; 
+        if (typeof window.updateSaleTableDisplay === 'function') {
+            window.updateSaleTableDisplay(); 
+        }
+        document.getElementById('new-sale-form')?.reset(); 
+        
+        // --- 4. ACTUALIZACIÓN DE INTERFAZ (SIN RECARGAR PÁGINA) ---
+        
+        // Recargar datos del Dashboard (Totales arriba)
+        if (typeof loadDashboardData === 'function') {
+            await loadDashboardData(); 
+        }
+
+        // Recargar tabla de gestión de clientes (Para ver deudas actualizadas)
+        if (typeof loadClientsTable === 'function') {
+            await loadClientsTable('gestion'); 
+        }
+
+        // Recargar tabla de reportes mensuales (Para ver la nueva venta con efecto vidrio)
+        if (typeof loadMonthlySalesReport === 'function') {
+            loadMonthlySalesReport(); 
+        }
+
+        // Notificación final silenciosa en consola (Ya no abre el Ticket Preview)
+        console.log(`Éxito: Venta #${new_venta_id} registrada y tablas actualizadas.`);
         
     } catch (error) {
-        console.error('Error FATAL:', error);
-        alert('Error: ' + error.message);
+        console.error('Error en el proceso de venta:', error);
+        alert('Hubo un error al procesar la venta: ' + error.message);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
