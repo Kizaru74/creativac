@@ -2287,6 +2287,7 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         if (vError) throw vError;
 
+        // Carga paralela de productos y pagos para mayor velocidad
         const [prodRes, pagosRes] = await Promise.all([
             supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
             supabase.from('pagos').select('*').eq('venta_id', venta_id) 
@@ -2294,9 +2295,11 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         const productos = prodRes.data || [];
         const pagos = pagosRes.data || [];
+        
+        // Guardar en memoria global por si se necesita imprimir
         window.currentSaleForPrint = { ...venta, productos, pagos };
 
-        // 2. Llenar datos de Cabecera (IDs de tu HTML)
+        // 2. Llenar datos de Cabecera
         const elId = document.getElementById('detail-sale-id');
         if (elId) elId.textContent = venta.venta_id;
 
@@ -2306,16 +2309,24 @@ window.handleViewSaleDetails = async function(venta_id) {
             elCliente.textContent = c ? c.name : 'Cliente General';
         }
 
+        // FECHA: Corregida para evitar desfase de un día (Usa UTC)
         const elFecha = document.getElementById('detail-sale-date');
         if (elFecha) {
+            const fechaLimpia = new Date(venta.created_at).toLocaleDateString('es-MX', {
+                timeZone: 'UTC', 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric'
+            });
             elFecha.innerHTML = `
-                ${new Date(venta.created_at).toLocaleDateString()}
+                ${fechaLimpia}
                 <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-1 text-blue-500 hover:text-blue-700">
                     <i class="fas fa-edit" style="font-size: 10px;"></i>
                 </button>
             `;
         }
 
+        // MÉTODO DE PAGO
         const elMetodo = document.getElementById('detail-payment-method');
         if (elMetodo) {
             const txt = venta.metodo_pago || 'No especificado';
@@ -2327,48 +2338,77 @@ window.handleViewSaleDetails = async function(venta_id) {
             `;
         }
 
+        // DESCRIPCIÓN: Ahora con botón de edición y protección de comillas
         const elDesc = document.getElementById('detail-sale-description');
-        if (elDesc) elDesc.textContent = venta.description || 'Sin notas adicionales';
+        if (elDesc) {
+            const descTxt = venta.description || 'Sin notas adicionales';
+            // .replace(/'/g, "\\'") evita que las comillas rompan el onclick
+            elDesc.innerHTML = `
+                <div class="flex items-start justify-between group">
+                    <span class="italic text-white/70">${descTxt}</span>
+                    <button onclick="window.editSaleDescription(${venta.venta_id}, '${descTxt.replace(/'/g, "\\'")}')" 
+                            class="ml-2 text-blue-500 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-edit" style="font-size: 10px;"></i>
+                    </button>
+                </div>
+            `;
+        }
 
-        // 3. Tabla de Productos (Con Editar y Borrar)
+        // 3. Tabla de Productos (Permite editar precio o borrar item)
         const productsBody = document.getElementById('detail-products-body');
         if (productsBody) {
             productsBody.innerHTML = productos.map(item => `
-                <tr class="border-b">
-                    <td class="px-4 py-2">${item.name}</td>
-                    <td class="px-4 py-2 text-right">${item.quantity}</td>
-                    <td class="px-4 py-2 text-right">${formatCurrency(item.price)}</td>
-                    <td class="px-4 py-2 text-right font-bold">${formatCurrency(item.subtotal)}</td>
+                <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td class="px-4 py-2 text-white/80">${item.name}</td>
+                    <td class="px-4 py-2 text-right text-white/80">${item.quantity}</td>
+                    <td class="px-4 py-2 text-right text-white/80">${formatCurrency(item.price)}</td>
+                    <td class="px-4 py-2 text-right font-bold text-white">${formatCurrency(item.subtotal)}</td>
                     <td class="px-4 py-2 text-center">
                         <div class="flex justify-center gap-2">
-                            <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" class="text-blue-500"><i class="fas fa-edit"></i></button>
-                            <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" class="text-red-400"><i class="fas fa-trash-alt"></i></button>
+                            <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" 
+                                    class="text-blue-500 hover:text-blue-400" title="Editar Precio">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" 
+                                    class="text-red-400 hover:text-red-300" title="Eliminar Producto">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
             `).join('');
         }
 
-        // 4. Resumen Financiero (IDs de tu HTML corregidos)
+        // 4. Resumen Financiero
         const elTotal = document.getElementById('detail-grand-total');
         if (elTotal) elTotal.textContent = formatCurrency(venta.total_amount);
 
         const elPagado = document.getElementById('detail-paid-amount');
-        if (elPagado) elPagado.textContent = formatCurrency(venta.total_amount - (venta.saldo_pendiente || 0));
+        if (elPagado) {
+            const pagado = venta.total_amount - (venta.saldo_pendiente || 0);
+            elPagado.textContent = formatCurrency(pagado);
+        }
 
         const elDeuda = document.getElementById('detail-remaining-debt');
-        if (elDeuda) elDeuda.textContent = formatCurrency(venta.saldo_pendiente || 0);
+        if (elDeuda) {
+            const deuda = venta.saldo_pendiente || 0;
+            elDeuda.textContent = formatCurrency(deuda);
+            // Color dinámico según deuda
+            elDeuda.className = deuda > 0.01 ? 'font-bold text-red-500' : 'font-bold text-emerald-500';
+        }
 
-        // 5. Historial de Abonos
+        // 5. Historial de Abonos (Corregido con fecha UTC)
         const abonosBody = document.getElementById('detail-abonos-body');
         if (abonosBody) {
             abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
-                <tr class="text-xs border-b">
-                    <td class="py-2 px-4">${new Date(p.created_at).toLocaleDateString()}</td>
-                    <td class="py-2 px-4 font-bold text-green-700">${formatCurrency(p.amount || p.monto)}</td>
-                    <td class="py-2 px-4 uppercase text-gray-600">${p.metodo_pago || 'EFECTIVO'}</td>
+                <tr class="text-xs border-b border-white/5">
+                    <td class="py-2 px-4 text-white/60">
+                        ${new Date(p.created_at).toLocaleDateString('es-MX', {timeZone: 'UTC'})}
+                    </td>
+                    <td class="py-2 px-4 font-bold text-emerald-500">${formatCurrency(p.amount || p.monto)}</td>
+                    <td class="py-2 px-4 uppercase text-white/40">${p.metodo_pago || 'EFECTIVO'}</td>
                 </tr>
-            `).join('') : '<tr><td colspan="3" class="text-center py-4 text-gray-400">Sin abonos</td></tr>';
+            `).join('') : '<tr><td colspan="3" class="text-center py-4 text-white/20 italic">Sin abonos registrados</td></tr>';
         }
 
         // 6. Abrir el modal
@@ -2376,51 +2416,66 @@ window.handleViewSaleDetails = async function(venta_id) {
 
     } catch (err) {
         console.error("Error crítico en handleViewSaleDetails:", err);
+        alert("No se pudieron cargar los detalles de la venta.");
     }
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
 window.editSaleDate = async function(ventaId, fechaActual) {
-    // --- CORRECCIÓN DE DESFASE ---
-    // En lugar de usar new Date(), extraemos directamente la parte de la fecha 
-    // de la cadena que viene de Supabase (que suele ser YYYY-MM-DDTHH:mm...)
     const fechaBase = fechaActual.split('T')[0]; 
-    
     const nuevaFecha = prompt("Ingrese la nueva fecha (AAAA-MM-DD):", fechaBase);
 
     if (!nuevaFecha || nuevaFecha === fechaBase) return;
 
-    // Validar formato básico AAAA-MM-DD antes de enviar
-    const regexFecha = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regexFecha.test(nuevaFecha)) {
-        alert("Formato inválido. Use AAAA-MM-DD (ejemplo: 2025-12-02)");
-        return;
-    }
-
     try {
-        // Para evitar que Supabase lo guarde como el día anterior a las 00:00 local,
-        // le enviamos la fecha con una hora neutra (T12:00:00) o solo la fecha
         const { error } = await supabase
             .from('ventas')
-            .update({ created_at: `${nuevaFecha}T12:00:00Z` }) // Guardamos al mediodía UTC
+            .update({ created_at: `${nuevaFecha}T12:00:00Z` }) 
             .eq('venta_id', ventaId);
 
         if (error) throw error;
         
-        alert("✅ Fecha actualizada.");
+        // Sincronizar UI
+        await window.handleViewSaleDetails(ventaId); // Refresca el modal
+        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); // Refresca la tabla de fondo
+        if (window.loadDashboardData) window.loadDashboardData(); // Refresca totales
         
-        // Recargar el modal de detalles para ver el cambio
-        if (window.handleViewSaleDetails) {
-            window.handleViewSaleDetails(ventaId);
-        }
+    } catch (err) {
+        alert("Error al cambiar fecha.");
+    }
+};
+//Editar Descripción 
+window.editSaleDescription = async function(ventaId, descActual) {
+    // Si la descripción es la default, la pasamos vacía al prompt
+    const valorInicial = descActual === 'Sin notas adicionales' ? '' : descActual;
+    
+    const nuevaDesc = prompt("Editar descripción / notas de la venta:", valorInicial);
+
+    // Si cancela o es igual, no hacemos nada
+    if (nuevaDesc === null || nuevaDesc.trim() === descActual) return;
+
+    try {
+        const { error } = await supabase
+            .from('ventas')
+            .update({ description: nuevaDesc.trim() })
+            .eq('venta_id', ventaId);
+
+        if (error) throw error;
+
+        // --- SINCRONIZACIÓN ---
         
-        // Opcional: Recargar la tabla de reportes si está abierta de fondo
-        if (window.loadMonthlySalesReport) {
+        // 1. Refrescar el modal de detalles
+        await window.handleViewSaleDetails(ventaId);
+        
+        // 2. Refrescar la tabla de reportes (por si la descripción se muestra allí)
+        if (typeof window.loadMonthlySalesReport === 'function') {
             window.loadMonthlySalesReport();
         }
 
+        console.log("✅ Descripción actualizada correctamente.");
+
     } catch (err) {
-        console.error(err);
-        alert("Error al cambiar fecha.");
+        console.error("Error al actualizar descripción:", err);
+        alert("No se pudo actualizar la descripción.");
     }
 };
 // --- FUNCIÓN PARA ELIMINAR UN PRODUCTO DE LA VENTA ---
@@ -2802,7 +2857,11 @@ window.editSalePaymentMethod = async function(ventaId, metodoActual) {
         if (error) throw error;
         
         alert("✅ Método de pago actualizado.");
-        window.handleViewSaleDetails(ventaId); // Refrescar modal
+        
+        // --- RECARGA TOTAL ---
+        await window.handleViewSaleDetails(ventaId); // Refrescar modal
+        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); // Refrescar tabla fondo
+        
     } catch (err) {
         alert("Error al actualizar el método de pago.");
     }
@@ -2810,7 +2869,6 @@ window.editSalePaymentMethod = async function(ventaId, metodoActual) {
 window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaId) {
     const nuevoPrecio = prompt("Ingrese el nuevo precio unitario:", precioActual);
     
-    // Validar que sea un número válido y no se haya cancelado
     if (nuevoPrecio === null || nuevoPrecio === "" || isNaN(nuevoPrecio)) return;
 
     const p = parseFloat(nuevoPrecio);
@@ -2821,7 +2879,7 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
         const { error: pError } = await supabase
             .from('detalle_ventas')
             .update({ price: p, subtotal: nuevoSubtotal })
-            .eq('detalle_id', detalle_id); // Asegúrate si tu columna es 'id' o 'detalle_id'
+            .eq('detalle_id', detalle_id); 
 
         if (pError) throw pError;
 
@@ -2857,13 +2915,27 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
 
         alert("✅ Precio y saldo actualizados.");
         
-        // 6. Refrescar el modal de detalles para ver los cambios
+        // --- 6. SINCRONIZACIÓN TOTAL ---
+        
+        // Refrescar el modal de detalles
         if (typeof window.handleViewSaleDetails === 'function') {
-            window.handleViewSaleDetails(ventaId);
+            await window.handleViewSaleDetails(ventaId);
         }
         
-        // Opcional: Refrescar dashboard si tienes la función
-        if (window.loadDashboardData) window.loadDashboardData();
+        // Refrescar la tabla de reportes mensuales (para ver el nuevo saldo/total)
+        if (typeof window.loadMonthlySalesReport === 'function') {
+            window.loadMonthlySalesReport();
+        }
+        
+        // Refrescar dashboard (totales de arriba)
+        if (window.loadDashboardData) {
+            window.loadDashboardData();
+        }
+        
+        // Refrescar tabla de clientes (por si cambió la deuda total del cliente)
+        if (window.loadClientsTable) {
+            window.loadClientsTable('gestion');
+        }
 
     } catch (err) {
         console.error("Error al actualizar:", err);
