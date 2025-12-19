@@ -1875,6 +1875,50 @@ window.prepararAbonoDesdeReporte = function() {
     }
 };
 
+window.handleAbonoClick = function(clientId) {
+    // 1. Buscamos al cliente para obtener su nombre y deuda
+    const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
+
+    if (!client) {
+        alert('Cliente no encontrado. Intente recargar la página.');
+        return;
+    }
+
+    // 2. Llenamos los campos del modal (IDs del HTML que revisamos antes)
+    const idInput = document.getElementById('abono-client-id');
+    const nameDisplay = document.getElementById('abono-client-name-display');
+    const debtDisplay = document.getElementById('abono-current-debt');
+    const amountInput = document.getElementById('abono-amount');
+    const logContainer = document.getElementById('log-container-fifo');
+
+    if (idInput) idInput.value = clientId;
+    if (nameDisplay) nameDisplay.textContent = client.name;
+    if (debtDisplay) {
+        // Usamos total_debt o deuda_total según como venga de tu base de datos
+        const deuda = client.total_debt || client.deuda_total || 0;
+        debtDisplay.textContent = `$${parseFloat(deuda).toFixed(2)}`;
+    }
+
+    // 3. Limpiar estados previos
+    if (amountInput) amountInput.value = '';
+    if (logContainer) logContainer.classList.add('hidden');
+    
+    // 4. Abrir el modal
+    openModal('abono-client-modal');
+};
+
+window.actualizarMetricasDeudas = function(clientes) {
+    const totalDeudaGlobal = clientes.reduce((acc, c) => acc + (parseFloat(c.total_debt) || 0), 0);
+    const clientesConDeuda = clientes.filter(c => (parseFloat(c.total_debt) || 0) > 0).length;
+
+    // Actualiza los elementos en el DOM (asegúrate de que estos IDs existan en tu HTML)
+    const metricTotal = document.getElementById('metric-total-deuda');
+    const metricCount = document.getElementById('metric-clientes-deuda');
+
+    if (metricTotal) metricTotal.textContent = `$${totalDeudaGlobal.toFixed(2)}`;
+    if (metricCount) metricCount.textContent = clientesConDeuda;
+};
+
 /**
  * GENERACIÓN DE PDF: ESTADO DE CUENTA PROFESIONAL
  */
@@ -4853,7 +4897,7 @@ if (newClientForm) {
     document.getElementById('add-product-btn')?.addEventListener('click', handleAddProductToSale);
 
     // Listener para el envío del formulario de registro de abonos (GENERAL)
-    document.getElementById('abono-client-form')?.addEventListener('submit', handleRecordAbono);
+document.getElementById('abono-client-form')?.addEventListener('submit', handleRegisterPayment);
 
     // 🛑 Listener para el envío del formulario de PAGO en el Modal de DETALLES DE VENTA
     document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
