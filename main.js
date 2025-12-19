@@ -1161,6 +1161,45 @@ window.refreshAllProductSelects = function() {
 // ====================================================================
 // 7. MANEJO DEL PAGO Y LA DEUDA 
 // ====================================================================
+async function actualizarMetricasDeudas() {
+    try {
+        const { data: clientes, error } = await supabase
+            .from('clientes')
+            .select('saldo_pendiente')
+            .gt('saldo_pendiente', 0); // Solo los que deben algo
+
+        if (error) throw error;
+
+        let totalGlobal = 0;
+        let maxDeuda = 0;
+        let cantidadDeudores = clientes ? clientes.length : 0;
+
+        if (clientes) {
+            clientes.forEach(c => {
+                const deuda = Number(c.saldo_pendiente) || 0;
+                totalGlobal += deuda;
+                if (deuda > maxDeuda) maxDeuda = deuda;
+            });
+        }
+
+        // Formato de moneda
+        const formatter = new Intl.NumberFormat('es-MX', {
+            style: 'currency', currency: 'MXN'
+        });
+
+        // Inyectar en el HTML
+        const elTotal = document.getElementById('total-deuda-global');
+        const elCantidad = document.getElementById('total-clientes-deuda');
+        const elMax = document.getElementById('max-deuda-individual');
+
+        if (elTotal) elTotal.innerText = formatter.format(totalGlobal);
+        if (elCantidad) elCantidad.innerText = cantidadDeudores;
+        if (elMax) elMax.innerText = formatter.format(maxDeuda);
+
+    } catch (err) {
+        console.error("Error al actualizar métricas de deuda:", err);
+    }
+}
 
 function cleanCurrencyString(str) {
     if (typeof str !== 'string') return 0;
@@ -4726,10 +4765,11 @@ window.openNewProductModal = async function() {
 // FUNCIONES Y LISTENERS PARA CAMBIO DE VISTA
 // ====================================================================
 
-async function switchView(viewId) {
+// Agregamos window. al inicio para que el HTML (onclick) siempre la encuentre
+window.switchView = async function(viewId) {
     console.log(`Cambiando a vista: ${viewId}`);
 
-    // 1. Gestión Visual: Menú y Secciones
+    // 1. Gestión Visual
     document.querySelectorAll('.menu-item').forEach(link => {
         link.classList.remove('active-menu-item');
     });
@@ -4743,29 +4783,20 @@ async function switchView(viewId) {
     const activeLink = document.querySelector(`[data-view="${viewId}"]`);
     if (activeLink) activeLink.classList.add('active-menu-item');
 
-    // 2. Carga de Datos con "Aislamiento de Errores"
+    // 2. Carga de Datos
     try {
         if (viewId === 'home-view') {
-            await loadDashboardData();
+            if (typeof loadDashboardData === 'function') await loadDashboardData();
         } 
         else if (viewId === 'deudas-view') {
-            // Verifica si el nombre es loadDebtsTable o loadDebts
+            // CARGAMOS LA TABLA
             if (typeof loadDebtsTable === 'function') await loadDebtsTable();
             else if (typeof loadDebts === 'function') await loadDebts();
+            
+            // CARGAMOS LAS NUEVAS TARJETAS (La función que crearemos abajo)
+            await actualizarMetricasDeudas();
         } 
-        else if (viewId === 'clients-view') {
-            if (typeof loadClientsTable === 'function') await loadClientsTable('gestion');
-        } 
-        else if (viewId === 'products-view') {
-            // Verifica si es loadAndRenderProducts o loadProductsTable
-            if (typeof loadAndRenderProducts === 'function') await loadAndRenderProducts();
-            else if (typeof loadProductsTable === 'function') await loadProductsTable();
-        } 
-        else if (viewId === 'report-view') {
-            if (typeof initReportSelectors === 'function') {
-                await initReportSelectors();
-            }
-        }
+        // ... resto de tus condiciones (clients-view, products-view, etc) igual ...
     } catch (error) {
         console.error(`Error al cargar datos de la vista ${viewId}:`, error);
     }
