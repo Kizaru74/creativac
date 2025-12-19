@@ -409,7 +409,20 @@ async function loadClientsForSale() {
         select.appendChild(option);
     });
 }
-
+window.loadDebts = async function() {
+    console.log("Refrescando datos de deudas...");
+    
+    // 1. Llamamos a la función que ya tienes para cargar la tabla
+    // En tu main.js se llama loadDebtsTable
+    if (typeof loadDebtsTable === 'function') {
+        await loadDebtsTable();
+    }
+    
+    // 2. Actualizamos las métricas (tarjetas superiores)
+    if (typeof actualizarMetricasDeudas === 'function') {
+        actualizarMetricasDeudas(window.allClients);
+    }
+};
 //Llena el SELECT de Producto Padre en el modal de edición
 window.loadMainProductsForEditSelect = function() {
     const selectElement = document.getElementById('edit-product-parent');
