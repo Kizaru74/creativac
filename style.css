@@ -4,43 +4,78 @@
 @tailwind components;
 @tailwind utilities;
 
-/* style.css - NUEVAS REGLAS PARA TRUNCAR TEXTO */
-
-.product-cell {
-    /* 1. Definir un ancho máximo para la columna */
-    max-width: 150px; /* Puedes ajustar este valor (por ejemplo, 150px, 200px, etc.) */
-    
-    /* 2. Asegurar que el contenido no fuerce el ancho de la celda */
+/* --- TRUNCADO DE TEXTO --- */
+.product-cell, .truncate-cell {
+    max-width: 150px; 
     white-space: nowrap; 
-    
-    /* 3. Ocultar el texto que excede el ancho */
     overflow: hidden; 
-    
-    /* 4. Mostrar puntos suspensivos (...) al final del texto cortado */
     text-overflow: ellipsis; 
 }
-/* Opcional: Asegurar que el encabezado no se corte */
+
 .product-header {
     min-width: 150px;
 }
 
-.truncate-cell {
-    /* Limita el ancho del elemento para que pueda cortarse */
-    max-width: 150px; /* <--- AJUSTA ESTE VALOR SEGÚN EL TAMAÑO DESEADO */
-    
-    /* Evita que el texto salte de línea */
-    white-space: nowrap;
-    
-    /* Oculta el texto que se desborda */
-    overflow: hidden;
-    
-    /* Muestra los puntos suspensivos al final del texto cortado */
-    text-overflow: ellipsis;
-}
-
+/* --- MENÚ ACTIVO --- */
 .active-menu-item { 
-    background-color: rgba(255, 255, 255, 0.05); 
-    color: white !important;
+    background-color: rgba(255, 255, 255, 0.05) !important; 
+    color: #f97316 !important; /* Naranja para resaltar el texto activo */
     border-left: 4px solid #f97316;
     border-radius: 0 12px 12px 0;
+}
+
+/* --- PREVENCIÓN DE "EFECTO BLANCO" (HOVER) --- */
+
+/* Forzar que las filas de las tablas no se pongan blancas */
+tbody tr {
+    transition: background-color 0.2s ease;
+    background-color: transparent !important;
+}
+
+tbody tr:hover {
+    /* Fondo gris muy oscuro con un toque de brillo */
+    background-color: rgba(255, 255, 255, 0.04) !important; 
+}
+
+/* Evitar que celdas o elementos de tabla hereden fondos blancos de Tailwind */
+td, th {
+    background-color: transparent !important;
+}
+
+/* --- CORRECCIÓN DE INPUTS (AUTOFILL) --- */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: white !important;
+    -webkit-box-shadow: 0 0 0px 1000px #1c1c1c inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* --- BOTONES PREMIUM --- */
+.btn-premium-hover:hover {
+    background-color: rgba(234, 88, 12, 0.1) !important;
+    color: #f97316 !important;
+    box-shadow: 0 4px 15px rgba(234, 88, 12, 0.1);
+}
+
+/* --- SCROLLBAR ELEGANTE --- */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #121212;
+}
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #f97316;
+}
+
+/* --- LIMPIEZA ADICIONAL PARA MODALES --- */
+/* Si tus modales tienen partes que se ven blancas al hover */
+.modal-overlay div:hover {
+    /* Esto evita que contenedores genéricos cambien de color al pasar el mouse */
+    background-inherit: inherit;
 }
