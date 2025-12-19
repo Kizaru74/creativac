@@ -3363,9 +3363,9 @@ async function loadClientDebtsTable() {
 
             debtsHTML.push(`
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap font-medium">${debt.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${formattedDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                         <button 
                             onclick="window.handleViewClientDebt(${debt.clientId})" 
@@ -3457,11 +3457,11 @@ window.loadClientsTable = async function(mode = 'gestion') {
             }
             
             row.innerHTML = `
-                <td class="px-3 py-3 whitespace-nowrap text-xs ">#${client.client_id}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold">${client.name}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm ">${client.telefono || '---'}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-400">#${client.client_id}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold text-gray-900">${client.name}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || '---'}</td>
                 
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold">
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-gray-700">
                     ${formatCurrency(summary.totalVentas)}
                 </td>
                 
@@ -4539,9 +4539,9 @@ window.loadAndRenderProducts = async function() {
             const row = tableBody.insertRow();
             row.className = 'hover:bg-gray-50 border-b border-gray-100';
             row.innerHTML = `
-                <td class="px-4 py-3 text-xs">${producto.producto_id}</td>
+                <td class="px-4 py-3 text-xs text-gray-400">${producto.producto_id}</td>
                 <td class="px-4 py-3 text-sm">
-                    <span class="font-bold">${producto.name}</span>
+                    <span class="font-bold text-gray-800">${producto.name}</span>
                     ${parentName}
                 </td>
                 <td class="px-4 py-3 text-center">
