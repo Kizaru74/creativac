@@ -4243,7 +4243,7 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
 
         if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) return;
 
-        // Estado de carga elegante (Spinner de carga inicial)
+        // Estado de carga elegante
         reportBody.innerHTML = `
             <tr>
                 <td colspan="5" class="px-6 py-10 text-center">
@@ -4285,9 +4285,13 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
                     const clientName = sale.clientes?.name || 'Cliente Final';
                     const dateObj = new Date(sale.created_at);
                     const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                    
                     const tienePendiente = sale.saldo_pendiente > 0.01;
                     
-                    // --- AQUÍ ESTÁ EL CAMBIO PRINCIPAL ---
+                    // --- AJUSTE PARA EFECTO VIDRIO ---
+                    const glassClass = tienePendiente ? 'glass-badge-danger' : 'glass-badge-success';
+                    const labelText = tienePendiente ? 'Pendiente' : 'Pagado';
+
                     const rowHTML = `
                         <tr class="group hover:bg-white/5 transition-all duration-300 border-b border-white/5">
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -4306,15 +4310,18 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
                                 <div class="text-sm font-bold text-white">${formatCurrency(sale.total_amount)}</div>
                                 <div class="text-[9px] text-white/40 font-normal uppercase">${sale.metodo_pago}</div>
                             </td>
+                            
                             <td class="px-6 py-4 whitespace-nowrap text-right">
-                                <span class="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-bold ${
-                                    tienePendiente 
-                                    ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                                    : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                }">
-                                    ${formatCurrency(sale.saldo_pendiente)}
-                                </span>
+                                <div class="glass-badge ${glassClass}" style="min-width: 110px; padding: 4px 12px !important;">
+                                    <span class="text-xs font-black leading-none ${tienePendiente ? 'text-red-500' : 'text-emerald-500'}">
+                                        ${formatCurrency(sale.saldo_pendiente)}
+                                    </span>
+                                    <span class="text-[8px] font-bold uppercase tracking-tighter opacity-70 ${tienePendiente ? 'text-red-500' : 'text-emerald-500'}">
+                                        ${labelText}
+                                    </span>
+                                </div>
                             </td>
+
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
