@@ -1644,117 +1644,73 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
 window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
+    if (!supabase) return;
     const container = document.getElementById('clients-list-body');
     if (!container) return;
 
-    const showActions = mode === 'gestion';
-
     try {
-        // 1. Obtener la lista base de clientes
-        const { data: clients, error: clientsError } = await supabase
+        const { data: clients, error } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
             .order('name', { ascending: true });
 
-        if (clientsError) throw clientsError;
+        if (error) throw error;
 
-        // --- ACTUALIZACIÓN DE MAPAS GLOBALES ---
-        window.allClients = clients; 
-        window.allClientsMap = {}; 
-        clients.forEach(c => {
-            window.allClientsMap[c.client_id] = c;
-        });
-
-        // 2. Resumen de ventas
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Renderizado
         container.innerHTML = '';
-
         clients.forEach((client, index) => {
             const summary = summaries[index];
+            const deudaNeta = summary.deudaNeta;
+            const tieneDeuda = deudaNeta > 0.01;
+
             const row = document.createElement('tr');
-            
-            // CLASE CORREGIDA PARA MODO OSCURO
+            // Aplicamos el diseño de fila Premium Dark
             row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
 
-            const deudaVisual = summary.deudaNeta;
-
-            let actionCell = '';
-            if (showActions) {
-                actionCell = `
-                    <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                        <button type="button" class="btn-action-report btn-view text-indigo-400" 
-                                data-client-id="${client.client_id}" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-
-                        <button type="button" class="btn-action-report text-emerald-400" 
-                                onclick="window.handleAbonoClick(${client.client_id})" title="Abonar">
-                            <i class="fas fa-hand-holding-usd"></i>
-                        </button>
-
-                        <button type="button" class="btn-action-report text-blue-400" 
-                                data-client-id="${client.client_id}" title="Estado de Cuenta">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                        </button>
-
-                        <button type="button" class="btn-action-report btn-delete text-red-400" 
-                                data-client-id="${client.client_id}" 
-                                data-client-name="${client.name}" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                `;
-            }
-            
             row.innerHTML = `
-                <td class="px-3 py-3 whitespace-nowrap">
-                    <span class="text-[11px] font-mono text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
-                        #${client.client_id}
-                    </span>
+                <td class="px-3 py-4 whitespace-nowrap">
+                    <div class="text-[11px] font-mono text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 inline-block">
+                        ID #${client.client_id}
+                    </div>
                 </td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold text-white">${client.name}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm text-white/60">${client.telefono || '---'}</td>
-                
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white/80">
-                    ${formatCurrency(summary.totalVentas)}
+                <td class="px-3 py-4 whitespace-nowrap">
+                    <div class="text-sm font-bold text-white">${client.name}</div>
+                    <div class="text-[10px] text-white/40 uppercase tracking-widest">${client.telefono || 'Sin Teléfono'}</div>
                 </td>
-                
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold">
-                    <span class="px-2 py-1 rounded ${deudaVisual > 0.01 ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}">
-                        ${formatCurrency(deudaVisual)}
-                    </span>
+                <td class="px-3 py-4 whitespace-nowrap text-right">
+                    <div class="text-sm font-medium text-white/80">${formatCurrency(summary.totalVentas)}</div>
+                    <div class="text-[9px] text-white/30 uppercase">Total Ventas</div>
                 </td>
-                
-                ${actionCell} 
+                <td class="px-3 py-4 whitespace-nowrap text-right">
+                    <div class="inline-block text-right">
+                        <div class="text-sm font-black ${tieneDeuda ? 'text-red-500' : 'text-emerald-500'}">
+                            ${formatCurrency(deudaNeta)}
+                        </div>
+                        <div class="text-[9px] font-bold uppercase tracking-tighter ${tieneDeuda ? 'text-red-500/50' : 'text-emerald-500/50'}">
+                            ${tieneDeuda ? 'Deuda Pendiente' : 'Sin Deuda'}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <button onclick="handleEditClientClick('${client.client_id}')" class="btn-action-report text-indigo-400" title="Editar">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                        <button onclick="window.handleAbonoClick(${client.client_id})" class="btn-action-report text-emerald-400" title="Abonar">
+                            <i class="fas fa-hand-holding-usd text-xs"></i>
+                        </button>
+                        <button onclick="handleDeleteClientClick('${client.client_id}')" class="btn-action-report btn-delete text-red-400" title="Eliminar">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                </td>
             `;
             container.appendChild(row);
         });
-
-        // 4. Re-enlazar Event Listeners
-        if (showActions) {
-            container.querySelectorAll('[data-client-id]').forEach(btn => {
-                if(btn.classList.contains('btn-view')) {
-                    btn.onclick = () => handleEditClientClick(btn.dataset.clientId);
-                }
-                if(btn.classList.contains('btn-delete')) {
-                    btn.onclick = () => handleDeleteClientClick(btn.dataset.clientId);
-                }
-                if(btn.classList.contains('text-blue-400')) {
-                    btn.onclick = () => handleViewClientDebt(btn.dataset.clientId);
-                }
-            });
-        }
-
     } catch (e) {
-        console.error('Error al cargar tabla de clientes:', e);
+        console.error('Error:', e);
     }
 };
 
@@ -3215,66 +3171,70 @@ function loadProductsTable() {
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Estilo de fila Premium: borde suave y hover sutil
-        row.className = 'group hover:bg-slate-50/50 transition-all duration-200 border-b border-gray-100';
+        // DISEÑO PREMIUM DARK: Sin fondos blancos, hover con brillo sutil
+        row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
         
         const formattedPrice = formatCurrency(product.price);
         
-        // Configuración de Badges por Categoría con Iconos
+        // Configuración de Badges Dark por Categoría
         let categoryHTML = '';
+        const badgeBaseClass = "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border";
+        
         switch(product.type) {
             case 'MAIN':
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
+                categoryHTML = `<span class="${badgeBaseClass} bg-indigo-500/10 text-indigo-400 border-indigo-500/20">
                                 <i class="fas fa-star mr-1 text-[8px]"></i> PRINCIPAL</span>`;
                 break;
             case 'PACKAGE':
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-700/10">
+                categoryHTML = `<span class="${badgeBaseClass} bg-orange-500/10 text-orange-400 border-orange-500/20">
                                 <i class="fas fa-box-open mr-1 text-[8px]"></i> SUBPRODUCTO</span>`;
                 break;
             case 'SERVICE':
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                categoryHTML = `<span class="${badgeBaseClass} bg-blue-500/10 text-blue-400 border-blue-500/20">
                                 <i class="fas fa-tools mr-1 text-[8px]"></i> SERVICIO</span>`;
                 break;
             default:
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-700/10">
+                categoryHTML = `<span class="${badgeBaseClass} bg-white/5 text-white/60 border-white/10">
                                 ${product.type}</span>`;
         }
 
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap">
-                <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#${product.producto_id}</span>
+                <span class="text-[10px] font-mono text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
+                    ID #${product.producto_id}
+                </span>
             </td>
             
             <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
-                    <div class="h-8 w-8 rounded bg-slate-100 text-slate-500 flex items-center justify-center mr-3 border border-slate-200">
+                    <div class="h-8 w-8 rounded bg-white/5 text-orange-500 flex items-center justify-center mr-3 border border-white/10 shadow-lg shadow-black/20">
                         <i class="fas fa-tag text-xs"></i>
                     </div>
-                    <div class="text-sm font-bold text-slate-800">${product.name}</div>
+                    <div class="text-sm font-bold text-white">${product.name}</div>
                 </div>
             </td>
             
             <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Precio Unitario</div>
-                <div class="text-sm font-bold text-emerald-600">${formattedPrice}</div>
+                <div class="text-[10px] text-white/40 uppercase tracking-wider font-semibold">Precio Unitario</div>
+                <div class="text-sm font-black text-emerald-500">${formattedPrice}</div>
             </td>
             
             <td class="px-6 py-4 whitespace-nowrap">
                 ${categoryHTML}
             </td>
             
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div class="flex justify-end items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <td class="px-6 py-4 whitespace-nowrap text-right">
+                <div class="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
                     <button 
                         onclick="handleEditProductClick(${product.producto_id})" 
-                        class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        class="btn-action-report text-indigo-400"
                         title="Editar Producto">
                         <i class="fas fa-pen text-xs"></i>
                     </button>
                     
                     <button 
                         onclick="handleDeleteProductClick(${product.producto_id})" 
-                        class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        class="btn-action-report text-red-400"
                         title="Eliminar Producto">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
@@ -3283,7 +3243,7 @@ function loadProductsTable() {
         `;
         container.appendChild(row);
     });
-} 
+}
 window.loadProductsTable = loadProductsTable;
 
 function loadProductDataToForm(product) {

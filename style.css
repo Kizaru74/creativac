@@ -96,3 +96,33 @@ tbody tr:hover {
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: #f97316 !important;
 }
+
+/* --- 7. MEJORAS DE TABLA DE CLIENTES PREMIUM --- */
+
+/* Contenedor de montos con subtexto */
+.deuda-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+/* Efecto Neón sutil para estados de cuenta */
+.text-red-500 {
+    color: #ef4444 !important;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.text-emerald-500 {
+    color: #10b981 !important;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+/* Ajuste para los iconos de acción para que no se vean pegados */
+.flex.justify-end.gap-2 button {
+    margin-left: 4px;
+}
+
+/* Forzar que el nombre del cliente resalte */
+.font-bold.text-white {
+    letter-spacing: -0.01em;
+}
