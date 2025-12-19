@@ -3406,22 +3406,52 @@ async function handleNewProduct(e) {
               await loadAndRenderProducts();
     }
 }
-window.handleProductTypeChange = function() {
-    const typeSelect = document.getElementById('new-product-type'); 
-    const parentContainer = document.getElementById('new-product-parent-container');
-    const parentSelect = document.getElementById('new-product-parent-select');
+window.handleProductTypeChange = function(mode = 'new') {
+    // Definimos los prefijos dinámicamente según el modo (new- o edit-)
+    const typeSelect = document.getElementById(`${mode}-product-type`) || document.getElementById(`${mode}-product-category`);
+    const parentContainer = document.getElementById(`${mode}-product-parent-container`);
+    const parentSelect = document.getElementById(`${mode}-product-parent-select`) || document.getElementById(`${mode}-product-parent`);
+    const placeholder = document.getElementById(`${mode}-product-placeholder`);
 
     if (!typeSelect || !parentContainer || !parentSelect) return;
 
-    if (typeSelect.value === 'PACKAGE') {
-        parentContainer.classList.remove('hidden'); 
+    // Detectamos si el valor es PACKAGE (para nuevo) o Paquete (para editar)
+    const isPackage = typeSelect.value === 'PACKAGE' || typeSelect.value === 'Paquete';
+
+    if (isPackage) {
+        // 1. Mostrar contenedor y activar obligatoriedad
+        parentContainer.classList.remove('hidden');
         parentSelect.setAttribute('required', 'required');
+        if (placeholder) placeholder.classList.add('hidden');
+
+        // 2. Animación de entrada "Slide Down"
+        parentContainer.animate([
+            { opacity: 0, transform: 'translateY(-10px)' },
+            { opacity: 1, transform: 'translateY(0)' }
+        ], {
+            duration: 250,
+            easing: 'ease-out'
+        });
+
     } else {
-        parentContainer.classList.add('hidden');
-        parentSelect.removeAttribute('required');
-        parentSelect.value = ''; 
+        // 3. Animación de salida "Fade Out"
+        const fadeOut = parentContainer.animate([
+            { opacity: 1, transform: 'translateY(0)' },
+            { opacity: 0, transform: 'translateY(-5px)' }
+        ], {
+            duration: 150,
+            easing: 'ease-in'
+        });
+
+        // 4. Al terminar la animación, ocultamos y limpiamos
+        fadeOut.onfinish = () => {
+            parentContainer.classList.add('hidden');
+            parentSelect.removeAttribute('required');
+            parentSelect.value = ''; // Limpiamos la selección
+            if (placeholder) placeholder.classList.remove('hidden');
+        };
     }
-}
+};
 let deletingProductId = null; 
 window.handleEditProductClick = function(productId) {
     console.log("ID recibida del botón:", typeof productId, productId);
