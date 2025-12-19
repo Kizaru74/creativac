@@ -3341,71 +3341,70 @@ async function handleNewProduct(e) {
     e.preventDefault();
 
     if (!supabase) {
-        alert('Error de conexión: Supabase no está disponible.');
+        console.error('Supabase no inicializado');
         return;
     }
 
-    // 1. Obtener elementos del formulario
+    // 1. Obtener elementos
     const nameInput = document.getElementById('new-product-name');
     const typeInput = document.getElementById('new-product-type'); 
     const priceInput = document.getElementById('new-product-price'); 
-    
-    // 🛑 VERIFICACIÓN:
-    if (!nameInput || !typeInput || !priceInput) {
-        console.error("Error FATAL: No se encontraron todos los campos del formulario en el DOM.");
-        alert("Error al intentar guardar el producto. Verifique los IDs en la consola.");
-        return;
-    }
+    const parentSelect = document.getElementById('new-product-parent-select');
 
-    // 2. Leer valores
+    // 2. Leer y validar valores
     const name = nameInput.value.trim();
     const type = typeInput.value; 
     const price = parseFloat(priceInput.value);
     let parentProductId = null;
 
-    // 3. Validación de precio
-    if (isNaN(price) || price < 0 || priceInput.value.trim() === '') {
-        alert('El precio unitario debe ser un número válido (mayor o igual a cero).');
+    if (isNaN(price) || price < 0) {
+        alert('Por favor, ingresa un precio válido.'); // Podrías cambiar esto por un Toast después
         return;
     }
 
-    // 4. Lógica y validación para Paquetes (Subproductos)
+    // 3. Validación de Subproductos (PACKAGE)
     if (type === 'PACKAGE') {
-        // ✅ CRÍTICO: Usamos el ID corregido del SELECT PADRE
-        const parentSelect = document.getElementById('new-product-parent-select');
         parentProductId = parentSelect?.value || null; 
-        
-        if (!parentProductId || parentProductId === 'placeholder-option-value') { 
-            alert('Los subproductos deben tener un Producto Principal asociado. Seleccione uno de la lista.');
+        if (!parentProductId) { 
+            alert('Los subproductos requieren vincularse a un Producto Principal.');
             return;
         }
     }
 
-    // 5. Inserción en la base de datos
-    const { error } = await supabase
-        .from('productos')
-        .insert([{ 
-            name: name, 
-            type: type, 
-            price: price, 
-            parent_product: parentProductId // Será null si no es 'PACKAGE'
-        }]);
+    try {
+        // 4. Inserción en Supabase
+        const { error } = await supabase
+            .from('productos')
+            .insert([{ 
+                name: name, 
+                type: type, 
+                price: price, 
+                parent_product: parentProductId 
+            }]);
 
-    // 6. Manejo de respuesta
-    if (error) {
-        console.error('Error de Supabase al registrar producto:', error.message);
-        alert('Error al registrar producto: ' + error.message);
-    } else {
-        alert('Producto registrado exitosamente.');
+        if (error) throw error;
+
+        // 5. Éxito: Limpieza y Recarga
+        // Aquí podrías disparar una notificación tipo Toast elegante
+        console.log('Producto registrado con éxito');
         
-        // Cerrar el modal y resetear el formulario
+        // Resetear formulario y cerrar modal
+        const form = document.getElementById('new-product-form');
+        form.reset();
+        window.handleProductTypeChange('new'); // Para ocultar el campo de padre si quedó visible
         closeModal('new-product-modal'); 
-        document.getElementById('new-product-form')?.reset(); 
-        
-        // Recargar datos (asumiendo que estas funciones existen)
-              await loadAndRenderProducts();
+
+        // Recargar datos globales y tablas
+        if (window.loadAndRenderProducts) {
+            await window.loadAndRenderProducts();
+        }
+
+    } catch (err) {
+        console.error('Error al registrar:', err.message);
+        alert('No se pudo registrar el producto: ' + err.message);
     }
 }
+
 window.handleProductTypeChange = function(mode = 'new') {
     // Definimos los prefijos dinámicamente según el modo (new- o edit-)
     const typeSelect = document.getElementById(`${mode}-product-type`) || document.getElementById(`${mode}-product-category`);
@@ -3473,21 +3472,76 @@ window.handleEditProductClick = function(productId) {
 }
 // Variable global para guardar la ID del producto a eliminar
 window.handleDeleteProductClick = function(productId) {
-    // 1. Guardamos el ID en una variable global para que el otro botón lo encuentre
+    // 1. Guardar el ID para la confirmación
     window.productIdToDelete = productId; 
     
-    // 2. Buscamos el producto para mostrar el nombre en el modal
+    // 2. Obtener datos del mapa global
     const product = window.allProductsMap[String(productId)];
-    const placeholder = document.getElementById('delete-product-name-placeholder');
+    if (!product) return;
+
+    // 3. Verificación de Seguridad: ¿Tiene subproductos vinculados?
+    const children = (window.allProducts || []).filter(p => String(p.parent_product) === String(productId));
     
-    if (placeholder && product) {
+    const placeholder = document.getElementById('delete-product-name-placeholder');
+    const warningContainer = document.getElementById('delete-product-warning');
+    
+    if (placeholder) {
         placeholder.textContent = product.name;
     }
 
-    // 3. Abrir modal
+    // 4. Mostrar advertencia si es un "Padre" con hijos
+    if (warningContainer) {
+        if (children.length > 0) {
+            warningContainer.innerHTML = `
+                <div class="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-start gap-3">
+                    <i class="fas fa-exclamation-triangle text-orange-500 mt-1"></i>
+                    <p class="text-[11px] text-orange-200 leading-tight">
+                        <strong class="block mb-1">¡Atención!</strong>
+                        Este producto es "Padre" de <b>${children.length} subproductos</b>. 
+                        Si lo eliminas, los subproductos quedarán huérfanos.
+                    </p>
+                </div>`;
+            warningContainer.classList.remove('hidden');
+        } else {
+            warningContainer.classList.add('hidden');
+        }
+    }
+
+    // 5. Abrir el modal con desenfoque de fondo
     openModal('delete-product-modal');
 };
+async function handleUpdateProduct(e) {
+    e.preventDefault();
 
+    const id = document.getElementById('edit-product-id').value;
+    const name = document.getElementById('edit-product-name').value.trim();
+    const price = parseFloat(document.getElementById('edit-product-price').value);
+    const category = document.getElementById('edit-product-category').value;
+    const parentSelect = document.getElementById('edit-product-parent');
+
+    let parentProductId = (category === 'Paquete') ? parentSelect.value : null;
+
+    try {
+        const { error } = await supabase
+            .from('productos')
+            .update({ 
+                name: name, 
+                price: price, 
+                type: (category === 'Paquete') ? 'PACKAGE' : (category === 'Servicio' ? 'SERVICE' : 'MAIN'),
+                parent_product: parentProductId 
+            })
+            .eq('producto_id', id);
+
+        if (error) throw error;
+
+        closeModal('edit-product-modal');
+        if (window.loadAndRenderProducts) await window.loadAndRenderProducts();
+        
+    } catch (err) {
+        console.error('Error al actualizar:', err.message);
+        alert('Error al actualizar: ' + err.message);
+    }
+}
 
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
@@ -4690,20 +4744,18 @@ async function loadAndRenderClients() {
 }
 
 window.loadAndRenderProducts = async function() {
-    console.log("🔄 Recargando productos desde la base de datos...");
+    console.log("🔄 Sincronizando inventario con Supabase...");
     
     try {
-        // 1. OBTENER DATOS REALES DE SUPABASE
         const { data, error } = await supabase
             .from('productos')
             .select('*')
-            .order('producto_id', { ascending: false });
+            .order('name', { ascending: true }); // Ordenar por nombre suele ser más útil para el usuario
 
         if (error) throw error;
 
-        // 2. ACTUALIZAR LAS VARIABLES GLOBALES (Esto es lo que evita el refresh)
+        // 1. ACTUALIZAR VARIABLES GLOBALES
         window.allProducts = data || [];
-        // Actualizamos el mapa para que handleEditProductClick encuentre los datos nuevos
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
         );
@@ -4711,52 +4763,91 @@ window.loadAndRenderProducts = async function() {
         const tableBody = document.getElementById('products-table-body');
         if (!tableBody) return;
 
-        tableBody.innerHTML = ''; // Limpiar tabla
+        tableBody.innerHTML = ''; 
 
         if (window.allProducts.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No hay productos.</td></tr>';
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                        <i class="fas fa-box-open text-4xl mb-3 block opacity-20"></i>
+                        No hay productos registrados en el inventario.
+                    </td>
+                </tr>`;
             return;
         }
 
-        // 3. DIBUJAR LA TABLA
+        // 2. DIBUJAR LA TABLA CON ESTILO PREMIUM
         window.allProducts.forEach(producto => {
-            let parentName = '';
+            // Lógica para detectar si es subproducto y quién es el padre
+            let parentBadge = '';
             if (producto.type === 'PACKAGE' && producto.parent_product) {
-                const parent = window.allProducts.find(p => String(p.producto_id) === String(producto.parent_product));
-                parentName = parent ? `<span class="text-xs text-indigo-500 italic block">Padre: ${parent.name}</span>` : '';
+                const parent = window.allProductsMap[String(producto.parent_product)];
+                parentBadge = parent 
+                    ? `<div class="flex items-center text-[10px] text-indigo-500 mt-1 font-medium bg-indigo-50 w-fit px-1.5 py-0.5 rounded">
+                         <i class="fas fa-link mr-1 text-[8px]"></i> Vinculado a: ${parent.name}
+                       </div>` 
+                    : '';
             }
 
-            const row = tableBody.insertRow();
-            row.className = 'hover:bg-gray-50 border-b border-gray-100';
+            // Estilos de Badge por tipo
+            const isPackage = producto.type === 'PACKAGE';
+            const badgeClass = isPackage 
+                ? 'bg-purple-50 text-purple-700 ring-purple-700/10' 
+                : 'bg-blue-50 text-blue-700 ring-blue-700/10';
+            const icon = isPackage ? 'fa-boxes' : 'fa-box';
+
+            const row = document.createElement('tr');
+            row.className = 'group hover:bg-slate-50/50 border-b border-slate-100 transition-colors';
+            
             row.innerHTML = `
-                <td class="px-4 py-3 text-xs text-gray-400">${producto.producto_id}</td>
-                <td class="px-4 py-3 text-sm">
-                    <span class="font-bold text-gray-800">${producto.name}</span>
-                    ${parentName}
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">ID #${producto.producto_id}</span>
                 </td>
-                <td class="px-4 py-3 text-center">
-                    <span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${producto.type === 'PACKAGE' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
-                        ${producto.type === 'PACKAGE' ? 'Paquete' : 'Individual'}
+                <td class="px-6 py-4">
+                    <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center mr-3 border border-slate-200 group-hover:border-indigo-200 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                            <i class="fas ${icon} text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-slate-800">${producto.name}</div>
+                            ${parentBadge}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ring-1 ring-inset ${badgeClass}">
+                        ${isPackage ? 'SUBPRODUCTO' : 'INDIVIDUAL'}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-right font-semibold">$${parseFloat(producto.price || 0).toFixed(2)}</td>
-                <td class="px-4 py-3 text-right">
-                    <button onclick="handleEditProductClick(${producto.producto_id})" class="text-blue-600 hover:underline mr-3">Editar</button>
-                    <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-red-500 hover:underline">Eliminar</button>
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    <div class="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">Precio Unitario</div>
+                    <div class="text-sm font-black text-emerald-600">${formatCurrency(producto.price || 0)}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    <div class="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <button onclick="handleEditProductClick(${producto.producto_id})" 
+                                class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Editar">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                        <button onclick="handleDeleteProductClick(${producto.producto_id})" 
+                                class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Eliminar">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                        </button>
+                    </div>
                 </td>
             `;
+            tableBody.appendChild(row);
         });
 
-        // 4. ACTUALIZAR SELECTORES DE "PADRE" (Para que el nuevo nombre salga en los otros selects)
-        if (typeof window.populateParentSelect === 'function') {
-            window.populateParentSelect('new-product-parent-select');
-            window.populateParentSelect('edit-product-parent');
+        // 3. ACTUALIZAR SELECTORES DE "PADRE" (Llamada a la función que creamos antes)
+        if (typeof window.populateParentSelectors === 'function') {
+            window.populateParentSelectors();
         }
 
-        console.log("✅ Tabla y variables globales actualizadas con éxito.");
+        console.log("✅ Interfaz de productos actualizada.");
 
     } catch (err) {
-        console.error("Error en loadAndRenderProducts:", err.message);
+        console.error("❌ Error fatal en carga de productos:", err.message);
     }
 };
 

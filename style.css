@@ -92,3 +92,46 @@ input:-webkit-autofill:focus {
 *:hover {
     color: inherit;
 }
+
+/* --- TIPOGRAFÍA UNIVERSAL --- */
+/* Forzamos que el cuerpo y los contenedores principales tengan texto claro por defecto */
+body, #main-content, .modal-overlay {
+    color: #ffffff !important;
+}
+
+/* Forzar que los textos en las celdas y filas no cambien a negro en hover */
+tbody tr td, 
+tbody tr:hover td,
+.text-gray-600, 
+.text-gray-800 {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Mantener los placeholders de los inputs visibles pero tenues */
+::placeholder {
+    color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* --- REGLA DE ORO PARA TEXTOS EN MODALES --- */
+/* Esto asegura que cualquier texto dentro de un modal sea blanco, 
+   excepto los que explícitamente definimos como naranjas o rojos */
+.modal-overlay h1, 
+.modal-overlay h2, 
+.modal-overlay h3, 
+.modal-overlay p, 
+.modal-overlay label, 
+.modal-overlay span:not(.text-orange-500):not(.text-red-500):not(.text-red-400) {
+    color: #ffffff !important;
+}
+
+/* Ajuste para los inputs: texto blanco al escribir */
+input, select, textarea {
+    color: #ffffff !important;
+    background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* --- OPTIMIZACIÓN DE ICONOS --- */
+/* Para que los iconos que no tienen color definido no desaparezcan */
+.fas, .far, .fab {
+    color: inherit; /* Hereda el blanco del padre */
+}
