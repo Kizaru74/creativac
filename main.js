@@ -241,7 +241,6 @@ async function loadDebts() {
 
     if (error) return console.error(error);
 
-    // Agrupamos por cliente para la vista de Control de Deudas
     const grouped = data.reduce((acc, current) => {
         const client = current.clientes;
         if (!client) return acc;
@@ -262,22 +261,31 @@ async function loadDebts() {
     document.getElementById('total-clientes-deuda').innerText = listaDeudores.length;
     document.getElementById('max-deuda-individual').innerText = formatCurrency(maxIndividual);
 
-    // Renderizar filas
+    // Renderizar filas con el remarcado rojo Premium
     tbody.innerHTML = listaDeudores.map(deudor => `
-        <tr class="hover:bg-white/[0.02] border-b border-white/5">
+        <tr class="group hover:bg-white/[0.04] border-b border-white/5 transition-all">
             <td class="px-10 py-6">
-                <div class="text-white font-bold text-base">${deudor.name}</div>
-                <div class="text-[10px] text-gray-600 uppercase tracking-widest mt-1">ID: ${deudor.id}</div>
+                <div class="text-white font-bold text-base tracking-tight">${deudor.name}</div>
+                <div class="text-[10px] text-orange-500/50 font-mono uppercase mt-1">Ref Client: #${deudor.id}</div>
             </td>
-            <td class="px-10 py-6 text-center text-orange-500 font-black text-xl">
-                ${formatCurrency(deudor.total)}
+            
+            <td class="px-10 py-6 text-center saldo-pendiente-highlight">
+                <div class="text-red-500 font-black text-xl tracking-tighter">
+                    ${formatCurrency(deudor.total)}
+                </div>
+                <div class="text-[9px] text-red-500/40 font-bold uppercase tracking-widest">Saldo Total</div>
             </td>
-            <td class="px-10 py-6">
-                <span class="bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">Cobro Pendiente</span>
+            
+            <td class="px-10 py-6 text-center">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm shadow-red-900/10">
+                    <i class="fas fa-exclamation-triangle mr-2 text-[8px] animate-pulse"></i>
+                    Cobro Pendiente
+                </span>
             </td>
+            
             <td class="px-10 py-6 text-right">
                 <button onclick="handleViewClientDebt('${deudor.id}')" 
-                    class="bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black py-3 px-6 rounded-2xl uppercase transition-all shadow-lg shadow-orange-900/20">
+                    class="bg-white/5 hover:bg-orange-600 text-white hover:text-white text-[10px] font-black py-3 px-6 rounded-xl border border-white/10 hover:border-orange-500 transition-all uppercase tracking-widest group-hover:scale-105 shadow-xl">
                     Gestionar Pagos
                 </button>
             </td>

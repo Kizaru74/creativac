@@ -126,3 +126,16 @@ tbody tr:hover {
 .font-bold.text-white {
     letter-spacing: -0.01em;
 }
+
+/* Remarcado especial para la columna de saldos en Control de Deudas */
+.saldo-pendiente-highlight {
+    background-color: rgba(239, 68, 68, 0.05) !important; /* Rojo muy sutil de fondo */
+    position: relative;
+    border-left: 1px solid rgba(239, 68, 68, 0.1);
+    border-right: 1px solid rgba(239, 68, 68, 0.1);
+}
+
+/* Efecto al pasar el mouse sobre la fila */
+tbody tr:hover .saldo-pendiente-highlight {
+    background-color: rgba(239, 68, 68, 0.08) !important;
+}
