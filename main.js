@@ -416,94 +416,7 @@ async function loadClientsForSale() {
         select.appendChild(option);
     });
 }
-window.loadDebtsTable = async function() {
-    const tableBody = document.getElementById('debts-table-body');
-    const noDebtsMsg = document.getElementById('no-debts-message');
-    
-    if (!tableBody) return;
 
-    try {
-        // CORRECCIÓN: Solo pedimos saldo_pendiente de ventas y datos básicos de clientes
-        const { data: ventas, error } = await supabase
-            .from('ventas')
-            .select(`
-                saldo_pendiente,
-                client_id,
-                clientes (
-                    name,
-                    phone
-                )
-            `)
-            .gt('saldo_pendiente', 0.01);
-
-        if (error) throw error;
-
-        // Agrupar y crear el campo deuda_total en memoria (no en la DB)
-        const consolidado = ventas.reduce((acc, v) => {
-            const id = v.client_id || 'anonimo';
-            if (!acc[id]) {
-                acc[id] = {
-                    client_id: id,
-                    name: v.clientes?.name || 'Cliente General',
-                    phone: v.clientes?.phone || 'S/N',
-                    deuda_total: 0
-                };
-            }
-            acc[id].deuda_total += parseFloat(v.saldo_pendiente || 0);
-            return acc;
-        }, {});
-
-        const listaDeudores = Object.values(consolidado).sort((a, b) => b.deuda_total - a.deuda_total);
-
-        if (listaDeudores.length === 0) {
-            tableBody.innerHTML = '';
-            if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
-            if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData([]);
-            return;
-        }
-
-        if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
-        if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData(listaDeudores);
-
-        // Renderizado compatible con tu style.css
-        tableBody.innerHTML = listaDeudores.map(d => `
-            <tr class="border-b border-white/5 hover:bg-white/[0.05] transition-colors group">
-                <td class="px-10 py-6">
-                    <div class="flex items-center gap-4">
-                        <div class="font-mono bg-orange-500/10 w-12 h-12 rounded-lg flex items-center justify-center text-orange-500 font-bold border border-orange-500/30">
-                            ${d.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="font-bold text-white text-base">${d.name}</div>
-                            <div class="text-[10px] text-white/60 uppercase tracking-widest font-medium">${d.phone}</div>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-10 py-6 text-center">
-                    <div class="text-xl font-black text-red-500 tracking-tighter">
-                        ${formatCurrency(d.deuda_total)}
-                    </div>
-                </td>
-                <td class="px-10 py-6">
-                    <div class="glass-badge ${d.deuda_total > 5000 ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="text-[10px] font-black uppercase tracking-widest">
-                            ${d.deuda_total > 5000 ? 'Prioridad' : 'Activa'}
-                        </span>
-                    </div>
-                </td>
-                <td class="px-10 py-6 text-right">
-                    <button onclick="window.handleViewClientPayments(${d.client_id})" 
-                            class="view-debt-btn scale-110 hover:border-orange-500 hover:text-orange-500 transition-all">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
-
-    } catch (err) {
-        console.error("Error cargando tabla de deudas:", err);
-    }
-};
 //Llena el SELECT de Producto Padre en el modal de edición
 window.loadMainProductsForEditSelect = function() {
     const selectElement = document.getElementById('edit-product-parent');
@@ -2139,64 +2052,85 @@ window.loadDebtsTable = async function() {
     const tableBody = document.getElementById('debts-table-body');
     const noDebtsMsg = document.getElementById('no-debts-message');
     
+    if (!tableBody) return;
+
     try {
-        // 1. Traer datos frescos de la DB
-        const { data: clients, error } = await supabase
-            .from('clientes')
-            .select('*')
-            .gt('deuda_total', 0.01) // Solo los que deben
-            .order('deuda_total', { ascending: false });
+        // CONSULTA SEGURA: Solo campos que existen según tu SQL
+        const { data: ventas, error } = await supabase
+            .from('ventas')
+            .select(`
+                saldo_pendiente,
+                client_id,
+                clientes (
+                    name,
+                    phone
+                )
+            `)
+            .gt('saldo_pendiente', 0.01);
 
         if (error) throw error;
 
-        // 2. Si no hay clientes con deuda
-        if (!clients || clients.length === 0) {
-            if (tableBody) tableBody.innerHTML = '';
+        // Procesamiento en memoria para crear el campo que tu CSS y lógica necesitan
+        const consolidado = (ventas || []).reduce((acc, v) => {
+            const id = v.client_id || 'anonimo';
+            if (!acc[id]) {
+                acc[id] = {
+                    client_id: id,
+                    name: v.clientes?.name || 'Cliente General',
+                    phone: v.clientes?.phone || 'S/N',
+                    deuda_total: 0 // Se crea aquí, no viene de la DB
+                };
+            }
+            acc[id].deuda_total += parseFloat(v.saldo_pendiente || 0);
+            return acc;
+        }, {});
+
+        const listaDeudores = Object.values(consolidado).sort((a, b) => b.deuda_total - a.deuda_total);
+
+        // Actualizar UI
+        if (listaDeudores.length === 0) {
+            tableBody.innerHTML = '';
             if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
-            
-            // Ponemos las métricas en 0
-            actualizarMetricasConData([]);
+            if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData([]);
             return;
         }
 
-        // 3. Ocultar mensaje de "Cartera Limpia" y mostrar tabla
         if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
+        if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData(listaDeudores);
 
-        // 4. Actualizar las Métricas de las Tarjetas Superiores
-        actualizarMetricasConData(clients);
-
-        // 5. Renderizar la Tabla
-        if (tableBody) {
-            tableBody.innerHTML = clients.map(client => `
-                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
-                    <td class="px-10 py-6">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 font-bold">
-                                ${client.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <div class="font-bold text-white text-base">${client.name}</div>
-                                <div class="text-[10px] text-gray-600 font-bold uppercase tracking-widest">${client.phone || 'Sin teléfono'}</div>
-                            </div>
+        // Renderizado con tus estilos de style.css
+        tableBody.innerHTML = listaDeudores.map(d => `
+            <tr class="border-b border-white/5 hover:bg-white/[0.05] transition-colors group">
+                <td class="px-10 py-6">
+                    <div class="flex items-center gap-4">
+                        <div class="font-mono bg-orange-500/10 w-12 h-12 rounded-lg flex items-center justify-center text-orange-500 font-bold border border-orange-500/30">
+                            ${d.name ? d.name.charAt(0).toUpperCase() : '?'}
                         </div>
-                    </td>
-                    <td class="px-10 py-6 text-center text-xl font-black text-orange-500 tracking-tighter">
-                        ${formatCurrency(client.deuda_total)}
-                    </td>
-                    <td class="px-10 py-6">
-                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-orange-500/10 text-orange-500">
-                            Pendiente
+                        <div>
+                            <div class="font-bold text-white text-base">${d.name}</div>
+                            <div class="text-[10px] text-white/60 uppercase tracking-widest">${d.phone}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-center">
+                    <div class="text-xl font-black text-red-500 tracking-tighter">
+                        ${formatCurrency(d.deuda_total)}
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-center">
+                    <div class="glass-badge ${d.deuda_total > 5000 ? 'glass-badge-danger' : 'glass-badge-success'}">
+                        <span class="text-[10px] font-black uppercase tracking-widest">
+                            ${d.deuda_total > 5000 ? 'Prioridad' : 'Al día'}
                         </span>
-                    </td>
-                    <td class="px-10 py-6 text-right">
-                        <button onclick="window.handleViewClientPayments(${client.client_id})" 
-                                class="bg-white/5 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                            Gestionar Pagos
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-right">
+                    <button onclick="window.handleViewClientPayments(${d.client_id})" class="view-debt-btn scale-110">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
 
     } catch (err) {
         console.error("Error cargando tabla de deudas:", err);
