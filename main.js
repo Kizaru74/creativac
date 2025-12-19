@@ -231,65 +231,129 @@ async function handleLogout() {
 
 //Deudas
 async function loadDebts() {
-    try {
-        // Consultamos todas las ventas con saldo, pero traemos el nombre del cliente
-        const { data, error } = await supabase
-            .from('ventas')
-            .select('saldo_pendiente, clientes(name, client_id)')
-            .gt('saldo_pendiente', 0.01);
+    const tbody = document.getElementById('debts-table-body');
+    if (!tbody) return;
 
-        if (error) throw error;
+    const { data, error } = await supabase
+        .from('ventas')
+        .select('saldo_pendiente, clientes(name, client_id)')
+        .gt('saldo_pendiente', 0.01);
 
-        // AGRUPACIÓN: Convertimos la lista de tickets en una lista de CLIENTES
-        const resumenDeudores = data.reduce((acc, venta) => {
-            const cliente = venta.clientes;
-            if (!cliente) return acc;
-            
-            if (!acc[cliente.client_id]) {
-                acc[cliente.client_id] = {
-                    id: cliente.client_id,
-                    nombre: cliente.name,
-                    totalDeuda: 0
-                };
-            }
-            acc[cliente.client_id].totalDeuda += Number(venta.saldo_pendiente);
-            return acc;
-        }, {});
+    if (error) return console.error(error);
 
-        const tbody = document.getElementById('debts-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+    // Agrupamos por cliente para la vista de Control de Deudas
+    const grouped = data.reduce((acc, current) => {
+        const client = current.clientes;
+        if (!client) return acc;
+        if (!acc[client.client_id]) {
+            acc[client.client_id] = { name: client.name, total: 0, id: client.client_id };
+        }
+        acc[client.client_id].total += Number(current.saldo_pendiente);
+        return acc;
+    }, {});
 
-        // Renderizamos una sola fila por cliente
-        Object.values(resumenDeudores).forEach(deudor => {
-            const row = document.createElement('tr');
-            row.className = 'hover:bg-white/[0.02] border-b border-white/5 transition-colors';
-            row.innerHTML = `
-                <td class="px-8 py-5">
-                    <div class="text-white font-bold">${deudor.nombre}</div>
-                    <div class="text-[10px] text-gray-500 uppercase">ID Cliente: ${deudor.id}</div>
-                </td>
-                <td class="px-8 py-5 text-orange-500 font-black text-lg">
-                    ${formatCurrency(deudor.totalDeuda)}
-                </td>
-                <td class="px-8 py-5 text-right">
-                    <button onclick="handleViewClientDebt('${deudor.id}')" 
-                            class="bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black py-2 px-6 rounded-xl uppercase tracking-widest transition-all">
-                        Gestionar Pagos
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
+    const listaDeudores = Object.values(grouped);
+    
+    // Actualizar Tarjetas KPIs
+    const totalGlobal = listaDeudores.reduce((sum, c) => sum + c.total, 0);
+    const maxIndividual = Math.max(...listaDeudores.map(c => c.total), 0);
+    
+    document.getElementById('total-deuda-global').innerText = formatCurrency(totalGlobal);
+    document.getElementById('total-clientes-deuda').innerText = listaDeudores.length;
+    document.getElementById('max-deuda-individual').innerText = formatCurrency(maxIndividual);
 
-        // Actualizamos las 3 tarjetas de arriba con los datos agrupados
-        actualizarTarjetasConResumen(resumenDeudores);
-
-    } catch (e) {
-        console.error('Error al cargar deudas agrupadas:', e);
-    }
+    // Renderizar filas
+    tbody.innerHTML = listaDeudores.map(deudor => `
+        <tr class="hover:bg-white/[0.02] border-b border-white/5">
+            <td class="px-10 py-6">
+                <div class="text-white font-bold text-base">${deudor.name}</div>
+                <div class="text-[10px] text-gray-600 uppercase tracking-widest mt-1">ID: ${deudor.id}</div>
+            </td>
+            <td class="px-10 py-6 text-center text-orange-500 font-black text-xl">
+                ${formatCurrency(deudor.total)}
+            </td>
+            <td class="px-10 py-6">
+                <span class="bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">Cobro Pendiente</span>
+            </td>
+            <td class="px-10 py-6 text-right">
+                <button onclick="handleViewClientDebt('${deudor.id}')" 
+                    class="bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black py-3 px-6 rounded-2xl uppercase transition-all shadow-lg shadow-orange-900/20">
+                    Gestionar Pagos
+                </button>
+            </td>
+        </tr>
+    `).join('');
 }
 
+// Función para registrar abono general en cascada
+async function registrarAbonoGeneralFIFO(clientId, montoTotalAbono, metodoPago) {
+    try {
+        // 1. Obtener todas las ventas pendientes del cliente, de la más antigua a la más nueva
+        const { data: ventasPendientes, error: fetchError } = await supabase
+            .from('ventas')
+            .select('venta_id, saldo_pendiente, paid_amount')
+            .eq('client_id', clientId)
+            .gt('saldo_pendiente', 0)
+            .order('created_at', { ascending: true });
+
+        if (fetchError) throw fetchError;
+        if (!ventasPendientes || ventasPendientes.length === 0) {
+            alert('Este cliente no tiene deudas pendientes.');
+            return;
+        }
+
+        let saldoDisponible = parseFloat(montoTotalAbono);
+        const promesasActualizacion = [];
+
+        // 2. Repartir el dinero entre las ventas
+        for (let venta of ventasPendientes) {
+            if (saldoDisponible <= 0) break;
+
+            let deudaActual = parseFloat(venta.saldo_pendiente);
+            let pagoParaEstaVenta = Math.min(saldoDisponible, deudaActual);
+            let nuevoSaldoVenta = deudaActual - pagoParaEstaVenta;
+            let nuevoPagadoVenta = parseFloat(venta.paid_amount || 0) + pagoParaEstaVenta;
+
+            // Actualizar saldo de la venta específica
+            const updatePromise = supabase
+                .from('ventas')
+                .update({ 
+                    saldo_pendiente: nuevoSaldoVenta,
+                    paid_amount: nuevoPagadoVenta 
+                })
+                .eq('venta_id', venta.venta_id);
+            
+            promesasActualizacion.push(updatePromise);
+
+            // Registrar el movimiento en tu tabla de abonos/pagos
+            const logAbono = supabase
+                .from('abonos')
+                .insert({
+                    client_id: clientId,
+                    venta_id: venta.venta_id,
+                    monto_abono: pagoParaEstaVenta,
+                    metodo_pago: metodoPago,
+                    fecha_abono: new Date().toISOString()
+                });
+            
+            promesasActualizacion.push(logAbono);
+
+            saldoDisponible -= pagoParaEstaVenta;
+        }
+
+        // Ejecutar todas las actualizaciones
+        await Promise.all(promesasActualizacion);
+
+        alert(`¡Éxito! Se aplicó el abono. ${saldoDisponible > 0 ? 'Sobró un saldo a favor de ' + formatCurrency(saldoDisponible) : ''}`);
+        
+        // REFRESCAR LA VISTA
+        if (typeof loadDebts === 'function') await loadDebts();
+        
+    } catch (err) {
+        console.error('Error en el proceso FIFO:', err);
+        alert('Hubo un error al procesar el pago en cascada.');
+    }
+}
 // Función auxiliar para pintar las tarjetas rápidamente
 function renderizarTarjetas(total, cantidad, max) {
     const elTotal = document.getElementById('total-deuda-global');
