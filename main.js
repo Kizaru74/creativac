@@ -368,12 +368,50 @@ function openSaleDetailModal(saleId) {
 }
 
 async function loadDashboardData() {
-    await loadDebts();
-    await loadRecentSales();
-    await loadClientsTable('gestion');
-    await loadProductsTable(); 
-    await loadClientsForSale();
-    await loadClientDebtsTable();
+    try {
+        console.log("Cargando datos del Dashboard...");
+
+        // 1. Ejecutamos tus funciones originales (Carga de datos base)
+        await loadDebts();
+        await loadRecentSales();
+        await loadClientsTable('gestion');
+        await loadProductsTable(); 
+        await loadClientsForSale();
+        await loadClientDebtsTable();
+
+        // 2. ACTUALIZACIÓN DE MÉTRICAS (Basado en lo cargado)
+        // Calculamos el total de deuda a partir de lo que ya tienes en memoria o base de datos
+        const { data: clients, error: dError } = await supabase
+            .from('clients') // Asegúrate que el nombre coincida con tu tabla en Supabase
+            .select('deuda');
+
+        if (!dError && clients) {
+            const totalDeuda = clients.reduce((acc, curr) => acc + (Number(curr.deuda) || 0), 0);
+            const deudaElement = document.getElementById('home-total-deuda');
+            
+            if (deudaElement) {
+                deudaElement.innerText = new Intl.NumberFormat('es-MX', {
+                    style: 'currency', currency: 'MXN'
+                }).format(totalDeuda);
+            }
+        }
+
+        // 3. INICIALIZACIÓN DE LA GRÁFICA
+        // La llamamos aquí para que se dibuje cada vez que el dashboard se refresca
+        if (typeof inicializarGraficaHome === 'function') {
+            inicializarGraficaHome();
+        }
+
+        // 4. ACTUALIZACIÓN DEL NOMBRE DE USUARIO (Opcional)
+        const userDisplay = document.getElementById('user-display-name');
+        if (userDisplay && typeof supabase.auth.getUser === 'function') {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) userDisplay.innerText = user.email.split('@')[0];
+        }
+
+    } catch (error) {
+        console.error("Error en la orquestación del Dashboard:", error);
+    }
 }
 
 //Grafica Dashboard
@@ -4774,53 +4812,52 @@ window.openNewProductModal = async function() {
 // FUNCIONES Y LISTENERS PARA CAMBIO DE VISTA
 // ====================================================================
 
-function switchView(viewId) {
-    // 1. Desactivar el estilo de menú activo y ocultar todas las vistas
+async function switchView(viewId) {
+    // 1. Limpieza de estilos y ocultar vistas
     document.querySelectorAll('.menu-item').forEach(link => {
-        link.classList.remove('active-menu-item');
+        link.classList.remove('active-menu-item', 'text-white');
+        link.classList.add('text-gray-400');
     });
+    
     document.querySelectorAll('.dashboard-view').forEach(view => {
         view.classList.add('hidden');
     });
     
-    // 2. Mostrar la vista solicitada
+    // 2. Mostrar la vista seleccionada
     const targetView = document.getElementById(viewId);
     if (targetView) {
         targetView.classList.remove('hidden');
     }
     
-    // 3. Activar el estilo del menú
+    // 3. Activar link en el menú
     const activeLink = document.querySelector(`[data-view="${viewId}"]`);
     if (activeLink) {
-        activeLink.classList.add('active-menu-item');
+        activeLink.classList.add('active-menu-item', 'text-white');
+        activeLink.classList.remove('text-gray-400');
     }
 
-    // 4. CRÍTICO: Cargar los datos específicos de la vista al cambiar
-
-    if (viewId === 'home-view') {
-        loadDashboardData();
-    } else if (viewId === 'clients-view') {
-        loadClientsTable('gestion');
-    } else if (viewId === 'products-view') {
-        loadAndRenderProducts();
-    } else if (viewId === 'report-view') {
-    // 🛑 LÓGICA DE INICIALIZACIÓN DIFERIDA (Corregida: Eliminar 'window.')
-    
-    // Asumiendo que 'reportSelectorsInitialized' es una variable global en main.js
-    if (!reportSelectorsInitialized && typeof initReportSelectors === 'function') {
-        console.log("--- INTENTANDO LLAMAR A LA INICIALIZACIÓN DE SELECTORES DIRECTAMENTE ---");
-        
-        // 🚀 CORRECCIÓN: Llamada Directa
-        initReportSelectors(); 
-        
-        // La función initReportSelectors internamente llama a loadMonthlySalesReport() 
-        // y establece reportSelectorsInitialized = true!
-    } else if (typeof loadMonthlySalesReport === 'function') {
-         // 🚀 CORRECCIÓN: Llamada Directa
-         // Si ya se inicializó, solo recargamos el reporte
-         loadMonthlySalesReport();
+    // 4. Carga de datos dinámica
+    switch (viewId) {
+        case 'home-view':
+            await loadDashboardData(); // Carga totales y gráfica
+            break;
+        case 'deudas-view':
+            if (typeof loadDebtsTable === 'function') loadDebtsTable();
+            break;
+        case 'clients-view':
+            if (typeof loadClientsTable === 'function') loadClientsTable('gestion');
+            break;
+        case 'products-view':
+            if (typeof loadAndRenderProducts === 'function') loadAndRenderProducts();
+            break;
+        case 'report-view':
+            if (!reportSelectorsInitialized && typeof initReportSelectors === 'function') {
+                initReportSelectors(); 
+            } else if (typeof loadMonthlySalesReport === 'function') {
+                loadMonthlySalesReport();
+            }
+            break;
     }
-}
 }
 
 // LISTENER para la navegación principal (data-view)
