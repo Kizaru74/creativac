@@ -1,4 +1,4 @@
-/* style.css */
+/* style.css - Creativa Cortes CNC (Versión Corregida) */
 
 @tailwind base;
 @tailwind components;
@@ -19,25 +19,21 @@
 /* --- MENÚ ACTIVO --- */
 .active-menu-item { 
     background-color: rgba(255, 255, 255, 0.05) !important; 
-    color: #f97316 !important; /* Naranja para resaltar el texto activo */
+    color: #f97316 !important; 
     border-left: 4px solid #f97316;
     border-radius: 0 12px 12px 0;
 }
 
 /* --- PREVENCIÓN DE "EFECTO BLANCO" (HOVER) --- */
-
-/* Forzar que las filas de las tablas no se pongan blancas */
 tbody tr {
     transition: background-color 0.2s ease;
     background-color: transparent !important;
 }
 
 tbody tr:hover {
-    /* Fondo gris muy oscuro con un toque de brillo */
     background-color: rgba(255, 255, 255, 0.04) !important; 
 }
 
-/* Evitar que celdas o elementos de tabla hereden fondos blancos de Tailwind */
 td, th {
     background-color: transparent !important;
 }
@@ -51,94 +47,123 @@ input:-webkit-autofill:focus {
     transition: background-color 5000s ease-in-out 0s;
 }
 
-/* --- BOTONES PREMIUM --- */
-.btn-premium-hover:hover {
-    background-color: rgba(234, 88, 12, 0.1) !important;
-    color: #f97316 !important;
-    box-shadow: 0 4px 15px rgba(234, 88, 12, 0.1);
-}
-
-/* --- SCROLLBAR ELEGANTE --- */
-::-webkit-scrollbar {
-    width: 8px;
-}
-::-webkit-scrollbar-track {
-    background: #121212;
-}
-::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #f97316;
-}
-
-/* --- LIMPIEZA ADICIONAL PARA MODALES --- */
-/* Si tus modales tienen partes que se ven blancas al hover */
-.modal-overlay div:hover {
-    /* Esto evita que contenedores genéricos cambien de color al pasar el mouse */
-    background-inherit: inherit;
-}
-
-/* Forzar que todos los elementos hijos de un modal respeten el tema oscuro */
-.modal-overlay *, 
-#lista-notas-pendientes *, 
-#detail-products-body * {
-    background-color: transparent;
-    border-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Evitar que el texto se ponga negro en el hover */
-*:hover {
-    color: inherit;
-}
-
-/* --- TIPOGRAFÍA UNIVERSAL --- */
-/* Forzamos que el cuerpo y los contenedores principales tengan texto claro por defecto */
+/* --- TIPOGRAFÍA UNIVERSAL Y MODALES --- */
 body, #main-content, .modal-overlay {
     color: #ffffff !important;
 }
 
-/* Forzar que los textos en las celdas y filas no cambien a negro en hover */
+/* Forzar que los textos no cambien a negro en hover */
 tbody tr td, 
 tbody tr:hover td,
 .text-gray-600, 
-.text-gray-800 {
+.text-gray-800,
+.modal-overlay p,
+.modal-overlay label {
     color: rgba(255, 255, 255, 0.9) !important;
 }
 
-/* Mantener los placeholders de los inputs visibles pero tenues */
-::placeholder {
-    color: rgba(255, 255, 255, 0.3) !important;
-}
-
-/* --- REGLA DE ORO PARA TEXTOS EN MODALES --- */
-/* Esto asegura que cualquier texto dentro de un modal sea blanco, 
-   excepto los que explícitamente definimos como naranjas o rojos */
-.modal-overlay h1, 
-.modal-overlay h2, 
-.modal-overlay h3, 
-.modal-overlay p, 
-.modal-overlay label, 
+/* Regla de Oro para Modales (Evitar textos negros) */
+.modal-overlay h1, .modal-overlay h2, .modal-overlay h3,
 .modal-overlay span:not(.text-orange-500):not(.text-red-500):not(.text-red-400) {
     color: #ffffff !important;
 }
 
-/* Ajuste para los inputs: texto blanco al escribir */
+/* Inputs en modo oscuro */
 input, select, textarea {
     color: #ffffff !important;
     background-color: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-/* --- OPTIMIZACIÓN DE ICONOS --- */
-/* Para que los iconos que no tienen color definido no desaparezcan */
-.fas, .far, .fab {
-    color: inherit; /* Hereda el blanco del padre */
+::placeholder {
+    color: rgba(255, 255, 255, 0.3) !important;
 }
 
-/* --- FORZAR TABLA DE CLIENTES A MODO DARK --- */
+/* --- BOTONES PREMIUM CON ESTADO DE CARGA --- */
+.btn-premium {
+    position: relative;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
 
-/* 1. Fondo de las filas y bordes */
+.btn-premium.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn-premium.loading .btn-text,
+.btn-premium.loading .icon-default {
+    display: none;
+}
+
+.spinner-hidden { display: none; }
+.btn-premium.loading .spinner-hidden { display: inline-block; }
+
+.btn-orange-glow {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
+}
+
+.btn-orange-glow:hover {
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+    transform: translateY(-1px);
+}
+
+/* --- TABLA DE CLIENTES DARK --- */
+#clients-list-body tr { border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; }
+#clients-list-body td { color: #ffffff !important; }
+#clients-list-body .bg-slate-800 { background-color: #f97316 !important; color: white !important; }
+
+/* Badges de Deuda */
+.bg-emerald-50 { background-color: rgba(16, 185, 129, 0.1) !important; color: #10b981 !important; }
+.bg-red-50 { background-color: rgba(239, 68, 68, 0.1) !important; color: #ef4444 !important; }
+
+/* --- ACCIONES EN REPORTES --- */
+#monthly-sales-report-body button {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+    transition: all 0.3s ease !important;
+}
+
+#monthly-sales-report-body button.text-indigo-600:hover {
+    background: rgba(99, 102, 241, 0.15) !important;
+    color: #818cf8 !important;
+    border-color: rgba(99, 102, 241, 0.4) !important;
+}
+
+#monthly-sales-report-body button.text-red-400:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+/* --- ANIMACIONES --- */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.animate-spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* --- SCROLLBAR --- */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #121212; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #f97316; }
+
+/* --- TABLA DE CLIENTES: ESTILO PREMIUM DARK --- */
+
+/* 1. Filas y Bordes */
 #clients-list-body tr {
     background-color: transparent !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
@@ -148,98 +173,56 @@ input, select, textarea {
     background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
-/* 2. Forzar todos los textos a blanco/gris claro */
-#clients-list-body td, 
-#clients-list-body .text-slate-800, 
-#clients-list-body .text-slate-700,
-#clients-list-body .text-slate-500 {
+/* 2. Forzar Textos a Blanco y Gris Tenue */
+#clients-list-body td,
+#clients-list-body .text-slate-800,
+#clients-list-body .text-slate-700 {
     color: #ffffff !important;
 }
 
-/* 3. Ajuste de los IDs y textos secundarios (Slate 400) */
 #clients-list-body .text-slate-400,
-#clients-list-body .font-mono {
+#clients-list-body .text-slate-500 {
     color: rgba(255, 255, 255, 0.5) !important;
-    background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
-/* 4. Ajuste del Avatar (Círculo con inicial) */
+/* 3. Badge del ID (#001) */
+#clients-list-body .bg-slate-100 {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+    color: #f97316 !important; /* Naranja corporativo para el ID */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 4. Avatar (Círculo con inicial) */
 #clients-list-body .bg-slate-800 {
-    background-color: #f97316 !important; /* Cambiado a Naranja Creativa */
+    background-color: #f97316 !important; /* Naranja en lugar de gris oscuro */
     color: white !important;
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
 }
 
-/* 5. Ajuste de los Badges de Saldo Pendiente */
-/* Si no tiene deuda (Emerald) */
-#clients-list-body .bg-emerald-50 {
-    background-color: rgba(16, 185, 129, 0.1) !important;
-    color: #10b981 !important;
-    border: 1px solid rgba(16, 185, 129, 0.2) !important;
-}
-
-/* Si tiene deuda (Red) */
+/* 5. Estados de Saldo (Red y Emerald) */
+/* Peligro/Deuda */
 #clients-list-body .bg-red-50 {
     background-color: rgba(239, 68, 68, 0.1) !important;
     color: #ef4444 !important;
     border: 1px solid rgba(239, 68, 68, 0.2) !important;
 }
 
-/* 6. Forzar que los botones de acción no se vean blancos al hover */
-#clients-list-body button:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+/* Al día/Pagado */
+#clients-list-body .bg-emerald-50 {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
 }
 
-/* --- BOTONES DE ACCIÓN EN REPORTES --- */
-
-/* Contenedor de acciones */
-#monthly-sales-report-body .flex.justify-end {
-    gap: 0.75rem; /* Más espacio entre botones */
-}
-
-/* Estilo base para los botones de acción (Ojo y Basura) */
-#monthly-sales-report-body button {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px !important;
+/* 6. Botones de Acción (Editar, Abono, etc.) */
+#clients-list-body .flex button {
+    background-color: rgba(255, 255, 255, 0.03) !important;
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    background: rgba(255, 255, 255, 0.02) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    position: relative;
-    overflow: hidden;
+    color: rgba(255, 255, 255, 0.6) !important;
 }
 
-/* Efecto Hover para el botón "Ver Detalles" (Indigo/Azul) */
-#monthly-sales-report-body button.text-indigo-600:hover {
-    background: rgba(99, 102, 241, 0.15) !important;
-    border-color: rgba(99, 102, 241, 0.4) !important;
-    color: #818cf8 !important;
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+#clients-list-body .flex button:hover {
     transform: translateY(-2px);
-}
-
-/* Efecto Hover para el botón "Anular/Eliminar" (Rojo) */
-#monthly-sales-report-body button.text-red-400:hover {
-    background: rgba(239, 68, 68, 0.15) !important;
-    border-color: rgba(239, 68, 68, 0.4) !important;
-    color: #ef4444 !important;
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.1);
-    transform: translateY(-2px);
-}
-
-/* Iconos dentro de los botones */
-#monthly-sales-report-body button i {
-    font-size: 0.85rem;
-    transition: transform 0.2s ease;
-}
-
-#monthly-sales-report-body button:hover i {
-    transform: scale(1.15); /* El icono crece un poco al pasar el mouse */
-}
-
-/* Tooltip simple (opcional, si quieres mejorar el título) */
-#monthly-sales-report-body button:active {
-    transform: scale(0.95); /* Efecto de pulsación al hacer clic */
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #f97316 !important; /* Brillo naranja al pasar el mouse */
 }

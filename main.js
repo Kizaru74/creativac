@@ -3345,31 +3345,43 @@ async function handleNewProduct(e) {
         return;
     }
 
-    // 1. Obtener elementos
+    // 1. Referencia al botón y elementos de carga
+    const btn = document.getElementById('btn-register-product');
+    const iconDefault = btn.querySelector('.icon-default');
+    const iconLoading = btn.querySelector('.icon-loading');
+    const btnText = btn.querySelector('.btn-text');
+
+    // 2. Obtener elementos del formulario
     const nameInput = document.getElementById('new-product-name');
     const typeInput = document.getElementById('new-product-type'); 
     const priceInput = document.getElementById('new-product-price'); 
     const parentSelect = document.getElementById('new-product-parent-select');
 
-    // 2. Leer y validar valores
+    // 3. Validaciones básicas
     const name = nameInput.value.trim();
     const type = typeInput.value; 
     const price = parseFloat(priceInput.value);
     let parentProductId = null;
 
     if (isNaN(price) || price < 0) {
-        alert('Por favor, ingresa un precio válido.'); // Podrías cambiar esto por un Toast después
+        alert('Por favor, ingresa un precio válido.');
         return;
     }
 
-    // 3. Validación de Subproductos (PACKAGE)
     if (type === 'PACKAGE') {
         parentProductId = parentSelect?.value || null; 
         if (!parentProductId) { 
-            alert('Los subproductos requieren vincularse a un Producto Principal.');
+            alert('Los subproductos requieren un Producto Principal.');
             return;
         }
     }
+
+    // --- ACTIVAR ESTADO DE CARGA ---
+    btn.disabled = true;
+    btn.classList.add('opacity-80', 'cursor-not-allowed');
+    iconDefault.classList.add('hidden');
+    iconLoading.classList.remove('hidden');
+    btnText.textContent = 'Registrando...';
 
     try {
         // 4. Inserción en Supabase
@@ -3384,17 +3396,14 @@ async function handleNewProduct(e) {
 
         if (error) throw error;
 
-        // 5. Éxito: Limpieza y Recarga
-        // Aquí podrías disparar una notificación tipo Toast elegante
+        // 5. Éxito
         console.log('Producto registrado con éxito');
         
-        // Resetear formulario y cerrar modal
         const form = document.getElementById('new-product-form');
         form.reset();
-        window.handleProductTypeChange('new'); // Para ocultar el campo de padre si quedó visible
+        window.handleProductTypeChange('new'); 
         closeModal('new-product-modal'); 
 
-        // Recargar datos globales y tablas
         if (window.loadAndRenderProducts) {
             await window.loadAndRenderProducts();
         }
@@ -3402,6 +3411,13 @@ async function handleNewProduct(e) {
     } catch (err) {
         console.error('Error al registrar:', err.message);
         alert('No se pudo registrar el producto: ' + err.message);
+    } finally {
+        // --- RESTAURAR ESTADO DEL BOTÓN ---
+        btn.disabled = false;
+        btn.classList.remove('opacity-80', 'cursor-not-allowed');
+        iconDefault.classList.remove('hidden');
+        iconLoading.classList.add('hidden');
+        btnText.textContent = 'Finalizar Registro';
     }
 }
 
@@ -3675,7 +3691,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
-            row.className = 'group hover:bg-gray-50/50 transition-all duration-200 border-b border-gray-100';
+            row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
 
             const deudaVisual = summary.deudaNeta;
             const tieneDeuda = deudaVisual > 0.01;
@@ -4188,6 +4204,20 @@ async function handleSaleAbono(e) {
 // ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
+window.handleViewAction = async function(btn, ventaId, clientId) {
+    btn.classList.add('btn-loading'); // Activa el spinner
+    try {
+        await handleViewSaleDetails(ventaId, clientId);
+    } finally {
+        btn.classList.remove('btn-loading'); // Lo quita al terminar
+    }
+};
+
+window.handleDeleteAction = async function(btn, ventaId, month, year) {
+    // Aquí no activamos el spinner de inmediato porque suele haber un modal de confirmación primero.
+    // Solo pasamos el ID al proceso de eliminación que ya tienes.
+    handleDeleteSale(ventaId, month, year);
+};
 
 function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
     (async () => {
@@ -4273,21 +4303,24 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
                                 }">
                                     ${formatCurrency(sale.saldo_pendiente)}
                                 </span>
-                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div class="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onclick="handleViewSaleDetails('${sale.venta_id}', '${sale.client_id}')" 
-                                            class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Ver Detalles">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button onclick="handleDeleteSale('${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                                            class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Anular Venta">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
+            <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                
+                <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
+                        class="btn-action-report btn-view" title="Ver Detalles">
+                    <i class="fas fa-eye text-xs"></i>
+                    <i class="fas fa-circle-notch animate-spin btn-spinner"></i>
+                </button>
+
+                <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
+                        class="btn-action-report btn-delete" title="Anular Venta">
+                    <i class="fas fa-trash-alt text-xs"></i>
+                    <i class="fas fa-circle-notch animate-spin btn-spinner"></i>
+                </button>
+            </div>
+        </td>
+    </tr>
+`;
                     reportBody.insertAdjacentHTML('beforeend', rowHTML); 
                 });
                 noDataMessage.classList.add('hidden'); 
