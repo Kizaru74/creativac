@@ -229,90 +229,64 @@ async function handleLogout() {
 // 4. LÓGICA DEL DASHBOARD: CARGA DE DATOS
 // ====================================================================
 
+//Deudas
 async function loadDebts() {
     try {
-        console.log("Cargando gestión de deudas...");
-        
+        // Consultamos todas las ventas con saldo, pero traemos el nombre del cliente
         const { data, error } = await supabase
             .from('ventas')
-            .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name, client_id)')
-            .gt('saldo_pendiente', 0.01) 
-            .order('created_at', { ascending: false }); // Quitamos el limit para que el buscador funcione con todo
+            .select('saldo_pendiente, clientes(name, client_id)')
+            .gt('saldo_pendiente', 0.01);
 
-        if (error) {
-            console.error('Error al cargar tabla de deudas:', error);
-            return;
-        }
+        if (error) throw error;
 
-        // Usamos el ID de tu tabla premium: 'debts-table-body'
-        const container = document.getElementById('debts-table-body'); 
-        if (!container) return; 
-        
-        container.innerHTML = '';
-        
-        const noDebtMessage = document.getElementById('no-debts-message');
-        if (noDebtMessage) noDebtMessage.classList.add('hidden');
-
-        if (data.length === 0) {
-            if (noDebtMessage) noDebtMessage.classList.remove('hidden');
-            // Si no hay deudas, ponemos las tarjetas en 0
-            actualizarTarjetasDeuda(0, 0, 0); 
-            return;
-        }
-
-        // Variables para calcular los totales de las tarjetas mientras recorremos
-        let acumuladoTotal = 0;
-        let deudaMaxima = 0;
-
-        data.forEach(debt => {
-            const clientName = debt.clientes?.name || 'Cliente Desconocido';
-            const clientId = debt.clientes?.client_id; 
-            const saldo = Number(debt.saldo_pendiente) || 0;
-
-            // Sumamos para las tarjetas
-            acumuladoTotal += saldo;
-            if (saldo > deudaMaxima) deudaMaxima = saldo;
+        // AGRUPACIÓN: Convertimos la lista de tickets en una lista de CLIENTES
+        const resumenDeudores = data.reduce((acc, venta) => {
+            const cliente = venta.clientes;
+            if (!cliente) return acc;
             
+            if (!acc[cliente.client_id]) {
+                acc[cliente.client_id] = {
+                    id: cliente.client_id,
+                    nombre: cliente.name,
+                    totalDeuda: 0
+                };
+            }
+            acc[cliente.client_id].totalDeuda += Number(venta.saldo_pendiente);
+            return acc;
+        }, {});
+
+        const tbody = document.getElementById('debts-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        // Renderizamos una sola fila por cliente
+        Object.values(resumenDeudores).forEach(deudor => {
             const row = document.createElement('tr');
-            row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/5';
-            
+            row.className = 'hover:bg-white/[0.02] border-b border-white/5 transition-colors';
             row.innerHTML = `
                 <td class="px-8 py-5">
-                    <div class="text-white font-bold">${clientName}</div>
-                    <div class="text-[10px] text-gray-500 uppercase">Venta #${debt.venta_id}</div>
+                    <div class="text-white font-bold">${deudor.nombre}</div>
+                    <div class="text-[10px] text-gray-500 uppercase">ID Cliente: ${deudor.id}</div>
                 </td>
-                <td class="px-8 py-5">
-                    <div class="text-orange-500 font-black">${formatCurrency(saldo)}</div>
-                    <div class="text-[10px] text-gray-600">Total: ${formatCurrency(debt.total_amount)}</div>
-                </td>
-                <td class="px-8 py-5 text-gray-400 text-xs">
-                    ${new Date(debt.created_at).toLocaleDateString()}
+                <td class="px-8 py-5 text-orange-500 font-black text-lg">
+                    ${formatCurrency(deudor.totalDeuda)}
                 </td>
                 <td class="px-8 py-5 text-right">
-                    <button 
-                        type="button" 
-                        data-client-id="${clientId}" 
-                        class="view-debt-btn bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition-all"
-                    >
-                        DETALLES / PAGAR
+                    <button onclick="handleViewClientDebt('${deudor.id}')" 
+                            class="bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black py-2 px-6 rounded-xl uppercase tracking-widest transition-all">
+                        Gestionar Pagos
                     </button>
                 </td>
             `;
-            container.appendChild(row);
+            tbody.appendChild(row);
         });
 
-        // 🛑 RE-ENLACE DE EVENTOS
-        container.querySelectorAll('.view-debt-btn').forEach(button => {
-            button.addEventListener('click', () => {
-                handleViewClientDebt(button.dataset.clientId); 
-            });
-        });
-
-        // 📊 ACTUALIZAR TARJETAS (Usamos los datos que ya tenemos para no volver a consultar)
-        renderizarTarjetas(acumuladoTotal, data.length, deudaMaxima);
+        // Actualizamos las 3 tarjetas de arriba con los datos agrupados
+        actualizarTarjetasConResumen(resumenDeudores);
 
     } catch (e) {
-        console.error('Error inesperado en loadDebts:', e);
+        console.error('Error al cargar deudas agrupadas:', e);
     }
 }
 
@@ -1186,6 +1160,56 @@ window.refreshAllProductSelects = function() {
 // ====================================================================
 // 7. MANEJO DEL PAGO Y LA DEUDA 
 // ====================================================================
+async function registrarAbonoCascada(clientId, montoAbonar, metodoPago) {
+    try {
+        // 1. Obtener todas las ventas con deuda de ese cliente (ordenadas por la más antigua)
+        const { data: ventasPendientes, error } = await supabase
+            .from('ventas')
+            .select('venta_id, saldo_pendiente')
+            .eq('client_id', clientId)
+            .gt('saldo_pendiente', 0)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        let saldoRestante = montoAbonar;
+
+        for (let venta of ventasPendientes) {
+            if (saldoRestante <= 0) break;
+
+            let pagoParaEstaVenta = Math.min(saldoRestante, venta.saldo_pendiente);
+            let nuevoSaldoVenta = venta.saldo_pendiente - pagoParaEstaVenta;
+
+            // 2. Actualizar la venta individual
+            await supabase
+                .from('ventas')
+                .update({ 
+                    saldo_pendiente: nuevoSaldoVenta,
+                    paid_amount: (venta.paid_amount || 0) + pagoParaEstaVenta 
+                })
+                .eq('venta_id', venta.venta_id);
+
+            // 3. Registrar el abono en la tabla de abonos/pagos
+            await supabase
+                .from('abonos') // O tu tabla de transacciones
+                .insert({
+                    client_id: clientId,
+                    venta_id: venta.venta_id,
+                    monto_abono: pagoParaEstaVenta,
+                    metodo_pago: metodoPago,
+                    fecha_abono: new Date().toISOString()
+                });
+
+            saldoRestante -= pagoParaEstaVenta;
+        }
+
+        alert('Abono procesado en cascada correctamente.');
+        loadDebts(); // Recargar la tabla principal
+    } catch (err) {
+        console.error("Error en abono FIFO:", err);
+    }
+}
+
 async function actualizarTarjetasDeuda() {
     try {
         // Consultamos la tabla 'ventas'
