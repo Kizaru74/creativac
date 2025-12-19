@@ -1960,15 +1960,16 @@ window.imprimirEstadoCuenta = function() {
 };
 
 window.generarComprobanteAbono = function(datos) {
+    const colorOxido = '#b45309'; // El color ámbar/óxido de tu marca
     const fecha = new Date().toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
-    const numRecibo = "REC-" + Math.floor(Math.random() * 900000 + 100000);
+    const numRecibo = Math.floor(Math.random() * 900000 + 100000);
 
     const printWindow = window.open('', '_blank');
     
     if (!printWindow) {
-        alert("⚠️ El navegador bloqueó la ventana emergente. Por favor, permite las ventanas emergentes para ver el PDF.");
+        alert("⚠️ El navegador bloqueó la ventana emergente. Por favor, permítelas para ver el comprobante.");
         return;
     }
 
@@ -1976,43 +1977,114 @@ window.generarComprobanteAbono = function(datos) {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Comprobante de Pago - ${datos.cliente}</title>
+            <meta charset="UTF-8">
+            <title>Recibo de Abono - ${datos.cliente}</title>
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                body { font-family: 'Inter', sans-serif; padding: 20px; color: #1a1a1a; background: #fff; }
-                .ticket { border: 1px solid #eee; max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 15px; }
-                .header { text-align: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 15px; }
-                .business-name { font-weight: 900; font-size: 22px; text-transform: uppercase; }
-                .monto-principal { background: #f0fdf4; padding: 15px; border-radius: 10px; text-align: center; margin: 20px 0; }
-                .monto-principal h2 { margin: 0; color: #15803d; font-size: 28px; }
-                table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 15px; }
-                th { text-align: left; padding: 8px; border-bottom: 1px solid #eee; color: #666; }
-                td { padding: 8px; border-bottom: 1px solid #eee; }
-                .total-deuda { margin-top: 20px; text-align: right; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; }
-                @media print { .no-print { display: none; } }
+                @page { size: letter; margin: 15mm; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 12px; background-color: #f4f4f4; padding: 20px; }
+                
+                .actions-bar { 
+                    max-width: 210mm; margin: 0 auto 10px auto; 
+                    display: flex; justify-content: flex-end; 
+                }
+                .btn-print { 
+                    background: ${colorOxido}; color: white; border: none; padding: 10px 20px; 
+                    border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px;
+                }
+
+                .sheet { 
+                    background: white; width: 210mm; min-height: 140mm; 
+                    margin: 0 auto; padding: 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.2);
+                    border-radius: 5px; position: relative; box-sizing: border-box;
+                }
+
+                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 15px; }
+                
+                .logo-c { 
+                    width:45px; height:45px; background:${colorOxido}; color:white; 
+                    display:flex; align-items:center; justify-content:center; 
+                    font-weight:bold; font-size:24px; border-radius:4px; margin-right:12px; 
+                }
+
+                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 12px; margin-bottom: 15px; border: 1px solid #eee; }
+                
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th { background: ${colorOxido}; color: white; padding: 10px; font-size: 11px; text-transform: uppercase; text-align: left; }
+                td { padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; }
+
+                .totals-box { width: 280px; margin-left: auto; margin-top: 20px; background: #fdf8f5; padding: 15px; border: 1px solid #eee; border-radius: 4px; }
+                
+                .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
+
+                @media print {
+                    body { background: white; padding: 0; }
+                    .sheet { box-shadow: none; width: 100%; margin: 0; padding: 10mm; }
+                    .actions-bar { display: none; }
+                }
             </style>
         </head>
         <body>
-            <div class="no-print" style="text-align: center; margin-bottom: 10px;">
-                <button onclick="window.print()" style="padding: 10px; cursor:pointer;">🖨️ IMPRIMIR / GUARDAR PDF</button>
+            <div class="actions-bar">
+                <button class="btn-print" onclick="window.print()">🖨️ Imprimir o Guardar PDF</button>
             </div>
-            <div class="ticket">
+
+            <div class="sheet">
                 <div class="header">
-                    <div class="business-name">CREATIVAC GESTIÓN</div>
-                    <small>COMPROBANTE DE ABONO</small>
+                    <div style="display:flex; align-items:center;">
+                        <div class="logo-c">C</div>
+                        <div>
+                            <h2 style="margin:0; color:${colorOxido}; font-size:18px;">CREATIVA CORTES CNC</h2>
+                            <p style="margin:0; font-size:9px; letter-spacing: 1px;">DISEÑO • CORTE • PRECISIÓN</p>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <h1 style="margin:0; color:${colorOxido}; font-size:18px;">RECIBO DE ABONO #${numRecibo}</h1>
+                        <p style="margin:0; font-size:11px;">${fecha}</p>
+                    </div>
                 </div>
-                <p><b>Fecha:</b> ${fecha}<br><b>Cliente:</b> ${datos.cliente}<br><b>Método:</b> ${datos.metodo}</p>
-                <div class="monto-principal">
-                    <span>CANTIDAD RECIBIDA</span>
-                    <h2>$${datos.montoTotal.toFixed(2)}</h2>
+
+                <div class="data-grid">
+                    <div>
+                        <strong>CLIENTE:</strong> ${datos.cliente}<br>
+                        <strong>MÉTODO DE PAGO:</strong> ${datos.metodo}
+                    </div>
+                    <div style="text-align:right;">
+                        <strong>TIPO DE DOCUMENTO:</strong> COMPROBANTE DE PAGO EN CASCADA
+                    </div>
                 </div>
+
                 <table>
-                    <thead><tr><th>Folio Venta</th><th style="text-align:right;">Monto</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th style="width: 70%;">Descripción de Aplicación (Lógica FIFO)</th>
+                            <th style="width: 30%; text-align: right;">Monto Abonado</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        ${datos.distribucion.map(item => `<tr><td>Venta #${item.id}</td><td style="text-align:right;">$${item.monto.toFixed(2)}</td></tr>`).join('')}
+                        ${datos.distribucion.map(item => `
+                            <tr>
+                                <td>Abono aplicado a la Venta Folio #${item.id}</td>
+                                <td style="text-align: right; font-weight: bold;">$${item.monto.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
                     </tbody>
                 </table>
-                <div class="total-deuda">Saldo Pendiente Total: $${datos.deudaRestante.toFixed(2)}</div>
+
+                <div class="totals-box">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:14px;">
+                        <span>Monto Recibido:</span> 
+                        <span style="font-weight:bold; color:green;">$${datos.montoTotal.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:2px solid ${colorOxido}; margin-top:10px; font-size:16px; padding-top:10px;">
+                        <span>SALDO PENDIENTE:</span> 
+                        <span>$${datos.deudaRestante.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    📱 WhatsApp: 985 111 2233 | 📍 Valladolid, Yucatán | Creativa Cortes CNC<br>
+                    <small style="display:block; margin-top:5px;">Este recibo es un comprobante de abono a cuenta. Conserve para cualquier aclaración.</small>
+                </div>
             </div>
         </body>
         </html>
