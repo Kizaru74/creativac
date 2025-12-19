@@ -3534,8 +3534,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
     const showActions = mode === 'gestion';
 
     try {
-        // 1. Obtener la lista base de clientes
-        // Nota: Quitamos 'deuda_total' de aquí porque causa el error 42703 en tu consola
+        // 1. Obtener lista base
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3543,85 +3542,101 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
-        // --- 🟢 ACTUALIZACIÓN DE MAPAS GLOBALES ---
+        // --- Actualización de Mapas Globales ---
         window.allClients = clients; 
         window.allClientsMap = {}; 
-        clients.forEach(c => {
-            window.allClientsMap[c.client_id] = c;
-        });
+        clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
 
-        // 2. Resumen de ventas (Para mostrar en la tabla)
+        // 2. Obtener Resúmenes (Totales y Deudas)
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Renderizado
+        // 3. Renderizado con Estilo Premium
         container.innerHTML = '';
+
+        if (clients.length === 0) {
+            container.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">No hay clientes registrados</td></tr>`;
+            return;
+        }
 
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50 border-b';
+            row.className = 'group hover:bg-gray-50/50 transition-all duration-200 border-b border-gray-100';
 
             const deudaVisual = summary.deudaNeta;
+            const tieneDeuda = deudaVisual > 0.01;
 
             let actionCell = '';
             if (showActions) {
                 actionCell = `
-                    <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                        <button type="button" class="edit-client-btn text-indigo-600 hover:text-indigo-900" 
-                                data-client-id="${client.client_id}" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-
-                        <button type="button" class="abono-btn text-green-600 hover:text-green-900" 
-                                onclick="window.handleAbonoClick(${client.client_id})" title="Abonar">
-                            <i class="fas fa-hand-holding-usd"></i>
-                        </button>
-
-                        <button type="button" class="view-debt-btn text-blue-600 hover:text-blue-900" 
-                                data-client-id="${client.client_id}" title="Estado de Cuenta">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                        </button>
-
-                        <button type="button" class="delete-client-btn text-red-600 hover:text-red-900" 
-                                data-client-id="${client.client_id}" 
-                                data-client-name="${client.name}" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex justify-end items-center space-x-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                            <button type="button" class="edit-client-btn p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" 
+                                    data-id="${client.client_id}" title="Editar Perfil">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="abono-btn p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" 
+                                    onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Abono">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </button>
+                            <button type="button" class="view-debt-btn p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
+                                    data-id="${client.client_id}" title="Estado de Cuenta">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                            </button>
+                            <button type="button" class="delete-client-btn p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" 
+                                    data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
             }
             
             row.innerHTML = `
-                <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-400">#${client.client_id}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold text-gray-900">${client.name}</td>
-                <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${client.telefono || '---'}</td>
-                
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-gray-700">
-                    ${formatCurrency(summary.totalVentas)}
+                <td class="px-4 py-4 whitespace-nowrap">
+                    <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#${client.client_id}</span>
                 </td>
-                
-                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold 
-                    ${deudaVisual > 0.01 ? 'text-red-600' : 'text-green-600'}">
-                    ${formatCurrency(deudaVisual)}
+                <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="h-8 w-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs mr-3">
+                            ${client.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="text-sm font-bold text-slate-800">${client.name}</div>
+                    </div>
                 </td>
-                
+                <td class="px-4 py-4 whitespace-nowrap text-xs text-slate-500">
+                    <i class="fas fa-phone-alt mr-2 opacity-30"></i>
+                    ${client.telefono || '<span class="italic opacity-50">Sin teléfono</span>'}
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Compras</div>
+                    <div class="text-sm font-medium text-slate-700">${formatCurrency(summary.totalVentas)}</div>
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Saldo Pendiente</div>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                        tieneDeuda ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/10' : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10'
+                    }">
+                        <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-600' : 'bg-emerald-600'} mr-2 ${tieneDeuda ? 'animate-pulse' : ''}"></span>
+                        ${formatCurrency(deudaVisual)}
+                    </span>
+                </td>
                 ${actionCell} 
             `;
             container.appendChild(row);
         });
 
-        // 4. Re-enlazar Event Listeners
+        // --- 4. Re-vincular eventos a los nuevos elementos ---
         if (showActions) {
             container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => handleEditClientClick(btn.dataset.clientId);
-            });
-            container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                // CORRECCIÓN: Llamamos a la función que abre el modal nuevo
-                btn.onclick = () => handleDeleteClientClick(btn.dataset.clientId);
+                btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
             });
             container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => handleViewClientDebt(btn.dataset.clientId);
+                btn.onclick = () => window.handleViewClientDebt(btn.dataset.id);
+            });
+            container.querySelectorAll('.delete-client-btn').forEach(btn => {
+                btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name);
             });
         }
 
