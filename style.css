@@ -150,6 +150,88 @@ button.loading i:not(.btn-spinner) {
     display: none !important;
 }
 
+/* --- CORRECCIONES PARA TABLA DE PRODUCTOS --- */
+
+/* 1. Fondo de los IDs y Avatares de Producto */
+.product-table-row .bg-white, 
+.product-table-row .bg-slate-100,
+#products-list-body .bg-white,
+#products-list-body .bg-slate-100 {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 2. Forzar texto naranja en IDs de productos */
+#products-list-body .font-mono, 
+#products-list-body [class*="text-slate-"] {
+    color: #f97316 !important;
+}
+
+/* 3. Ajuste de Badges (PRINCIPAL / SUBPRODUCTO) */
+#products-list-body .bg-indigo-50, 
+#products-list-body .bg-amber-50 {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* --- CORRECCIÓN FINAL DE SPINNERS (REPORTE MENSUAL) --- */
+
+/* Ocultar spinner por defecto */
+#monthly-sales-report-body .btn-spinner {
+    display: none !important;
+}
+
+/* Mostrar spinner y ocultar icono solo cuando tiene clase .loading */
+#monthly-sales-report-body button.loading .btn-spinner {
+    display: inline-block !important;
+}
+
+#monthly-sales-report-body button.loading i:not(.btn-spinner) {
+    display: none !important;
+}
+
+/* Ajuste visual del ID en reportes (basado en tu imagen) */
+#monthly-sales-report-body .bg-slate-100 {
+    background-color: #1e1e1e !important;
+    color: #f97316 !important;
+    border: 1px solid rgba(249, 115, 22, 0.3) !important;
+    padding: 2px 6px !important;
+}
+
+/* --- CORRECCIÓN DE VISIBILIDAD DE ACCIONES --- */
+
+/* 1. Ocultar spinner por defecto */
+.btn-action-report .btn-spinner,
+#monthly-sales-report-body .btn-spinner {
+    display: none !important;
+}
+
+/* 2. Mostrar spinner solo cuando se añade la clase 'loading' */
+.btn-action-report.loading .btn-spinner,
+#monthly-sales-report-body button.loading .btn-spinner {
+    display: inline-block !important;
+}
+
+/* 3. Ocultar el icono de basura/ojo cuando está cargando */
+.btn-action-report.loading i:not(.btn-spinner),
+#monthly-sales-report-body button.loading i:not(.btn-spinner) {
+    display: none !important;
+}
+
+/* 4. Corregir ID blanco (basado en tu imagen) */
+#monthly-sales-report-body .bg-slate-100,
+#products-list-body .bg-slate-100 {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #f97316 !important; /* Texto naranja para resaltar el ID */
+    border: 1px solid rgba(249, 115, 22, 0.2) !important;
+}
+
+/* Asegúrate de que esto esté en tu style.css para que funcione en todas las tablas */
+.btn-action-report.loading .btn-spinner,
+.btn-product-action.loading .btn-spinner {
+    display: inline-block !important;
+}
+
 /* Corregir ID blanco en reportes */
 #monthly-sales-report-body .bg-slate-100 {
     background-color: rgba(255, 255, 255, 0.05) !important; /* Fondo casi transparente */

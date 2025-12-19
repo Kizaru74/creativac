@@ -3651,128 +3651,8 @@ async function loadClientDebtsTable() {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
     }
 }
-window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
-    const container = document.getElementById('clients-list-body');
-    if (!container) return;
-
-    const showActions = mode === 'gestion';
-
-    try {
-        // 1. Obtener lista base
-        const { data: clients, error: clientsError } = await supabase
-            .from('clientes')
-            .select('client_id, name, telefono') 
-            .order('name', { ascending: true });
-
-        if (clientsError) throw clientsError;
-
-        // --- Actualización de Mapas Globales ---
-        window.allClients = clients; 
-        window.allClientsMap = {}; 
-        clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
-
-        // 2. Obtener Resúmenes (Totales y Deudas)
-        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
-        const summaries = await Promise.all(summaryPromises);
-
-        // 3. Renderizado con Estilo Premium
-        container.innerHTML = '';
-
-        if (clients.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">No hay clientes registrados</td></tr>`;
-            return;
-        }
-
-        clients.forEach((client, index) => {
-            const summary = summaries[index];
-            const row = document.createElement('tr');
-            row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
-
-            const deudaVisual = summary.deudaNeta;
-            const tieneDeuda = deudaVisual > 0.01;
-
-            let actionCell = '';
-            if (showActions) {
-                actionCell = `
-                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex justify-end items-center space-x-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                            <button type="button" class="edit-client-btn p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" 
-                                    data-id="${client.client_id}" title="Editar Perfil">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="abono-btn p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" 
-                                    onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Abono">
-                                <i class="fas fa-hand-holding-usd"></i>
-                            </button>
-                            <button type="button" class="view-debt-btn p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
-                                    data-id="${client.client_id}" title="Estado de Cuenta">
-                                <i class="fas fa-file-invoice-dollar"></i>
-                            </button>
-                            <button type="button" class="delete-client-btn p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" 
-                                    data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-            }
-            
-            row.innerHTML = `
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#${client.client_id}</span>
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <div class="h-8 w-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs mr-3">
-                            ${client.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div class="text-sm font-bold text-slate-800">${client.name}</div>
-                    </div>
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap text-xs text-slate-500">
-                    <i class="fas fa-phone-alt mr-2 opacity-30"></i>
-                    ${client.telefono || '<span class="italic opacity-50">Sin teléfono</span>'}
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Compras</div>
-                    <div class="text-sm font-medium text-slate-700">${formatCurrency(summary.totalVentas)}</div>
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Saldo Pendiente</div>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                        tieneDeuda ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/10' : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10'
-                    }">
-                        <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-600' : 'bg-emerald-600'} mr-2 ${tieneDeuda ? 'animate-pulse' : ''}"></span>
-                        ${formatCurrency(deudaVisual)}
-                    </span>
-                </td>
-                ${actionCell} 
-            `;
-            container.appendChild(row);
-        });
-
-        // --- 4. Re-vincular eventos a los nuevos elementos ---
-        if (showActions) {
-            container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
-            });
-            container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => window.handleViewClientDebt(btn.dataset.id);
-            });
-            container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name);
-            });
-        }
-
-    } catch (e) {
-        console.error('Error al cargar tabla de clientes:', e);
-    }
-};
+const row = document.createElement('tr');
+row.className = 'product-table-row group hover:bg-white/5 transition-all border-b border-white/5';
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
@@ -4233,11 +4113,11 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
 
         if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) return;
 
-        // Estado de carga elegante
+        // Estado de carga elegante (Spinner de carga inicial)
         reportBody.innerHTML = `
             <tr>
                 <td colspan="5" class="px-6 py-10 text-center">
-                    <div class="flex justify-center items-center space-x-2 text-slate-400">
+                    <div class="flex justify-center items-center space-x-2 text-orange-500">
                         <i class="fas fa-circle-notch animate-spin"></i>
                         <span class="text-sm font-medium">Sincronizando reportes...</span>
                     </div>
@@ -4277,50 +4157,51 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
                     const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
                     const tienePendiente = sale.saldo_pendiente > 0.01;
                     
+                    // --- AQUÍ ESTÁ EL CAMBIO PRINCIPAL ---
                     const rowHTML = `
-                        <tr class="group hover:bg-slate-50/50 transition-colors border-b border-slate-100">
+                        <tr class="group hover:bg-white/5 transition-all duration-300 border-b border-white/5">
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded inline-block">ID #${sale.venta_id}</div>
-                                <div class="text-[10px] text-slate-500 mt-1 uppercase tracking-tight font-medium italic">${formattedDate}</div>
+                                <div class="text-[11px] font-mono text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded inline-block border border-orange-500/20">ID #${sale.venta_id}</div>
+                                <div class="text-[10px] text-white/50 mt-1 uppercase tracking-tight font-medium italic">${formattedDate}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <div class="h-7 w-7 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-bold mr-3 border border-indigo-100">
+                                    <div class="h-7 w-7 rounded bg-orange-600 text-white flex items-center justify-center text-[10px] font-bold mr-3 shadow-lg shadow-orange-600/20">
                                         ${clientName.charAt(0)}
                                     </div>
-                                    <div class="text-sm font-semibold text-slate-700">${clientName}</div>
+                                    <div class="text-sm font-semibold text-white">${clientName}</div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-slate-800">
-                                ${formatCurrency(sale.total_amount)}
-                                <div class="text-[9px] text-slate-400 font-normal uppercase">${sale.metodo_pago}</div>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <div class="text-sm font-bold text-white">${formatCurrency(sale.total_amount)}</div>
+                                <div class="text-[9px] text-white/40 font-normal uppercase">${sale.metodo_pago}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <span class="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-bold ${
                                     tienePendiente 
-                                    ? 'bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20' 
-                                    : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20'
+                                    ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
+                                    : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                                 }">
                                     ${formatCurrency(sale.saldo_pendiente)}
                                 </span>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                
-                <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
-                        class="btn-action-report btn-view" title="Ver Detalles">
-                    <i class="fas fa-eye text-xs"></i>
-                    <i class="fas fa-circle-notch animate-spin btn-spinner"></i>
-                </button>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
+                                            class="btn-action-report btn-view" title="Ver Detalles">
+                                        <i class="fas fa-eye text-xs"></i>
+                                        <i class="fas fa-circle-notch animate-spin btn-spinner"></i>
+                                    </button>
 
-                <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                        class="btn-action-report btn-delete" title="Anular Venta">
-                    <i class="fas fa-trash-alt text-xs"></i>
-                    <i class="fas fa-circle-notch animate-spin btn-spinner"></i>
-                </button>
-            </div>
-        </td>
-    </tr>
-`;
+                                    <button onclick="handleDeleteSale(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
+                                            class="btn-action-report btn-delete" title="Anular Venta">
+                                        <i class="fas fa-trash-alt text-xs"></i>
+                                        <i class="fas fa-circle-notch animate-spin btn-spinner"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
                     reportBody.insertAdjacentHTML('beforeend', rowHTML); 
                 });
                 noDataMessage.classList.add('hidden'); 
@@ -4339,56 +4220,49 @@ function loadMonthlySalesReport(selectedMonthFromEvent, selectedYearFromEvent) {
 }
 
 //Borrar venta
-window.handleDeleteSale = async function(ventaId, currentMonth, currentYear) {
+window.handleDeleteSale = async function(btn, ventaId, currentMonth, currentYear) {
     if (!supabase) {
         alert("Error de conexión a la base de datos.");
         return;
     }
 
     const confirmDeletion = confirm(
-        `ADVERTENCIA: ¿Está seguro de que desea eliminar la Venta #${ventaId}? 
-        
-        Esta acción es irreversible, eliminará todos los detalles y pagos asociados, y afectará la deuda del cliente.
-        
-        Presione OK para continuar.`
+        `ADVERTENCIA: ¿Está seguro de que desea eliminar la Venta #${ventaId}? \n\nEsta acción es irreversible y afectará la deuda del cliente.`
     );
 
-    if (!confirmDeletion) {
-        return;
-    }
+    if (!confirmDeletion) return;
+
+    // 1. Activar estado de carga en el botón (Oculta el icono y muestra el spinner)
+    if (btn) btn.classList.add('loading');
 
     try {
-        // 1. Eliminación en Supabase
-        // (Asumimos que las cascadas están configuradas para detalle_ventas y pagos)
+        // 2. Eliminación en Supabase
         const { error } = await supabase
             .from('ventas')
             .delete()
             .eq('venta_id', ventaId);
 
         if (error) {
-             // Detalle de error para el desarrollador
             console.error("Error de eliminación en Supabase:", error);
-            if (error.code === '23503') { // Código de error común para violación de FK (si las cascadas no están)
-                throw new Error("Violación de restricción: La venta tiene registros asociados que no se pudieron eliminar. Revise las reglas de 'ON DELETE CASCADE' en su base de datos.");
-            }
             throw error;
         }
 
-        // 2. Éxito: Notificar y Recargar el Reporte
+        // 3. Éxito: Notificar y Recargar
         alert(`Venta #${ventaId} eliminada exitosamente.`);
         
-        // Recargar el reporte mensual con los mismos filtros
         if (typeof loadMonthlySalesReport === 'function') {
             await loadMonthlySalesReport(currentMonth, currentYear); 
         } else {
-            // Último recurso si la recarga falla (NO RECOMENDADO)
             location.reload(); 
         }
         
     } catch (e) {
         console.error('Error al eliminar la venta:', e);
-        alert(`Error al eliminar la venta. Detalles: ${e.message}`);
-    } 
+        alert(`Error al eliminar la venta: ${e.message}`);
+    } finally {
+        // 4. Quitar estado de carga (Vuelve a mostrar la basura si hay error o termina)
+        if (btn) btn.classList.remove('loading');
+    }
 }
 
 function initializeMonthSelector() {
@@ -4860,11 +4734,11 @@ window.loadAndRenderProducts = async function() {
                     <div class="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
                         <button onclick="handleEditProductClick(${producto.producto_id})" 
                                 class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Editar">
-                            <i class="fas fa-edit text-xs"></i>
+                            <i class="fas fa-edit text-xl"></i>
                         </button>
                         <button onclick="handleDeleteProductClick(${producto.producto_id})" 
                                 class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Eliminar">
-                            <i class="fas fa-trash-alt text-xs"></i>
+                            <i class="fas fa-trash-alt text-xl"></i>
                         </button>
                     </div>
                 </td>
