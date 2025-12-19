@@ -231,75 +231,100 @@ async function handleLogout() {
 
 async function loadDebts() {
     try {
+        console.log("Cargando gestión de deudas...");
+        
         const { data, error } = await supabase
             .from('ventas')
-            .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name, client_id)') // 👈 Añadimos client_id para el modal de deuda
+            .select('venta_id, created_at, total_amount, saldo_pendiente, clientes(name, client_id)')
             .gt('saldo_pendiente', 0.01) 
-            .order('created_at', { ascending: false })
-            .limit(5); 
+            .order('created_at', { ascending: false }); // Quitamos el limit para que el buscador funcione con todo
 
         if (error) {
             console.error('Error al cargar tabla de deudas:', error);
             return;
         }
 
-        const container = document.getElementById('debt-sales-body'); 
+        // Usamos el ID de tu tabla premium: 'debts-table-body'
+        const container = document.getElementById('debts-table-body'); 
         if (!container) return; 
         
-        // 1. Limpiar el contenedor antes de dibujar
         container.innerHTML = '';
         
-        const noDebtMessage = document.getElementById('no-debt-message');
+        const noDebtMessage = document.getElementById('no-debts-message');
         if (noDebtMessage) noDebtMessage.classList.add('hidden');
 
         if (data.length === 0) {
             if (noDebtMessage) noDebtMessage.classList.remove('hidden');
+            // Si no hay deudas, ponemos las tarjetas en 0
+            actualizarTarjetasDeuda(0, 0, 0); 
             return;
         }
 
-        // 2. Renderizar filas (Preparando el botón para el re-enlace)
+        // Variables para calcular los totales de las tarjetas mientras recorremos
+        let acumuladoTotal = 0;
+        let deudaMaxima = 0;
+
         data.forEach(debt => {
             const clientName = debt.clientes?.name || 'Cliente Desconocido';
-            // Para el modal de deuda, es mejor pasar el client_id
             const clientId = debt.clientes?.client_id; 
+            const saldo = Number(debt.saldo_pendiente) || 0;
+
+            // Sumamos para las tarjetas
+            acumuladoTotal += saldo;
+            if (saldo > deudaMaxima) deudaMaxima = saldo;
             
             const row = document.createElement('tr');
-            row.className = 'hover:bg-gray-50';
+            row.className = 'hover:bg-white/[0.02] transition-colors border-b border-white/5';
             
             row.innerHTML = `
-                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${debt.venta_id}</td>
-                <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
-                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-red-600">${formatCurrency(debt.saldo_pendiente)}</td>
-                <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <td class="px-8 py-5">
+                    <div class="text-white font-bold">${clientName}</div>
+                    <div class="text-[10px] text-gray-500 uppercase">Venta #${debt.venta_id}</div>
+                </td>
+                <td class="px-8 py-5">
+                    <div class="text-orange-500 font-black">${formatCurrency(saldo)}</div>
+                    <div class="text-[10px] text-gray-600">Total: ${formatCurrency(debt.total_amount)}</div>
+                </td>
+                <td class="px-8 py-5 text-gray-400 text-xs">
+                    ${new Date(debt.created_at).toLocaleDateString()}
+                </td>
+                <td class="px-8 py-5 text-right">
                     <button 
                         type="button" 
-                        class="view-debt-btn" 
                         data-client-id="${clientId}" 
-                        data-sale-id="${debt.venta_id}" // Si necesitas la venta, mantenla
-            class="view-debt-btn bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-1 px-2 rounded"
+                        class="view-debt-btn bg-orange-600/10 hover:bg-orange-600 text-orange-500 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition-all"
                     >
-                        Detalles/Pagar
+                        DETALLES / PAGAR
                     </button>
                 </td>
             `;
             container.appendChild(row);
         });
 
-        // =======================================================
-        // 🛑 CRÍTICO: RE-ENLACE DE EVENTOS (Abre el modal de deuda del cliente)
-        // =======================================================
+        // 🛑 RE-ENLACE DE EVENTOS
         container.querySelectorAll('.view-debt-btn').forEach(button => {
             button.addEventListener('click', () => {
-                const clientId = button.dataset.clientId;
-                
-                // ➡️ Esta función debe ser la que abre el modal-client-debt
-                handleViewClientDebt(clientId); 
+                handleViewClientDebt(button.dataset.clientId); 
             });
         });
+
+        // 📊 ACTUALIZAR TARJETAS (Usamos los datos que ya tenemos para no volver a consultar)
+        renderizarTarjetas(acumuladoTotal, data.length, deudaMaxima);
 
     } catch (e) {
         console.error('Error inesperado en loadDebts:', e);
     }
+}
+
+// Función auxiliar para pintar las tarjetas rápidamente
+function renderizarTarjetas(total, cantidad, max) {
+    const elTotal = document.getElementById('total-deuda-global');
+    const elCant = document.getElementById('total-clientes-deuda');
+    const elMax = document.getElementById('max-deuda-individual');
+
+    if (elTotal) elTotal.innerText = formatCurrency(total);
+    if (elCant) elCant.innerText = cantidad;
+    if (elMax) elMax.innerText = formatCurrency(max);
 }
 
 async function loadRecentSales() {
@@ -1161,43 +1186,42 @@ window.refreshAllProductSelects = function() {
 // ====================================================================
 // 7. MANEJO DEL PAGO Y LA DEUDA 
 // ====================================================================
-async function actualizarMetricasDeudas() {
+async function actualizarTarjetasDeuda() {
     try {
-        const { data: clientes, error } = await supabase
-            .from('clientes')
+        // Consultamos la tabla 'ventas'
+        const { data: deudas, error } = await supabase
+            .from('ventas')
             .select('saldo_pendiente')
-            .gt('saldo_pendiente', 0); // Solo los que deben algo
+            .gt('saldo_pendiente', 0); // Filtramos solo las que tienen saldo mayor a 0
 
         if (error) throw error;
 
-        let totalGlobal = 0;
-        let maxDeuda = 0;
-        let cantidadDeudores = clientes ? clientes.length : 0;
+        let sumaTotal = 0;
+        let maxSaldo = 0;
+        let cantidadVentasConDeuda = deudas ? deudas.length : 0;
 
-        if (clientes) {
-            clientes.forEach(c => {
-                const deuda = Number(c.saldo_pendiente) || 0;
-                totalGlobal += deuda;
-                if (deuda > maxDeuda) maxDeuda = deuda;
+        if (deudas) {
+            deudas.forEach(v => {
+                const monto = Number(v.saldo_pendiente) || 0;
+                sumaTotal += monto;
+                if (monto > maxSaldo) maxSaldo = monto;
             });
         }
 
-        // Formato de moneda
-        const formatter = new Intl.NumberFormat('es-MX', {
-            style: 'currency', currency: 'MXN'
-        });
+        const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
-        // Inyectar en el HTML
-        const elTotal = document.getElementById('total-deuda-global');
-        const elCantidad = document.getElementById('total-clientes-deuda');
-        const elMax = document.getElementById('max-deuda-individual');
-
-        if (elTotal) elTotal.innerText = formatter.format(totalGlobal);
-        if (elCantidad) elCantidad.innerText = cantidadDeudores;
-        if (elMax) elMax.innerText = formatter.format(maxDeuda);
+        // Actualizamos los IDs de las tarjetas que pusimos en el HTML
+        if (document.getElementById('total-deuda-global')) 
+            document.getElementById('total-deuda-global').innerText = fmt.format(sumaTotal);
+        
+        if (document.getElementById('total-clientes-deuda')) 
+            document.getElementById('total-clientes-deuda').innerText = cantidadVentasConDeuda;
+        
+        if (document.getElementById('max-deuda-individual')) 
+            document.getElementById('max-deuda-individual').innerText = fmt.format(maxSaldo);
 
     } catch (err) {
-        console.error("Error al actualizar métricas de deuda:", err);
+        console.error("Error al actualizar tarjetas de deuda:", err.message);
     }
 }
 
