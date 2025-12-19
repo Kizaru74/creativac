@@ -420,71 +420,89 @@ window.loadDebtsTable = async function() {
     const tableBody = document.getElementById('debts-table-body');
     const noDebtsMsg = document.getElementById('no-debts-message');
     
-    if (!tableBody) return;
-
     try {
-        // 1. Obtener clientes con deuda directamente de la base de datos
-        const { data: deudores, error } = await supabase
-            .from('clientes')
-            .select('*')
-            .gt('deuda_total', 0.01) // Solo los que deben más de 1 centavo
-            .order('deuda_total', { ascending: false });
+        // 1. Consultar ventas con saldo > 0 y traer datos del cliente asociado
+        const { data: ventas, error } = await supabase
+            .from('ventas')
+            .select(`
+                saldo_pendiente,
+                client_id,
+                clientes (
+                    name,
+                    phone
+                )
+            `)
+            .gt('saldo_pendiente', 0); // Solo deudas reales
 
         if (error) throw error;
 
-        // 2. Si no hay deudores, limpiar y mostrar mensaje
-        if (!deudores || deudores.length === 0) {
-            tableBody.innerHTML = '';
+        // 2. Agrupar deudas por cliente (ya que un cliente puede tener varias ventas pendientes)
+        const agrupado = ventas.reduce((acc, v) => {
+            const id = v.client_id || 'anonimo';
+            if (!acc[id]) {
+                acc[id] = {
+                    client_id: id,
+                    name: v.clientes?.name || 'Cliente General',
+                    phone: v.clientes?.phone || 'S/N',
+                    deuda_acumulada: 0
+                };
+            }
+            acc[id].deuda_acumulada += parseFloat(v.saldo_pendiente || 0);
+            return acc;
+        }, {});
+
+        const listaDeudores = Object.values(agrupado).sort((a, b) => b.deuda_acumulada - a.deuda_acumulada);
+
+        // 3. Manejo de interfaz si no hay deudas
+        if (listaDeudores.length === 0) {
+            if (tableBody) tableBody.innerHTML = '';
             if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
-            actualizarMetricasDeudas(0, 0, 0);
+            actualizarMetricasDeDeudas(0, 0, 0);
             return;
         }
 
         if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
 
-        // 3. Calcular valores para las tarjetas (Métricas)
-        const totalGlobal = deudores.reduce((sum, c) => sum + (c.deuda_total || 0), 0);
-        const totalClientes = deudores.length;
-        const deudaMaxima = Math.max(...deudores.map(c => c.deuda_total || 0));
+        // 4. Calcular métricas para las tarjetas
+        const totalGlobal = listaDeudores.reduce((sum, d) => sum + d.deuda_acumulada, 0);
+        const maxDeuda = Math.max(...listaDeudores.map(d => d.deuda_acumulada));
+        actualizarMetricasDeDeudas(totalGlobal, listaDeudores.length, maxDeuda);
 
-        // Actualizar las tarjetas superiores
-        actualizarMetricasDeudas(totalGlobal, totalClientes, deudaMaxima);
-
-        // 4. Renderizar la Tabla con el estilo premium
-        tableBody.innerHTML = deudores.map(client => `
-            <tr class="hover:bg-white/[0.02] transition-colors group border-b border-white/5">
-                <td class="px-10 py-6">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 font-bold">
-                            ${client.name.charAt(0).toUpperCase()}
+        // 5. Renderizar filas
+        if (tableBody) {
+            tableBody.innerHTML = listaDeudores.map(d => `
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                    <td class="px-10 py-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 font-bold">
+                                ${d.name.charAt(0)}
+                            </div>
+                            <div>
+                                <div class="font-bold text-white text-base">${d.name}</div>
+                                <div class="text-[10px] text-gray-600 font-bold uppercase tracking-widest">${d.phone}</div>
+                            </div>
                         </div>
-                        <div>
-                            <div class="font-bold text-white text-base">${client.name}</div>
-                            <div class="text-[10px] text-gray-600 font-bold uppercase tracking-widest">${client.phone || 'Sin teléfono'}</div>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-10 py-6 text-center">
-                    <div class="text-xl font-black text-orange-500 tracking-tighter">
-                        ${formatCurrency(client.deuda_total)}
-                    </div>
-                </td>
-                <td class="px-10 py-6">
-                    <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${client.deuda_total > 5000 ? 'bg-red-500/10 text-red-500' : 'bg-orange-500/10 text-orange-500'}">
-                        ${client.deuda_total > 5000 ? 'Riesgo Crítico' : 'Pendiente'}
-                    </span>
-                </td>
-                <td class="px-10 py-6 text-right">
-                    <button onclick="window.handleViewClientPayments(${client.client_id})" 
-                            class="bg-white/5 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-orange-900/20">
-                        Gestionar Pagos
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+                    </td>
+                    <td class="px-10 py-6 text-center text-xl font-black text-orange-500 tracking-tighter">
+                        ${formatCurrency(d.deuda_acumulada)}
+                    </td>
+                    <td class="px-10 py-6">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${d.deuda_acumulada > 2000 ? 'bg-red-500/10 text-red-500' : 'bg-orange-500/10 text-orange-500'}">
+                            ${d.deuda_acumulada > 2000 ? 'Prioridad' : 'Activa'}
+                        </span>
+                    </td>
+                    <td class="px-10 py-6 text-right">
+                        <button onclick="window.handleViewClientPayments(${d.client_id})" 
+                                class="bg-white/5 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-orange-900/20">
+                            Detalles
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
     } catch (err) {
-        console.error("Error en loadDebtsTable:", err);
+        console.error("Error cargando deudas:", err);
     }
 };
 //Llena el SELECT de Producto Padre en el modal de edición
