@@ -79,3 +79,16 @@ input:-webkit-autofill:focus {
     /* Esto evita que contenedores genéricos cambien de color al pasar el mouse */
     background-inherit: inherit;
 }
+
+/* Forzar que todos los elementos hijos de un modal respeten el tema oscuro */
+.modal-overlay *, 
+#lista-notas-pendientes *, 
+#detail-products-body * {
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Evitar que el texto se ponga negro en el hover */
+*:hover {
+    color: inherit;
+}
