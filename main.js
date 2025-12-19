@@ -2073,7 +2073,7 @@ window.generarComprobanteAbono = function(datos) {
                         <div class="logo-c">C</div>
                         <div>
                             <h2 style="margin:0; color:${colorOxido}; font-size:18px;">CREATIVA CORTES CNC</h2>
-                            <p style="margin:0; font-size:9px; letter-spacing: 1px;">DISEÑO • CORTE • PRECISIÓN</p>
+                            <p style="margin:0; font-size:9px; letter-spacing: 1px;">DISEÑO • CORTE •</p>
                         </div>
                     </div>
                     <div style="text-align:right;">
@@ -2088,14 +2088,14 @@ window.generarComprobanteAbono = function(datos) {
                         <strong>MÉTODO DE PAGO:</strong> ${datos.metodo}
                     </div>
                     <div style="text-align:right;">
-                        <strong>TIPO DE DOCUMENTO:</strong> COMPROBANTE DE PAGO EN CASCADA
+                        <strong>NOTA</strong> DE ABONO
                     </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 70%;">Descripción de Aplicación (Lógica FIFO)</th>
+                            <th style="width: 70%;">Descripción</th>
                             <th style="width: 30%; text-align: right;">Monto Abonado</th>
                         </tr>
                     </thead>
@@ -2121,7 +2121,7 @@ window.generarComprobanteAbono = function(datos) {
                 </div>
 
                 <div class="footer">
-                    📱 WhatsApp: 985 111 2233 | 📍 Valladolid, Yucatán | Creativa Cortes CNC<br>
+                    📱 WhatsApp: 985 100 1141 | 📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán | Creativa Cortes CNC<br>
                     <small style="display:block; margin-top:5px;">Este recibo es un comprobante de abono a cuenta. Conserve para cualquier aclaración.</small>
                 </div>
             </div>
