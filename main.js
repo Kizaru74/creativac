@@ -1835,12 +1835,25 @@ window.handleAbonoClick = function(clientId) {
 };
 
 window.actualizarMetricasDeudas = function(clientes) {
-    const totalDeudaGlobal = clientes.reduce((acc, c) => acc + (parseFloat(c.total_debt) || 0), 0);
-    const clientesConDeuda = clientes.filter(c => (parseFloat(c.total_debt) || 0) > 0).length;
+    // Si 'clientes' no llega, usamos un array vacío para que .reduce no falle
+    const data = clientes || [];
+    
+    console.log("Calculando métricas con:", data.length, "clientes");
 
-    // Actualiza los elementos en el DOM (asegúrate de que estos IDs existan en tu HTML)
-    const metricTotal = document.getElementById('metric-total-deuda');
-    const metricCount = document.getElementById('metric-clientes-deuda');
+    // Calculamos el total sumando el campo deuda_total (o total_debt según tu DB)
+    const totalDeudaGlobal = data.reduce((acc, c) => {
+        const monto = parseFloat(c.deuda_total || c.total_debt || 0);
+        return acc + monto;
+    }, 0);
+
+    const clientesConDeuda = data.filter(c => {
+        const monto = parseFloat(c.deuda_total || c.total_debt || 0);
+        return monto > 0;
+    }).length;
+
+    // Actualizamos el DOM
+    const metricTotal = document.getElementById('total-deuda-global');
+    const metricCount = document.getElementById('total-clientes-deuda');
 
     if (metricTotal) metricTotal.textContent = `$${totalDeudaGlobal.toFixed(2)}`;
     if (metricCount) metricCount.textContent = clientesConDeuda;
@@ -4734,14 +4747,17 @@ window.switchView = async function(viewId) {
             if (typeof loadDashboardData === 'function') await loadDashboardData();
         } 
         else if (viewId === 'deudas-view') {
-            // CARGAMOS LA TABLA
-            if (typeof loadDebtsTable === 'function') await loadDebtsTable();
-            else if (typeof loadDebts === 'function') await loadDebts();
+            // 1. Cargamos los datos de la tabla (esto debería llenar window.allClients)
+            if (typeof loadDebtsTable === 'function') {
+                await loadDebtsTable();
+            } else if (typeof loadDebts === 'function') {
+                await loadDebts();
+            }
             
-            // CARGAMOS LAS NUEVAS TARJETAS (La función que crearemos abajo)
-            await actualizarMetricasDeudas();
-        } 
-        // ... resto de tus condiciones (clients-view, products-view, etc) igual ...
+            // 2. IMPORTANTE: Pasamos la variable global allClients a la función
+            // Usamos window.allClients para asegurar que tome la variable global
+            await actualizarMetricasDeudas(window.allClients);
+        }
     } catch (error) {
         console.error(`Error al cargar datos de la vista ${viewId}:`, error);
     }
