@@ -188,3 +188,58 @@ input, select, textarea {
 #clients-list-body button:hover {
     background-color: rgba(255, 255, 255, 0.1) !important;
 }
+
+/* --- BOTONES DE ACCIÓN EN REPORTES --- */
+
+/* Contenedor de acciones */
+#monthly-sales-report-body .flex.justify-end {
+    gap: 0.75rem; /* Más espacio entre botones */
+}
+
+/* Estilo base para los botones de acción (Ojo y Basura) */
+#monthly-sales-report-body button {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efecto Hover para el botón "Ver Detalles" (Indigo/Azul) */
+#monthly-sales-report-body button.text-indigo-600:hover {
+    background: rgba(99, 102, 241, 0.15) !important;
+    border-color: rgba(99, 102, 241, 0.4) !important;
+    color: #818cf8 !important;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Efecto Hover para el botón "Anular/Eliminar" (Rojo) */
+#monthly-sales-report-body button.text-red-400:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #ef4444 !important;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Iconos dentro de los botones */
+#monthly-sales-report-body button i {
+    font-size: 0.85rem;
+    transition: transform 0.2s ease;
+}
+
+#monthly-sales-report-body button:hover i {
+    transform: scale(1.15); /* El icono crece un poco al pasar el mouse */
+}
+
+/* Tooltip simple (opcional, si quieres mejorar el título) */
+#monthly-sales-report-body button:active {
+    transform: scale(0.95); /* Efecto de pulsación al hacer clic */
+}
