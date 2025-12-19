@@ -135,3 +135,56 @@ input, select, textarea {
 .fas, .far, .fab {
     color: inherit; /* Hereda el blanco del padre */
 }
+
+/* --- FORZAR TABLA DE CLIENTES A MODO DARK --- */
+
+/* 1. Fondo de las filas y bordes */
+#clients-list-body tr {
+    background-color: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+#clients-list-body tr:hover {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* 2. Forzar todos los textos a blanco/gris claro */
+#clients-list-body td, 
+#clients-list-body .text-slate-800, 
+#clients-list-body .text-slate-700,
+#clients-list-body .text-slate-500 {
+    color: #ffffff !important;
+}
+
+/* 3. Ajuste de los IDs y textos secundarios (Slate 400) */
+#clients-list-body .text-slate-400,
+#clients-list-body .font-mono {
+    color: rgba(255, 255, 255, 0.5) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 4. Ajuste del Avatar (Círculo con inicial) */
+#clients-list-body .bg-slate-800 {
+    background-color: #f97316 !important; /* Cambiado a Naranja Creativa */
+    color: white !important;
+}
+
+/* 5. Ajuste de los Badges de Saldo Pendiente */
+/* Si no tiene deuda (Emerald) */
+#clients-list-body .bg-emerald-50 {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Si tiene deuda (Red) */
+#clients-list-body .bg-red-50 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    color: #ef4444 !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+/* 6. Forzar que los botones de acción no se vean blancos al hover */
+#clients-list-body button:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
