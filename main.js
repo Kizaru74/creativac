@@ -1966,6 +1966,12 @@ window.generarComprobanteAbono = function(datos) {
     const numRecibo = "REC-" + Math.floor(Math.random() * 900000 + 100000);
 
     const printWindow = window.open('', '_blank');
+    
+    if (!printWindow) {
+        alert("⚠️ El navegador bloqueó la ventana emergente. Por favor, permite las ventanas emergentes para ver el PDF.");
+        return;
+    }
+
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -1973,74 +1979,40 @@ window.generarComprobanteAbono = function(datos) {
             <title>Comprobante de Pago - ${datos.cliente}</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                body { font-family: 'Inter', sans-serif; padding: 40px; color: #1a1a1a; line-height: 1.6; background: #f3f4f6; }
-                .ticket { background: white; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 20px; shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; }
-                .header { text-align: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 20px; margin-bottom: 20px; }
-                .business-name { font-weight: 900; font-size: 24px; letter-spacing: -1px; text-transform: uppercase; color: #000; }
-                .receipt-label { background: #000; color: #fff; display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-top: 10px; }
-                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; font-size: 14px; }
-                .info-item b { display: block; color: #6b7280; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
-                .monto-principal { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px; }
-                .monto-principal span { display: block; color: #166534; font-size: 12px; font-weight: bold; }
-                .monto-principal h2 { margin: 0; color: #15803d; font-size: 32px; font-weight: 900; }
-                table { width: 100%; border-collapse: collapse; font-size: 13px; }
-                th { text-align: left; padding: 12px; border-bottom: 2px solid #f3f4f6; color: #6b7280; }
-                td { padding: 12px; border-bottom: 1px solid #f3f4f6; }
-                .total-deuda { margin-top: 30px; padding-top: 20px; border-top: 2px solid #000; text-align: right; }
-                .btn-print { background: #000; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: 0.3s; }
-                .btn-print:hover { background: #374151; }
-                @media print { .no-print { display: none; } body { background: white; padding: 0; } .ticket { border: none; shadow: none; max-width: 100%; } }
+                body { font-family: 'Inter', sans-serif; padding: 20px; color: #1a1a1a; background: #fff; }
+                .ticket { border: 1px solid #eee; max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 15px; }
+                .header { text-align: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 15px; }
+                .business-name { font-weight: 900; font-size: 22px; text-transform: uppercase; }
+                .monto-principal { background: #f0fdf4; padding: 15px; border-radius: 10px; text-align: center; margin: 20px 0; }
+                .monto-principal h2 { margin: 0; color: #15803d; font-size: 28px; }
+                table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 15px; }
+                th { text-align: left; padding: 8px; border-bottom: 1px solid #eee; color: #666; }
+                td { padding: 8px; border-bottom: 1px solid #eee; }
+                .total-deuda { margin-top: 20px; text-align: right; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; }
+                @media print { .no-print { display: none; } }
             </style>
         </head>
         <body>
-            <div class="no-print" style="text-align: center;">
-                <button class="btn-print" onclick="window.print()">Descargar PDF / Imprimir</button>
+            <div class="no-print" style="text-align: center; margin-bottom: 10px;">
+                <button onclick="window.print()" style="padding: 10px; cursor:pointer;">🖨️ IMPRIMIR / GUARDAR PDF</button>
             </div>
-
             <div class="ticket">
                 <div class="header">
                     <div class="business-name">CREATIVAC GESTIÓN</div>
-                    <div class="receipt-label">COMPROBANTE DE ABONO</div>
+                    <small>COMPROBANTE DE ABONO</small>
                 </div>
-
-                <div class="info-grid">
-                    <div class="info-item"><b>Fecha y Hora</b>${fecha}</div>
-                    <div class="info-item"><b>No. de Recibo</b>${numRecibo}</div>
-                    <div class="info-item"><b>Cliente</b>${datos.cliente}</div>
-                    <div class="info-item"><b>Método de Pago</b>${datos.metodo}</div>
-                </div>
-
+                <p><b>Fecha:</b> ${fecha}<br><b>Cliente:</b> ${datos.cliente}<br><b>Método:</b> ${datos.metodo}</p>
                 <div class="monto-principal">
                     <span>CANTIDAD RECIBIDA</span>
                     <h2>$${datos.montoTotal.toFixed(2)}</h2>
                 </div>
-
-                <b>DETALLE DE APLICACIÓN (FIFO)</b>
                 <table>
-                    <thead>
-                        <tr>
-                            <th>Folio de Venta</th>
-                            <th style="text-align: right;">Monto Aplicado</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Folio Venta</th><th style="text-align:right;">Monto</th></tr></thead>
                     <tbody>
-                        ${datos.distribucion.map(item => `
-                            <tr>
-                                <td>Abono a Venta #${item.id}</td>
-                                <td style="text-align: right; font-weight: bold;">$${item.monto.toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
+                        ${datos.distribucion.map(item => `<tr><td>Venta #${item.id}</td><td style="text-align:right;">$${item.monto.toFixed(2)}</td></tr>`).join('')}
                     </tbody>
                 </table>
-
-                <div class="total-deuda">
-                    <span style="font-size: 12px; color: #6b7280;">SALDO PENDIENTE TOTAL</span>
-                    <div style="font-size: 20px; font-weight: 900;">$${datos.deudaRestante.toFixed(2)}</div>
-                </div>
-
-                <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">
-                    Este documento es un comprobante de operación interna.<br>Gracias por su preferencia.
-                </div>
+                <div class="total-deuda">Saldo Pendiente Total: $${datos.deudaRestante.toFixed(2)}</div>
             </div>
         </body>
         </html>
@@ -3759,147 +3731,82 @@ async function handleEditClient(e) {
 }
 
 // 11. DETALLE Y ABONO DE VENTA 
-async function handleRegisterPayment(e) {
-    if (e) e.preventDefault();
+window.handleRegisterPayment = async function(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation(); // 🛑 Evita que se disparen otros eventos
+    }
     
-    // 1. Obtener valores del formulario y variables
     const clientId = document.getElementById('abono-client-id')?.value;
-    const amountStr = document.getElementById('abono-amount')?.value.trim();
+    const amountStr = document.getElementById('abono-amount')?.value;
     const metodo_pago = document.getElementById('payment-method-abono')?.value;
     const paymentAmount = parseFloat(amountStr);
     const nombreCliente = document.getElementById('abono-client-name-display')?.textContent || "Cliente";
 
-    // Validaciones de seguridad
-    if (!clientId) return alert('⚠️ Error: No se detectó el ID del cliente.');
-    if (isNaN(paymentAmount) || paymentAmount <= 0) return alert('⚠️ Ingresa un monto válido.');
-    if (!metodo_pago || metodo_pago === "") return alert('⚠️ Selecciona un método de pago.');
+    if (!clientId || isNaN(paymentAmount) || paymentAmount <= 0 || !metodo_pago) {
+        alert("⚠️ Por favor completa todos los campos correctamente.");
+        return;
+    }
 
     const btn = document.getElementById('btn-confirm-abono');
-    const logContainer = document.getElementById('log-container-fifo');
-    const logBody = document.getElementById('recent-payments-log');
-
     try {
-        // Bloquear botón para evitar doble envío
-        if (btn) { 
-            btn.disabled = true; 
-            btn.innerText = "PROCESANDO PAGO..."; 
-        }
+        if (btn) { btn.disabled = true; btn.innerText = "PROCESANDO..."; }
 
-        // 2. Obtener deudas del cliente (Orden: de la más antigua a la más nueva)
-        const { data: ventasPendientes, error: fetchError } = await supabase
+        const { data: ventas, error: fErr } = await supabase
             .from('ventas')
             .select('venta_id, saldo_pendiente, paid_amount')
-            .eq('client_id', clientId)
-            .gt('saldo_pendiente', 0)
-            .order('created_at', { ascending: true });
+            .eq('client_id', clientId).gt('saldo_pendiente', 0).order('created_at', { ascending: true });
 
-        if (fetchError) throw fetchError;
-        if (!ventasPendientes || ventasPendientes.length === 0) {
-            alert('Este cliente no tiene deudas pendientes.');
-            return;
-        }
+        if (fErr) throw fErr;
 
-        let montoRestante = paymentAmount;
-        let historialDistribucion = []; 
+        let restante = paymentAmount;
+        let historial = [];
 
-        // 3. Bucle de reparto FIFO (Cascada)
-        for (let venta of ventasPendientes) {
-            if (montoRestante <= 0) break;
-
-            let deudaVenta = parseFloat(venta.saldo_pendiente);
-            let pagoParaEstaVenta = Math.min(montoRestante, deudaVenta);
-            let nuevoSaldoVenta = deudaVenta - pagoParaEstaVenta;
-            let nuevoPagadoAcumulado = (parseFloat(venta.paid_amount) || 0) + pagoParaEstaVenta;
-
-            // A. Registrar el pago individual
-            const { error: pError } = await supabase
-                .from('pagos')
-                .insert([{ 
-                    venta_id: venta.venta_id, 
-                    client_id: clientId, 
-                    amount: pagoParaEstaVenta, 
-                    metodo_pago: metodo_pago 
-                }]);
-            if (pError) throw pError;
-
-            // B. Actualizar la venta específica
-            const { error: uError } = await supabase
-                .from('ventas')
-                .update({ 
-                    saldo_pendiente: nuevoSaldoVenta,
-                    paid_amount: nuevoPagadoAcumulado 
-                })
-                .eq('venta_id', venta.venta_id);
-            if (uError) throw uError;
-
-            // Guardar para el log visual y el PDF
-            historialDistribucion.push({ id: venta.venta_id, monto: pagoParaEstaVenta });
+        for (let v of ventas) {
+            if (restante <= 0) break;
+            let pago = Math.min(restante, v.saldo_pendiente);
             
-            montoRestante -= pagoParaEstaVenta;
+            await supabase.from('pagos').insert([{ 
+                venta_id: v.venta_id, client_id: clientId, amount: pago, metodo_pago 
+            }]);
+
+            await supabase.from('ventas').update({ 
+                saldo_pendiente: v.saldo_pendiente - pago,
+                paid_amount: (v.paid_amount || 0) + pago 
+            }).eq('venta_id', v.venta_id);
+
+            historial.push({ id: v.id || v.venta_id, monto: pago });
+            restante -= pago;
         }
 
-        // 4. Llenar la tabla de "Distribución" en el modal para feedback visual
-        if (logBody) {
-            if (logContainer) logContainer.classList.remove('hidden');
-            logBody.innerHTML = historialDistribucion.map(item => `
-                <tr class="border-b border-white/5">
-                    <td class="py-2 text-gray-500 font-mono text-[10px]">Venta #${item.id}</td>
-                    <td class="py-2 text-right text-green-500 font-bold">-$${item.monto.toFixed(2)}</td>
-                </tr>
-            `).join('');
+        // Actualizar deuda total cliente
+        const { data: vts } = await supabase.from('ventas').select('saldo_pendiente').eq('client_id', clientId);
+        const nuevaDeudaTotal = vts.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
+        await supabase.from('clientes').update({ deuda_total: nuevaDeudaTotal }).eq('client_id', clientId);
+
+        // Feedback y PDF
+        if (confirm(`✅ Pago de $${paymentAmount} registrado. ¿Generar comprobante PDF?`)) {
+            window.generarComprobanteAbono({
+                cliente: nombreCliente,
+                montoTotal: paymentAmount,
+                metodo: metodo_pago,
+                distribucion: historial,
+                deudaRestante: nuevaDeudaTotal
+            });
         }
 
-        // 5. Actualizar la deuda TOTAL del cliente en la tabla 'clientes'
-        const { data: todasLasVentas } = await supabase
-            .from('ventas')
-            .select('saldo_pendiente')
-            .eq('client_id', clientId);
-        
-        const nuevaDeudaTotal = todasLasVentas.reduce((acc, v) => acc + (parseFloat(v.saldo_pendiente) || 0), 0);
+        // Refresco de interfaz
+        closeModal('abono-client-modal');
+        if (typeof window.loadDebts === 'function') await window.loadDebts();
+        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
 
-        await supabase
-            .from('clientes')
-            .update({ deuda_total: nuevaDeudaTotal })
-            .eq('client_id', clientId);
-
-        // 6. ÉXITO E IMPRESIÓN PREMIUM
-        alert(`✅ Abono de $${paymentAmount.toFixed(2)} registrado correctamente.`);
-
-        // Preguntar por el comprobante
-        if (confirm("¿Deseas generar el comprobante de pago Premium en PDF?")) {
-            if (typeof window.generarComprobanteAbono === 'function') {
-                window.generarComprobanteAbono({
-                    cliente: nombreCliente,
-                    montoTotal: paymentAmount,
-                    metodo: metodo_pago,
-                    distribucion: historialDistribucion,
-                    deudaRestante: nuevaDeudaTotal
-                });
-            }
-        }
-
-        // 7. Cierre y Refresco
-        setTimeout(() => {
-            closeModal('abono-client-modal');
-            document.getElementById('abono-client-form').reset();
-            if (logContainer) logContainer.classList.add('hidden');
-            
-            // Refrescar todas las vistas
-            if (typeof loadDebtsTable === 'function') loadDebtsTable();
-            if (typeof loadDashboardData === 'function') loadDashboardData();
-            if (typeof loadClientsTable === 'function') loadClientsTable('gestion');
-        }, 1500);
-
-    } catch (error) {
-        console.error('Error detallado:', error);
-        alert('Ocurrió un error técnico al procesar el pago. Revisa la consola.');
+    } catch (err) {
+        console.error(err);
+        alert("Error al procesar abono");
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "Confirmar Pago en Cascada";
-        }
+        if (btn) { btn.disabled = false; btn.innerText = "Confirmar Pago en Cascada"; }
     }
-}
+};
 
 window.openAbonoModal = function(id, name, remainingDebt = null) {
     
