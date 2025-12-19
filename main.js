@@ -457,58 +457,6 @@ function openSaleDetailModal(saleId) {
     // Aquí va el código para obtener detalles de la venta y llamar a openModal('sale-details-modal')
 }
 
-//Grafica Dashboard
-function inicializarGraficaHome() {
-    const ctx = document.getElementById('ventasChart').getContext('2d');
-    
-    // Crear gradiente para el área de la curva
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(249, 115, 22, 0.4)');
-    gradient.addColorStop(1, 'rgba(249, 115, 22, 0)');
-
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-            datasets: [{
-                label: 'Ventas ($)',
-                data: [1200, 1900, 1500, 2500, 2200, 3000, 2800], // Aquí conectarás tus datos reales
-                borderColor: '#f97316',
-                borderWidth: 4,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: '#f97316',
-                pointRadius: 4,
-                pointHoverRadius: 8,
-                fill: true,
-                backgroundColor: gradient,
-                tension: 0.4 // Hace que la línea sea curva y suave
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#666', font: { weight: 'bold' } }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#666', font: { weight: 'bold' } }
-                }
-            }
-        }
-    });
-}
-
-// Ejecutar cuando se cargue la vista home
-document.addEventListener('DOMContentLoaded', () => {
-    // Si la vista por defecto es home, inicializar
-    inicializarGraficaHome();
-});
 // ====================================================================
 // 5. CARGA DE DATOS PARA SELECTORES
 // ====================================================================
