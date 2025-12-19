@@ -1644,31 +1644,77 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
 window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) return;
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
+
     const container = document.getElementById('clients-list-body');
     if (!container) return;
 
+    const showActions = mode === 'gestion';
+
     try {
-        const { data: clients, error } = await supabase
+        // 1. Obtener la lista base de clientes
+        const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
             .order('name', { ascending: true });
 
-        if (error) throw error;
+        if (clientsError) throw clientsError;
 
+        // --- 🟢 REPARACIÓN DE MAPAS GLOBALES (Evita el error de "undefined") ---
+        window.allClients = clients; 
+        window.allClientsMap = {}; 
+        clients.forEach(c => {
+            window.allClientsMap[c.client_id] = c;
+        });
+
+        // 2. Resumen de ventas (Para mostrar en la tabla)
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
+        // 3. Renderizado con Diseño Premium Dark
         container.innerHTML = '';
+
         clients.forEach((client, index) => {
             const summary = summaries[index];
-            const deudaNeta = summary.deudaNeta;
-            const tieneDeuda = deudaNeta > 0.01;
+            const deudaVisual = summary.deudaNeta;
+            const tieneDeuda = deudaVisual > 0.01;
 
             const row = document.createElement('tr');
-            // Aplicamos el diseño de fila Premium Dark
             row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
 
+            let actionCell = '';
+            if (showActions) {
+                actionCell = `
+                    <td class="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                            <button type="button" class="btn-action-report text-indigo-400 edit-client-btn" 
+                                    data-client-id="${client.client_id}" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+
+                            <button type="button" class="btn-action-report text-emerald-400" 
+                                    onclick="window.handleAbonoClick(${client.client_id})" title="Abonar">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </button>
+
+                            <button type="button" class="btn-action-report text-blue-400 view-debt-btn" 
+                                    data-client-id="${client.client_id}" title="Estado de Cuenta">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                            </button>
+
+                            <button type="button" class="btn-action-report text-red-400 delete-client-btn" 
+                                    data-client-id="${client.client_id}" 
+                                    data-client-name="${client.name}" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+            }
+            
             row.innerHTML = `
                 <td class="px-3 py-4 whitespace-nowrap">
                     <div class="text-[11px] font-mono text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 inline-block">
@@ -1677,40 +1723,45 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 </td>
                 <td class="px-3 py-4 whitespace-nowrap">
                     <div class="text-sm font-bold text-white">${client.name}</div>
-                    <div class="text-[10px] text-white/40 uppercase tracking-widest">${client.telefono || 'Sin Teléfono'}</div>
+                    <div class="text-[10px] text-white/40 uppercase tracking-widest">${client.telefono || '---'}</div>
                 </td>
+                
                 <td class="px-3 py-4 whitespace-nowrap text-right">
                     <div class="text-sm font-medium text-white/80">${formatCurrency(summary.totalVentas)}</div>
-                    <div class="text-[9px] text-white/30 uppercase">Total Ventas</div>
+                    <div class="text-[9px] text-white/30 uppercase">Total Compras</div>
                 </td>
+                
                 <td class="px-3 py-4 whitespace-nowrap text-right">
-                    <div class="inline-block text-right">
+                    <div class="inline-flex flex-col items-end">
                         <div class="text-sm font-black ${tieneDeuda ? 'text-red-500' : 'text-emerald-500'}">
-                            ${formatCurrency(deudaNeta)}
+                            ${formatCurrency(deudaVisual)}
                         </div>
                         <div class="text-[9px] font-bold uppercase tracking-tighter ${tieneDeuda ? 'text-red-500/50' : 'text-emerald-500/50'}">
-                            ${tieneDeuda ? 'Deuda Pendiente' : 'Sin Deuda'}
+                            ${tieneDeuda ? 'Deuda Pendiente' : 'Al Corriente'}
                         </div>
                     </div>
                 </td>
-                <td class="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <button onclick="handleEditClientClick('${client.client_id}')" class="btn-action-report text-indigo-400" title="Editar">
-                            <i class="fas fa-edit text-xs"></i>
-                        </button>
-                        <button onclick="window.handleAbonoClick(${client.client_id})" class="btn-action-report text-emerald-400" title="Abonar">
-                            <i class="fas fa-hand-holding-usd text-xs"></i>
-                        </button>
-                        <button onclick="handleDeleteClientClick('${client.client_id}')" class="btn-action-report btn-delete text-red-400" title="Eliminar">
-                            <i class="fas fa-trash text-xs"></i>
-                        </button>
-                    </div>
-                </td>
+                
+                ${actionCell} 
             `;
             container.appendChild(row);
         });
+
+        // 4. Re-enlazar Event Listeners (Usando los IDs de los botones)
+        if (showActions) {
+            container.querySelectorAll('.edit-client-btn').forEach(btn => {
+                btn.onclick = () => handleEditClientClick(btn.dataset.clientId);
+            });
+            container.querySelectorAll('.delete-client-btn').forEach(btn => {
+                btn.onclick = () => handleDeleteClientClick(btn.dataset.clientId);
+            });
+            container.querySelectorAll('.view-debt-btn').forEach(btn => {
+                btn.onclick = () => handleViewClientDebt(btn.dataset.clientId);
+            });
+        }
+
     } catch (e) {
-        console.error('Error:', e);
+        console.error('Error al cargar tabla de clientes:', e);
     }
 };
 
