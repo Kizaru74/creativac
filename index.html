@@ -166,29 +166,30 @@
             </section>
 
             <section id="clients-view" class="dashboard-view hidden">
-                <div class="flex justify-between items-end mb-10">
-                    <div>
-                        <h2 class="text-4xl font-black text-white italic">Directorio</h2>
-                        <p class="text-gray-500 font-medium">Base de datos de clientes registrados.</p>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Administración de Clientes</h2>
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex justify-end mb-4">
+                        <button data-open-modal="new-client-modal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all">
+                            <i class="fas fa-plus mr-2"></i> Nuevo Cliente
+                        </button>
                     </div>
-                    <button data-open-modal="new-client-modal" class="bg-orange-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20">
-                        + Nuevo Cliente
-                    </button>
-                </div>
-                <div class="bg-[#1c1c1c] rounded-3xl border border-white/5 overflow-hidden">
-                    <table class="min-w-full divide-y divide-gray-200">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deuda Total</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Venta</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="debts-table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                            <tbody id="clients-list-body" class="bg-white divide-y divide-gray-200 text-sm">
                                 </tbody>
                         </table>
-                    <div id="no-clients-message" class="p-10 text-center text-gray-600 hidden">No hay clientes.</div>
+                    </div>
+                    <p id="no-clients-message" class="text-center text-gray-500 mt-4 hidden">No hay clientes registrados.</p>
                 </div>
             </section>
 
