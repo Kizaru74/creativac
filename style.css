@@ -118,6 +118,29 @@ button.loading i:not(.btn-spinner) {
     display: none !important; /* Oculta el ojo o la basura al cargar */
 }
 
+/* Ocultar el círculo de carga por defecto */
+#monthly-sales-report-body .btn-spinner {
+    display: none !important;
+}
+
+/* Mostrarlo SOLO cuando el botón tenga la clase 'loading' */
+#monthly-sales-report-body button.loading .btn-spinner {
+    display: inline-block !important;
+    position: relative;
+}
+
+/* Ocultar el icono normal (ojo/basura) cuando está cargando */
+#monthly-sales-report-body button.loading i:not(.btn-spinner) {
+    display: none !important;
+}
+
+/* Corregir ID blanco en reportes */
+#monthly-sales-report-body .bg-slate-100 {
+    background-color: rgba(255, 255, 255, 0.05) !important; /* Fondo casi transparente */
+    color: #f97316 !important; /* Texto naranja */
+    border: 1px solid rgba(249, 115, 22, 0.2) !important;
+}
+
 /* Hovers de botones de reporte */
 #monthly-sales-report-body button.text-indigo-600:hover {
     background: rgba(99, 102, 241, 0.15) !important;
