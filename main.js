@@ -3864,86 +3864,103 @@ async function handleEditClient(e) {
 // 11. DETALLE Y ABONO DE VENTA 
 async function handleRegisterPayment(e) {
     e.preventDefault();
-    const venta_id = document.getElementById('payment-sale-id').value;
+    
+    // Obtenemos los valores del formulario
     const amountStr = document.getElementById('abono-amount').value.trim();
     const metodo_pago = document.getElementById('payment-method-abono').value;
     const paymentAmount = parseFloat(amountStr);
 
+    // IMPORTANTE: Para el FIFO necesitamos el ID del cliente. 
+    // Si tu modal no tiene un campo oculto con el client_id, podemos obtenerlo 
+    // de la variable global 'editingClientId' que ya declaraste al inicio de tu main.js
+    const client_id = editingClientId; 
+
+    if (!client_id) {
+        alert('Error: No se detectó el ID del cliente.');
+        return;
+    }
+
     if (amountStr === '' || isNaN(paymentAmount) || paymentAmount <= 0) {
-        alert('Por favor, ingresa un monto válido para el abono (mayor a cero).');
+        alert('Por favor, ingresa un monto válido para el abono.');
         return;
     }
-
-    // 1. Obtener datos de la venta
-    const { data: ventaActual, error: fetchError } = await supabase
-        .from('ventas')
-        .select('saldo_pendiente, client_id')
-        .eq('venta_id', venta_id)
-        .single();
-    
-    if (fetchError || !ventaActual) {
-        alert('Error al obtener la venta para abonar.');
-        return;
-    }
-
-    if (paymentAmount > ventaActual.saldo_pendiente) {
-        alert(`El abono excede el saldo pendiente (${formatCurrency(ventaActual.saldo_pendiente)}). Ajuste el monto.`);
-        return;
-    }
-
-    const newSaldoPendiente = ventaActual.saldo_pendiente - paymentAmount;
 
     try {
-        // 2. Insertar el Pago en la tabla 'pagos'
-        const { error: paymentError } = await supabase
-            .from('pagos')
-            .insert([{ 
-                venta_id: venta_id, 
-                client_id: ventaActual.client_id, 
-                amount: paymentAmount, 
-                metodo_pago: metodo_pago 
-            }]);
-
-        if (paymentError) throw new Error('Error al registrar pago: ' + paymentError.message);
-
-        // 3. Actualizar el saldo pendiente en la tabla 'ventas'
-        const { error: updateError } = await supabase
+        // 1. Obtener TODAS las ventas con saldo del cliente, de la más antigua a la más nueva
+        const { data: ventasPendientes, error: fetchError } = await supabase
             .from('ventas')
-            .update({ saldo_pendiente: newSaldoPendiente })
-            .eq('venta_id', venta_id);
+            .select('venta_id, saldo_pendiente')
+            .eq('client_id', client_id)
+            .gt('saldo_pendiente', 0)
+            .order('created_at', { ascending: true });
 
-        if (updateError) throw new Error('Abono registrado, pero falló la actualización del saldo de la venta.');
+        if (fetchError) throw new Error('Error al obtener deudas: ' + fetchError.message);
+        
+        if (ventasPendientes.length === 0) {
+            alert('Este cliente no tiene deudas pendientes.');
+            return;
+        }
 
-        // 4. Recalcular y actualizar la deuda TOTAL del cliente
-        // Buscar todos los saldos pendientes del cliente
-        const { data: clientDebts, error: debtFetchError } = await supabase
+        let montoRestante = paymentAmount;
+
+        // 2. Iniciar el reparto FIFO
+        for (let venta of ventasPendientes) {
+            if (montoRestante <= 0) break;
+
+            let deudaVenta = parseFloat(venta.saldo_pendiente);
+            let pagoParaEstaVenta = Math.min(montoRestante, deudaVenta);
+            let nuevoSaldoVenta = deudaVenta - pagoParaEstaVenta;
+
+            // 3. Registrar el pago en la tabla 'pagos'
+            const { error: pError } = await supabase
+                .from('pagos')
+                .insert([{ 
+                    venta_id: venta.venta_id, 
+                    client_id: client_id, 
+                    amount: pagoParaEstaVenta, 
+                    metodo_pago: metodo_pago 
+                }]);
+            if (pError) throw pError;
+
+            // 4. Actualizar el saldo de la venta específica
+            const { error: uError } = await supabase
+                .from('ventas')
+                .update({ saldo_pendiente: nuevoSaldoVenta })
+                .eq('venta_id', venta.venta_id);
+            if (uError) throw uError;
+
+            montoRestante -= pagoParaEstaVenta;
+        }
+
+        // 5. Recalcular la deuda TOTAL del cliente (para la tabla clientes)
+        const { data: todasLasDeudas } = await supabase
             .from('ventas')
             .select('saldo_pendiente')
-            .eq('client_id', ventaActual.client_id)
-            .neq('saldo_pendiente', 0); 
-            
-        if (debtFetchError) throw new Error('Error al recalcular la deuda total del cliente.');
-
-        // Sumar todos los saldos pendientes
-        const newClientTotalDebt = clientDebts.reduce((sum, sale) => sum + sale.saldo_pendiente, 0);
-
-        // Actualizar la Deuda Total en la tabla 'clientes'
-        const { error: clientUpdateError } = await supabase
-            .from('clientes')
-            .update({ total_debt: newClientTotalDebt })
-            .eq('client_id', ventaActual.client_id);
-            
-        if (clientUpdateError) throw new Error('Fallo la actualización del saldo TOTAL del cliente.');
-
-        // 5. Finalización exitosa
-        alert('Abono registrado y saldos actualizados exitosamente.');
+            .eq('client_id', client_id);
         
-        closeModal('modal-detail-sale');
-        await loadDashboardData(); // Recarga general de datos
+        const nuevaDeudaTotal = todasLasDeudas.reduce((s, v) => s + (parseFloat(v.saldo_pendiente) || 0), 0);
+
+        await supabase
+            .from('clientes')
+            .update({ total_debt: nuevaDeudaTotal })
+            .eq('client_id', client_id);
+
+        // 6. Finalización
+        alert(`Abono procesado correctamente. Se aplicó a las deudas más antiguas.`);
+        
+        // Limpiamos el campo de monto
+        document.getElementById('abono-amount').value = '';
+        
+        // Cerramos modal y recargamos datos
+        closeModal('modal-detail-sale'); 
+        
+        // RECARGAR VISTAS: Asegúrate de llamar a loadDebts para que la tabla de deudores se actualice
+        if (typeof loadDebts === 'function') await loadDebts();
+        await loadDashboardData();
 
     } catch (error) {
         alert(`Ocurrió un error: ${error.message}`);
-        console.error('Error en el flujo de abono:', error);
+        console.error('Error en el flujo de abono FIFO:', error);
     }
 }
 
