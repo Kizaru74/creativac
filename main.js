@@ -2380,23 +2380,47 @@ window.handleViewSaleDetails = async function(venta_id) {
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
 window.editSaleDate = async function(ventaId, fechaActual) {
-    // Formatear fecha para el prompt (YYYY-MM-DD)
-    const fechaBase = new Date(fechaActual).toISOString().split('T')[0];
+    // --- CORRECCIÓN DE DESFASE ---
+    // En lugar de usar new Date(), extraemos directamente la parte de la fecha 
+    // de la cadena que viene de Supabase (que suele ser YYYY-MM-DDTHH:mm...)
+    const fechaBase = fechaActual.split('T')[0]; 
+    
     const nuevaFecha = prompt("Ingrese la nueva fecha (AAAA-MM-DD):", fechaBase);
 
     if (!nuevaFecha || nuevaFecha === fechaBase) return;
 
+    // Validar formato básico AAAA-MM-DD antes de enviar
+    const regexFecha = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regexFecha.test(nuevaFecha)) {
+        alert("Formato inválido. Use AAAA-MM-DD (ejemplo: 2025-12-02)");
+        return;
+    }
+
     try {
+        // Para evitar que Supabase lo guarde como el día anterior a las 00:00 local,
+        // le enviamos la fecha con una hora neutra (T12:00:00) o solo la fecha
         const { error } = await supabase
             .from('ventas')
-            .update({ created_at: nuevaFecha })
+            .update({ created_at: `${nuevaFecha}T12:00:00Z` }) // Guardamos al mediodía UTC
             .eq('venta_id', ventaId);
 
         if (error) throw error;
+        
         alert("✅ Fecha actualizada.");
-        window.handleViewSaleDetails(ventaId);
+        
+        // Recargar el modal de detalles para ver el cambio
+        if (window.handleViewSaleDetails) {
+            window.handleViewSaleDetails(ventaId);
+        }
+        
+        // Opcional: Recargar la tabla de reportes si está abierta de fondo
+        if (window.loadMonthlySalesReport) {
+            window.loadMonthlySalesReport();
+        }
+
     } catch (err) {
-        alert("Error al cambiar fecha. Use formato AAAA-MM-DD");
+        console.error(err);
+        alert("Error al cambiar fecha.");
     }
 };
 // --- FUNCIÓN PARA ELIMINAR UN PRODUCTO DE LA VENTA ---
