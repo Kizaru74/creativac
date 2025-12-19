@@ -139,3 +139,32 @@ tbody tr:hover {
 tbody tr:hover .saldo-pendiente-highlight {
     background-color: rgba(239, 68, 68, 0.08) !important;
 }
+
+/* --- ESTILO VIDRIO PREMIUM (GLASSMORPHISM) --- */
+.glass-badge {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 9999px !important; /* Totalmente redondeado */
+    padding: 0.5rem 1.5rem !important;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 140px;
+    transition: all 0.3s ease;
+}
+
+/* Variante Verde (Sin Deuda) */
+.glass-badge-success {
+    background: rgba(16, 185, 129, 0.1) !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(16, 185, 129, 0.05);
+}
+
+/* Variante Roja (Con Deuda) */
+.glass-badge-danger {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(239, 68, 68, 0.05);
+}

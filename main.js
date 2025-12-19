@@ -1681,13 +1681,14 @@ window.loadClientsTable = async function(mode = 'gestion') {
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Renderizado con Diseño Premium Dark
-        container.innerHTML = '';
-
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const deudaVisual = summary.deudaNeta;
             const tieneDeuda = deudaVisual > 0.01;
+            
+            // Definimos las clases de vidrio según el estado
+            const glassClass = tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success';
+            const labelText = tieneDeuda ? 'Deuda Pendiente' : 'Al Corriente';
 
             const row = document.createElement('tr');
             row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
@@ -1701,17 +1702,14 @@ window.loadClientsTable = async function(mode = 'gestion') {
                                     data-client-id="${client.client_id}" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </button>
-
                             <button type="button" class="btn-action-report text-emerald-400" 
                                     onclick="window.handleAbonoClick(${client.client_id})" title="Abonar">
                                 <i class="fas fa-hand-holding-usd"></i>
                             </button>
-
                             <button type="button" class="btn-action-report text-blue-400 view-debt-btn" 
                                     data-client-id="${client.client_id}" title="Estado de Cuenta">
                                 <i class="fas fa-file-invoice-dollar"></i>
                             </button>
-
                             <button type="button" class="btn-action-report text-red-400 delete-client-btn" 
                                     data-client-id="${client.client_id}" 
                                     data-client-name="${client.name}" title="Eliminar">
@@ -1739,13 +1737,13 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 </td>
                 
                 <td class="px-3 py-4 whitespace-nowrap text-right">
-                    <div class="inline-flex flex-col items-end">
-                        <div class="text-sm font-black ${tieneDeuda ? 'text-red-500' : 'text-emerald-500'}">
+                    <div class="glass-badge ${glassClass}">
+                        <span class="text-sm font-black ${tieneDeuda ? 'text-red-500' : 'text-emerald-500'}">
                             ${formatCurrency(deudaVisual)}
-                        </div>
-                        <div class="text-[9px] font-bold uppercase tracking-tighter ${tieneDeuda ? 'text-red-500/50' : 'text-emerald-500/50'}">
-                            ${tieneDeuda ? 'Deuda Pendiente' : 'Al Corriente'}
-                        </div>
+                        </span>
+                        <span class="text-[9px] font-bold uppercase tracking-tighter opacity-70">
+                            ${labelText}
+                        </span>
                     </div>
                 </td>
                 
