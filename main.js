@@ -15,6 +15,7 @@ let allClients = [];
 let allClientsMap = {};
 let allProductsMap = {};
 let reportSelectorsInitialized = false;
+let ventasChartInstance = null;
 
 
 // ✅ CORRECCIÓN DE INICIALIZACIÓN
@@ -165,6 +166,64 @@ window.closeModal = function(modalId) {
     }
 };
 
+// ====================================================================
+// A. Dashboard y grafica
+// ====================================================================
+
+async function inicializarGraficaHome() {
+    const canvas = document.getElementById('ventasChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // SOLUCIÓN AL ERROR DE CANVAS: Destruir si ya existe
+    if (ventasChartInstance) {
+        ventasChartInstance.destroy();
+    }
+
+    // Obtener datos reales (asegúrate de que getVentasUltimaSemana use 'ventas')
+    const datosVentas = await getVentasUltimaSemana();
+    
+    // ... resto del código de configuración de Chart.js ...
+    ventasChartInstance = new Chart(ctx, { 
+        type: 'line',
+        data: { /* tus datos */ },
+        options: { /* tus opciones */ }
+    });
+}
+
+async function loadDashboardData() {
+    try {
+        console.log("Cargando datos del Dashboard...");
+
+        // Llamamos a tus funciones existentes primero
+        await loadDebts();
+        await loadRecentSales();
+
+        // CORRECCIÓN ERROR 404: Cambiamos 'clients' por 'clientes' (o el nombre que uses)
+        // Según tus logs, parece que usas 'clientes'
+        const { data: clientesData, error: dError } = await supabase
+            .from('clientes') 
+            .select('saldo_pendiente'); // Ajusta al nombre de tu columna de deuda
+
+        if (!dError && clientesData) {
+            // Sumamos el saldo pendiente de todos los clientes
+            const totalDeuda = clientesData.reduce((acc, curr) => acc + (Number(curr.saldo_pendiente) || 0), 0);
+            const deudaElement = document.getElementById('home-total-deuda');
+            if (deudaElement) {
+                deudaElement.innerText = new Intl.NumberFormat('es-MX', {
+                    style: 'currency', currency: 'MXN'
+                }).format(totalDeuda);
+            }
+        }
+
+        // Inicializar gráfica sin que choque
+        await inicializarGraficaHome();
+
+    } catch (error) {
+        console.error("Error en la orquestación del Dashboard:", error);
+    }
+}
 
 // ====================================================================
 // 3. AUTENTICACIÓN Y SESIÓN
@@ -365,53 +424,6 @@ async function loadRecentSales() {
 function openSaleDetailModal(saleId) {
     console.log('Abriendo modal de detalles para Venta ID:', saleId);
     // Aquí va el código para obtener detalles de la venta y llamar a openModal('sale-details-modal')
-}
-
-async function loadDashboardData() {
-    try {
-        console.log("Cargando datos del Dashboard...");
-
-        // 1. Ejecutamos tus funciones originales (Carga de datos base)
-        await loadDebts();
-        await loadRecentSales();
-        await loadClientsTable('gestion');
-        await loadProductsTable(); 
-        await loadClientsForSale();
-        await loadClientDebtsTable();
-
-        // 2. ACTUALIZACIÓN DE MÉTRICAS (Basado en lo cargado)
-        // Calculamos el total de deuda a partir de lo que ya tienes en memoria o base de datos
-        const { data: clients, error: dError } = await supabase
-            .from('clients') // Asegúrate que el nombre coincida con tu tabla en Supabase
-            .select('deuda');
-
-        if (!dError && clients) {
-            const totalDeuda = clients.reduce((acc, curr) => acc + (Number(curr.deuda) || 0), 0);
-            const deudaElement = document.getElementById('home-total-deuda');
-            
-            if (deudaElement) {
-                deudaElement.innerText = new Intl.NumberFormat('es-MX', {
-                    style: 'currency', currency: 'MXN'
-                }).format(totalDeuda);
-            }
-        }
-
-        // 3. INICIALIZACIÓN DE LA GRÁFICA
-        // La llamamos aquí para que se dibuje cada vez que el dashboard se refresca
-        if (typeof inicializarGraficaHome === 'function') {
-            inicializarGraficaHome();
-        }
-
-        // 4. ACTUALIZACIÓN DEL NOMBRE DE USUARIO (Opcional)
-        const userDisplay = document.getElementById('user-display-name');
-        if (userDisplay && typeof supabase.auth.getUser === 'function') {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) userDisplay.innerText = user.email.split('@')[0];
-        }
-
-    } catch (error) {
-        console.error("Error en la orquestación del Dashboard:", error);
-    }
 }
 
 //Grafica Dashboard
