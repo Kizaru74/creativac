@@ -218,28 +218,36 @@
 </section>
 
         <section id="deudas-view" class="dashboard-view hidden">
-            <header class="mb-10">
-                <h2 class="text-4xl font-black text-white italic tracking-tighter">Gestión de <span class="text-orange-500">Deudas</span></h2>
-                <p class="text-gray-400 font-medium">Control de saldos pendientes y cobranza.</p>
-            </header>
-            <div class="bg-[#1c1c1c] rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl">
-                <table class="w-full text-left">
-                    <thead class="bg-white/5 border-b border-white/5 text-gray-500 uppercase text-[10px] font-bold tracking-[0.2em]">
-                        <tr>
-                            <th class="px-8 py-5">Cliente</th>
-                            <th class="px-8 py-5">Saldo Pendiente</th>
-                            <th class="px-8 py-5">Último Movimiento</th>
-                            <th class="px-8 py-5 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="debts-table-body" class="text-sm text-gray-200 divide-y divide-white/5"></tbody>
-                </table>
-                <div id="no-debts-message" class="p-16 text-center text-gray-600 hidden">
-                    <i class="fas fa-check-circle text-4xl mb-3 opacity-20"></i>
-                    <p class="uppercase tracking-widest text-xs font-bold">No hay deudas pendientes</p>
-                </div>
+    <header class="mb-10">
+        <h2 class="text-4xl font-black text-white italic tracking-tighter">Control de <span class="text-orange-500">Deudas</span></h2>
+        <p class="text-gray-400 font-medium">Gestión de saldos y cuentas por cobrar.</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-[#1c1c1c] border border-white/5 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group">
+            <div class="absolute -right-2 -bottom-2 text-orange-500/10 text-6-xl group-hover:scale-110 transition-transform">
+                <i class="fas fa-hand-holding-usd text-6xl"></i>
             </div>
-        </section>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Total Pendiente</p>
+            <h3 id="total-deuda-global" class="text-3xl font-black text-white italic tracking-tighter">$0.00</h3>
+        </div>
+
+        <div class="bg-[#1c1c1c] border border-white/5 p-6 rounded-[2rem] shadow-xl">
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Clientes Deudores</p>
+            <h3 id="total-clientes-deuda" class="text-3xl font-black text-white italic tracking-tighter">0</h3>
+        </div>
+
+        <div class="bg-[#1c1c1c] border border-white/5 p-6 rounded-[2rem] shadow-xl border-l-4 border-l-orange-500">
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Mayor Saldo Individual</p>
+            <h3 id="max-deuda-individual" class="text-3xl font-black text-orange-500 italic tracking-tighter">$0.00</h3>
+        </div>
+    </div>
+
+    <div class="bg-[#1c1c1c] rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl">
+        <table class="w-full text-left">
+            </table>
+    </div>
+</section>
 
         <section id="products-view" class="dashboard-view hidden">
             <div class="flex justify-between items-end mb-10">
