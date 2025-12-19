@@ -304,144 +304,211 @@
         </div>
     </div>
 
-    <div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-50 items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto p-6">
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-            <h3 id="client-modal-title" class="text-2xl font-bold text-gray-800">Registrar Nuevo Cliente</h3>
-            <button type="button" data-close-modal="new-client-modal" class="text-gray-400 hover:text-gray-600 text-2xl">
-                <i class="fas fa-times text-xl"></i>
+    <div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-lg mx-auto p-8 border border-white/5 overflow-hidden">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 id="client-modal-title" class="text-2xl font-black text-white italic tracking-tighter">
+                Nuevo <span class="text-orange-500">Cliente</span>
+            </h3>
+            <button type="button" data-close-modal="new-client-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
             </button>
         </div>
 
-        <form id="new-client-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label for="name" class="block text-sm font-medium text-gray-700">Nombre</label>
-                <input type="text" id="new-client-name" class="w-full border-gray-300 rounded-md shadow-sm p-2" required>
+        <form id="new-client-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+                <label for="new-client-name" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre Completo</label>
+                <div class="relative">
+                    <input type="text" id="new-client-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner"
+                        placeholder="Nombre y Apellido">
+                    <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
+                </div>
             </div>
-            <div>
-                <label for="phone" class="block text-sm font-medium text-gray-700">Teléfono</label>
-                <input type="tel" id="new-client-phone" class="w-full border-gray-300 rounded-md shadow-sm p-2">
+
+            <div class="space-y-2">
+                <label for="new-client-phone" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Teléfono</label>
+                <div class="relative">
+                    <input type="tel" id="new-client-phone" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner font-mono"
+                        placeholder="000-000-0000">
+                    <i class="fas fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
+                </div>
             </div>
-            <div class="md:col-span-2 flex justify-end">
-                <button type="submit" id="save-client-btn" class="bg-green-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-150">
-                    <i class="fas fa-user-plus mr-2"></i> Guardar Cliente
+
+            <div class="md:col-span-2 mt-4">
+                <button type="submit" id="save-client-btn" 
+                    class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group">
+                    <i class="fas fa-user-plus text-lg group-hover:scale-110 transition-transform"></i>
+                    Registrar Cliente
                 </button>
             </div>
         </form>
     </div>
-    </div>
+</div>
     
-    <div id="edit-client-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8">
-            <div class="flex justify-between items-center border-b pb-4 mb-6">
-                <h3 class="text-2xl font-bold text-gray-800">Editar Cliente</h3>
-                <button data-close-modal="edit-client-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
-                    &times;
-                </button>
-            </div>
-            <form id="edit-client-form">
-                <input type="hidden" id="edit-client-id">
-                <div class="mb-4">
-                    <label for="edit-client-name" class="block text-xs font-semibold text-gray-600 mb-1">Nombre Completo</label>
-                    <input type="text" id="edit-client-name" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
-                </div>
-                <div class="mb-6">
-                    <label for="edit-client-phone" class="block text-xs font-semibold text-gray-600 mb-1">Teléfono</label>
-                    <input type="tel" id="edit-client-phone" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
-                    Guardar Cambios
-                </button>
-            </form>
-        </div>
-    </div>
-    
-    <div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-8">
-        <div class="flex justify-between items-center border-b pb-4 mb-6">
-            <h3 class="text-2xl font-bold text-gray-800">Registrar Producto/Servicio</h3>
-            <button data-close-modal="new-product-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
-                &times;
+<div id="edit-client-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-sm mx-auto p-8 border border-white/5 overflow-hidden">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+                Editar <span class="text-orange-500">Cliente</span>
+            </h3>
+            <button data-close-modal="edit-client-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
             </button>
         </div>
-        <form id="new-product-form">
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label for="new-product-name" class="block text-xs font-semibold text-gray-600 mb-1">Nombre</label>
-                    <input type="text" id="new-product-name" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
-                </div>
-                <div>
-                    <label for="new-product-price" class="block text-xs font-semibold text-gray-600 mb-1">Precio Unitario</label>
-                    <input type="number" id="new-product-price" required min="0" step="0.01" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
+
+        <form id="edit-client-form">
+            <input type="hidden" id="edit-client-id">
+            
+            <div class="mb-6 space-y-2">
+                <label for="edit-client-name" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre Completo</label>
+                <div class="relative">
+                    <input type="text" id="edit-client-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner"
+                        placeholder="Nombre del cliente">
+                    <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                    <label for="new-product-type" class="block text-xs font-semibold text-gray-600 mb-1">Categoría</label>
-                    <select 
-                        id="new-product-type" 
-                        required 
-                        class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors"
-                        onchange="handleProductTypeChange()" >
-                        <option value="PRODUCT">Producto</option>
-                        <option value="PACKAGE">Subproducto</option>
-                    </select>
+
+            <div class="mb-10 space-y-2">
+                <label for="edit-client-phone" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Teléfono de Contacto</label>
+                <div class="relative">
+                    <input type="tel" id="edit-client-phone" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner font-mono"
+                        placeholder="000 000 0000">
+                    <i class="fas fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
                 </div>
-                <div id="new-product-parent-container" class="hidden"> 
-                    <label for="new-product-parent-select" class="block text-xs font-semibold text-gray-600 mb-1">Producto Padre (Para Paquetes)</label>
-                    <select id="new-product-parent-select" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
-                        </select>
-                </div>
-                <div id="new-product-placeholder" class="col-span-1"></div> 
             </div>
-            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all">
-                Guardar Producto
+
+            <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group">
+                <i class="fas fa-user-check text-lg group-hover:scale-110 transition-transform"></i>
+                Actualizar Datos
             </button>
         </form>
     </div>
 </div>
     
-<div id="edit-product-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto p-8">
-            <div class="flex justify-between items-center border-b pb-4 mb-6">
-                <h3 class="text-2xl font-bold text-gray-800">Editar Producto/Servicio</h3>
-                <button data-close-modal="edit-product-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
-                    &times;
-                </button>
-            </div>
-            <form id="edit-product-form">
-                <input type="hidden" id="edit-product-id">
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label for="edit-product-name" class="block text-xs font-semibold text-gray-600 mb-1">Nombre</label>
-                        <input type="text" id="edit-product-name" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
-                    </div>
-                    <div>
-                        <label for="edit-product-price" class="block text-xs font-semibold text-gray-600 mb-1">Precio Unitario</label>
-                        <input type="number" id="edit-product-price" required min="0" step="0.01" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label for="edit-product-category" class="block text-xs font-semibold text-gray-600 mb-1">Categoría</label>
-                        <select id="edit-product-category" required class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
-                            <option value="Producto">Producto</option>
-                            <option value="Servicio">Servicio</option>
-                            <option value="Paquete">Paquete/Subproducto</option>
-                        </select>
-                    </div>
-                    <div id="edit-product-parent-container" class="hidden">
-                        <label for="edit-product-parent" class="block text-xs font-semibold text-gray-600 mb-1">Producto Padre (Para Paquetes)</label>
-                        <select id="edit-product-parent" class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 transition-colors">
-                            </select>
-                    </div>
-                    <div id="edit-product-placeholder" class="col-span-1"></div> 
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg">
-                    Guardar Cambios
-                </button>
-            </form>
+<div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-lg mx-auto p-8 border border-white/5 overflow-hidden">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+                Nuevo <span class="text-orange-500">Registro</span>
+            </h3>
+            <button data-close-modal="new-product-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
         </div>
+
+        <form id="new-product-form">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label for="new-product-name" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre del Producto</label>
+                    <input type="text" id="new-product-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner"
+                        placeholder="Nombre comercial">
+                </div>
+                <div class="space-y-2">
+                    <label for="new-product-price" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Precio Unitario ($)</label>
+                    <input type="number" id="new-product-price" required min="0" step="0.01" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner font-mono text-lg"
+                        placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                <div class="space-y-2">
+                    <label for="new-product-type" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Categoría</label>
+                    <div class="relative">
+                        <select id="new-product-type" required onchange="handleProductTypeChange()"
+                            class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                            <option value="PRODUCT">Producto</option>
+                            <option value="PACKAGE">Subproducto / Parte</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+
+                <div id="new-product-parent-container" class="hidden space-y-2">
+                    <label for="new-product-parent-select" class="block text-[10px] font-bold text-orange-500 uppercase tracking-widest ml-1">Asignar a Padre</label>
+                    <div class="relative">
+                        <select id="new-product-parent-select" 
+                            class="w-full bg-orange-600/5 border border-orange-500/20 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                        </select>
+                        <i class="fas fa-link absolute right-4 top-1/2 -translate-y-1/2 text-orange-500/50 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+                
+                <div id="new-product-placeholder" class="col-span-1 hidden md:block"></div> 
+            </div>
+
+            <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group">
+                <i class="fas fa-plus-circle text-lg group-hover:rotate-90 transition-transform duration-300"></i>
+                Finalizar Registro
+            </button>
+        </form>
+    </div>
+</div>
+    
+<div id="edit-product-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-lg mx-auto p-8 border border-white/5 overflow-hidden">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+                Editar <span class="text-orange-500">Producto</span>
+            </h3>
+            <button data-close-modal="edit-product-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <form id="edit-product-form">
+            <input type="hidden" id="edit-product-id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label for="edit-product-name" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre del Ítem</label>
+                    <input type="text" id="edit-product-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner"
+                        placeholder="Ej. Diseño Gráfico">
+                </div>
+                <div class="space-y-2">
+                    <label for="edit-product-price" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Precio Unitario ($)</label>
+                    <input type="number" id="edit-product-price" required min="0" step="0.01" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner font-mono text-lg">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                <div class="space-y-2">
+                    <label for="edit-product-category" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Categoría</label>
+                    <select id="edit-product-category" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                        <option value="Producto">Producto</option>
+                        <option value="Servicio">Servicio</option>
+                        <option value="Paquete">Paquete/Subproducto</option>
+                    </select>
+                </div>
+                
+                <div id="edit-product-parent-container" class="hidden space-y-2">
+                    <label for="edit-product-parent" class="block text-[10px] font-bold text-orange-500 uppercase tracking-widest ml-1">Vincular a Padre</label>
+                    <select id="edit-product-parent" 
+                        class="w-full bg-orange-600/5 border border-orange-500/20 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                    </select>
+                </div>
+
+                <div id="edit-product-placeholder" class="col-span-1 hidden md:block"></div> 
+            </div>
+
+            <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group">
+                <i class="fas fa-save text-lg group-hover:scale-110 transition-transform"></i>
+                Guardar Cambios
+            </button>
+        </form>
+    </div>
 </div>
     
 <div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-40 items-center justify-center">
