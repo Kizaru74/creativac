@@ -423,13 +423,22 @@ window.loadDebtsTable = async function() {
     if (!tableBody) return;
 
     try {
+        // CORRECCIÓN: Solo pedimos saldo_pendiente de ventas y datos básicos de clientes
         const { data: ventas, error } = await supabase
             .from('ventas')
-            .select('saldo_pendiente, client_id, clientes (name, phone)')
+            .select(`
+                saldo_pendiente,
+                client_id,
+                clientes (
+                    name,
+                    phone
+                )
+            `)
             .gt('saldo_pendiente', 0.01);
 
         if (error) throw error;
 
+        // Agrupar y crear el campo deuda_total en memoria (no en la DB)
         const consolidado = ventas.reduce((acc, v) => {
             const id = v.client_id || 'anonimo';
             if (!acc[id]) {
@@ -448,57 +457,51 @@ window.loadDebtsTable = async function() {
 
         if (listaDeudores.length === 0) {
             tableBody.innerHTML = '';
-            noDebtsMsg?.classList.remove('hidden');
-            actualizarMetricasConData([]);
+            if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
+            if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData([]);
             return;
         }
 
-        noDebtsMsg?.classList.add('hidden');
-        actualizarMetricasConData(listaDeudores);
+        if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
+        if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData(listaDeudores);
 
-        // RENDERIZADO USANDO TUS CLASES DE CSS
-        tableBody.innerHTML = listaDeudores.map(d => {
-            // Aplicar clase de highlight si la deuda es alta (Sección 7 de tu CSS)
-            const rowClass = d.deuda_total > 5000 ? 'saldo-pendiente-highlight' : '';
-            
-            return `
-                <tr class="border-b border-white/5 group">
-                    <td class="px-10 py-6">
-                        <div class="flex items-center gap-4">
-                            <div class="font-mono bg-orange-500/10 w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black">
-                                ${d.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <div class="font-bold text-white">${d.name}</div>
-                                <div class="text-[10px] text-white/60 uppercase tracking-widest">${d.phone}</div>
-                            </div>
+        // Renderizado compatible con tu style.css
+        tableBody.innerHTML = listaDeudores.map(d => `
+            <tr class="border-b border-white/5 hover:bg-white/[0.05] transition-colors group">
+                <td class="px-10 py-6">
+                    <div class="flex items-center gap-4">
+                        <div class="font-mono bg-orange-500/10 w-12 h-12 rounded-lg flex items-center justify-center text-orange-500 font-bold border border-orange-500/30">
+                            ${d.name.charAt(0).toUpperCase()}
                         </div>
-                    </td>
-                    <td class="px-10 py-6 text-center ${rowClass}">
-                        <div class="text-xl font-black text-red-500 tracking-tighter">
-                            ${formatCurrency(d.deuda_total)}
+                        <div>
+                            <div class="font-bold text-white text-base">${d.name}</div>
+                            <div class="text-[10px] text-white/60 uppercase tracking-widest font-medium">${d.phone}</div>
                         </div>
-                    </td>
-                    <td class="px-10 py-6">
-                        <div class="glass-badge ${d.deuda_total > 5000 ? 'glass-badge-danger' : 'glass-badge-success'}">
-                            <span class="text-[10px] font-black uppercase tracking-widest">
-                                ${d.deuda_total > 5000 ? 'Prioridad' : 'Activa'}
-                            </span>
-                        </div>
-                    </td>
-                    <td class="px-10 py-6 text-right">
-                        <button onclick="window.handleViewClientPayments(${d.client_id})" 
-                                class="view-debt-btn scale-125 hover:border-orange-500 hover:text-orange-500 transition-all" 
-                                title="Gestionar Pagos">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-center">
+                    <div class="text-xl font-black text-red-500 tracking-tighter">
+                        ${formatCurrency(d.deuda_total)}
+                    </div>
+                </td>
+                <td class="px-10 py-6">
+                    <div class="glass-badge ${d.deuda_total > 5000 ? 'glass-badge-danger' : 'glass-badge-success'}">
+                        <span class="text-[10px] font-black uppercase tracking-widest">
+                            ${d.deuda_total > 5000 ? 'Prioridad' : 'Activa'}
+                        </span>
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-right">
+                    <button onclick="window.handleViewClientPayments(${d.client_id})" 
+                            class="view-debt-btn scale-110 hover:border-orange-500 hover:text-orange-500 transition-all">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
 
     } catch (err) {
-        console.error("Error cargando deudas:", err);
+        console.error("Error cargando tabla de deudas:", err);
     }
 };
 //Llena el SELECT de Producto Padre en el modal de edición
