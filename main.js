@@ -1795,49 +1795,34 @@ let viewingClientId = null;
 // FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
 // ====================================================================
 window.loadDashboardMetrics = async function() {
-    if (!supabase) {
-        console.error("Supabase no está inicializado para cargar métricas.");
-        return;
-    }
+    if (!supabase) return;
 
     try {
-        // A. CALCULAR DEUDA PENDIENTE TOTAL (SUM(saldo_pendiente) > 0.01)
+        // A. CALCULAR DEUDA PENDIENTE
         const { data: debtData, error: debtError } = await supabase
             .from('ventas')
             .select('saldo_pendiente')
-            .gt('saldo_pendiente', 0.01); // Selecciona solo ventas con deuda activa
+            .gt('saldo_pendiente', 0.01);
 
         if (debtError) throw debtError;
 
-        let totalDebt = 0;
-        if (debtData && debtData.length > 0) {
-            // Suma todos los saldos pendientes
-            totalDebt = debtData.reduce((sum, sale) => sum + parseFloat(sale.saldo_pendiente || 0), 0);
-        }
+        const totalDebt = debtData?.reduce((sum, sale) => sum + parseFloat(sale.saldo_pendiente || 0), 0) || 0;
 
-        // B. CALCULAR VENTA HISTÓRICA TOTAL (SUM(total_amount))
-        // Usamos una función de agregación directa (sum) para mayor eficiencia
+        // B. CALCULAR VENTA HISTÓRICA
         const { data: salesData, error: salesError } = await supabase
             .from('ventas')
-            .select('total_amount')
-            .not('total_amount', 'is', null);
+            .select('total_amount');
 
         if (salesError) throw salesError;
 
-        let historicalTotalSales = 0;
-        if (salesData && salesData.length > 0) {
-            historicalTotalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.total_amount || 0), 0);
-        }
+        const historicalTotalSales = salesData?.reduce((sum, sale) => sum + parseFloat(sale.total_amount || 0), 0) || 0;
         
-        // 3. INYECTAR EN EL DOM (usando los IDs que proporcionaste)
-        
-        // Deuda Pendiente
+        // 3. INYECTAR EN EL DOM
         const debtElement = document.getElementById('total-debt');
         if (debtElement) {
             debtElement.textContent = formatCurrency(totalDebt);
         }
 
-        // Total Histórico de Ventas
         const salesElement = document.getElementById('historical-total-sales');
         if (salesElement) {
             salesElement.textContent = formatCurrency(historicalTotalSales);
@@ -2435,9 +2420,13 @@ window.editSaleDate = async function(ventaId, fechaActual) {
         if (error) throw error;
         
         // Sincronizar UI
-        await window.handleViewSaleDetails(ventaId); // Refresca el modal
-        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); // Refresca la tabla de fondo
-        if (window.loadDashboardData) window.loadDashboardData(); // Refresca totales
+        await window.handleViewSaleDetails(ventaId); 
+        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); 
+        
+        // RECARGA LAS MÉTRICAS (Evita que el botón de Deudas se reinicie)
+        if (window.loadDashboardMetrics) {
+            await window.loadDashboardMetrics();
+        }
         
     } catch (err) {
         alert("Error al cambiar fecha.");
@@ -2868,14 +2857,13 @@ window.editSalePaymentMethod = async function(ventaId, metodoActual) {
 };
 window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaId) {
     const nuevoPrecio = prompt("Ingrese el nuevo precio unitario:", precioActual);
-    
     if (nuevoPrecio === null || nuevoPrecio === "" || isNaN(nuevoPrecio)) return;
 
     const p = parseFloat(nuevoPrecio);
     const nuevoSubtotal = p * cantidad;
 
     try {
-        // 1. Actualizar el detalle en detalle_ventas
+        // 1. Actualizar el detalle
         const { error: pError } = await supabase
             .from('detalle_ventas')
             .update({ price: p, subtotal: nuevoSubtotal })
@@ -2883,7 +2871,7 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
 
         if (pError) throw pError;
 
-        // 2. Obtener todos los detalles de esta venta para el nuevo Total
+        // 2. Recalcular Total de la Venta
         const { data: detalles } = await supabase
             .from('detalle_ventas')
             .select('subtotal')
@@ -2891,54 +2879,34 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
         
         const nuevoTotalVenta = detalles.reduce((acc, curr) => acc + curr.subtotal, 0);
 
-        // 3. Obtener cuánto ha pagado el cliente en total para esta venta
+        // 3. Recalcular Saldo Pendiente
         const { data: pagos } = await supabase
             .from('pagos')
             .select('amount')
             .eq('venta_id', ventaId);
         
         const totalAbonado = pagos ? pagos.reduce((acc, curr) => acc + (curr.amount || 0), 0) : 0;
-
-        // 4. Calcular el nuevo saldo pendiente REAL
         const nuevoSaldo = nuevoTotalVenta - totalAbonado;
 
-        // 5. Actualizar la tabla de VENTAS
-        const { error: vError } = await supabase
+        // 4. Actualizar tabla Ventas
+        await supabase
             .from('ventas')
-            .update({ 
-                total_amount: nuevoTotalVenta,
-                saldo_pendiente: nuevoSaldo 
-            })
+            .update({ total_amount: nuevoTotalVenta, saldo_pendiente: nuevoSaldo })
             .eq('venta_id', ventaId);
-
-        if (vError) throw vError;
 
         alert("✅ Precio y saldo actualizados.");
         
-        // --- 6. SINCRONIZACIÓN TOTAL ---
+        // --- SINCRONIZACIÓN TOTAL ---
+        await window.handleViewSaleDetails(ventaId); // Refrescar modal
+        if (window.loadMonthlySalesReport) window.loadMonthlySalesReport(); // Refrescar reportes
         
-        // Refrescar el modal de detalles
-        if (typeof window.handleViewSaleDetails === 'function') {
-            await window.handleViewSaleDetails(ventaId);
-        }
-        
-        // Refrescar la tabla de reportes mensuales (para ver el nuevo saldo/total)
-        if (typeof window.loadMonthlySalesReport === 'function') {
-            window.loadMonthlySalesReport();
-        }
-        
-        // Refrescar dashboard (totales de arriba)
-        if (window.loadDashboardData) {
-            window.loadDashboardData();
-        }
-        
-        // Refrescar tabla de clientes (por si cambió la deuda total del cliente)
-        if (window.loadClientsTable) {
-            window.loadClientsTable('gestion');
+        // RECARGA LAS MÉTRICAS (Para que el botón de Deudas no se vuelva 0)
+        if (window.loadDashboardMetrics) {
+            await window.loadDashboardMetrics();
         }
 
     } catch (err) {
-        console.error("Error al actualizar:", err);
+        console.error(err);
         alert("No se pudo actualizar el precio.");
     }
 };
