@@ -979,6 +979,7 @@ window.handleAddProductToSale = function(e) {
 window.handleNewSale = async function(e) {
     if (e) e.preventDefault();
     
+    // 1. Obtención de datos del formulario
     const client_id = document.getElementById('client-select')?.value;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
@@ -992,14 +993,20 @@ window.handleNewSale = async function(e) {
     let final_paid_amount = (paid_amount > total_amount) ? total_amount : paid_amount;
     let final_saldo_pendiente = total_amount - final_paid_amount; 
 
+    // Validaciones
     if (!client_id) { alert('Selecciona un cliente.'); return; }
     if (currentSaleItems.length === 0) { alert('El carrito está vacío.'); return; }
 
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Procesando...'; }
+    if (submitBtn) { 
+        submitBtn.disabled = true; 
+        submitBtn.textContent = 'Procesando...'; 
+    }
 
     try {
-        // 1. Insertar Venta
+        // --- PROCESO EN SUPABASE ---
+
+        // 1. Insertar la Venta principal
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
@@ -1015,7 +1022,7 @@ window.handleNewSale = async function(e) {
         if (saleError) throw saleError;
         const new_venta_id = saleData[0].venta_id;
 
-        // 2. Insertar Detalles (CON LA COLUMNA NAME)
+        // 2. Insertar Detalles de la Venta
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
@@ -1028,7 +1035,7 @@ window.handleNewSale = async function(e) {
         const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
         if (dError) throw dError;
 
-        // 3. Registrar Pago si aplica
+        // 3. Registrar Pago inicial (si el cliente pagó algo en el momento)
         if (final_paid_amount > 0) {
             await supabase.from('pagos').insert([{
                 venta_id: new_venta_id,
@@ -1039,26 +1046,58 @@ window.handleNewSale = async function(e) {
             }]);
         }
 
-        // 4. Actualizar Deuda Cliente
+        // 4. Actualizar Deuda del Cliente (Si quedó saldo pendiente)
         if (final_saldo_pendiente > 0) {
-            const { data: c } = await supabase.from('clientes').select('deuda_total').eq('client_id', client_id).single();
-            await supabase.from('clientes').update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente }).eq('client_id', client_id);
+            const { data: c } = await supabase
+                .from('clientes')
+                .select('deuda_total')
+                .eq('client_id', client_id)
+                .single();
+            
+            await supabase
+                .from('clientes')
+                .update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente })
+                .eq('client_id', client_id);
         }
 
-        // --- ÉXITO Y LIMPIEZA ---
+        // --- ÉXITO Y ACTUALIZACIÓN DE INTERFAZ (Corrección aquí) ---
+        
         alert('Venta registrada con éxito');
         closeModal('new-sale-modal');
+
+        // Limpieza de UI del TPV
         currentSaleItems = [];
-        window.updateSaleTableDisplay();
-        document.getElementById('new-sale-form').reset();
+        if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
+        document.getElementById('new-sale-form')?.reset();
+
+        // RECARGA DE DATOS PARA REPORTES Y TABLAS
+        console.log("🔄 Sincronizando datos tras venta...");
         
-        if (window.loadDashboardData) await loadDashboardData();
+        // A. Recargar array global de ventas (Vital para Reportes)
+        if (typeof window.loadSalesData === 'function') {
+            await window.loadSalesData();
+            // Refrescar la tabla de ventas si el usuario está en esa vista
+            if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
+        }
+
+        // B. Recargar Dashboard (Métricas de ventas diarias)
+        if (typeof window.loadDashboardData === 'function') {
+            await window.loadDashboardData();
+        }
+
+        // C. Recargar Clientes (Si hubo cambio en deuda)
+        if (final_saldo_pendiente > 0 && typeof window.loadClientsTable === 'function') {
+            await window.loadClientsTable('gestion');
+        }
 
     } catch (err) {
-        console.error(err);
+        console.error('Error al procesar venta:', err);
         alert('Error: ' + err.message);
     } finally {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Registrar Venta'; }
+        if (submitBtn) { 
+            submitBtn.disabled = false; 
+            submitBtn.textContent = 'Registrar Venta'; 
+        }
     }
 };
 
@@ -4814,7 +4853,7 @@ window.openNewProductModal = async function() {
 window.switchView = async function(viewId) {
     console.log(`Cambiando a vista: ${viewId}`);
 
-    // 1. Gestión Visual
+    // 1. Gestión Visual (Menú y Vistas)
     document.querySelectorAll('.menu-item').forEach(link => {
         link.classList.remove('active-menu-item');
     });
@@ -4828,23 +4867,47 @@ window.switchView = async function(viewId) {
     const activeLink = document.querySelector(`[data-view="${viewId}"]`);
     if (activeLink) activeLink.classList.add('active-menu-item');
 
-    // 2. Carga de Datos
+    // 2. Carga de Datos Dinámica
     try {
         if (viewId === 'home-view') {
             if (typeof loadDashboardData === 'function') await loadDashboardData();
         } 
+        
         else if (viewId === 'deudas-view') {
-            // 1. Cargamos los datos de la tabla (esto debería llenar window.allClients)
+            // Recargamos la tabla de deudas
             if (typeof loadDebtsTable === 'function') {
                 await loadDebtsTable();
             } else if (typeof loadDebts === 'function') {
                 await loadDebts();
             }
-            
-            // 2. IMPORTANTE: Pasamos la variable global allClients a la función
-            // Usamos window.allClients para asegurar que tome la variable global
-            await actualizarMetricasDeudas(window.allClients);
+            // Actualizamos las tarjetas superiores de deuda con datos frescos
+            if (typeof actualizarMetricasDeudas === 'function') {
+                await actualizarMetricasDeudas(window.allClients);
+            }
         }
+
+        else if (viewId === 'report-view') {
+            console.log("📊 Refrescando reportes...");
+            // 1. Forzamos la recarga de ventas para incluir la última venta realizada
+            if (typeof window.loadSalesData === 'function') {
+                await window.loadSalesData();
+            }
+            
+            // 2. Llamamos a la función que procesa los datos y dibuja los Charts
+            // En tu main.js se llama initReportView
+            if (typeof window.initReportView === 'function') {
+                window.initReportView();
+            }
+        }
+
+        else if (viewId === 'sales-view') {
+            // Opcional: Recargar tabla de ventas al entrar
+            if (typeof window.loadSalesData === 'function') {
+                await window.loadSalesData();
+                if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
+            }
+        }
+
     } catch (error) {
         console.error(`Error al cargar datos de la vista ${viewId}:`, error);
     }
