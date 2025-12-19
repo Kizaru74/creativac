@@ -170,90 +170,13 @@ window.closeModal = function(modalId) {
 // A. Dashboard y grafica
 // ====================================================================
 
-async function inicializarGraficaHome() {
-    const canvas = document.getElementById('ventasChart');
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-
-    // SOLUCIÓN AL ERROR DE CANVAS: Destruir si ya existe
-    if (ventasChartInstance) {
-        ventasChartInstance.destroy();
-    }
-
-    const datosVentas = await getVentasUltimaSemana();
-    
-    // ... resto del código de configuración de Chart.js ...
-    ventasChartInstance = new Chart(ctx, { 
-        type: 'line',
-        data: { /* tus datos */ },
-        options: { /* tus opciones */ }
-    });
-}
-
-async function getVentasUltimaSemana() {
-    const { data, error } = await supabase
-        .from('ventas') // ANTES: 'sales'
-        .select('created_at, total_amount') // ANTES: 'total'
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-
-    if (error) {
-        console.error("Error obteniendo ventas para gráfica:", error);
-        return Array(7).fill(0);
-    }
-
-    const ventasPorDia = {};
-    const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        ventasPorDia[diasSemana[d.getDay()]] = 0;
-    }
-
-    data.forEach(sale => {
-        const fecha = new Date(sale.created_at);
-        const nombreDia = diasSemana[fecha.getDay()];
-        if (ventasPorDia.hasOwnProperty(nombreDia)) {
-            // Usamos total_amount que es el nombre real en tu base de datos
-            ventasPorDia[nombreDia] += Number(sale.total_amount); 
-        }
-    });
-
-    return Object.values(ventasPorDia);
-}
-
 async function loadDashboardData() {
-    try {
-        console.log("Cargando datos del Dashboard...");
-
-        // Llamamos a tus funciones existentes primero
-        await loadDebts();
-        await loadRecentSales();
-
-        // CORRECCIÓN ERROR 404: Cambiamos 'clients' por 'clientes' (o el nombre que uses)
-        // Según tus logs, parece que usas 'clientes'
-        const { data: clientesData, error: dError } = await supabase
-            .from('clientes') 
-            .select('saldo_pendiente'); // Ajusta al nombre de tu columna de deuda
-
-        if (!dError && clientesData) {
-            // Sumamos el saldo pendiente de todos los clientes
-            const totalDeuda = clientesData.reduce((acc, curr) => acc + (Number(curr.saldo_pendiente) || 0), 0);
-            const deudaElement = document.getElementById('home-total-deuda');
-            if (deudaElement) {
-                deudaElement.innerText = new Intl.NumberFormat('es-MX', {
-                    style: 'currency', currency: 'MXN'
-                }).format(totalDeuda);
-            }
-        }
-
-        // Inicializar gráfica sin que choque
-        await inicializarGraficaHome();
-
-    } catch (error) {
-        console.error("Error en la orquestación del Dashboard:", error);
-    }
+    await loadDebts();
+    await loadRecentSales();
+    await loadClientsTable('gestion');
+    await loadProductsTable(); 
+    await loadClientsForSale();
+    await loadClientDebtsTable();
 }
 
 // ====================================================================
