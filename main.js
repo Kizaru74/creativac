@@ -1643,6 +1643,120 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
 // ====================================================================
 // 9. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
+window.loadClientsTable = async function(mode = 'gestion') {
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
+
+    const container = document.getElementById('clients-list-body');
+    if (!container) return;
+
+    const showActions = mode === 'gestion';
+
+    try {
+        // 1. Obtener la lista base de clientes
+        const { data: clients, error: clientsError } = await supabase
+            .from('clientes')
+            .select('client_id, name, telefono') 
+            .order('name', { ascending: true });
+
+        if (clientsError) throw clientsError;
+
+        // --- ACTUALIZACIÓN DE MAPAS GLOBALES ---
+        window.allClients = clients; 
+        window.allClientsMap = {}; 
+        clients.forEach(c => {
+            window.allClientsMap[c.client_id] = c;
+        });
+
+        // 2. Resumen de ventas
+        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
+        const summaries = await Promise.all(summaryPromises);
+
+        // 3. Renderizado
+        container.innerHTML = '';
+
+        clients.forEach((client, index) => {
+            const summary = summaries[index];
+            const row = document.createElement('tr');
+            
+            // CLASE CORREGIDA PARA MODO OSCURO
+            row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
+
+            const deudaVisual = summary.deudaNeta;
+
+            let actionCell = '';
+            if (showActions) {
+                actionCell = `
+                    <td class="px-3 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button type="button" class="btn-action-report btn-view text-indigo-400" 
+                                data-client-id="${client.client_id}" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+
+                        <button type="button" class="btn-action-report text-emerald-400" 
+                                onclick="window.handleAbonoClick(${client.client_id})" title="Abonar">
+                            <i class="fas fa-hand-holding-usd"></i>
+                        </button>
+
+                        <button type="button" class="btn-action-report text-blue-400" 
+                                data-client-id="${client.client_id}" title="Estado de Cuenta">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </button>
+
+                        <button type="button" class="btn-action-report btn-delete text-red-400" 
+                                data-client-id="${client.client_id}" 
+                                data-client-name="${client.name}" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+            }
+            
+            row.innerHTML = `
+                <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="text-[11px] font-mono text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
+                        #${client.client_id}
+                    </span>
+                </td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold text-white">${client.name}</td>
+                <td class="px-3 py-3 whitespace-nowrap text-sm text-white/60">${client.telefono || '---'}</td>
+                
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-white/80">
+                    ${formatCurrency(summary.totalVentas)}
+                </td>
+                
+                <td class="px-3 py-3 whitespace-nowrap text-sm font-bold">
+                    <span class="px-2 py-1 rounded ${deudaVisual > 0.01 ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}">
+                        ${formatCurrency(deudaVisual)}
+                    </span>
+                </td>
+                
+                ${actionCell} 
+            `;
+            container.appendChild(row);
+        });
+
+        // 4. Re-enlazar Event Listeners
+        if (showActions) {
+            container.querySelectorAll('[data-client-id]').forEach(btn => {
+                if(btn.classList.contains('btn-view')) {
+                    btn.onclick = () => handleEditClientClick(btn.dataset.clientId);
+                }
+                if(btn.classList.contains('btn-delete')) {
+                    btn.onclick = () => handleDeleteClientClick(btn.dataset.clientId);
+                }
+                if(btn.classList.contains('text-blue-400')) {
+                    btn.onclick = () => handleViewClientDebt(btn.dataset.clientId);
+                }
+            });
+        }
+
+    } catch (e) {
+        console.error('Error al cargar tabla de clientes:', e);
+    }
+};
 
 // Variable global para almacenar el ID del cliente cuya deuda estamos viendo
 let viewingClientId = null; 
