@@ -226,3 +226,16 @@ input, select, textarea {
     background-color: rgba(255, 255, 255, 0.1) !important;
     color: #f97316 !important; /* Brillo naranja al pasar el mouse */
 }
+
+/* Forzar que los textos de la tabla de clientes sean siempre legibles en fondo oscuro */
+body #clients-list-body td,
+body #clients-list-body .text-slate-800,
+body #clients-list-body .text-slate-700 {
+    color: #ffffff !important;
+}
+
+/* Mejora de los avatares para que resalten */
+body #clients-list-body .bg-slate-800 {
+    background-color: #f97316 !important; /* Naranja corporativo */
+    color: white !important;
+}
