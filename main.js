@@ -181,7 +181,6 @@ async function inicializarGraficaHome() {
         ventasChartInstance.destroy();
     }
 
-    // Obtener datos reales (asegúrate de que getVentasUltimaSemana use 'ventas')
     const datosVentas = await getVentasUltimaSemana();
     
     // ... resto del código de configuración de Chart.js ...
@@ -4857,50 +4856,47 @@ window.openNewProductModal = async function() {
 // ====================================================================
 
 async function switchView(viewId) {
-    // 1. Limpieza de estilos y ocultar vistas
+    console.log(`Cambiando a vista: ${viewId}`);
+
+    // 1. Gestión Visual: Menú y Secciones
     document.querySelectorAll('.menu-item').forEach(link => {
-        link.classList.remove('active-menu-item', 'text-white');
-        link.classList.add('text-gray-400');
+        link.classList.remove('active-menu-item');
     });
-    
     document.querySelectorAll('.dashboard-view').forEach(view => {
         view.classList.add('hidden');
     });
     
-    // 2. Mostrar la vista seleccionada
     const targetView = document.getElementById(viewId);
-    if (targetView) {
-        targetView.classList.remove('hidden');
-    }
+    if (targetView) targetView.classList.remove('hidden');
     
-    // 3. Activar link en el menú
     const activeLink = document.querySelector(`[data-view="${viewId}"]`);
-    if (activeLink) {
-        activeLink.classList.add('active-menu-item', 'text-white');
-        activeLink.classList.remove('text-gray-400');
-    }
+    if (activeLink) activeLink.classList.add('active-menu-item');
 
-    // 4. Carga de datos dinámica
-    switch (viewId) {
-        case 'home-view':
-            await loadDashboardData(); // Carga totales y gráfica
-            break;
-        case 'deudas-view':
-            if (typeof loadDebtsTable === 'function') loadDebtsTable();
-            break;
-        case 'clients-view':
-            if (typeof loadClientsTable === 'function') loadClientsTable('gestion');
-            break;
-        case 'products-view':
-            if (typeof loadAndRenderProducts === 'function') loadAndRenderProducts();
-            break;
-        case 'report-view':
-            if (!reportSelectorsInitialized && typeof initReportSelectors === 'function') {
-                initReportSelectors(); 
-            } else if (typeof loadMonthlySalesReport === 'function') {
-                loadMonthlySalesReport();
+    // 2. Carga de Datos con "Aislamiento de Errores"
+    try {
+        if (viewId === 'home-view') {
+            await loadDashboardData();
+        } 
+        else if (viewId === 'deudas-view') {
+            // Verifica si el nombre es loadDebtsTable o loadDebts
+            if (typeof loadDebtsTable === 'function') await loadDebtsTable();
+            else if (typeof loadDebts === 'function') await loadDebts();
+        } 
+        else if (viewId === 'clients-view') {
+            if (typeof loadClientsTable === 'function') await loadClientsTable('gestion');
+        } 
+        else if (viewId === 'products-view') {
+            // Verifica si es loadAndRenderProducts o loadProductsTable
+            if (typeof loadAndRenderProducts === 'function') await loadAndRenderProducts();
+            else if (typeof loadProductsTable === 'function') await loadProductsTable();
+        } 
+        else if (viewId === 'report-view') {
+            if (typeof initReportSelectors === 'function') {
+                await initReportSelectors();
             }
-            break;
+        }
+    } catch (error) {
+        console.error(`Error al cargar datos de la vista ${viewId}:`, error);
     }
 }
 
