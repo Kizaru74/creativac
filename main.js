@@ -3800,6 +3800,87 @@ window.loadClientsTable = async function(mode = 'gestion') {
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
 
+window.handleNewClient = async function(e) {
+    // 🛑 CRÍTICO: Detiene el envío nativo del formulario.
+    // Esta línea funcionará correctamente porque ahora la función será llamada
+    // por un listener de JS nativo (form.addEventListener('submit', ...))
+    e.preventDefault(); 
+    
+    // 🛑 LOG 1: VERIFICAR SI LA FUNCIÓN FUE LLAMADA
+    console.log('1. FUNCIÓN DE REGISTRO INICIADA.'); 
+    
+    const name = document.getElementById('new-client-name')?.value.trim();
+    const phone = document.getElementById('new-client-phone')?.value.trim() || null;
+    
+    // 🛑 LOG 2: VERIFICAR LA CAPTURA DE DATOS Y LA DISPONIBILIDAD DE SUPABASE
+    console.log(`2. Datos capturados: Nombre='${name}', Teléfono='${phone}'.`);
+    
+    if (typeof supabase === 'undefined' || !supabase) { 
+        console.error('ERROR CRÍTICO: La variable "supabase" no está definida o accesible globalmente.');
+        alert('Error: La conexión a la base de datos no está disponible.');
+        return;
+    }
+    
+    if (!name || name.length < 3) {
+        console.warn('Registro cancelado: Nombre inválido.');
+        alert('Por favor, ingresa un nombre válido para el cliente.');
+        
+        // Opcional: enfocar el campo para mejor UX
+        document.getElementById('new-client-name')?.focus(); 
+        
+        return;
+    }
+
+    // 🛑 LOG 3: INTENTO DE INSERCIÓN
+   // console.log('3. Intentando insertar en Supabase...');
+
+    // Usamos un bloque try/catch para manejar errores de red o Supabase
+    try {
+        const { error } = await supabase
+            .from('clientes')
+            .insert([{ 
+                name: name, 
+                telefono: phone, 
+                is_active: true 
+            }]);
+
+        // 🛑 LOG 4: RESULTADO DE SUPABASE
+        if (error) {
+            console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
+            alert('Error al registrar cliente: ' + error.message);
+        } else {
+        //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
+            alert('Cliente registrado exitosamente.');
+            
+            // --- Cierre y Limpieza ---
+            
+            // 1. Recargar la tabla de clientes
+            if (typeof window.loadClientsTable === 'function') { // Verificar en window
+             await window.loadClientsTable('gestion');        // Llamar desde window
+         //    console.log("5. Tabla de clientes recargada exitosamente.");
+            }    else {
+            console.error("ERROR: window.loadClientsTable no está definida para la recarga.");
+}
+
+            // 2. Limpiar el formulario
+            const clientForm = document.getElementById('new-client-form');
+            clientForm?.reset(); 
+            
+            // 3. Cerrar el modal
+            if (typeof closeModal === 'function') {
+                closeModal('new-client-modal');
+            } else {
+                console.error("closeModal no está definida globalmente.");
+            }
+            
+           // console.log('5. Tarea completada y modal cerrado.');
+        }
+    } catch (e) {
+        console.error('5. ERROR DE RED o EXCEPCIÓN AL REGISTRAR:', e);
+        alert('Error desconocido al registrar cliente. Verifique la conexión a Supabase.');
+    }
+}
+
 window.handleDeleteClientClick = function(clientId) {
     // Forzamos que sea un string para evitar fallos de tipos
     const idStr = String(clientId);
