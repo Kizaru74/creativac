@@ -3162,7 +3162,7 @@ window.loadProductsTable = function() {
                 <div class="glass-badge ${badgeClass}">
                     <span class="flex items-center font-black">
                         <i class="fas ${icon} mr-2 text-[9px] opacity-70"></i>
-                        <span class="font-mono text-[10px] tracking-widest uppercase">${typeText}</span>
+                        <span class="font-mono text-[12px] tracking-widest uppercase">${typeText}</span>
                     </span>
                 </div>
             </td>
@@ -3172,13 +3172,13 @@ window.loadProductsTable = function() {
                     <button 
                         onclick="window.handleEditProductClick(${product.producto_id})" 
                         class="edit-client-btn" title="Editar Producto">
-                        <i class="fas fa-pen text-[10px]"></i>
+                        <i class="fas fa-pen text-[12px]"></i>
                     </button>
                     
                     <button 
                         onclick="window.handleDeleteProductClick(${product.producto_id})" 
                         class="delete-client-btn" title="Eliminar Producto">
-                        <i class="fas fa-trash-alt text-[10px]"></i>
+                        <i class="fas fa-trash-alt text-[12px]"></i>
                     </button>
                 </div>
             </td>
