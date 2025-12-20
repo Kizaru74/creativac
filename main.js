@@ -3695,7 +3695,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
         container.innerHTML = '';
 
         if (clients.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 italic tracking-widest uppercase text-[10px]">No hay clientes registrados</td></tr>`;
+            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 font-sans uppercase text-[10px] tracking-widest">No hay registros</td></tr>`;
             return;
         }
 
@@ -3703,8 +3703,8 @@ window.loadClientsTable = async function(mode = 'gestion') {
             const summary = summaries[index];
             const row = document.createElement('tr');
             
-            // Dejamos que el hover lo maneje tu CSS: tbody tr:hover
-            row.className = 'group border-b border-white/5 transition-all duration-300';
+            // Efecto hover sutil definido en tu CSS
+            row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
             const deudaVisual = summary.deudaNeta;
             const tieneDeuda = deudaVisual > 0.01;
@@ -3713,21 +3713,17 @@ window.loadClientsTable = async function(mode = 'gestion') {
             if (showActions) {
                 actionCell = `
                     <td class="px-6 py-5 whitespace-nowrap text-right">
-                        <div class="flex justify-end items-center space-x-1 opacity-20 group-hover:opacity-100 transition-all duration-300">
-                            <button type="button" class="edit-client-btn p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all" 
-                                    data-id="${client.client_id}" title="Editar Perfil">
-                                <i class="fas fa-edit text-[11px]"></i>
+                        <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                            <button type="button" class="edit-client-btn" data-id="${client.client_id}">
+                                <i class="fas fa-user-edit text-[11px]"></i>
                             </button>
-                            <button type="button" class="abono-btn p-2.5 text-white/60 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all" 
-                                    onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Abono">
-                                <i class="fas fa-hand-holding-usd text-[11px]"></i>
+                            <button type="button" class="abono-btn" onclick="window.handleAbonoClick(${client.client_id})">
+                                <i class="fas fa-receipt text-[11px]"></i>
                             </button>
-                            <button type="button" class="view-debt-btn p-2.5 text-white/60 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all" 
-                                    data-id="${client.client_id}" title="Estado de Cuenta">
-                                <i class="fas fa-file-invoice-dollar text-[11px]"></i>
+                            <button type="button" class="view-debt-btn" data-id="${client.client_id}">
+                                <i class="fas fa-history text-[11px]"></i>
                             </button>
-                            <button type="button" class="delete-client-btn p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all" 
-                                    data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
+                            <button type="button" class="delete-client-btn" data-id="${client.client_id}" data-name="${client.name}">
                                 <i class="fas fa-trash-alt text-[11px]"></i>
                             </button>
                         </div>
@@ -3737,34 +3733,34 @@ window.loadClientsTable = async function(mode = 'gestion') {
             
             row.innerHTML = `
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <span class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded text-[10px]">
-                        #${client.client_id}
+                    <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px]">
+                        ID #${client.client_id}
                     </span>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 text-white flex items-center justify-center font-black text-xs mr-4 group-hover:border-orange-500/30 transition-colors">
-                            ${client.name.charAt(0).toUpperCase()}
+                        <div class="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:text-orange-500 group-hover:border-orange-500/40 transition-all">
+                            <i class="fas fa-user text-xs"></i>
                         </div>
-                        <div>
-                            <div class="text-sm font-bold text-white tracking-wide">${client.name}</div>
-                            <div class="text-[10px] text-white/30 flex items-center mt-1">
-                                <i class="fas fa-phone-alt mr-2 text-[8px] opacity-50"></i>
-                                ${client.telefono || 'Sin teléfono'}
+                        <div class="ml-4">
+                            <div class="text-sm font-bold text-white uppercase tracking-wide">${client.name}</div>
+                            <div class="text-[10px] text-white/30 font-sans mt-0.5 flex items-center">
+                                <i class="fas fa-phone-alt mr-1.5 text-[8px]"></i>
+                                ${client.telefono || 'Sin contacto'}
                             </div>
                         </div>
                     </div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/20 uppercase tracking-[0.15em] font-black mb-1">Consumo</div>
-                    <div class="text-sm font-medium text-white/80 font-mono">${formatCurrency(summary.totalVentas)}</div>
+                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans">Total Consumo</div>
+                    <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/20 uppercase tracking-[0.15em] font-black mb-1">Estado</div>
+                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans">Estado de Cuenta</div>
                     <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="flex items-center ${tieneDeuda ? 'text-red-500' : 'text-emerald-500'} font-black">
+                        <span class="flex items-center font-bold text-[11px] font-sans">
                             <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                            <span class="font-mono">${formatCurrency(deudaVisual)}</span>
+                            ${formatCurrency(deudaVisual)}
                         </span>
                     </div>
                 </td>
@@ -3773,17 +3769,11 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // Re-vinculación de eventos
+        // Re-vinculación de eventos (Edit, Debt, Delete)
         if (showActions) {
-            container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
-            });
-            container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => window.handleViewClientDebt(btn.dataset.id);
-            });
-            container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name);
-            });
+            container.querySelectorAll('.edit-client-btn').forEach(btn => btn.onclick = () => window.handleEditClientClick(btn.dataset.id));
+            container.querySelectorAll('.view-debt-btn').forEach(btn => btn.onclick = () => window.handleViewClientDebt(btn.dataset.id));
+            container.querySelectorAll('.delete-client-btn').forEach(btn => btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name));
         }
 
     } catch (e) {
