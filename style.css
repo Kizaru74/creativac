@@ -1,4 +1,4 @@
-/* style.css - Creativa Cortes CNC (VERSIÓN DEFINITIVA) */
+/* style.css - Creativa Cortes CNC (VERSIÓN FINAL COMPLETA) */
 
 @tailwind base;
 @tailwind components;
@@ -11,19 +11,16 @@ body, #main-content, .modal-overlay {
 }
 
 /* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
-/* Forzar que CUALQUIER texto dentro de las tablas sea legible en fondo oscuro */
 tbody tr td, 
 .text-slate-800, .text-slate-700, .text-gray-800, .text-gray-900,
 .text-slate-500, .text-gray-500, .text-gray-400 {
     color: #ffffff !important;
 }
 
-/* Opacidad sutil para textos secundarios */
 .text-slate-400, .text-gray-400, .text-white\/60 {
     color: rgba(255, 255, 255, 0.5) !important;
 }
 
-/* Prevención de fondo blanco en Hover */
 tbody tr {
     transition: background-color 0.2s ease;
     background-color: transparent !important;
@@ -34,34 +31,31 @@ tbody tr:hover {
 }
 
 /* --- 3. BADGES DE IDENTIFICACIÓN (ID #00) --- */
-/* Estilo unificado para Clientes, Productos y Reportes */
 #clients-list-body .bg-slate-100,
 #products-list-body .bg-slate-100,
 #monthly-sales-report-body .bg-slate-100,
 .font-mono.bg-orange-500\/10 {
-    background-color: rgba(249, 115, 22, 0.1) !important; /* Fondo naranja traslúcido */
-    color: #f97316 !important; /* Texto naranja */
+    background-color: rgba(249, 115, 22, 0.1) !important;
+    color: #f97316 !important;
     border: 1px solid rgba(249, 115, 22, 0.3) !important;
     padding: 2px 6px !important;
     border-radius: 4px !important;
 }
 
 /* --- 4. ESTADOS DE DEUDA Y PAGOS --- */
-/* Peligro / Deuda (Rojo) */
-.bg-red-50, .bg-red-500\/10, .text-red-600, .text-red-500 { 
+.bg-red-50, .bg-red-500\/10, .text-red-600 { 
     background-color: rgba(239, 68, 68, 0.1) !important; 
     color: #ef4444 !important; 
     border: 1px solid rgba(239, 68, 68, 0.2) !important;
 }
 
-/* Éxito / Pagado (Verde) */
-.bg-emerald-50, .bg-emerald-500\/10, .text-green-600, .text-emerald-500 { 
+.bg-emerald-50, .bg-emerald-500\/10, .text-green-600  { 
     background-color: rgba(16, 185, 129, 0.1) !important; 
     color: #10b981 !important; 
     border: 1px solid rgba(16, 185, 129, 0.2) !important;
 }
 
-/* --- 5. BOTONES Y SPINNERS --- */
+/* --- 5. BOTONES Y SPINNERS (CORREGIDO) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
     width: 32px;
     height: 32px;
@@ -76,23 +70,87 @@ tbody tr:hover {
     position: relative;
 }
 
+/* Ocultar el spinner por defecto */
 .btn-spinner {
     display: none !important;
 }
 
-/* Estado de carga */
+/* Cuando el botón tiene la clase 'loading' */
 .loading .btn-spinner {
-    display: inline-block !important;
+    display: inline-block !important; /* Muestra el spinner */
 }
 
 .loading i:not(.btn-spinner) {
-    display: none !important;
+    display: none !important; /* Oculta el icono normal (lupa, basura, etc) */
 }
 
-/* --- 6. ESPECÍFICOS DE PRODUCTOS --- */
+/* --- 6. ESTILO VIDRIO PREMIUM (GLASSMORPHISM) --- */
+.glass-badge {
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 9999px !important;
+    padding: 6px 16px !important;
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 130px;
+    transition: all 0.3s ease;
+}
+
+.glass-badge-success {
+    background: rgba(16, 185, 129, 0.1) !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.glass-badge-danger {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Limpieza de recuadros internos en badges de vidrio */
+.glass-badge .text-red-500, 
+.glass-badge .text-emerald-500,
+.glass-badge .bg-red-500\/10,
+.glass-badge .bg-emerald-500\/10 {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+/* --- 7. MEJORAS DE CONTROL DE DEUDAS --- */
+.saldo-pendiente-highlight {
+    background-color: rgba(239, 68, 68, 0.05) !important;
+    position: relative;
+    border-left: 2px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+tbody tr:hover .saldo-pendiente-highlight {
+    background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* --- 8. ESPECÍFICOS DE PRODUCTOS --- */
 #products-list-body .bg-indigo-50, 
 #products-list-body .bg-amber-50 {
     background-color: rgba(255, 255, 255, 0.03) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: #f97316 !important;
+}
+
+/* Reset de botones en tablas para evitar el 'cuadro' de fondo */
+tbody button {
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Efecto hover suave y moderno */
+tbody button:hover {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-1px);
 }
