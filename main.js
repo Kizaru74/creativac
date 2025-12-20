@@ -4238,10 +4238,7 @@ window.handleDeleteAction = async function(btn, ventaId, month, year) {
 
 window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFromEvent) {
     (async () => {
-        if (!supabase) {
-            console.error("Supabase no está inicializado.");
-            return;
-        }
+        if (!supabase) return;
 
         const reportBody = document.getElementById('monthly-sales-report-body');
         const totalSalesEl = document.getElementById('report-total-sales');
@@ -4250,13 +4247,13 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
         if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) return;
 
-        // Estado de carga elegante
+        // 1. Estado de carga limpio
         reportBody.innerHTML = `
             <tr>
-                <td colspan="5" class="px-6 py-10 text-center">
-                    <div class="flex justify-center items-center space-x-2 text-slate-400">
-                        <i class="fas fa-circle-notch animate-spin"></i>
-                        <span class="text-sm font-medium">Sincronizando reportes...</span>
+                <td colspan="5" class="px-6 py-16 text-center">
+                    <div class="flex flex-col justify-center items-center space-y-3">
+                        <i class="fas fa-circle-notch animate-spin text-orange-500 text-2xl"></i>
+                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">Sincronizando</span>
                     </div>
                 </td>
             </tr>`;
@@ -4264,7 +4261,6 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         try {
             const currentMonthNum = new Date().getMonth() + 1;
             const currentYearNum = new Date().getFullYear();
-            
             let selectedMonth = (selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) ? selectedMonthFromEvent : currentMonthNum;
             let selectedYear = (selectedYearFromEvent >= 2000) ? selectedYearFromEvent : currentYearNum;
 
@@ -4288,53 +4284,46 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 sales.forEach(sale => {
                     totalSales += sale.total_amount;
                     totalDebtGenerated += sale.saldo_pendiente;
-        
                     const clientName = sale.clientes?.name || 'Cliente Final';
                     const dateObj = new Date(sale.created_at);
-                    const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                    const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
                     const tienePendiente = sale.saldo_pendiente > 0.01;
                     
                     const rowHTML = `
-                        <tr class="group hover:bg-slate-50/50 transition-colors border-b border-slate-100">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded inline-block">ID #${sale.venta_id}</div>
-                                <div class="text-[10px] text-slate-500 mt-1 uppercase tracking-tight font-medium italic">${formattedDate}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="h-7 w-7 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-bold mr-3 border border-indigo-100">
-                                        ${clientName.charAt(0)}
-                                    </div>
-                                    <div class="text-sm font-semibold text-slate-700">${clientName}</div>
+                        <tr class="group hover:bg-white/[0.04] transition-all duration-300 border-b border-white/5">
+                            <td class="px-8 py-5 whitespace-nowrap">
+                                <div class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] inline-block mb-1">
+                                    #${sale.venta_id}
                                 </div>
+                                <div class="text-[9px] text-white/30 uppercase font-mono">${formattedDate}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-slate-800">
+                            <td class="px-8 py-5 whitespace-nowrap">
+                                <div class="text-sm font-bold text-white/90">${clientName}</div>
+                            </td>
+                            <td class="px-8 py-5 whitespace-nowrap text-right font-mono text-sm text-white/80">
                                 ${formatCurrency(sale.total_amount)}
-                                <div class="text-[9px] text-slate-400 font-normal uppercase">${sale.metodo_pago}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right">
-                                <span class="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-bold ${
-                                    tienePendiente 
-                                    ? 'bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-600/20' 
-                                    : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20'
-                                }">
-                                    ${formatCurrency(sale.saldo_pendiente)}
-                                </span>
+                            <td class="px-8 py-5 whitespace-nowrap text-right">
+                                <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'}">
+                                    <span class="flex items-center ${tienePendiente ? 'text-red-500' : 'text-emerald-500'} font-black">
+                                        <span class="h-1 w-1 rounded-full ${tienePendiente ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                                        <span class="font-mono text-[11px]">${formatCurrency(sale.saldo_pendiente)}</span>
+                                    </span>
+                                </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div class="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onclick="handleViewSaleDetails('${sale.venta_id}', '${sale.client_id}')" 
-                                            class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Ver Detalles">
-                                        <i class="fas fa-eye"></i>
+                            <td class="px-8 py-5 whitespace-nowrap text-right">
+                                <div class="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
+                                            class="p-2 text-white/40 hover:text-blue-400 hover:scale-125 transition-all" title="Ver">
+                                        <i class="fas fa-eye text-xs"></i>
                                     </button>
-                                    <button onclick="handleDeleteSale('${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                                            class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Anular Venta">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
+                                            class="p-2 text-white/40 hover:text-red-500 hover:scale-125 transition-all" title="Anular">
+                                        <i class="fas fa-trash-alt text-xs"></i>
                                     </button>
                                 </div>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                     reportBody.insertAdjacentHTML('beforeend', rowHTML); 
                 });
                 noDataMessage.classList.add('hidden'); 
@@ -4342,12 +4331,12 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 noDataMessage.classList.remove('hidden'); 
             }
             
-            totalSalesEl.textContent = formatCurrency(totalSales);
-            totalDebtEl.textContent = formatCurrency(totalDebtGenerated);
+            totalSalesEl.innerHTML = `<span class="text-emerald-500 font-black font-mono">${formatCurrency(totalSales)}</span>`;
+            totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/40'} font-black font-mono">${formatCurrency(totalDebtGenerated)}</span>`;
 
         } catch (e) {
             console.error('Error:', e);
-            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 text-sm">Error al cargar la base de datos</td></tr>';
+            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Error de conexión</td></tr>';
         }
     })();
 }
