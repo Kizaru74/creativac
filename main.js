@@ -3669,10 +3669,7 @@ async function loadClientDebtsTable() {
     }
 }
 window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
+    if (!supabase) return;
 
     const container = document.getElementById('clients-list-body');
     if (!container) return;
@@ -3686,6 +3683,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
+        // ACTUALIZACIÓN DE MAPAS (Vital para evitar el error de "no encontrado")
         window.allClients = clients; 
         window.allClientsMap = {}; 
         clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
@@ -3696,15 +3694,13 @@ window.loadClientsTable = async function(mode = 'gestion') {
         container.innerHTML = '';
 
         if (clients.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 font-sans uppercase text-[10px] tracking-widest">No hay clientes registrados</td></tr>`;
+            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 font-sans uppercase text-[10px] tracking-widest">No hay registros</td></tr>`;
             return;
         }
 
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
-            
-            // Clase de fila con hover sutil de tu style.css
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
             const deudaVisual = summary.deudaNeta;
@@ -3715,16 +3711,16 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 actionCell = `
                     <td class="px-6 py-5 whitespace-nowrap text-right">
                         <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}" title="Editar Perfil">
+                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}">
                                 <i class="fas fa-user-edit text-[11px]"></i>
                             </button>
-                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Pago">
+                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})">
                                 <i class="fas fa-file-invoice-dollar text-[11px]"></i>
                             </button>
-                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}" title="Estado de Cuenta">
+                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}">
                                 <i class="fas fa-history text-[11px]"></i>
                             </button>
-                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
+                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}">
                                 <i class="fas fa-trash-alt text-[11px]"></i>
                             </button>
                         </div>
@@ -3770,22 +3766,27 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // Re-vinculación de eventos
+        // RE-VINCULACIÓN DE EVENTOS (Aquí se asegura que el ID no sea null)
         if (showActions) {
             container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
+                btn.onclick = () => {
+                    const id = btn.getAttribute('data-id');
+                    console.log("Editando cliente ID:", id); // Debug
+                    window.handleEditClientClick(id);
+                };
             });
             container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => window.handleViewClientDebt(btn.dataset.id);
+                btn.onclick = () => window.handleViewClientDebt(btn.getAttribute('data-id'));
             });
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name);
+                btn.onclick = () => {
+                    const id = btn.getAttribute('data-id');
+                    const name = btn.getAttribute('data-name');
+                    window.handleDeleteClientClick(id, name);
+                };
             });
         }
-
-    } catch (e) {
-        console.error('Error al cargar tabla de clientes:', e);
-    }
+    } catch (e) { console.error('Error:', e); }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
