@@ -3740,12 +3740,12 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 <td class="px-6 py-5 whitespace-nowrap">
                     <div class="flex items-center">
                         <div class="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:text-orange-500 group-hover:border-orange-500/40 transition-all">
-                            <i class="fas fa-user text-xs"></i>
+                            <i class="fas fa-user"></i>
                         </div>
                         <div class="ml-4">
                             <div class="text-sm font-bold text-white uppercase tracking-wide">${client.name}</div>
                             <div class="text-[10px] text-white/30 font-sans mt-0.5 flex items-center">
-                                <i class="fas fa-phone-alt mr-1.5 text-[8px]"></i>
+                                <i class="fas fa-phone-alt mr-1.5"></i>
                                 ${client.telefono || 'Sin contacto'}
                             </div>
                         </div>
@@ -3758,7 +3758,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 <td class="px-6 py-5 whitespace-nowrap">
                     <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans">Estado de Cuenta</div>
                     <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="flex items-center font-bold text-[11px] font-sans">
+                        <span class="flex items-center font-bold font-sans">
                             <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
                             ${formatCurrency(deudaVisual)}
                         </span>
