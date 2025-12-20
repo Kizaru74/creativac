@@ -1299,6 +1299,16 @@ window.handleAbonoSubmit = async function(e) {
     }
 };
 
+// Aseguramos que las funciones de acción existan ANTES de cargar las tablas
+window.handleViewClientPayments = function(clientId) {
+    console.log("Iniciando gestión de pagos para cliente ID:", clientId);
+    if (typeof window.handleViewClientDebt === 'function') {
+        window.handleViewClientDebt(clientId);
+    } else {
+        console.warn("La función handleViewClientDebt no está definida.");
+    }
+};
+
 // ====================================================================
 // 8. MANEJO DE FORMULARIO DE NUEVA VENTA (TRANSACCIONAL)
 // ====================================================================
@@ -1774,7 +1784,7 @@ window.loadDebtsTable = async function() {
     if (!container) return;
 
     try {
-        // 1. Obtener lista base de clientes (Sin la columna deuda_total para evitar error 42703)
+        // 1. Obtener lista base de clientes (Sin la columna inexistente deuda_total)
         const { data: clients, error } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -1782,35 +1792,33 @@ window.loadDebtsTable = async function() {
 
         if (error) throw error;
 
-        // 2. Calcular saldos reales usando tu lógica de resumen
+        // 2. Calcular saldos usando tu función getClientSalesSummary
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Filtrar solo los que DEBEN dinero
+        // 3. Filtrar solo los que deben dinero (> $0.01)
         const deudores = clients.map((client, index) => ({
             ...client,
             summary: summaries[index]
         })).filter(item => item.summary.deudaNeta > 0.01);
 
-        // 4. Actualizar las tarjetas (KPIs) de la parte superior
-        if (typeof actualizarMetricasConData === 'function') {
+        // 4. Actualizar tarjetas KPI superiores
+        if (typeof window.actualizarMetricasConData === 'function') {
             const dataMetricas = deudores.map(d => ({ deuda_total: d.summary.deudaNeta }));
-            actualizarMetricasConData(dataMetricas);
+            window.actualizarMetricasConData(dataMetricas);
         }
 
-        // 5. Manejo de lista vacía
+        // 5. Renderizado
         if (deudores.length === 0) {
             container.innerHTML = '';
-            if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
+            noDebtsMsg?.classList.remove('hidden');
             return;
         }
 
-        if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
+        noDebtsMsg?.classList.add('hidden');
 
-        // 6. Renderizado con tus estilos de style.css
         container.innerHTML = deudores.map(d => {
             const deuda = d.summary.deudaNeta;
-            // Clases de vidrio de tu CSS (Sección 6)
             const glassClass = deuda > 5000 ? 'glass-badge-danger' : 'glass-badge-success';
             const statusText = deuda > 5000 ? 'Prioridad' : 'Pendiente';
 
@@ -1831,7 +1839,6 @@ window.loadDebtsTable = async function() {
                         <div class="text-xl font-black text-red-500 tracking-tighter">
                             ${formatCurrency(deuda)}
                         </div>
-                        <div class="text-[9px] text-white/20 uppercase tracking-tighter">Saldo Neto</div>
                     </td>
                     <td class="px-10 py-6">
                         <div class="flex justify-center">
