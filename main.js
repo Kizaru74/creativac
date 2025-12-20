@@ -5141,6 +5141,9 @@ document.querySelectorAll('[data-view]').forEach(link => {
     }
     // 2. Continúa con tus llamadas iniciales
     await loadAllClientsMap();
+    if (window.loadClientsTable) {
+        window.loadClientsTable(); // Luego renderiza la tabla
+    }
     checkUserSession();
 
     // 3. Inicializar el selector con los meses (esto selecciona el mes actual)
