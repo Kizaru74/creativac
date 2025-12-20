@@ -743,9 +743,25 @@
             
             <div class="grid grid-cols-12 gap-4 mb-8 items-end">
                 <div class="col-span-4">
-                    <label class="block text-[10px] font-bold text-white/20 uppercase tracking-[0.2em] mb-3 font-sans">Producto / Servicio</label>
+                    <label for="product-main-select" class="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 font-sans">Producto / Servicio</label>
                     <select id="product-main-select" required class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-orange-500 transition-all outline-none font-sans font-bold"></select>
                 </div>
+
+                <div class="col-span-2">
+                    <label for="subproduct-select" class="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 font-sans">Paquete</label>
+                    <select id="subproduct-select" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-orange-500 transition-all outline-none font-sans font-bold"></select>
+                </div>
+                
+                <div class="col-span-2">
+                    <label for="product-quantity" class="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 font-sans">Cant.</label>
+                    <input type="number" id="product-quantity" value="1" min="1" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-orange-500 transition-all outline-none font-sans font-bold">
+                </div>
+                
+                <div class="col-span-3">
+                    <label for="product-unit-price" class="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 font-sans">Precio Unitario</label>
+                    <input type="number" id="product-unit-price" placeholder="0.00" min="0" step="0.01" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-emerald-500 focus:ring-2 focus:ring-orange-500 transition-all outline-none font-sans font-black text-lg">
+                </div>
+
                 <div class="col-span-1 flex justify-end">
                     <button type="button" id="add-product-btn" 
                             class="bg-orange-500 hover:bg-orange-400 text-white text-xl font-bold h-14 w-14 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-orange-500/20 active:scale-95">
@@ -766,37 +782,60 @@
                         </tr>
                     </thead>
                     <tbody id="sale-items-table-body" class="divide-y divide-white/5 text-sm text-white font-sans">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
 
-            <div class="grid grid-cols-3 gap-6 mb-10 p-2 items-center">
+            <div class="mb-8">
+                <label for="sale-details" class="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 font-sans">Comentarios y Detalles de la Venta</label>
+                <textarea id="sale-details" rows="2" 
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white placeholder-white/10 focus:ring-2 focus:ring-orange-500 transition-all outline-none font-sans" 
+                    placeholder="Detalles importantes de la producción..."></textarea>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6 mb-10 items-center">
                 <div class="bg-white/5 border border-white/10 p-6 rounded-[2rem] text-center backdrop-blur-md">
-                    <label class="block text-[9px] font-bold text-white/30 uppercase tracking-widest mb-2 font-sans">Total Venta</label>
-                    <input type="text" id="total-amount" value="0.00" class="w-full bg-transparent text-center text-3xl font-black text-white border-none outline-none font-mono" readonly>
+                    <label class="block text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2 font-sans">Total Venta</label>
+                    <input type="text" id="total-amount" value="0.00" class="w-full bg-transparent text-center text-3xl font-black text-white border-none outline-none font-sans" readonly>
                 </div>
 
                 <div class="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[2rem] text-center backdrop-blur-md shadow-lg shadow-emerald-500/5">
-                    <label class="block text-[9px] font-bold text-emerald-500/60 uppercase tracking-widest mb-2 font-sans">Monto Pagado</label>
-                    <input type="number" id="paid-amount" value="0.00" step="0.01" 
-                        class="w-full bg-transparent text-center text-4xl font-black text-emerald-500 border-none outline-none focus:ring-0 font-mono">
+                    <label for="paid-amount" class="block text-[10px] font-bold text-emerald-500/60 uppercase tracking-widest mb-2 font-sans">Monto Pagado</label>
+                    <input type="number" id="paid-amount" value="0.00" min="0" step="0.01" 
+                        class="w-full bg-transparent border-none text-4xl font-black text-emerald-500 text-center focus:ring-0 outline-none font-sans">
                 </div>
 
                 <div class="bg-red-500/10 border border-red-500/20 p-6 rounded-[2rem] text-center backdrop-blur-md shadow-lg shadow-red-500/5">
-                    <label class="block text-[9px] font-bold text-red-500/60 uppercase tracking-widest mb-2 font-sans">Saldo Pendiente</label>
-                    <input type="text" id="display-saldo-pendiente" value="0.00" class="w-full bg-transparent text-center text-3xl font-black text-red-500 border-none outline-none font-mono" readonly>
+                    <label class="block text-[10px] font-bold text-red-500/60 uppercase tracking-widest mb-2 font-sans">Saldo Pendiente</label>
+                    <input type="text" id="display-saldo-pendiente" value="0.00" class="w-full bg-transparent text-center text-3xl font-black text-red-500 border-none outline-none font-sans" readonly>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-8 mb-10">
+                <div>
+                    <label for="client-select" class="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 font-sans">Cliente</label>
+                    <select id="client-select" required class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-orange-500 transition-all outline-none font-sans font-bold"></select>
+                </div>
+                <div>
+                    <label for="payment-method" class="block text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-3 font-sans">Método de Pago</label>
+                    <select id="payment-method" required class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-orange-500 transition-all outline-none font-sans font-bold">
+                        <option value="Efectivo" class="bg-[#1c1c1c]">Efectivo</option>
+                        <option value="Tarjeta" class="bg-[#1c1c1c]">Tarjeta</option>
+                        <option value="Transferencia" class="bg-[#1c1c1c]">Transferencia</option>
+                        <option value="Deuda" class="bg-[#1c1c1c]">Deuda/Crédito</option>
+                    </select>
                 </div>
             </div>
 
             <div class="flex justify-end space-x-6">
                 <button data-close-modal="new-sale-modal" type="button" 
-                    class="text-white/20 hover:text-white font-bold py-3 px-8 transition-all uppercase text-[10px] tracking-[0.2em] font-sans">
-                    Descartar
+                    class="bg-transparent hover:bg-white/5 text-white/20 hover:text-white font-bold py-3 px-8 transition-all uppercase text-[10px] tracking-[0.2em] font-sans">
+                    Cancelar
                 </button>
                 <button type="button" onclick="handleNewSale(event)" 
-                    class="bg-emerald-500 hover:bg-emerald-400 text-white font-black py-5 px-12 rounded-2xl transition-all uppercase text-[11px] tracking-[0.2em] shadow-xl shadow-emerald-500/20 font-sans flex items-center">
-                    <i class="fas fa-check-circle mr-3 text-lg"></i>
-                    Completar Venta
+                    class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 px-12 rounded-2xl transition-all uppercase text-[10px] tracking-[0.2em] shadow-xl shadow-emerald-900/40 group flex items-center">
+                    <i class="fas fa-check-circle mr-3 text-lg group-hover:scale-110 transition-transform"></i>
+                    Registrar Venta
                 </button>
             </div>
 
