@@ -4319,13 +4319,13 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="text-[12px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">${sale.metodo_pago || 'CONTADO'}</div>
                             </td>
                             <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="text-[12px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Venta</div>
+                                <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Venta</div>
                                 <div class="text-sm font-bold text-white font-mono">${formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="text-[12px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest text-right">Pendiente</div>
+                                <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Pendiente</div>
                                 <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
-                                    <span class="flex items-center font-bold font-sans text-[13px]">
+                                    <span class="flex items-center font-bold font-sans text-[16px]">
                                         <span class="h-1.5 w-1.5 rounded-full ${tienePendiente ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
                                         ${formatCurrency(sale.saldo_pendiente)}
                                     </span>
@@ -4335,11 +4335,11 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
                                             class="text-white/40 hover:text-blue-500 transition-colors">
-                                        <i class="fas fa-eye text-[13px]"></i>
+                                    title="Ver detalles de la venta"> <i class="fas fa-eye text-[15px]"></i>
                                     </button>
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
                                             class="text-white/40 hover:text-red-500 transition-colors">
-                                        <i class="fas fa-trash-alt text-[13px]"></i>
+                                     title="Anular venta"><i class="fas fa-trash-alt text-[15px]"></i>
                                     </button>
                                 </div>
                             </td>
