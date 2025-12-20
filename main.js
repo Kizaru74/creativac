@@ -969,163 +969,6 @@ window.handleAddProductToSale = function(e) {
     priceInput.value = '0.00';
 };
 
-// --- FUNCIÓN B: REGISTRAR VENTA (Botón Verde) ---
-window.handleNewSale = async function(e) {
-    e.preventDefault();
-    
-    // --- 1. CAPTURAR Y VALIDAR DATOS INICIALES ---
-    const client_id = document.getElementById('client-select')?.value ?? null;
-    const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
-    const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
-    
-    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
-    let paid_amount = parseFloat(paid_amount_str);
-    
-    const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
-    
-    if (payment_method === 'Deuda') {
-        paid_amount = 0;
-    }
-    
-    let final_paid_amount = paid_amount;
-    let final_saldo_pendiente = total_amount - paid_amount; 
-
-    // Validaciones de UI
-    if (!client_id) { alert('Por favor, selecciona un cliente.'); return; }
-    if (currentSaleItems.length === 0) { alert('Debes agregar al menos un producto a la venta.'); return; }
-    if (total_amount < 0) { alert('El total de la venta no puede ser negativo.'); return; }
-    
-    if (total_amount < 0.01) {
-        final_paid_amount = 0;
-        final_saldo_pendiente = 0;
-    } else if (final_saldo_pendiente < 0) {
-        final_paid_amount = total_amount; 
-        final_saldo_pendiente = 0; 
-    }
-    
-    if (final_paid_amount < 0 || final_paid_amount > total_amount) {
-        alert('El monto pagado es inválido.'); return;
-    }
-
-    if (final_saldo_pendiente > 0.01 && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar?`)) {
-        return;
-    }
-
-    // Validación de IDs en el carrito
-    const itemWithoutValidId = currentSaleItems.find(item => 
-        !item.product_id || isNaN(item.product_id) || parseInt(item.product_id, 10) === 0
-    );
-    
-    if (itemWithoutValidId) {
-        alert(`Error: El ítem "${itemWithoutValidId.name}" tiene un ID inválido.`); 
-        return; 
-    }
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando Venta...';
-    }
-
-    let new_venta_id = null;
-    try {
-        // 2.1. REGISTRAR VENTA (Tabla 'ventas')
-        const { data: saleData, error: saleError } = await supabase
-            .from('ventas')
-            .insert([{
-                client_id: client_id,
-                total_amount: total_amount, 
-                paid_amount: final_paid_amount, 
-                saldo_pendiente: final_saldo_pendiente, 
-                metodo_pago: payment_method,
-                description: sale_description,
-            }])
-            .select('venta_id'); 
-
-        if (saleError || !saleData || saleData.length === 0) {
-            throw new Error(`Error al registrar venta principal: ${saleError?.message}`);
-        }
-
-        new_venta_id = saleData[0].venta_id;
-
-        // 2.2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
-        // ✅ CORRECCIÓN: Se agrega 'name' para evitar el error de restricción NOT NULL
-        const detailsToInsert = currentSaleItems.map(item => ({
-            venta_id: new_venta_id, 
-            product_id: parseInt(item.product_id, 10),
-            name: item.name || 'Producto', // Nombre del producto/paquete
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.subtotal
-        }));
-        
-        const { error: detailError } = await supabase
-            .from('detalle_ventas') 
-            .insert(detailsToInsert);
-
-        if (detailError) {
-            console.error('🛑 ERROR BD - DETALLES FALLIDOS:', detailError);
-            throw new Error(`BD Falló al insertar detalles. Mensaje: ${detailError.message}`);
-        }
-
-        // 2.3. REGISTRAR PAGO (Tabla 'pagos')
-        if (final_paid_amount > 0) { 
-            const { error: paymentError } = await supabase
-                .from('pagos')
-                .insert([{
-                    venta_id: new_venta_id,
-                    amount: final_paid_amount,
-                    client_id: client_id,
-                    metodo_pago: payment_method,
-                    type: 'INICIAL',
-                }]);
-
-            if (paymentError) alert(`Advertencia: El pago falló. ${paymentError.message}`);
-        }
-        
-        // 2.4. ACTUALIZAR DEUDA DEL CLIENTE
-        if (final_saldo_pendiente > 0) {
-            const { data: clientData, error: clientFetchError } = await supabase
-                .from('clientes')
-                .select('deuda_total')
-                .eq('client_id', client_id)
-                .single();
-
-            if (!clientFetchError && clientData) {
-                const newClientDebt = (clientData.deuda_total || 0) + final_saldo_pendiente;
-                await supabase
-                    .from('clientes')
-                    .update({ deuda_total: newClientDebt })
-                    .eq('client_id', client_id);
-            }
-        }
-        
-        // --- 3. FINALIZACIÓN Y LIMPIEZA ---
-        closeModal('new-sale-modal'); 
-        window.currentSaleItems = []; 
-        window.updateSaleTableDisplay(); 
-        document.getElementById('new-sale-form')?.reset(); // ✅ Esto siempre funcionará
-        
-        await loadDashboardData(); 
-        await loadClientsTable('gestion'); 
-
-        if (window.showTicketPreviewModal) {
-            showTicketPreviewModal(new_venta_id);
-        } else {
-             alert(`Venta #${new_venta_id} registrada con éxito.`);
-        }
-        
-    } catch (error) {
-        console.error('Error FATAL:', error);
-        alert('Error: ' + error.message);
-    } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Finalizar Venta';
-        }
-    }
-}
-
 async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newUnitPrice) {
     if (!supabase || isNaN(newUnitPrice) || newUnitPrice <= 0) {
         alert("El precio debe ser un monto positivo.");
@@ -1683,130 +1526,6 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
     }
 }
 
-// ====================================================================
-// 9. LÓGICA CRUD PARA CLIENTES
-// ====================================================================
-window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
-    const container = document.getElementById('clients-list-body');
-    if (!container) return;
-
-    const showActions = mode === 'gestion';
-
-    try {
-        // 1. Obtener la lista base de clientes
-        const { data: clients, error: clientsError } = await supabase
-            .from('clientes')
-            .select('client_id, name, telefono') 
-            .order('name', { ascending: true });
-
-        if (clientsError) throw clientsError;
-
-        // --- 🟢 REPARACIÓN DE MAPAS GLOBALES (Evita el error de "undefined") ---
-        window.allClients = clients; 
-        window.allClientsMap = {}; 
-        clients.forEach(c => {
-            window.allClientsMap[c.client_id] = c;
-        });
-
-        // 2. Resumen de ventas (Para mostrar en la tabla)
-        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
-        const summaries = await Promise.all(summaryPromises);
-
-        clients.forEach((client, index) => {
-            const summary = summaries[index];
-            const deudaVisual = summary.deudaNeta;
-            const tieneDeuda = deudaVisual > 0.01;
-            
-            // Definimos las clases de vidrio según el estado
-            const glassClass = tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success';
-            const labelText = tieneDeuda ? 'Deuda Pendiente' : 'Al Corriente';
-
-            const row = document.createElement('tr');
-            row.className = 'group hover:bg-white/5 transition-all duration-300 border-b border-white/5';
-
-            let actionCell = '';
-            if (showActions) {
-                actionCell = `
-                    <td class="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                            <button type="button" class="btn-action-report text-indigo-400 edit-client-btn" 
-                                    data-client-id="${client.client_id}" title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="btn-action-report text-emerald-400" 
-                                    onclick="window.handleAbonoClick(${client.client_id})" title="Abonar">
-                                <i class="fas fa-hand-holding-usd"></i>
-                            </button>
-                            <button type="button" class="btn-action-report text-blue-400 view-debt-btn" 
-                                    data-client-id="${client.client_id}" title="Estado de Cuenta">
-                                <i class="fas fa-file-invoice-dollar"></i>
-                            </button>
-                            <button type="button" class="btn-action-report text-red-400 delete-client-btn" 
-                                    data-client-id="${client.client_id}" 
-                                    data-client-name="${client.name}" title="Eliminar">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-            }
-            
-            row.innerHTML = `
-                <td class="px-3 py-4 whitespace-nowrap">
-                    <div class="text-[11px] font-mono text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 inline-block">
-                        ID #${client.client_id}
-                    </div>
-                </td>
-                <td class="px-3 py-4 whitespace-nowrap">
-                    <div class="text-sm font-bold text-white">${client.name}</div>
-                    <div class="text-[10px] text-white/40 uppercase tracking-widest">${client.telefono || '---'}</div>
-                </td>
-                
-                <td class="px-3 py-4 whitespace-nowrap text-right">
-                    <div class="text-sm font-medium text-white/80">${formatCurrency(summary.totalVentas)}</div>
-                    <div class="text-[9px] text-white/30 uppercase">Total Compras</div>
-                </td>
-                
-                <td class="px-3 py-4 whitespace-nowrap text-right">
-                    <div class="glass-badge ${glassClass}">
-                        <span class="text-sm font-black ${tieneDeuda ? 'text-red-500' : 'text-emerald-500'}">
-                            ${formatCurrency(deudaVisual)}
-                        </span>
-                        <span class="text-[9px] font-bold uppercase tracking-tighter opacity-70">
-                            ${labelText}
-                        </span>
-                    </div>
-                </td>
-                
-                ${actionCell} 
-            `;
-            container.appendChild(row);
-        });
-
-        // 4. Re-enlazar Event Listeners (Usando los IDs de los botones)
-        if (showActions) {
-            container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => handleEditClientClick(btn.dataset.clientId);
-            });
-            container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = () => handleDeleteClientClick(btn.dataset.clientId);
-            });
-            container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => handleViewClientDebt(btn.dataset.clientId);
-            });
-        }
-
-    } catch (e) {
-        console.error('Error al cargar tabla de clientes:', e);
-    }
-};
-
-// Variable global para almacenar el ID del cliente cuya deuda estamos viendo
 let viewingClientId = null; 
 
 // ====================================================================
@@ -2049,91 +1768,91 @@ window.handleAbonoClick = function(clientId) {
 };
 
 window.loadDebtsTable = async function() {
-    const tableBody = document.getElementById('debts-table-body');
+    const container = document.getElementById('debts-table-body');
     const noDebtsMsg = document.getElementById('no-debts-message');
     
-    if (!tableBody) return;
+    if (!container) return;
 
     try {
-        // CONSULTA SEGURA: Solo campos que existen según tu SQL
-        const { data: ventas, error } = await supabase
-            .from('ventas')
-            .select(`
-                saldo_pendiente,
-                client_id,
-                clientes (
-                    name,
-                    phone
-                )
-            `)
-            .gt('saldo_pendiente', 0.01);
+        // 1. Obtener lista base de clientes (Sin la columna deuda_total para evitar error 42703)
+        const { data: clients, error } = await supabase
+            .from('clientes')
+            .select('client_id, name, telefono') 
+            .order('name', { ascending: true });
 
         if (error) throw error;
 
-        // Procesamiento en memoria para crear el campo que tu CSS y lógica necesitan
-        const consolidado = (ventas || []).reduce((acc, v) => {
-            const id = v.client_id || 'anonimo';
-            if (!acc[id]) {
-                acc[id] = {
-                    client_id: id,
-                    name: v.clientes?.name || 'Cliente General',
-                    phone: v.clientes?.phone || 'S/N',
-                    deuda_total: 0 // Se crea aquí, no viene de la DB
-                };
-            }
-            acc[id].deuda_total += parseFloat(v.saldo_pendiente || 0);
-            return acc;
-        }, {});
+        // 2. Calcular saldos reales usando tu lógica de resumen
+        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
+        const summaries = await Promise.all(summaryPromises);
 
-        const listaDeudores = Object.values(consolidado).sort((a, b) => b.deuda_total - a.deuda_total);
+        // 3. Filtrar solo los que DEBEN dinero
+        const deudores = clients.map((client, index) => ({
+            ...client,
+            summary: summaries[index]
+        })).filter(item => item.summary.deudaNeta > 0.01);
 
-        // Actualizar UI
-        if (listaDeudores.length === 0) {
-            tableBody.innerHTML = '';
+        // 4. Actualizar las tarjetas (KPIs) de la parte superior
+        if (typeof actualizarMetricasConData === 'function') {
+            const dataMetricas = deudores.map(d => ({ deuda_total: d.summary.deudaNeta }));
+            actualizarMetricasConData(dataMetricas);
+        }
+
+        // 5. Manejo de lista vacía
+        if (deudores.length === 0) {
+            container.innerHTML = '';
             if (noDebtsMsg) noDebtsMsg.classList.remove('hidden');
-            if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData([]);
             return;
         }
 
         if (noDebtsMsg) noDebtsMsg.classList.add('hidden');
-        if (typeof actualizarMetricasConData === 'function') actualizarMetricasConData(listaDeudores);
 
-        // Renderizado con tus estilos de style.css
-        tableBody.innerHTML = listaDeudores.map(d => `
-            <tr class="border-b border-white/5 hover:bg-white/[0.05] transition-colors group">
-                <td class="px-10 py-6">
-                    <div class="flex items-center gap-4">
-                        <div class="font-mono bg-orange-500/10 w-12 h-12 rounded-lg flex items-center justify-center text-orange-500 font-bold border border-orange-500/30">
-                            ${d.name ? d.name.charAt(0).toUpperCase() : '?'}
-                        </div>
-                        <div>
-                            <div class="font-bold text-white text-base">${d.name}</div>
-                            <div class="text-[10px] text-white/60 uppercase tracking-widest">${d.phone}</div>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-10 py-6 text-center">
-                    <div class="text-xl font-black text-red-500 tracking-tighter">
-                        ${formatCurrency(d.deuda_total)}
-                    </div>
-                </td>
-                <td class="px-10 py-6 text-center">
-                    <div class="glass-badge ${d.deuda_total > 5000 ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="text-[10px] font-black uppercase tracking-widest">
-                            ${d.deuda_total > 5000 ? 'Prioridad' : 'Al día'}
-                        </span>
-                    </div>
-                </td>
-                <td class="px-10 py-6 text-right">
-                    <button onclick="window.handleViewClientPayments(${d.client_id})" class="view-debt-btn scale-110">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        // 6. Renderizado con tus estilos de style.css
+        container.innerHTML = deudores.map(d => {
+            const deuda = d.summary.deudaNeta;
+            // Clases de vidrio de tu CSS (Sección 6)
+            const glassClass = deuda > 5000 ? 'glass-badge-danger' : 'glass-badge-success';
+            const statusText = deuda > 5000 ? 'Prioridad' : 'Pendiente';
 
-    } catch (err) {
-        console.error("Error cargando tabla de deudas:", err);
+            return `
+                <tr class="group hover:bg-white/5 transition-all duration-300 border-b border-white/5">
+                    <td class="px-10 py-6">
+                        <div class="flex items-center gap-4">
+                            <div class="font-mono bg-orange-500/10 text-orange-500 px-3 py-1 rounded border border-orange-500/20 text-xs">
+                                ID #${d.client_id}
+                            </div>
+                            <div>
+                                <div class="font-bold text-white text-base">${d.name}</div>
+                                <div class="text-[10px] text-white/40 uppercase tracking-widest">${d.telefono || '---'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-10 py-6 text-center">
+                        <div class="text-xl font-black text-red-500 tracking-tighter">
+                            ${formatCurrency(deuda)}
+                        </div>
+                        <div class="text-[9px] text-white/20 uppercase tracking-tighter">Saldo Neto</div>
+                    </td>
+                    <td class="px-10 py-6">
+                        <div class="flex justify-center">
+                            <div class="glass-badge ${glassClass}">
+                                <span class="text-[10px] font-black uppercase tracking-widest">${statusText}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-10 py-6 text-right">
+                        <button type="button" 
+                                onclick="window.handleViewClientPayments(${d.client_id})" 
+                                class="view-debt-btn scale-110 hover:text-orange-500 hover:border-orange-500 transition-all">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (e) {
+        console.error('Error al cargar la tabla de deudas:', e);
     }
 };
 
