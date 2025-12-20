@@ -4334,12 +4334,12 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             <td class="px-8 py-5 whitespace-nowrap text-right">
                                 <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
-                                            class="text-white/40 hover:text-blue-500 transition-colors">
-                                    title="Ver detalles de la venta"> <i class="fas fa-eye text-[15px]"></i>
+                                            class="text-white/40 hover:text-blue-500 transition-colors" title="Ver Venta">
+                                    <i class="fas fa-eye text-[15px]"></i>
                                     </button>
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                                            class="text-white/40 hover:text-red-500 transition-colors">
-                                     title="Anular venta"><i class="fas fa-trash-alt text-[15px]"></i>
+                                            class="text-white/40 hover:text-red-500 transition-colors" title="Anular Venta">
+                                     <i class="fas fa-trash-alt text-[15px]"></i>
                                     </button>
                                 </div>
                             </td>
