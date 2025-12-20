@@ -40,37 +40,78 @@ try {
 // ====================================================================
 // 2. UTILIDADES Y MANEJO DE MODALES
 // ====================================================================
+// Aseguramos que los nombres que el Dashboard busca existan en el espacio global
+window.loadClientsTable = async function(mode) {
+    console.log("Sincronizando tabla de clientes...");
+    // Si tienes la función con otro nombre, la llamamos aquí:
+    if (typeof window.loadClientDebtsTable === 'function') {
+        return await window.loadClientDebtsTable();
+    }
+};
+
+// Si el dashboard llama a loadDashboardData, aseguramos que sea global
+// ✅ Registro global para que switchView y initializeApp la encuentren
+window.loadDashboardData = async function() {
+    console.log("🚀 Cargando métricas principales del Dashboard...");
+    
+    // Usamos un array de promesas para que carguen en paralelo (más rápido)
+    try {
+        const tareas = [];
+
+        // 1. Cargar Deudas (Asegúrate de que el nombre coincida con tu función)
+        if (typeof window.loadDebtsTable === 'function') {
+            tareas.push(window.loadDebtsTable());
+        } else if (typeof window.loadClientDebtsTable === 'function') {
+            tareas.push(window.loadClientDebtsTable());
+        }
+
+        // 2. Ventas Recientes
+        if (typeof window.loadRecentSales === 'function') {
+            tareas.push(window.loadRecentSales());
+        }
+
+        // 3. Sincronizar Clientes (Evita el ReferenceError: loadClientsTable)
+        // Definimos un alias por si acaso
+        const loadClients = window.loadClientsTable || window.loadClientDebtsTable;
+        if (typeof loadClients === 'function') {
+            tareas.push(loadClients('gestion'));
+        }
+
+        // 4. Productos y Selectores
+        if (typeof window.loadProductsTable === 'function') tareas.push(window.loadProductsTable());
+        if (typeof window.loadClientsForSale === 'function') tareas.push(window.loadClientsForSale());
+
+        // Ejecutar todas las cargas
+        await Promise.allSettled(tareas);
+        
+        console.log("✅ Dashboard actualizado.");
+    } catch (error) {
+        console.error("❌ Error al refrescar datos del dashboard:", error);
+    }
+};
 
 async function initializeApp() {
     console.log("🚀 Iniciando carga de la aplicación...");
-
     try {
-        // 1. CARGAR PRODUCTOS
-        // Asegúrate de que loadProducts guarde en window.allProducts
-        await loadProducts(); 
-        
-        // 2. CARGAR CLIENTES Y MAPAS
-        // Esta función debe llenar window.allClients y window.allClientsMap
-        await loadClientsTable('gestion'); 
-
-        // 3. CARGAR MÉTRICAS DEL DASHBOARD
-        if (typeof loadDashboardMetrics === 'function') {
-            await loadDashboardMetrics();
+        // 1. Productos
+        if (typeof window.loadProductsData === 'function') {
+            await window.loadProductsData();
         }
 
-        // 4. POBLAR SELECTORES DE VENTA
-        // Es vital que esto ocurra DESPUÉS de loadProducts
-        if (typeof populateProductSelects === 'function') {
-            populateProductSelects(); 
+        // 2. Clientes (Corregimos el nombre para que no de ReferenceError)
+        if (typeof window.loadClientsTable === 'function') {
+            await window.loadClientsTable('gestion');
+        } else if (typeof window.loadClientDebtsTable === 'function') {
+            // Si la tienes con el nombre largo, la llamamos así
+            await window.loadClientDebtsTable();
         }
 
-        // 5. CARGAR PRODUCTOS PARA MODAL SUBPRODUCTO (TU PASO CRÍTICO)
-        if (typeof loadMainProductsAndPopulateSelect === 'function') {
-            await loadMainProductsAndPopulateSelect(); 
+        // 3. Métricas
+        if (typeof window.loadDashboardMetrics === 'function') {
+            await window.loadDashboardMetrics();
         }
 
         console.log("✅ Aplicación inicializada correctamente.");
-        
     } catch (error) {
         console.error("❌ Error crítico durante la inicialización:", error);
     }
@@ -3536,95 +3577,74 @@ async function handleUpdateProduct(e) {
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
 // ====================================================================
-async function loadClientDebtsTable() {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-
+window.loadDebtsTable = async function() {
     const tbody = document.getElementById('debts-table-body');
-    const noDebtsMessage = document.getElementById('no-debts-message');
-    
-    if (!tbody || !noDebtsMessage) return; 
-
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Cargando deudas...</td></tr>';
-    noDebtsMessage.classList.add('hidden');
+    if (!tbody) return;
 
     try {
-        // 1. Consultar ventas con saldo pendiente > 0.01
         const { data: sales, error } = await supabase
             .from('ventas')
-            .select(`
-                venta_id, 
-                client_id, 
-                created_at, 
-                saldo_pendiente,
-                clientes(name) 
-            `)
-            .gt('saldo_pendiente', 0.01) 
-            .order('created_at', { ascending: false });
+            .select(`venta_id, client_id, created_at, saldo_pendiente, clientes(name, telefono)`)
+            .gt('saldo_pendiente', 0.01);
 
         if (error) throw error;
-        
-        // 2. Agrupar las deudas por Cliente y calcular el total
-        const clientDebts = {};
-        
-        (sales || []).forEach(sale => {
-            const clientId = sale.client_id;
-            
-            if (!clientDebts[clientId]) {
-                clientDebts[clientId] = {
-                    clientId: clientId,
+
+        // Agrupamos por cliente
+        const deudoresMap = (sales || []).reduce((acc, sale) => {
+            const id = sale.client_id || 'anonimo';
+            if (!acc[id]) {
+                acc[id] = {
+                    id,
                     name: sale.clientes?.name || 'Cliente Desconocido',
-                    totalDebt: 0,
-                    lastSaleDate: sale.created_at, 
-                    lastSaleId: sale.venta_id 
+                    tel: sale.clientes?.telefono || '---',
+                    total: 0
                 };
             }
-            
-            clientDebts[clientId].totalDebt += sale.saldo_pendiente;
-        });
+            acc[id].total += parseFloat(sale.saldo_pendiente);
+            return acc;
+        }, {});
 
-        const debtList = Object.values(clientDebts);
+        const lista = Object.values(deudoresMap);
 
-        // 3. Renderizar la tabla
-        tbody.innerHTML = ''; 
-
-        if (debtList.length === 0) {
-            noDebtsMessage.classList.remove('hidden');
-            return;
-        }
-
-        let debtsHTML = []; 
-
-        debtList.forEach(debt => {
-            const formattedDate = formatDate(debt.lastSaleDate); 
-
-            debtsHTML.push(`
-                <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <button 
-                            onclick="window.handleViewClientDebt(${debt.clientId})" 
-                            class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
-                            title="Ver historial completo de cargos y abonos"
-                        >
-                            Ver Historial (${formatCurrency(debt.totalDebt)})
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
-        
-        tbody.innerHTML = debtsHTML.join(''); // Inyección única
+        // Renderizado con tus clases Premium (glass-badge, etc)
+        tbody.innerHTML = lista.map(d => `
+            <tr class="group hover:bg-white/[0.03] transition-all border-b border-white/5">
+                <td class="px-10 py-6">
+                    <div class="flex items-center gap-4">
+                        <div class="font-mono bg-orange-500/10 text-orange-500 px-3 py-1 rounded border border-orange-500/20 text-xs">
+                            ID #${d.id}
+                        </div>
+                        <div>
+                            <div class="font-bold text-white">${d.name}</div>
+                            <div class="text-[10px] text-white/40 uppercase tracking-widest">${d.tel}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-center text-xl font-black text-red-500">
+                    ${formatCurrency(d.total)}
+                </td>
+                <td class="px-10 py-6">
+                    <div class="flex justify-center">
+                        <div class="glass-badge ${d.total > 5000 ? 'glass-badge-danger' : 'glass-badge-success'}">
+                            <span class="text-[10px] font-black uppercase tracking-widest">
+                                ${d.total > 5000 ? 'Prioridad' : 'Pendiente'}
+                            </span>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-10 py-6 text-right">
+                    <button onclick="window.handleViewClientDebt(${d.id})" class="view-debt-btn scale-110">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
 
     } catch (e) {
-        console.error('Error al cargar la tabla de deudas:', e);
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
+        console.error("Error cargando tabla de deudas:", e);
     }
-}
+};
+
 const row = document.createElement('tr');
 row.className = 'product-table-row group hover:bg-white/5 transition-all border-b border-white/5';
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
@@ -4894,13 +4914,9 @@ window.openNewProductModal = async function() {
 window.switchView = async function(viewId) {
     console.log(`Cambiando a vista: ${viewId}`);
 
-    // 1. Gestión Visual (Menú y Vistas)
-    document.querySelectorAll('.menu-item').forEach(link => {
-        link.classList.remove('active-menu-item');
-    });
-    document.querySelectorAll('.dashboard-view').forEach(view => {
-        view.classList.add('hidden');
-    });
+    // 1. Gestión Visual
+    document.querySelectorAll('.menu-item').forEach(link => link.classList.remove('active-menu-item'));
+    document.querySelectorAll('.dashboard-view').forEach(view => view.classList.add('hidden'));
     
     const targetView = document.getElementById(viewId);
     if (targetView) targetView.classList.remove('hidden');
@@ -4911,42 +4927,31 @@ window.switchView = async function(viewId) {
     // 2. Carga de Datos Dinámica
     try {
         if (viewId === 'home-view') {
-            if (typeof loadDashboardData === 'function') await loadDashboardData();
+            // CORRECCIÓN: Usar window. para evitar ReferenceError
+            if (typeof window.loadDashboardData === 'function') {
+                await window.loadDashboardData();
+            }
         } 
         
         else if (viewId === 'deudas-view') {
             console.log("💰 Cargando Control de Deudas...");
-            
-            // 1. Cargamos la tabla y las métricas juntas desde la DB
-            // Usamos la función loadDebtsTable que creamos antes, 
-            // ya que ella misma obtiene los datos frescos de Supabase.
+            // Intentar primero el nombre estandarizado
             if (typeof window.loadDebtsTable === 'function') {
                 await window.loadDebtsTable();
-            } else if (typeof window.loadDebts === 'function') {
-                await window.loadDebts();
+            } else if (typeof window.loadClientDebtsTable === 'function') {
+                await window.loadClientDebtsTable();
             }
             
-            // 2. Si manejas un buscador global para esta tabla, asegúrate de limpiarlo
             const searchInput = document.getElementById('search-debts');
             if (searchInput) searchInput.value = '';
         }
 
         else if (viewId === 'report-view') {
-            console.log("📊 Refrescando reportes...");
-            // 1. Forzamos la recarga de ventas para incluir la última venta realizada
-            if (typeof window.loadSalesData === 'function') {
-                await window.loadSalesData();
-            }
-            
-            // 2. Llamamos a la función que procesa los datos y dibuja los Charts
-            // En tu main.js se llama initReportView
-            if (typeof window.initReportView === 'function') {
-                window.initReportView();
-            }
+            if (typeof window.loadSalesData === 'function') await window.loadSalesData();
+            if (typeof window.initReportView === 'function') window.initReportView();
         }
 
         else if (viewId === 'sales-view') {
-            // Opcional: Recargar tabla de ventas al entrar
             if (typeof window.loadSalesData === 'function') {
                 await window.loadSalesData();
                 if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
@@ -5523,3 +5528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadClientsData();
     }
 });
+
+// Puentes de compatibilidad (Alias)
+window.loadClientsTable = window.loadClientDebtsTable;
+window.handleViewClientPayments = window.handleViewClientDebt;
