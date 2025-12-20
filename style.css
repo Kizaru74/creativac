@@ -30,16 +30,19 @@ tbody tr:hover {
     background-color: rgba(255, 255, 255, 0.05) !important; 
 }
 
-/* --- 3. BADGES DE IDENTIFICACIÓN (ID #00) --- */
-#clients-list-body .bg-slate-100,
-#products-list-body .bg-slate-100,
-#monthly-sales-report-body .bg-slate-100,
-.font-sans.bg-orange-500\/10 {
-    background-color: rgba(249, 115, 22, 0.1) !important;
+/* --- 3. BADGES DE IDENTIFICACIÓN (ESTILO SANS PREMIUM) --- */
+.badge-id-orange {
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+    font-weight: 800 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    background: rgba(249, 115, 22, 0.1) !important;
     color: #f97316 !important;
-    border: 1px solid rgba(249, 115, 22, 0.3) !important;
-    padding: 2px 6px !important;
-    border-radius: 4px !important;
+    border: 1px solid rgba(249, 115, 22, 0.2) !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
+    display: inline-block;
 }
 
 /* --- 4. ESTADOS DE DEUDA Y PAGOS --- */
