@@ -1778,52 +1778,60 @@ window.handleAbonoClick = function(clientId) {
 };
 
 window.loadDebtsTable = async function() {
-    const container = document.getElementById('debts-table-body');
+    const tableBody = document.getElementById('debts-table-body');
     const noDebtsMsg = document.getElementById('no-debts-message');
     
-    if (!container) return;
+    if (!tableBody) return;
 
     try {
-        // 1. Obtener lista base de clientes (Sin la columna inexistente deuda_total)
-        const { data: clients, error } = await supabase
-            .from('clientes')
-            .select('client_id, name, telefono') 
-            .order('name', { ascending: true });
+        // 1. CONSULTA CORRECTA: Traemos saldo_pendiente de ventas y unimos con clientes
+        const { data: ventas, error } = await supabase
+            .from('ventas')
+            .select(`
+                saldo_pendiente,
+                client_id,
+                clientes (
+                    name,
+                    telefono
+                )
+            `)
+            .gt('saldo_pendiente', 0.01); // Solo las que tienen deuda real
 
         if (error) throw error;
 
-        // 2. Calcular saldos usando tu función getClientSalesSummary
-        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
-        const summaries = await Promise.all(summaryPromises);
+        // 2. CONSOLIDACIÓN: Sumamos los saldos por cliente en memoria
+        const consolidado = (ventas || []).reduce((acc, v) => {
+            const id = v.client_id || 'anonimo';
+            if (!acc[id]) {
+                acc[id] = {
+                    client_id: id,
+                    name: v.clientes?.name || 'Cliente General',
+                    phone: v.clientes?.telefono || 'S/N',
+                    deuda_total: 0
+                };
+            }
+            acc[id].deuda_total += parseFloat(v.saldo_pendiente || 0);
+            return acc;
+        }, {});
 
-        // 3. Filtrar solo los que deben dinero (> $0.01)
-        const deudores = clients.map((client, index) => ({
-            ...client,
-            summary: summaries[index]
-        })).filter(item => item.summary.deudaNeta > 0.01);
+        const listaDeudores = Object.values(consolidado).sort((a, b) => b.deuda_total - a.deuda_total);
 
-        // 4. Actualizar tarjetas KPI superiores
-        if (typeof window.actualizarMetricasConData === 'function') {
-            const dataMetricas = deudores.map(d => ({ deuda_total: d.summary.deudaNeta }));
-            window.actualizarMetricasConData(dataMetricas);
-        }
-
-        // 5. Renderizado
-        if (deudores.length === 0) {
-            container.innerHTML = '';
+        // 3. UI: Manejo de estado vacío y métricas
+        if (listaDeudores.length === 0) {
+            tableBody.innerHTML = '';
             noDebtsMsg?.classList.remove('hidden');
+            if (window.actualizarMetricasConData) window.actualizarMetricasConData([]);
             return;
         }
 
         noDebtsMsg?.classList.add('hidden');
+        if (window.actualizarMetricasConData) window.actualizarMetricasConData(listaDeudores);
 
-        container.innerHTML = deudores.map(d => {
-            const deuda = d.summary.deudaNeta;
-            const glassClass = deuda > 5000 ? 'glass-badge-danger' : 'glass-badge-success';
-            const statusText = deuda > 5000 ? 'Prioridad' : 'Pendiente';
-
+        // 4. RENDERIZADO PREMIUM (Secciones 3, 5 y 6 de tu style.css)
+        tableBody.innerHTML = listaDeudores.map(d => {
+            const esPrioridad = d.deuda_total > 5000;
             return `
-                <tr class="group hover:bg-white/5 transition-all duration-300 border-b border-white/5">
+                <tr class="group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5">
                     <td class="px-10 py-6">
                         <div class="flex items-center gap-4">
                             <div class="font-mono bg-orange-500/10 text-orange-500 px-3 py-1 rounded border border-orange-500/20 text-xs">
@@ -1831,25 +1839,24 @@ window.loadDebtsTable = async function() {
                             </div>
                             <div>
                                 <div class="font-bold text-white text-base">${d.name}</div>
-                                <div class="text-[10px] text-white/40 uppercase tracking-widest">${d.telefono || '---'}</div>
+                                <div class="text-[10px] text-white/40 uppercase tracking-widest">${d.phone}</div>
                             </div>
                         </div>
                     </td>
                     <td class="px-10 py-6 text-center">
                         <div class="text-xl font-black text-red-500 tracking-tighter">
-                            ${formatCurrency(deuda)}
+                            ${formatCurrency(d.deuda_total)}
                         </div>
                     </td>
-                    <td class="px-10 py-6">
-                        <div class="flex justify-center">
-                            <div class="glass-badge ${glassClass}">
-                                <span class="text-[10px] font-black uppercase tracking-widest">${statusText}</span>
-                            </div>
+                    <td class="px-10 py-6 flex justify-center">
+                        <div class="glass-badge ${esPrioridad ? 'glass-badge-danger' : 'glass-badge-success'}">
+                            <span class="text-[10px] font-black uppercase tracking-widest">
+                                ${esPrioridad ? 'Prioridad' : 'Pendiente'}
+                            </span>
                         </div>
                     </td>
                     <td class="px-10 py-6 text-right">
-                        <button type="button" 
-                                onclick="window.handleViewClientPayments(${d.client_id})" 
+                        <button onclick="window.handleViewClientDebt(${d.client_id})" 
                                 class="view-debt-btn scale-110 hover:text-orange-500 hover:border-orange-500 transition-all">
                             <i class="fas fa-file-invoice-dollar"></i>
                         </button>
@@ -1858,8 +1865,8 @@ window.loadDebtsTable = async function() {
             `;
         }).join('');
 
-    } catch (e) {
-        console.error('Error al cargar la tabla de deudas:', e);
+    } catch (err) {
+        console.error("Error cargando deudas:", err);
     }
 };
 
