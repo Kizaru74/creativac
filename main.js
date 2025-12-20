@@ -4304,8 +4304,8 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             <td class="px-8 py-5 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-colors">
-                                        <span class="text-[11px] font-bold text-white leading-none font-sans">${day}</span>
-                                        <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">${month}</span>
+                                        <span class="text-[12px] font-bold text-white leading-none font-sans">${day}</span>
+                                        <span class="text-[9px] font-bold text-orange-500 leading-none mt-1 font-sans">${month}</span>
                                     </div>
                                     <div>
                                         <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[9px] block w-fit">
@@ -4316,16 +4316,16 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             </td>
                             <td class="px-8 py-5 whitespace-nowrap">
                                 <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${clientName}</div>
-                                <div class="text-[9px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">${sale.metodo_pago || 'CONTADO'}</div>
+                                <div class="text-[12px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">${sale.metodo_pago || 'CONTADO'}</div>
                             </td>
                             <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Venta</div>
+                                <div class="text-[12px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Venta</div>
                                 <div class="text-sm font-bold text-white font-mono">${formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest text-right">Pendiente</div>
+                                <div class="text-[12px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest text-right">Pendiente</div>
                                 <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
-                                    <span class="flex items-center font-bold font-sans text-[11px]">
+                                    <span class="flex items-center font-bold font-sans text-[13px]">
                                         <span class="h-1.5 w-1.5 rounded-full ${tienePendiente ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
                                         ${formatCurrency(sale.saldo_pendiente)}
                                     </span>
@@ -4335,11 +4335,11 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
                                             class="text-white/40 hover:text-blue-500 transition-colors">
-                                        <i class="fas fa-eye text-[11px]"></i>
+                                        <i class="fas fa-eye text-[13px]"></i>
                                     </button>
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
                                             class="text-white/40 hover:text-red-500 transition-colors">
-                                        <i class="fas fa-trash-alt text-[11px]"></i>
+                                        <i class="fas fa-trash-alt text-[13px]"></i>
                                     </button>
                                 </div>
                             </td>
@@ -4353,7 +4353,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             }
             
             // TOTALES EN FOOTER
-            totalSalesEl.innerHTML = `<span class="text-emerald-500 font-black font-sans italic">${formatCurrency(totalSales)}</span>`;
+            totalSalesEl.innerHTML = `<span class="text-white font-black font-sans italic">${formatCurrency(totalSales)}</span>`;
 totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/20'} font-black font-sans italic">${formatCurrency(totalDebtGenerated)}</span>`;
 
         } catch (e) {
