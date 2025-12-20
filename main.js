@@ -3102,8 +3102,8 @@ window.loadProductsTable = function() {
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Usamos las transiciones de tu CSS
-        row.className = 'border-b border-white/5 group';
+        // Transición de opacidad y color definida en tu CSS
+        row.className = 'border-b border-white/5 group hover:bg-white/[0.02] transition-all duration-300';
         
         const formattedPrice = formatCurrency(product.price);
         
@@ -3119,7 +3119,7 @@ window.loadProductsTable = function() {
                 break;
             case 'PACKAGE':
                 badgeClass = 'glass-badge-danger'; 
-                typeText = 'Subproducto';
+                typeText = 'Paquete';
                 icon = 'fa-box-open';
                 break;
             case 'SERVICE':
@@ -3135,50 +3135,52 @@ window.loadProductsTable = function() {
 
         row.innerHTML = `
             <td class="px-8 py-5 whitespace-nowrap">
-                <span class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded text-[10px]">
+                <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px]">
                     #${product.producto_id}
                 </span>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
                 <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-white/10 flex items-center justify-center mr-4 group-hover:border-orange-500/40 transition-all duration-300">
-                        <i class="fas ${icon} text-orange-500 text-xs"></i>
+                    <div class="h-10 w-10 rounded-xl bg-orange-500 border border-orange-600 shadow-lg shadow-orange-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform duration-300">
+                        <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-bold text-white tracking-wide">${product.name}</div>
-                        <div class="text-[9px] text-white/20 uppercase tracking-[0.2em] font-black mt-1">Existencias</div>
+                        <div class="text-sm font-bold text-white uppercase tracking-wide">${product.name}</div>
+                        <div class="text-[9px] text-white/30 uppercase font-sans font-bold tracking-widest mt-1">Inventario Activo</div>
                     </div>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="text-sm font-black text-white font-mono">
+                <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Precio Unitario</div>
+                <div class="text-sm font-bold text-white font-mono">
                     ${formattedPrice}
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
+                <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Categoría</div>
                 <div class="glass-badge ${badgeClass}">
-                    <span class="flex items-center font-black">
+                    <span class="flex items-center font-bold font-sans text-[11px] tracking-tight">
                         <i class="fas ${icon} mr-2 text-[9px] opacity-70"></i>
-                        <span class="font-mono text-[12px] tracking-widest uppercase">${typeText}</span>
+                        <span class="uppercase">${typeText}</span>
                     </span>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap text-right">
-                <div class="flex justify-end items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                     <button 
                         onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="edit-client-btn" title="Editar Producto">
-                        <i class="fas fa-pen text-[12px]"></i>
+                        class="edit-client-btn text-white/50 hover:text-orange-500" title="Editar Producto">
+                        <i class="fas fa-pen text-[11px]"></i>
                     </button>
                     
                     <button 
                         onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="delete-client-btn" title="Eliminar Producto">
-                        <i class="fas fa-trash-alt text-[12px]"></i>
+                        class="delete-client-btn text-white/50 hover:text-red-500" title="Eliminar Producto">
+                        <i class="fas fa-trash-alt text-[11px]"></i>
                     </button>
                 </div>
             </td>
