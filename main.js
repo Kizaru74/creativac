@@ -3669,7 +3669,10 @@ async function loadClientDebtsTable() {
     }
 }
 window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) return;
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        return;
+    }
 
     const container = document.getElementById('clients-list-body');
     if (!container) return;
@@ -3684,14 +3687,24 @@ window.loadClientsTable = async function(mode = 'gestion') {
         if (clientsError) throw clientsError;
 
         window.allClients = clients; 
+        window.allClientsMap = {}; 
+        clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
+
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
         container.innerHTML = '';
 
+        if (clients.length === 0) {
+            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 font-sans uppercase text-[10px] tracking-widest">No hay clientes registrados</td></tr>`;
+            return;
+        }
+
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
+            
+            // Clase de fila con hover sutil de tu style.css
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
             const deudaVisual = summary.deudaNeta;
@@ -3730,10 +3743,10 @@ window.loadClientsTable = async function(mode = 'gestion') {
                         <div class="h-10 w-10 rounded-xl bg-orange-500 border border-orange-600 shadow-lg shadow-orange-500/20 flex items-center justify-center text-white mr-4 group-hover:scale-105 transition-transform duration-300">
                             <i class="fas fa-user text-sm"></i>
                         </div>
-                        <div class="ml-4">
-                            <div class="text-sm font-bold text-white uppercase tracking-wide">${client.name}</div>
-                            <div class="text-white/40 font-sans mt-0.5 flex items-center text-[11px]">
-                                <i class="fas fa-phone-alt mr-1.5 opacity-50 text-[9px]"></i>
+                        <div>
+                            <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
+                            <div class="text-[10px] text-white/40 font-sans mt-0.5 flex items-center">
+                                <i class="fas fa-phone-alt mr-1.5 opacity-50 text-[8px]"></i>
                                 ${client.telefono || 'Sin contacto'}
                             </div>
                         </div>
@@ -3759,11 +3772,20 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         // Re-vinculación de eventos
         if (showActions) {
-            container.querySelectorAll('.edit-client-btn').forEach(btn => btn.onclick = () => window.handleEditClientClick(btn.dataset.id));
-            container.querySelectorAll('.view-debt-btn').forEach(btn => btn.onclick = () => window.handleViewClientDebt(btn.dataset.id));
-            container.querySelectorAll('.delete-client-btn').forEach(btn => btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name));
+            container.querySelectorAll('.edit-client-btn').forEach(btn => {
+                btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
+            });
+            container.querySelectorAll('.view-debt-btn').forEach(btn => {
+                btn.onclick = () => window.handleViewClientDebt(btn.dataset.id);
+            });
+            container.querySelectorAll('.delete-client-btn').forEach(btn => {
+                btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name);
+            });
         }
-    } catch (e) { console.error('Error:', e); }
+
+    } catch (e) {
+        console.error('Error al cargar tabla de clientes:', e);
+    }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
