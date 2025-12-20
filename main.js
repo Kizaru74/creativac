@@ -4269,7 +4269,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             const currentMonthNum = new Date().getMonth() + 1;
             const currentYearNum = new Date().getFullYear();
             let selectedMonth = (selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) ? selectedMonthFromEvent : currentMonthNum;
-            let selectedYear = (selectedYearFromEvent >= 2000) ? selectedYearFromEvent : currentYearNum;
+            let selectedYear = (selectedYearFromEvent >= 2020) ? selectedYearFromEvent : currentYearNum;
 
             let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
             let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1));
@@ -4353,8 +4353,8 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             }
             
             // TOTALES EN FOOTER
-            totalSalesEl.innerHTML = `<span class="text-emerald-500 font-bold font-mono text-base">${formatCurrency(totalSales)}</span>`;
-            totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/20'} font-bold font-mono text-base">${formatCurrency(totalDebtGenerated)}</span>`;
+            totalSalesEl.innerHTML = `<span class="text-emerald-500 font-black font-sans text-base">${formatCurrency(totalSales)}</span>`;
+totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/20'} font-black font-sans text-base">${formatCurrency(totalDebtGenerated)}</span>`;
 
         } catch (e) {
             console.error('Error:', e);
