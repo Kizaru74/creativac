@@ -3668,6 +3668,7 @@ async function loadClientDebtsTable() {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
     }
 }
+
 window.loadClientsTable = async function(mode = 'gestion') {
     if (!supabase) return;
 
@@ -3768,24 +3769,31 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         // RE-VINCULACIÓN DE EVENTOS (Aquí se asegura que el ID no sea null)
         if (showActions) {
-            container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => {
-                    const id = btn.getAttribute('data-id');
-                    console.log("Editando cliente ID:", id); // Debug
-                    window.handleEditClientClick(id);
-                };
-            });
-            container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => window.handleViewClientDebt(btn.getAttribute('data-id'));
-            });
-            container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = () => {
-                    const id = btn.getAttribute('data-id');
-                    const name = btn.getAttribute('data-name');
-                    window.handleDeleteClientClick(id, name);
-                };
-            });
-        }
+    container.querySelectorAll('.edit-client-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation(); // 🛑 Evita que se disparen otros listeners
+            const id = btn.getAttribute('data-id');
+            if (id) window.handleEditClientClick(id);
+        };
+    });
+
+    container.querySelectorAll('.view-debt-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation(); // 🛑 Evita que se disparen otros listeners
+            const id = btn.getAttribute('data-id');
+            if (id) window.handleViewClientDebt(id);
+        };
+    });
+
+    container.querySelectorAll('.delete-client-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            if (id) window.handleDeleteClientClick(id, name);
+        };
+    });
+}
     } catch (e) { console.error('Error:', e); }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
@@ -3793,160 +3801,75 @@ let clientToDeleteId = null;
 // Asumimos que también tienes el array global 'allClients'
 
 window.handleDeleteClientClick = function(clientId) {
-    // 1. Guardar el ID asegurándonos de que sea un String para comparar
-    window.clientIdToDelete = String(clientId);
+    // Forzamos que sea un string para evitar fallos de tipos
+    const idStr = String(clientId);
+    window.clientToDeleteId = idStr; // <--- Cambiado para coincidir con confirmDeleteClient
     
-    // 2. Buscar en el mapa usando el ID convertido a String
-    const cliente = window.allClientsMap[window.clientIdToDelete];
-    
+    const cliente = window.allClientsMap ? window.allClientsMap[idStr] : null;
     const placeholder = document.getElementById('delete-client-name-placeholder');
-    if (placeholder && cliente) {
-        placeholder.textContent = cliente.name;
-    } else {
-        console.error("Error: Cliente no encontrado en el mapa global.", clientId);
-        // Si no está en el mapa, intentamos buscarlo en el array
-        const clienteArray = window.allClients.find(c => String(c.client_id) === String(clientId));
-        if (clienteArray && placeholder) placeholder.textContent = clienteArray.name;
+    
+    if (placeholder) {
+        if (cliente) {
+            placeholder.textContent = cliente.name;
+        } else {
+            // Intento de rescate si el mapa falló
+            const cArray = window.allClients.find(c => String(c.client_id) === idStr);
+            placeholder.textContent = cArray ? cArray.name : "Cliente #" + idStr;
+        }
     }
-
     openModal('delete-client-modal');
 };
 
 async function confirmDeleteClient() {
-    const idToDelete = clientToDeleteId; 
+    // Ahora sí coinciden las variables
+    const idToDelete = window.clientToDeleteId; 
 
-    if (!idToDelete) {
-        alert("Error de Eliminación: ID del cliente no encontrada.");
+    if (!idToDelete || idToDelete === "null") {
+        alert("Error: No se seleccionó un cliente válido.");
         return;
     }
 
-    // 1. Ejecutar la eliminación en Supabase
     const { error } = await supabase
         .from('clientes')
-        .delete() // <--- Eliminación física
+        .delete()
         .eq('client_id', idToDelete); 
 
     if (error) {
-        console.error('Error al intentar eliminar el cliente:', error);
-        
-        // 2. Manejo de error específico (Restricción de Clave Foránea)
         if (error.code === '23503') {
-            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados. Asegúrate de eliminar el historial del cliente o configurar la eliminación en cascada en Supabase.');
+            alert('❌ No se puede eliminar: El cliente tiene historial de ventas activo.');
         } else {
-            alert('❌ Error desconocido al eliminar cliente: ' + error.message);
+            alert('❌ Error: ' + error.message);
         }
-        closeModal('client-delete-confirmation'); 
-        return; 
-    }
-
-    // 3. Éxito y recarga de datos
-    alert('✅ Cliente eliminado definitivamente.');
-    closeModal('client-delete-confirmation'); 
-    clientToDeleteId = null; 
-    
-    await loadDashboardData(); 
-}
-
-
-
-window.handleNewClient = async function(e) {
-    // 🛑 CRÍTICO: Detiene el envío nativo del formulario.
-    // Esta línea funcionará correctamente porque ahora la función será llamada
-    // por un listener de JS nativo (form.addEventListener('submit', ...))
-    e.preventDefault(); 
-    
-    // 🛑 LOG 1: VERIFICAR SI LA FUNCIÓN FUE LLAMADA
-    console.log('1. FUNCIÓN DE REGISTRO INICIADA.'); 
-    
-    const name = document.getElementById('new-client-name')?.value.trim();
-    const phone = document.getElementById('new-client-phone')?.value.trim() || null;
-    
-    // 🛑 LOG 2: VERIFICAR LA CAPTURA DE DATOS Y LA DISPONIBILIDAD DE SUPABASE
-    console.log(`2. Datos capturados: Nombre='${name}', Teléfono='${phone}'.`);
-    
-    if (typeof supabase === 'undefined' || !supabase) { 
-        console.error('ERROR CRÍTICO: La variable "supabase" no está definida o accesible globalmente.');
-        alert('Error: La conexión a la base de datos no está disponible.');
-        return;
+    } else {
+        alert('✅ Cliente eliminado definitivamente.');
+        // Importante: Recargar el mapa global después de borrar
+        if (window.loadAllClientsMap) await window.loadAllClientsMap();
+        await loadDashboardData(); 
     }
     
-    if (!name || name.length < 3) {
-        console.warn('Registro cancelado: Nombre inválido.');
-        alert('Por favor, ingresa un nombre válido para el cliente.');
-        
-        // Opcional: enfocar el campo para mejor UX
-        document.getElementById('new-client-name')?.focus(); 
-        
-        return;
-    }
-
-    // 🛑 LOG 3: INTENTO DE INSERCIÓN
-   // console.log('3. Intentando insertar en Supabase...');
-
-    // Usamos un bloque try/catch para manejar errores de red o Supabase
-    try {
-        const { error } = await supabase
-            .from('clientes')
-            .insert([{ 
-                name: name, 
-                telefono: phone, 
-                is_active: true 
-            }]);
-
-        // 🛑 LOG 4: RESULTADO DE SUPABASE
-        if (error) {
-            console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
-            alert('Error al registrar cliente: ' + error.message);
-        } else {
-        //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
-            alert('Cliente registrado exitosamente.');
-            
-            // --- Cierre y Limpieza ---
-            
-            // 1. Recargar la tabla de clientes
-            if (typeof window.loadClientsTable === 'function') { // Verificar en window
-             await window.loadClientsTable('gestion');        // Llamar desde window
-         //    console.log("5. Tabla de clientes recargada exitosamente.");
-            }    else {
-            console.error("ERROR: window.loadClientsTable no está definida para la recarga.");
-}
-
-            // 2. Limpiar el formulario
-            const clientForm = document.getElementById('new-client-form');
-            clientForm?.reset(); 
-            
-            // 3. Cerrar el modal
-            if (typeof closeModal === 'function') {
-                closeModal('new-client-modal');
-            } else {
-                console.error("closeModal no está definida globalmente.");
-            }
-            
-           // console.log('5. Tarea completada y modal cerrado.');
-        }
-    } catch (e) {
-        console.error('5. ERROR DE RED o EXCEPCIÓN AL REGISTRAR:', e);
-        alert('Error desconocido al registrar cliente. Verifique la conexión a Supabase.');
-    }
+    closeModal('delete-client-modal'); 
+    window.clientToDeleteId = null; 
 }
 
 window.handleEditClientClick = function(clientId) {
+    // 🛑 FILTRO DE SEGURIDAD: Si entra un null o un objeto de evento, abortamos.
+    if (!clientId || typeof clientId === 'object') return;
+
     console.log("Editando cliente ID:", clientId);
     
-    // 1. Intentar obtener del mapa (asegurando que el ID sea String)
-    let cliente = window.allClientsMap ? window.allClientsMap[String(clientId)] : null;
+    const idStr = String(clientId);
+    let cliente = window.allClientsMap ? window.allClientsMap[idStr] : null;
 
-    // 2. Si no aparece en el mapa, buscarlo en el array global
     if (!cliente && window.allClients) {
-        cliente = window.allClients.find(c => String(c.client_id) === String(clientId));
+        cliente = window.allClients.find(c => String(c.client_id) === idStr);
     }
 
     if (!cliente) {
-        alert("Error: Cliente no encontrado para editar (ID: " + clientId + ")");
+        console.warn("Cliente no encontrado en memoria para ID:", idStr);
         return;
     }
 
-    // 3. Llenar el formulario de edición (Asegúrate de que estos IDs existan en tu modal de editar)
+    // Llenado de campos...
     const idInput = document.getElementById('edit-client-id');
     const nameInput = document.getElementById('edit-client-name');
     const phoneInput = document.getElementById('edit-client-phone');
@@ -3955,50 +3878,8 @@ window.handleEditClientClick = function(clientId) {
     if (nameInput) nameInput.value = cliente.name || '';
     if (phoneInput) phoneInput.value = cliente.telefono || '';
 
-    // 4. Abrir el modal de edición
     openModal('edit-client-modal');
 };
-
-async function handleEditClient(e) {
-    e.preventDefault();
-    
-    // 1. Obtener los valores del formulario
-    const clientId = document.getElementById('edit-client-id').value; 
-    const name = document.getElementById('edit-client-name').value.trim();
-    const phone = document.getElementById('edit-client-phone').value.trim();
-    
-    // Ya no se busca 'edit-client-address'
-
-    if (!clientId) {
-        alert("Error de Edición: No se pudo obtener la ID del cliente.");
-        return;
-    }
-
-    // 2. Ejecutar la actualización en Supabase
-    // CRÍTICO: Solo actualizamos 'name' y 'telefono'
-    const { error } = await supabase
-        .from('clientes')
-        .update({ 
-            name: name, 
-            telefono: phone, // Usando el nombre de columna correcto
-        }) 
-        .eq('client_id', clientId); 
-
-    if (error) {
-        console.error('Error al actualizar cliente:', error);
-        alert('Error al actualizar cliente: ' + error.message);
-} else {
-        alert('Cliente actualizado exitosamente.');
-        
-        // 🛑 ORDEN CORREGIDO: 
-        // 1. Recargar la data (y repintar la tabla) PRIMERO.
-        await loadDashboardData(); 
-        
-        // 2. Limpiar el formulario y CERRAR el modal DESPUÉS de que la tabla se actualizó.
-        document.getElementById('edit-client-form').reset();
-        closeModal('edit-client-modal'); 
-    }
-}
 
 // 11. DETALLE Y ABONO DE VENTA 
 window.handleRegisterPayment = async function(e) {
