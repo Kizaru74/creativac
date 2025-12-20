@@ -3667,14 +3667,10 @@ async function loadClientDebtsTable() {
     }
 }
 window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
+    if (!supabase) return;
 
     const container = document.getElementById('clients-list-body');
     if (!container) return;
-
     const showActions = mode === 'gestion';
 
     try {
@@ -3686,24 +3682,14 @@ window.loadClientsTable = async function(mode = 'gestion') {
         if (clientsError) throw clientsError;
 
         window.allClients = clients; 
-        window.allClientsMap = {}; 
-        clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
-
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
         container.innerHTML = '';
 
-        if (clients.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 font-sans uppercase text-[10px] tracking-widest">No hay registros</td></tr>`;
-            return;
-        }
-
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
-            
-            // Efecto hover sutil definido en tu CSS
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
             const deudaVisual = summary.deudaNeta;
@@ -3714,17 +3700,17 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 actionCell = `
                     <td class="px-6 py-5 whitespace-nowrap text-right">
                         <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                            <button type="button" class="edit-client-btn" data-id="${client.client_id}">
-                                <i class="fas fa-user-edit text-[11px]"></i>
+                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}" title="Editar Cliente">
+                                <i class="fas fa-user-edit text-[12px]"></i>
                             </button>
-                            <button type="button" class="abono-btn" onclick="window.handleAbonoClick(${client.client_id})">
-                                <i class="fas fa-receipt text-[11px]"></i>
+                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Pago/Abono">
+                                <i class="fas fa-file-invoice-dollar text-[12px]"></i>
                             </button>
-                            <button type="button" class="view-debt-btn" data-id="${client.client_id}">
-                                <i class="fas fa-history text-[11px]"></i>
+                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}" title="Ver Historial de Deuda">
+                                <i class="fas fa-history text-[12px]"></i>
                             </button>
-                            <button type="button" class="delete-client-btn" data-id="${client.client_id}" data-name="${client.name}">
-                                <i class="fas fa-trash-alt text-[11px]"></i>
+                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}" title="Eliminar de la Base de Datos">
+                                <i class="fas fa-trash-alt text-[12px]"></i>
                             </button>
                         </div>
                     </td>
@@ -3739,26 +3725,26 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:text-orange-500 group-hover:border-orange-500/40 transition-all">
-                            <i class="fas fa-user"></i>
+                        <div class="h-10 w-10 rounded-xl bg-orange-500/5 border border-orange-500/20 flex items-center justify-center text-orange-500/70 group-hover:text-orange-500 group-hover:border-orange-500/40 transition-all">
+                            <i class="fas fa-user text-sm"></i>
                         </div>
                         <div class="ml-4">
                             <div class="text-sm font-bold text-white uppercase tracking-wide">${client.name}</div>
-                            <div class="text-white/70 font-sans mt-0.5 flex items-center">
-                                <i class="fas fa-phone-alt mr-1.5"></i>
+                            <div class="text-white/40 font-sans mt-0.5 flex items-center text-[11px]">
+                                <i class="fas fa-phone-alt mr-1.5 opacity-50"></i>
                                 ${client.telefono || 'Sin contacto'}
                             </div>
                         </div>
                     </div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[11px] text-white/70 uppercase font-bold mb-1 font-sans">Total Consumo</div>
+                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Total Consumo</div>
                     <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[11px] text-white/70 uppercase font-bold mb-1 font-sans">Estado de Cuenta</div>
+                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Estado Actual</div>
                     <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="flex items-center font-bold font-sans">
+                        <span class="flex items-center font-bold font-sans text-[11px]">
                             <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
                             ${formatCurrency(deudaVisual)}
                         </span>
@@ -3769,16 +3755,13 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // Re-vinculación de eventos (Edit, Debt, Delete)
+        // Re-vinculación de eventos
         if (showActions) {
             container.querySelectorAll('.edit-client-btn').forEach(btn => btn.onclick = () => window.handleEditClientClick(btn.dataset.id));
             container.querySelectorAll('.view-debt-btn').forEach(btn => btn.onclick = () => window.handleViewClientDebt(btn.dataset.id));
             container.querySelectorAll('.delete-client-btn').forEach(btn => btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name));
         }
-
-    } catch (e) {
-        console.error('Error al cargar tabla de clientes:', e);
-    }
+    } catch (e) { console.error('Error:', e); }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
