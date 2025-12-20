@@ -3102,12 +3102,11 @@ window.loadProductsTable = function() {
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Tu CSS ya maneja el hover: rgba(255, 255, 255, 0.05)
-        row.className = 'border-b border-white/5 transition-colors duration-300 group';
+        // Usamos las transiciones de tu CSS
+        row.className = 'border-b border-white/5 group';
         
         const formattedPrice = formatCurrency(product.price);
         
-        // Mapeo de estilos según tu CSS y lógica de negocio
         let badgeClass = '';
         let typeText = '';
         let icon = '';
@@ -3119,12 +3118,12 @@ window.loadProductsTable = function() {
                 icon = 'fa-star';
                 break;
             case 'PACKAGE':
-                badgeClass = 'glass-badge-danger'; // Usando el rojo de tu CSS para llamar la atención
+                badgeClass = 'glass-badge-danger'; 
                 typeText = 'Subproducto';
                 icon = 'fa-box-open';
                 break;
             case 'SERVICE':
-                badgeClass = 'glass-badge-success'; // O crea glass-badge-info en tu CSS
+                badgeClass = 'glass-badge-success'; 
                 typeText = 'Servicio';
                 icon = 'fa-tools';
                 break;
@@ -3143,43 +3142,43 @@ window.loadProductsTable = function() {
             
             <td class="px-8 py-5 whitespace-nowrap">
                 <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-orange-500/10 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
-                        <i class="fas ${icon} text-orange-500 text-sm"></i>
+                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-white/10 flex items-center justify-center mr-4 group-hover:border-orange-500/40 transition-all duration-300">
+                        <i class="fas ${icon} text-orange-500 text-xs"></i>
                     </div>
                     <div>
                         <div class="text-sm font-bold text-white tracking-wide">${product.name}</div>
-                        <div class="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">Inventario</div>
+                        <div class="text-[9px] text-white/20 uppercase tracking-[0.2em] font-black mt-1">Existencias</div>
                     </div>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="text-lg font-black text-emerald-500 tracking-tighter font-mono">
+                <div class="text-sm font-black text-white font-mono">
                     ${formattedPrice}
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="glass-badge ${badgeClass} inline-flex items-center justify-center">
-                    <span class="text-[10px] font-black uppercase tracking-widest flex items-center">
-                        <i class="fas ${icon} mr-1.5 opacity-70"></i>
-                        ${typeText}
+                <div class="glass-badge ${badgeClass}">
+                    <span class="flex items-center font-black">
+                        <i class="fas ${icon} mr-2 text-[9px] opacity-70"></i>
+                        <span class="font-mono text-[10px] tracking-widest uppercase">${typeText}</span>
                     </span>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap text-right">
-                <div class="flex justify-end items-center space-x-2 opacity-20 group-hover:opacity-100 transition-all duration-300">
+                <div class="flex justify-end items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                     <button 
                         onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="p-2 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all border border-transparent hover:border-orange-500/20">
-                        <i class="fas fa-pen text-xs"></i>
+                        class="edit-client-btn" title="Editar Producto">
+                        <i class="fas fa-pen text-[10px]"></i>
                     </button>
                     
                     <button 
                         onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="p-2 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/20">
-                        <i class="fas fa-trash-alt text-xs"></i>
+                        class="delete-client-btn" title="Eliminar Producto">
+                        <i class="fas fa-trash-alt text-[10px]"></i>
                     </button>
                 </div>
             </td>
