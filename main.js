@@ -3833,7 +3833,6 @@ window.handleNewClient = async function(e) {
 
     // 🛑 LOG 3: INTENTO DE INSERCIÓN
    // console.log('3. Intentando insertar en Supabase...');
-
     // Usamos un bloque try/catch para manejar errores de red o Supabase
     try {
         const { error } = await supabase
@@ -3851,6 +3850,13 @@ window.handleNewClient = async function(e) {
         } else {
         //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
             alert('Cliente registrado exitosamente.');
+
+// Actualizar mapa global para que el nuevo cliente sea "editable" de inmediato
+if (window.loadAllClientsMap) await window.loadAllClientsMap();
+
+if (typeof window.loadClientsTable === 'function') {
+    await window.loadClientsTable('gestion');
+}
             
             // --- Cierre y Limpieza ---
             
@@ -3961,7 +3967,46 @@ window.handleEditClientClick = function(clientId) {
 
     openModal('edit-client-modal');
 };
+async function handleEditClient(e) {
+    e.preventDefault();
+    
+    // 1. Obtener los valores del formulario
+    const clientId = document.getElementById('edit-client-id').value; 
+    const name = document.getElementById('edit-client-name').value.trim();
+    const phone = document.getElementById('edit-client-phone').value.trim();
+    
+    // Ya no se busca 'edit-client-address'
 
+    if (!clientId) {
+        alert("Error de Edición: No se pudo obtener la ID del cliente.");
+        return;
+    }
+
+    // 2. Ejecutar la actualización en Supabase
+    // CRÍTICO: Solo actualizamos 'name' y 'telefono'
+    const { error } = await supabase
+        .from('clientes')
+        .update({ 
+            name: name, 
+            telefono: phone, // Usando el nombre de columna correcto
+        }) 
+        .eq('client_id', clientId); 
+
+    if (error) {
+        console.error('Error al actualizar cliente:', error);
+        alert('Error al actualizar cliente: ' + error.message);
+} else {
+        alert('Cliente actualizado exitosamente.');
+        
+        // 🛑 ORDEN CORREGIDO: 
+        // 1. Recargar la data (y repintar la tabla) PRIMERO.
+        await loadDashboardData(); 
+        
+        // 2. Limpiar el formulario y CERRAR el modal DESPUÉS de que la tabla se actualizó.
+        document.getElementById('edit-client-form').reset();
+        closeModal('edit-client-modal'); 
+    }
+}
 // 11. DETALLE Y ABONO DE VENTA 
 window.handleRegisterPayment = async function(e) {
     if (e) {
