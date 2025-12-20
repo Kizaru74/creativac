@@ -1,281 +1,98 @@
-/* style.css - Creativa Cortes CNC (Versión Final Optimizada) */
+/* style.css - Creativa Cortes CNC (VERSIÓN DEFINITIVA) */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- CONFIGURACIÓN BASE Y TIPOGRAFÍA --- */
+/* --- 1. CONFIGURACIÓN BASE DARK --- */
 body, #main-content, .modal-overlay {
     color: #ffffff !important;
-    background-color: #121212; /* Asegura fondo oscuro base */
+    background-color: #121212 !important;
 }
 
-/* --- TRUNCADO DE TEXTO --- */
-.product-cell, .truncate-cell {
-    max-width: 150px; 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
+/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
+/* Forzar que CUALQUIER texto dentro de las tablas sea legible en fondo oscuro */
+tbody tr td, 
+.text-slate-800, .text-slate-700, .text-gray-800, .text-gray-900,
+.text-slate-500, .text-gray-500, .text-gray-400 {
+    color: #ffffff !important;
 }
 
-.product-header {
-    min-width: 150px;
+/* Opacidad sutil para textos secundarios */
+.text-slate-400, .text-gray-400, .text-white\/60 {
+    color: rgba(255, 255, 255, 0.5) !important;
 }
 
-/* --- MENÚ LATERAL ACTIVO --- */
-.active-menu-item { 
-    background-color: rgba(255, 255, 255, 0.05) !important; 
-    color: #f97316 !important; 
-    border-left: 4px solid #f97316;
-    border-radius: 0 12px 12px 0;
-}
-
-/* --- TABLAS: COMPORTAMIENTO UNIVERSAL --- */
+/* Prevención de fondo blanco en Hover */
 tbody tr {
     transition: background-color 0.2s ease;
     background-color: transparent !important;
 }
 
 tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.04) !important; 
+    background-color: rgba(255, 255, 255, 0.05) !important; 
 }
 
-td, th {
-    background-color: transparent !important;
+/* --- 3. BADGES DE IDENTIFICACIÓN (ID #00) --- */
+/* Estilo unificado para Clientes, Productos y Reportes */
+#clients-list-body .bg-slate-100,
+#products-list-body .bg-slate-100,
+#monthly-sales-report-body .bg-slate-100,
+.font-mono.bg-orange-500\/10 {
+    background-color: rgba(249, 115, 22, 0.1) !important; /* Fondo naranja traslúcido */
+    color: #f97316 !important; /* Texto naranja */
+    border: 1px solid rgba(249, 115, 22, 0.3) !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
 }
 
-/* Forzar textos legibles en todas las tablas (anula Slate-800/700 de Tailwind) */
-tbody tr td, 
-.text-slate-800, 
-.text-slate-700,
-.text-gray-800 {
-    color: #ffffff !important;
-}
-
-.text-slate-400, 
-.text-slate-500,
-.text-gray-500 {
-    color: rgba(255, 255, 255, 0.5) !important;
-}
-
-/* --- TABLA DE CLIENTES (PREMIUM DARK) --- */
-body #clients-list-body tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Avatar Naranja */
-body #clients-list-body .bg-slate-800 {
-    background-color: #f97316 !important;
-    color: white !important;
-    box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
-}
-
-/* Badge ID */
-body #clients-list-body .bg-slate-100 {
-    background-color: rgba(255, 255, 255, 0.07) !important;
-    color: #f97316 !important;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Estados de Deuda/Pago */
-.bg-emerald-50 { 
-    background-color: rgba(16, 185, 129, 0.1) !important; 
-    color: #10b981 !important; 
-    border: 1px solid rgba(16, 185, 129, 0.2) !important;
-}
-
-.bg-red-50, .bg-orange-50 { 
+/* --- 4. ESTADOS DE DEUDA Y PAGOS --- */
+/* Peligro / Deuda (Rojo) */
+.bg-red-50, .bg-red-500\/10, .text-red-600, .text-red-500 { 
     background-color: rgba(239, 68, 68, 0.1) !important; 
     color: #ef4444 !important; 
     border: 1px solid rgba(239, 68, 68, 0.2) !important;
 }
 
-/* --- REPORTE MENSUAL Y BOTONES DE ACCIÓN --- */
-#monthly-sales-report-body button {
-    width: 36px;
-    height: 36px;
+/* Éxito / Pagado (Verde) */
+.bg-emerald-50, .bg-emerald-500\/10, .text-green-600, .text-emerald-500 { 
+    background-color: rgba(16, 185, 129, 0.1) !important; 
+    color: #10b981 !important; 
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+/* --- 5. BOTONES Y SPINNERS --- */
+.btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
+    width: 32px;
+    height: 32px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px !important;
-    border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    background: rgba(255, 255, 255, 0.02) !important;
-    transition: all 0.3s ease !important;
-    position: relative;
-}
-
-/* Gestión de Spinners en botones */
-.btn-spinner {
-    display: none; /* Oculto por defecto */
-    position: absolute;
-}
-
-button.loading .btn-spinner {
-    display: inline-block !important;
-}
-
-button.loading i:not(.btn-spinner) {
-    display: none !important; /* Oculta el ojo o la basura al cargar */
-}
-
-/* Ocultar el círculo de carga por defecto */
-#monthly-sales-report-body .btn-spinner {
-    display: none !important;
-}
-
-/* Mostrarlo SOLO cuando el botón tenga la clase 'loading' */
-#monthly-sales-report-body button.loading .btn-spinner {
-    display: inline-block !important;
-    position: relative;
-}
-
-/* Ocultar el icono normal (ojo/basura) cuando está cargando */
-#monthly-sales-report-body button.loading i:not(.btn-spinner) {
-    display: none !important;
-}
-
-/* Ocultar el círculo de carga por defecto */
-#monthly-sales-report-body .btn-spinner {
-    display: none !important;
-}
-
-/* Mostrarlo SOLO cuando el botón tenga la clase 'loading' */
-#monthly-sales-report-body button.loading .btn-spinner {
-    display: inline-block !important;
-    position: relative;
-}
-
-/* Ocultar el icono normal (ojo/basura) cuando está cargando */
-#monthly-sales-report-body button.loading i:not(.btn-spinner) {
-    display: none !important;
-}
-
-/* --- CORRECCIONES PARA TABLA DE PRODUCTOS --- */
-
-/* 1. Fondo de los IDs y Avatares de Producto */
-.product-table-row .bg-white, 
-.product-table-row .bg-slate-100,
-#products-list-body .bg-white,
-#products-list-body .bg-slate-100 {
-    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 6px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    transition: all 0.2s !important;
+    position: relative;
 }
 
-/* 2. Forzar texto naranja en IDs de productos */
-#products-list-body .font-mono, 
-#products-list-body [class*="text-slate-"] {
-    color: #f97316 !important;
+.btn-spinner {
+    display: none !important;
 }
 
-/* 3. Ajuste de Badges (PRINCIPAL / SUBPRODUCTO) */
+/* Estado de carga */
+.loading .btn-spinner {
+    display: inline-block !important;
+}
+
+.loading i:not(.btn-spinner) {
+    display: none !important;
+}
+
+/* --- 6. ESPECÍFICOS DE PRODUCTOS --- */
 #products-list-body .bg-indigo-50, 
 #products-list-body .bg-amber-50 {
     background-color: rgba(255, 255, 255, 0.03) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-/* --- CORRECCIÓN FINAL DE SPINNERS (REPORTE MENSUAL) --- */
-
-/* Ocultar spinner por defecto */
-#monthly-sales-report-body .btn-spinner {
-    display: none !important;
-}
-
-/* Mostrar spinner y ocultar icono solo cuando tiene clase .loading */
-#monthly-sales-report-body button.loading .btn-spinner {
-    display: inline-block !important;
-}
-
-#monthly-sales-report-body button.loading i:not(.btn-spinner) {
-    display: none !important;
-}
-
-/* Ajuste visual del ID en reportes (basado en tu imagen) */
-#monthly-sales-report-body .bg-slate-100 {
-    background-color: #1e1e1e !important;
     color: #f97316 !important;
-    border: 1px solid rgba(249, 115, 22, 0.3) !important;
-    padding: 2px 6px !important;
 }
-
-/* --- CORRECCIÓN DE VISIBILIDAD DE ACCIONES --- */
-
-/* 1. Ocultar spinner por defecto */
-.btn-action-report .btn-spinner,
-#monthly-sales-report-body .btn-spinner {
-    display: none !important;
-}
-
-/* 2. Mostrar spinner solo cuando se añade la clase 'loading' */
-.btn-action-report.loading .btn-spinner,
-#monthly-sales-report-body button.loading .btn-spinner {
-    display: inline-block !important;
-}
-
-/* 3. Ocultar el icono de basura/ojo cuando está cargando */
-.btn-action-report.loading i:not(.btn-spinner),
-#monthly-sales-report-body button.loading i:not(.btn-spinner) {
-    display: none !important;
-}
-
-/* 4. Corregir ID blanco (basado en tu imagen) */
-#monthly-sales-report-body .bg-slate-100,
-#products-list-body .bg-slate-100 {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-    color: #f97316 !important; /* Texto naranja para resaltar el ID */
-    border: 1px solid rgba(249, 115, 22, 0.2) !important;
-}
-
-/* Asegúrate de que esto esté en tu style.css para que funcione en todas las tablas */
-.btn-action-report.loading .btn-spinner,
-.btn-product-action.loading .btn-spinner {
-    display: inline-block !important;
-}
-
-/* Corregir ID blanco en reportes */
-#monthly-sales-report-body .bg-slate-100 {
-    background-color: rgba(255, 255, 255, 0.05) !important; /* Fondo casi transparente */
-    color: #f97316 !important; /* Texto naranja */
-    border: 1px solid rgba(249, 115, 22, 0.2) !important;
-}
-
-/* Hovers de botones de reporte */
-#monthly-sales-report-body button.text-indigo-600:hover {
-    background: rgba(99, 102, 241, 0.15) !important;
-    color: #818cf8 !important;
-    border-color: rgba(99, 102, 241, 0.4) !important;
-}
-
-#monthly-sales-report-body button.text-red-400:hover {
-    background: rgba(239, 68, 68, 0.15) !important;
-    color: #ef4444 !important;
-    border-color: rgba(239, 68, 68, 0.4) !important;
-}
-
-/* --- INPUTS Y FORMULARIOS --- */
-input, select, textarea {
-    color: #ffffff !important;
-    background-color: rgba(0, 0, 0, 0.2) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-input:-webkit-autofill {
-    -webkit-text-fill-color: white !important;
-    -webkit-box-shadow: 0 0 0px 1000px #1c1c1c inset !important;
-}
-
-::placeholder {
-    color: rgba(255, 255, 255, 0.3) !important;
-}
-
-/* --- ANIMACIONES Y SCROLLBAR --- */
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.animate-spin { animation: spin 1s linear infinite; }
-
-@keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-.animate-pulse { animation: pulse-red 2s infinite; }
-
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #121212; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #f97316; }
