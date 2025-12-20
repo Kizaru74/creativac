@@ -34,7 +34,7 @@ tbody tr:hover {
 #clients-list-body .bg-slate-100,
 #products-list-body .bg-slate-100,
 #monthly-sales-report-body .bg-slate-100,
-.font-sans,.bg-orange-500\/10 {
+.font-sans, .bg-orange-500\/10 {
     background-color: rgba(249, 115, 22, 0.1) !important;
     color: #f97316 !important;
     border: 1px solid rgba(249, 115, 22, 0.3) !important;
