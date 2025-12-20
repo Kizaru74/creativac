@@ -3086,7 +3086,7 @@ window.handlePriceEditSubmit = async function(e) {
     }
 };
 
-function loadProductsTable() {
+window.loadProductsTable = function() {
     const container = document.getElementById('products-table-body');
     if (!container) return; 
    
@@ -3101,66 +3101,83 @@ function loadProductsTable() {
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Estilo de fila Premium: borde suave y hover sutil
-        row.className = 'group hover:bg-slate-50/50 transition-all duration-200 border-b border-gray-100';
+        // Estilo Dark Premium: Hover sutil con brillo y bordes transparentes
+        row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
         
         const formattedPrice = formatCurrency(product.price);
         
-        // Configuración de Badges por Categoría con Iconos
-        let categoryHTML = '';
+        // Configuración de Glass Badges según el tipo de producto
+        let badgeClass = '';
+        let typeText = '';
+        let icon = '';
+
         switch(product.type) {
             case 'MAIN':
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
-                                <i class="fas fa-star mr-1 text-[8px]"></i> PRINCIPAL</span>`;
+                badgeClass = 'glass-badge-success'; // Verde/Neon
+                typeText = 'Principal';
+                icon = 'fa-star';
                 break;
             case 'PACKAGE':
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-700/10">
-                                <i class="fas fa-box-open mr-1 text-[8px]"></i> SUBPRODUCTO</span>`;
+                badgeClass = 'glass-badge-warning'; // Usaremos el estilo naranja/amber
+                typeText = 'Subproducto';
+                icon = 'fa-box-open';
                 break;
             case 'SERVICE':
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                                <i class="fas fa-tools mr-1 text-[8px]"></i> SERVICIO</span>`;
+                badgeClass = 'glass-badge-info'; // Azul
+                typeText = 'Servicio';
+                icon = 'fa-tools';
                 break;
             default:
-                categoryHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-700/10">
-                                ${product.type}</span>`;
+                badgeClass = 'glass-badge-secondary';
+                typeText = product.type || 'General';
+                icon = 'fa-tag';
         }
 
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap">
-                <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#${product.producto_id}</span>
-            </td>
-            
-            <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center">
-                    <div class="h-8 w-8 rounded bg-slate-100 text-slate-500 flex items-center justify-center mr-3 border border-slate-200">
-                        <i class="fas fa-tag text-xs"></i>
-                    </div>
-                    <div class="text-sm font-bold text-slate-800">${product.name}</div>
+            <td class="px-8 py-5 whitespace-nowrap">
+                <div class="font-mono bg-white/5 text-white/40 px-2 py-1 rounded border border-white/10 text-[10px] inline-block">
+                    #${product.producto_id}
                 </div>
             </td>
             
-            <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Precio Unitario</div>
-                <div class="text-sm font-bold text-emerald-600">${formattedPrice}</div>
+            <td class="px-8 py-5 whitespace-nowrap">
+                <div class="flex items-center">
+                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-orange-500/20 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                        <i class="fas ${icon} text-orange-500 text-sm"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold text-white tracking-wide">${product.name}</div>
+                        <div class="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">Producto Registrado</div>
+                    </div>
+                </div>
             </td>
             
-            <td class="px-6 py-4 whitespace-nowrap">
-                ${categoryHTML}
+            <td class="px-8 py-5 whitespace-nowrap">
+                <div class="text-lg font-black text-emerald-500 tracking-tighter">
+                    ${formattedPrice}
+                </div>
             </td>
             
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div class="flex justify-end items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <td class="px-8 py-5 whitespace-nowrap">
+                <div class="glass-badge ${badgeClass}">
+                    <span class="text-[10px] font-black uppercase tracking-widest">
+                        <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
+                    </span>
+                </div>
+            </td>
+            
+            <td class="px-8 py-5 whitespace-nowrap text-right">
+                <div class="flex justify-end items-center space-x-2 opacity-40 group-hover:opacity-100 transition-opacity">
                     <button 
-                        onclick="handleEditProductClick(${product.producto_id})" 
-                        class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        onclick="window.handleEditProductClick(${product.producto_id})" 
+                        class="p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all border border-transparent hover:border-orange-500/20"
                         title="Editar Producto">
                         <i class="fas fa-pen text-xs"></i>
                     </button>
                     
                     <button 
-                        onclick="handleDeleteProductClick(${product.producto_id})" 
-                        class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        onclick="window.handleDeleteProductClick(${product.producto_id})" 
+                        class="p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/20"
                         title="Eliminar Producto">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
@@ -3169,7 +3186,7 @@ function loadProductsTable() {
         `;
         container.appendChild(row);
     });
-} 
+}
 window.loadProductsTable = loadProductsTable;
 
 function loadProductDataToForm(product) {
