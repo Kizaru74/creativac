@@ -3744,7 +3744,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
                         </div>
                         <div class="ml-4">
                             <div class="text-sm font-bold text-white uppercase tracking-wide">${client.name}</div>
-                            <div class="text-[10px] text-white/30 font-sans mt-0.5 flex items-center">
+                            <div class="text-white/70 font-sans mt-0.5 flex items-center">
                                 <i class="fas fa-phone-alt mr-1.5"></i>
                                 ${client.telefono || 'Sin contacto'}
                             </div>
@@ -3752,11 +3752,11 @@ window.loadClientsTable = async function(mode = 'gestion') {
                     </div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans">Total Consumo</div>
+                    <div class="text-[11px] text-white/70 uppercase font-bold mb-1 font-sans">Total Consumo</div>
                     <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans">Estado de Cuenta</div>
+                    <div class="text-[11px] text-white/70 uppercase font-bold mb-1 font-sans">Estado de Cuenta</div>
                     <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
                         <span class="flex items-center font-bold font-sans">
                             <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
