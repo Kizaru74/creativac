@@ -4690,19 +4690,22 @@ async function printTicketQZ(ventaId) {
 // ====================================================================
 
 async function loadAllClientsMap() {
-        const { data: clients, error } = await supabase
-        .from('clientes') // ✅ ESTO DEBE SER 'clientes'
-        .select('client_id, name');
+    const { data: clients, error } = await supabase
+        .from('clientes')
+        .select('*'); // Traemos todo el objeto para tener nombre, teléfono, etc.
 
     if (error) {
         console.error("Error al cargar datos de clientes para el mapa:", error);
         return;
     }
 
+    // ✅ CORRECCIÓN: Guardamos el objeto completo del cliente
     allClientsMap = clients.reduce((map, client) => {
-        map[client.client_id] = client.name;
+        map[client.client_id] = client; // Antes tenías client.name, ahora es el objeto completo
         return map;
     }, {});
+
+    window.allClientsMap = allClientsMap; // Aseguramos que sea global
 }
 
 async function loadAndRenderClients() {
