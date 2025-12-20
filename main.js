@@ -3701,18 +3701,18 @@ window.loadClientsTable = async function(mode = 'gestion') {
             if (showActions) {
                 actionCell = `
                     <td class="px-6 py-5 whitespace-nowrap text-right">
-                        <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}" title="Editar Cliente">
-                                <i class="fas fa-user-edit text-[12px]"></i>
+                        <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}" title="Editar Perfil">
+                                <i class="fas fa-user-edit text-[11px]"></i>
                             </button>
-                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Pago/Abono">
-                                <i class="fas fa-file-invoice-dollar text-[12px]"></i>
+                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Pago">
+                                <i class="fas fa-file-invoice-dollar text-[11px]"></i>
                             </button>
-                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}" title="Ver Historial de Deuda">
-                                <i class="fas fa-history text-[12px]"></i>
+                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}" title="Estado de Cuenta">
+                                <i class="fas fa-history text-[11px]"></i>
                             </button>
-                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}" title="Eliminar de la Base de Datos">
-                                <i class="fas fa-trash-alt text-[12px]"></i>
+                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
+                                <i class="fas fa-trash-alt text-[11px]"></i>
                             </button>
                         </div>
                     </td>
@@ -3727,13 +3727,13 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="h-10 w-10 rounded-xl bg-orange-500/5 border border-orange-500/20 flex items-center justify-center text-orange-500/70 group-hover:text-orange-500 group-hover:border-orange-500/40 transition-all">
+                        <div class="h-10 w-10 rounded-xl bg-orange-500 border border-orange-600 shadow-lg shadow-orange-500/20 flex items-center justify-center text-white mr-4 group-hover:scale-105 transition-transform duration-300">
                             <i class="fas fa-user text-sm"></i>
                         </div>
                         <div class="ml-4">
                             <div class="text-sm font-bold text-white uppercase tracking-wide">${client.name}</div>
                             <div class="text-white/40 font-sans mt-0.5 flex items-center text-[11px]">
-                                <i class="fas fa-phone-alt mr-1.5 opacity-50"></i>
+                                <i class="fas fa-phone-alt mr-1.5 opacity-50 text-[9px]"></i>
                                 ${client.telefono || 'Sin contacto'}
                             </div>
                         </div>
