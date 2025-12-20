@@ -4353,8 +4353,8 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             }
             
             // TOTALES EN FOOTER
-            totalSalesEl.innerHTML = `<span class="text-emerald-500 font-black font-sans text-base">${formatCurrency(totalSales)}</span>`;
-totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/20'} font-black font-sans text-base">${formatCurrency(totalDebtGenerated)}</span>`;
+            totalSalesEl.innerHTML = `<span class="text-emerald-500 font-black font-sans italic">${formatCurrency(totalSales)}</span>`;
+totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/20'} font-black font-sans italic">${formatCurrency(totalDebtGenerated)}</span>`;
 
         } catch (e) {
             console.error('Error:', e);
