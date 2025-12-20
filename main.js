@@ -3712,17 +3712,17 @@ window.loadClientsTable = async function(mode = 'gestion') {
                 actionCell = `
                     <td class="px-6 py-5 whitespace-nowrap text-right">
                         <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}">
-                                <i class="fas fa-user-edit text-[11px]"></i>
+                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}" title="Editar Cliente">
+                                <i class="fas fa-user-edit text-[13px]"></i>
                             </button>
-                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})">
-                                <i class="fas fa-file-invoice-dollar text-[11px]"></i>
+                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})" title="Agregar Abono">
+                                <i class="fas fa-file-invoice-dollar text-[13px]"></i>
                             </button>
-                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}">
-                                <i class="fas fa-history text-[11px]"></i>
+                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}" title="Ver Historial">
+                                <i class="fas fa-history text-[13px]"></i>
                             </button>
-                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}">
-                                <i class="fas fa-trash-alt text-[11px]"></i>
+                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
+                                <i class="fas fa-trash-alt text-[13px]"></i>
                             </button>
                         </div>
                     </td>
@@ -3742,7 +3742,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
                         </div>
                         <div>
                             <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
-                            <div class="text-[10px] text-white/40 font-sans mt-0.5 flex items-center">
+                            <div class="text-[12px] text-white/40 font-sans mt-0.5 flex items-center">
                                 <i class="fas fa-phone-alt mr-1.5 opacity-50 text-[8px]"></i>
                                 ${client.telefono || 'Sin contacto'}
                             </div>
@@ -3750,13 +3750,13 @@ window.loadClientsTable = async function(mode = 'gestion') {
                     </div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Total Consumo</div>
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest">Total Consumo</div>
                     <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Estado Actual</div>
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest">Estado Actual</div>
                     <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="flex items-center font-bold font-sans text-[11px]">
+                        <span class="flex items-center font-bold font-sans text-[12px]">
                             <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
                             ${formatCurrency(deudaVisual)}
                         </span>
