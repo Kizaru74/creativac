@@ -3094,91 +3094,91 @@ window.loadProductsTable = function() {
     const products = window.allProducts || []; 
 
     if (products.length === 0) {
-        document.getElementById('no-products-message')?.classList.remove('hidden');
+        const noDataMsg = document.getElementById('no-products-message');
+        if (noDataMsg) noDataMsg.classList.remove('hidden');
         return;
     }
     document.getElementById('no-products-message')?.classList.add('hidden');
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Estilo Dark Premium: Hover sutil con brillo y bordes transparentes
-        row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
+        // Tu CSS ya maneja el hover: rgba(255, 255, 255, 0.05)
+        row.className = 'border-b border-white/5 transition-colors duration-300 group';
         
         const formattedPrice = formatCurrency(product.price);
         
-        // Configuración de Glass Badges según el tipo de producto
+        // Mapeo de estilos según tu CSS y lógica de negocio
         let badgeClass = '';
         let typeText = '';
         let icon = '';
 
         switch(product.type) {
             case 'MAIN':
-                badgeClass = 'glass-badge-success'; // Verde/Neon
+                badgeClass = 'glass-badge-success';
                 typeText = 'Principal';
                 icon = 'fa-star';
                 break;
             case 'PACKAGE':
-                badgeClass = 'glass-badge-warning'; // Usaremos el estilo naranja/amber
+                badgeClass = 'glass-badge-danger'; // Usando el rojo de tu CSS para llamar la atención
                 typeText = 'Subproducto';
                 icon = 'fa-box-open';
                 break;
             case 'SERVICE':
-                badgeClass = 'glass-badge-info'; // Azul
+                badgeClass = 'glass-badge-success'; // O crea glass-badge-info en tu CSS
                 typeText = 'Servicio';
                 icon = 'fa-tools';
                 break;
             default:
-                badgeClass = 'glass-badge-secondary';
+                badgeClass = 'glass-badge-success';
                 typeText = product.type || 'General';
                 icon = 'fa-tag';
         }
 
         row.innerHTML = `
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="font-mono bg-white/5 text-white/40 px-2 py-1 rounded border border-white/10 text-[10px] inline-block">
+                <span class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded text-[10px]">
                     #${product.producto_id}
-                </div>
+                </span>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
                 <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-orange-500/20 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-orange-500/10 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
                         <i class="fas ${icon} text-orange-500 text-sm"></i>
                     </div>
                     <div>
                         <div class="text-sm font-bold text-white tracking-wide">${product.name}</div>
-                        <div class="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">Producto Registrado</div>
+                        <div class="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">Inventario</div>
                     </div>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="text-lg font-black text-emerald-500 tracking-tighter">
+                <div class="text-lg font-black text-emerald-500 tracking-tighter font-mono">
                     ${formattedPrice}
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="glass-badge ${badgeClass}">
-                    <span class="text-[10px] font-black uppercase tracking-widest">
-                        <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
+                <div class="glass-badge ${badgeClass} inline-flex items-center justify-center">
+                    <span class="text-[10px] font-black uppercase tracking-widest flex items-center">
+                        <i class="fas ${icon} mr-1.5 opacity-70"></i>
+                        ${typeText}
                     </span>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap text-right">
-                <div class="flex justify-end items-center space-x-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                <div class="flex justify-end items-center space-x-2 opacity-20 group-hover:opacity-100 transition-all duration-300">
                     <button 
                         onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all border border-transparent hover:border-orange-500/20"
-                        title="Editar Producto">
+                        class="p-2 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all border border-transparent hover:border-orange-500/20">
                         <i class="fas fa-pen text-xs"></i>
                     </button>
                     
                     <button 
                         onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/20"
-                        title="Eliminar Producto">
+                        class="p-2 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/20">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
@@ -3186,8 +3186,7 @@ window.loadProductsTable = function() {
         `;
         container.appendChild(row);
     });
-}
-window.loadProductsTable = loadProductsTable;
+};
 
 function loadProductDataToForm(product) {
     if (!product) return;
@@ -3680,7 +3679,6 @@ window.loadClientsTable = async function(mode = 'gestion') {
     const showActions = mode === 'gestion';
 
     try {
-        // 1. Obtener lista base
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3688,16 +3686,13 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
-        // --- Actualización de Mapas Globales ---
         window.allClients = clients; 
         window.allClientsMap = {}; 
         clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
 
-        // 2. Obtener Resúmenes (Totales y Deudas)
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Renderizado con Estilo Premium Dark
         container.innerHTML = '';
 
         if (clients.length === 0) {
@@ -3708,33 +3703,33 @@ window.loadClientsTable = async function(mode = 'gestion') {
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
-            // Fila con efecto Glass y Hover sutil
-            row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
+            
+            // Dejamos que el hover lo maneje tu CSS: tbody tr:hover
+            row.className = 'group border-b border-white/5 transition-all duration-300';
 
             const deudaVisual = summary.deudaNeta;
             const tieneDeuda = deudaVisual > 0.01;
 
-            // Celda de Acciones Estilizada
             let actionCell = '';
             if (showActions) {
                 actionCell = `
                     <td class="px-6 py-5 whitespace-nowrap text-right">
-                        <div class="flex justify-end items-center space-x-1 opacity-30 group-hover:opacity-100 transition-all duration-300">
+                        <div class="flex justify-end items-center space-x-1 opacity-20 group-hover:opacity-100 transition-all duration-300">
                             <button type="button" class="edit-client-btn p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all" 
                                     data-id="${client.client_id}" title="Editar Perfil">
-                                <i class="fas fa-edit text-xs"></i>
+                                <i class="fas fa-edit text-[11px]"></i>
                             </button>
                             <button type="button" class="abono-btn p-2.5 text-white/60 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all" 
                                     onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Abono">
-                                <i class="fas fa-hand-holding-usd text-xs"></i>
+                                <i class="fas fa-hand-holding-usd text-[11px]"></i>
                             </button>
                             <button type="button" class="view-debt-btn p-2.5 text-white/60 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all" 
                                     data-id="${client.client_id}" title="Estado de Cuenta">
-                                <i class="fas fa-file-invoice-dollar text-xs"></i>
+                                <i class="fas fa-file-invoice-dollar text-[11px]"></i>
                             </button>
                             <button type="button" class="delete-client-btn p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all" 
                                     data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
-                                <i class="fas fa-trash-alt text-xs"></i>
+                                <i class="fas fa-trash-alt text-[11px]"></i>
                             </button>
                         </div>
                     </td>
@@ -3743,31 +3738,35 @@ window.loadClientsTable = async function(mode = 'gestion') {
             
             row.innerHTML = `
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <span class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded text-[10px]">#${client.client_id}</span>
+                    <span class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded text-[10px]">
+                        #${client.client_id}
+                    </span>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 text-white flex items-center justify-center font-black text-xs mr-4 group-hover:scale-110 transition-transform">
+                        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 text-white flex items-center justify-center font-black text-xs mr-4 group-hover:border-orange-500/30 transition-colors">
                             ${client.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
                             <div class="text-sm font-bold text-white tracking-wide">${client.name}</div>
                             <div class="text-[10px] text-white/30 flex items-center mt-1">
-                                <i class="fas fa-phone-alt mr-2 text-[8px]"></i>
+                                <i class="fas fa-phone-alt mr-2 text-[8px] opacity-50"></i>
                                 ${client.telefono || 'Sin teléfono'}
                             </div>
                         </div>
                     </div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1">Total Consumo</div>
-                    <div class="text-sm font-medium text-white/70 font-mono">${formatCurrency(summary.totalVentas)}</div>
+                    <div class="text-[9px] text-white/20 uppercase tracking-[0.15em] font-black mb-1">Consumo</div>
+                    <div class="text-sm font-medium text-white/80 font-mono">${formatCurrency(summary.totalVentas)}</div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1">Estado de Cuenta</div>
+                    <div class="text-[9px] text-white/20 uppercase tracking-[0.15em] font-black mb-1">Estado</div>
                     <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                        <span class="font-mono">${formatCurrency(deudaVisual)}</span>
+                        <span class="flex items-center ${tieneDeuda ? 'text-red-500' : 'text-emerald-500'} font-black">
+                            <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                            <span class="font-mono">${formatCurrency(deudaVisual)}</span>
+                        </span>
                     </div>
                 </td>
                 ${actionCell} 
@@ -3775,7 +3774,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // --- 4. Re-vincular eventos ---
+        // Re-vinculación de eventos
         if (showActions) {
             container.querySelectorAll('.edit-client-btn').forEach(btn => {
                 btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
