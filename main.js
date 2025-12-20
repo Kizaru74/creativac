@@ -1301,11 +1301,11 @@ window.handleAbonoSubmit = async function(e) {
 
 // Aseguramos que las funciones de acción existan ANTES de cargar las tablas
 window.handleViewClientPayments = function(clientId) {
-    console.log("Iniciando gestión de pagos para cliente ID:", clientId);
+    console.log("Gestionando pagos del cliente:", clientId);
     if (typeof window.handleViewClientDebt === 'function') {
         window.handleViewClientDebt(clientId);
     } else {
-        console.warn("La función handleViewClientDebt no está definida.");
+        alert("Abriendo Estado de Cuenta del ID: " + clientId);
     }
 };
 
@@ -1602,14 +1602,13 @@ window.loadDashboardMetrics = async function() {
 window.handleViewClientDebt = async function(clientId) {
     if (!supabase) {
         console.error("Supabase no está inicializado.");
-        alert("Error de conexión a la base de datos.");
         return;
     }
     
     window.viewingClientId = clientId;
     
     try {
-        // 1. BÚSQUEDA DEL CLIENTE (Tu lógica robusta original)
+        // 1. BÚSQUEDA DEL CLIENTE
         let client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
         
         if (!client) {
@@ -1621,7 +1620,7 @@ window.handleViewClientDebt = async function(clientId) {
             client = retryClient;
         }
 
-        // 2. OBTENER VENTAS Y PAGOS
+        // 2. OBTENER VENTAS Y PAGOS (Agregamos detalle_ventas para nombres de productos)
         const { data: salesData, error: salesError } = await supabase
             .from('ventas')
             .select(`venta_id, total_amount, paid_amount, created_at, description, detalle_ventas ( name )`)
@@ -1645,7 +1644,7 @@ window.handleViewClientDebt = async function(clientId) {
 
         sales.forEach(sale => {
             const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
-            let transactionDescription = `Venta: ${productNames}`;
+            let transactionDescription = `Compra: ${productNames}`;
             if (sale.description) transactionDescription += ` — ${sale.description.trim()}`; 
 
             transactions.push({
@@ -1666,8 +1665,8 @@ window.handleViewClientDebt = async function(clientId) {
                     const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
                     const timeDiff = Math.abs(new Date(sale.created_at) - new Date(payment.created_at)); 
                     description = timeDiff < 60000 
-                        ? `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`
-                        : `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
+                        ? `Pago Inicial (${payment.metodo_pago})`
+                        : `Abono (${payment.metodo_pago}) - Ref: ${productNames.substring(0,20)}...`;
                 }
             }
 
@@ -1693,38 +1692,60 @@ window.handleViewClientDebt = async function(clientId) {
             if (t.type === 'cargo_venta') currentRunningBalance += t.amount;
             else currentRunningBalance -= t.amount;
 
-            const balanceClass = currentRunningBalance > 0.01 ? 'text-red-600' : 'text-green-600';
-            const amountClass = t.type === 'cargo_venta' ? 'text-red-600' : 'text-green-600';
+            // AJUSTE DE COLORES SEGÚN TU CSS (Sección 4 y 7)
+            const balanceColor = currentRunningBalance > 0.01 ? 'text-red-500' : 'text-emerald-500';
+            const amountColor = t.type === 'cargo_venta' ? 'text-red-400' : 'text-emerald-400';
+            const icon = t.type === 'cargo_venta' ? 'fa-arrow-up' : 'fa-arrow-down';
 
             historyHTML += `
-                <tr class="hover:bg-gray-50 text-sm border-b">
-                    <td class="px-3 py-3 text-gray-500">${new Date(t.date).toLocaleDateString()}</td>
-                    <td class="px-3 py-3 text-gray-800">${t.description}</td>
-                    <td class="px-3 py-3 text-right font-bold ${amountClass}">${formatCurrency(t.amount)}</td>
-                    <td class="px-3 py-3 text-right font-bold ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
+                <tr class="hover:bg-white/[0.03] text-sm border-b border-white/5 transition-colors">
+                    <td class="px-4 py-4 text-white/40 font-mono text-xs">
+                        ${new Date(t.date).toLocaleDateString()}
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fas ${icon} ${amountColor} opacity-50 text-[10px]"></i>
+                            <span class="text-white/80">${t.description}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 text-right font-bold ${amountColor}">
+                        ${t.type === 'cargo_venta' ? '+' : '-'}${formatCurrency(t.amount)}
+                    </td>
+                    <td class="px-4 py-4 text-right font-black ${balanceColor} italic">
+                        ${formatCurrency(Math.abs(currentRunningBalance))}
+                    </td>
                 </tr>`;
         });
         
-        historyBody.innerHTML = historyHTML;
+        if (historyBody) historyBody.innerHTML = historyHTML;
         
-        // 5. ACTUALIZAR TOTALES Y "MOCHILA" DE IMPRESIÓN
+        // 5. ACTUALIZAR TOTALES Y MODAL
         const totalDebtValue = Math.abs(currentRunningBalance);
         const totalDebtElement = document.getElementById('client-report-total-debt');
-        totalDebtElement.textContent = formatCurrency(totalDebtValue);
-        totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-600 font-bold text-xl' : 'text-green-600 font-bold text-xl';
+        
+        if (totalDebtElement) {
+            totalDebtElement.textContent = formatCurrency(totalDebtValue);
+            totalDebtElement.className = currentRunningBalance > 0.01 
+                ? 'text-3xl font-black text-red-500 tracking-tighter' 
+                : 'text-3xl font-black text-emerald-500 tracking-tighter';
+        }
 
-        // Guardar para la función de impresión
+        // Mochila de impresión
         window.currentClientDataForPrint = {
             nombre: client.name,
             totalDeuda: totalDebtValue,
             transaccionesHTML: historyHTML
         };
 
-        openModal('modal-client-debt-report'); 
+        // Abrir modal usando tu función global
+        if (typeof openModal === 'function') {
+            openModal('modal-client-debt-report'); 
+        } else {
+            document.getElementById('modal-client-debt-report')?.classList.remove('hidden');
+        }
         
     } catch (e) {
         console.error('Error al cargar la deuda:', e);
-        alert('Error al cargar el historial.');
     }
 }
 
@@ -1780,11 +1801,10 @@ window.handleAbonoClick = function(clientId) {
 window.loadDebtsTable = async function() {
     const container = document.getElementById('debts-table-body');
     const noDebtsMsg = document.getElementById('no-debts-message');
-    
     if (!container) return;
 
     try {
-        // 1. Obtener lista base de clientes (Sin la columna inexistente deuda_total)
+        // 1. Obtener lista base
         const { data: clients, error } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -1792,23 +1812,19 @@ window.loadDebtsTable = async function() {
 
         if (error) throw error;
 
-        // 2. Calcular saldos usando tu función getClientSalesSummary
+        // 2. Calcular resúmenes (Saldos Reales)
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Filtrar solo los que deben dinero (> $0.01)
+        // 3. Filtrar deudores
         const deudores = clients.map((client, index) => ({
             ...client,
             summary: summaries[index]
         })).filter(item => item.summary.deudaNeta > 0.01);
 
-        // 4. Actualizar tarjetas KPI superiores
-        if (typeof window.actualizarMetricasConData === 'function') {
-            const dataMetricas = deudores.map(d => ({ deuda_total: d.summary.deudaNeta }));
-            window.actualizarMetricasConData(dataMetricas);
-        }
+        // 4. Actualizar Tarjetas Superiores
+        window.actualizarMetricasConData(deudores.map(d => ({ deuda_total: d.summary.deudaNeta })));
 
-        // 5. Renderizado
         if (deudores.length === 0) {
             container.innerHTML = '';
             noDebtsMsg?.classList.remove('hidden');
@@ -1817,10 +1833,11 @@ window.loadDebtsTable = async function() {
 
         noDebtsMsg?.classList.add('hidden');
 
+        // 5. Renderizado con Glassmorphism (Sección 6 de tu CSS)
         container.innerHTML = deudores.map(d => {
             const deuda = d.summary.deudaNeta;
             const glassClass = deuda > 5000 ? 'glass-badge-danger' : 'glass-badge-success';
-            const statusText = deuda > 5000 ? 'Prioridad' : 'Pendiente';
+            const labelText = deuda > 5000 ? 'Prioridad' : 'Pendiente';
 
             return `
                 <tr class="group hover:bg-white/5 transition-all duration-300 border-b border-white/5">
@@ -1843,7 +1860,7 @@ window.loadDebtsTable = async function() {
                     <td class="px-10 py-6">
                         <div class="flex justify-center">
                             <div class="glass-badge ${glassClass}">
-                                <span class="text-[10px] font-black uppercase tracking-widest">${statusText}</span>
+                                <span class="text-[10px] font-black uppercase tracking-widest">${labelText}</span>
                             </div>
                         </div>
                     </td>
@@ -1864,10 +1881,11 @@ window.loadDebtsTable = async function() {
 };
 
 // Esta es tu función adaptada para recibir la data fresca
-function actualizarMetricasConData(data) {
-    const totalDeudaGlobal = data.reduce((acc, c) => acc + parseFloat(c.deuda_total || 0), 0);
-    const clientesConDeuda = data.length;
-    const maxDeudaIndividual = data.length > 0 ? Math.max(...data.map(c => parseFloat(c.deuda_total || 0))) : 0;
+window.actualizarMetricasConData = function(data) {
+    const dataSegura = data || [];
+    const totalDeudaGlobal = dataSegura.reduce((acc, c) => acc + parseFloat(c.deuda_total || 0), 0);
+    const clientesConDeuda = dataSegura.length;
+    const maxDeudaIndividual = dataSegura.length > 0 ? Math.max(...dataSegura.map(c => parseFloat(c.deuda_total || 0))) : 0;
 
     const metricTotal = document.getElementById('total-deuda-global');
     const metricCount = document.getElementById('total-clientes-deuda');
@@ -1876,7 +1894,7 @@ function actualizarMetricasConData(data) {
     if (metricTotal) metricTotal.textContent = formatCurrency(totalDeudaGlobal);
     if (metricCount) metricCount.textContent = clientesConDeuda;
     if (metricMax) metricMax.textContent = formatCurrency(maxDeudaIndividual);
-}
+};
 
 /**
  * GENERACIÓN DE PDF: ESTADO DE CUENTA PROFESIONAL
@@ -4957,6 +4975,24 @@ window.switchView = async function(viewId) {
         console.error(`Error al cargar datos de la vista ${viewId}:`, error);
     }
 }
+
+// Agrega esto al final de tu main.js o en la sección de inicialización
+document.getElementById('search-debts')?.addEventListener('input', function(e) {
+    const term = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#debts-table-body tr');
+    
+    rows.forEach(row => {
+        const name = row.querySelector('.font-bold.text-white')?.textContent.toLowerCase() || '';
+        const id = row.querySelector('.font-mono')?.textContent.toLowerCase() || '';
+        
+        if (name.includes(term) || id.includes(term)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
 
 // LISTENER para la navegación principal (data-view)
 document.querySelectorAll('[data-view]').forEach(link => {
