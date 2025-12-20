@@ -52,41 +52,27 @@ window.loadClientsTable = async function(mode) {
 // Si el dashboard llama a loadDashboardData, aseguramos que sea global
 // ✅ Registro global para que switchView y initializeApp la encuentren
 window.loadDashboardData = async function() {
-    console.log("🚀 Cargando métricas principales del Dashboard...");
-    
-    // Usamos un array de promesas para que carguen en paralelo (más rápido)
+    console.log("Cargando métricas principales...");
     try {
-        const tareas = [];
-
-        // 1. Cargar Deudas (Asegúrate de que el nombre coincida con tu función)
-        if (typeof window.loadDebtsTable === 'function') {
-            tareas.push(window.loadDebtsTable());
-        } else if (typeof window.loadClientDebtsTable === 'function') {
-            tareas.push(window.loadClientDebtsTable());
+        // Usamos comprobaciones de seguridad para que si una falla, las demás sigan
+        if (typeof window.loadClientDebtsTable === 'function') {
+            await window.loadClientDebtsTable();
         }
-
-        // 2. Ventas Recientes
-        if (typeof window.loadRecentSales === 'function') {
-            tareas.push(window.loadRecentSales());
-        }
-
-        // 3. Sincronizar Clientes (Evita el ReferenceError: loadClientsTable)
-        // Definimos un alias por si acaso
-        const loadClients = window.loadClientsTable || window.loadClientDebtsTable;
-        if (typeof loadClients === 'function') {
-            tareas.push(loadClients('gestion'));
-        }
-
-        // 4. Productos y Selectores
-        if (typeof window.loadProductsTable === 'function') tareas.push(window.loadProductsTable());
-        if (typeof window.loadClientsForSale === 'function') tareas.push(window.loadClientsForSale());
-
-        // Ejecutar todas las cargas
-        await Promise.allSettled(tareas);
         
-        console.log("✅ Dashboard actualizado.");
+        if (typeof window.loadRecentSales === 'function') {
+            await window.loadRecentSales();
+        }
+
+        // Si necesitas cargar la lista general de clientes:
+        if (typeof window.loadClients === 'function') {
+            await window.loadClients();
+        }
+
+        if (typeof window.loadProductsData === 'function') {
+            await window.loadProductsData();
+        }
     } catch (error) {
-        console.error("❌ Error al refrescar datos del dashboard:", error);
+        console.error("Error en el dashboard:", error);
     }
 };
 
