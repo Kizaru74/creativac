@@ -1849,15 +1849,16 @@ window.handleViewClientDebt = async function(clientId) {
             `);
         });
 
-        // 5. IMPORTANTE: Guardar el contexto para el botón de abono
-        // Guardamos los datos en atributos del botón de abono dentro del reporte
-        const btnAbono = document.querySelector('#modal-client-debt-report button[onclick="prepararAbonoDesdeReporte()"]');
-        if (btnAbono) {
-            btnAbono.dataset.clientId = clientId;
-            btnAbono.dataset.clientName = clientName;
-            btnAbono.dataset.currentDebt = totalDebt;
-        }
-
+       // GUARDAR CONTEXTO EN EL BOTÓN (IMPORTANTE)
+    // Buscamos el botón de abono dentro del modal de reporte
+    const btnAbono = document.querySelector('#modal-client-debt-report button[onclick="prepararAbonoDesdeReporte()"]');
+    
+    if (btnAbono) {
+        btnAbono.dataset.clientId = clientId;
+        btnAbono.dataset.clientName = clientName;
+        btnAbono.dataset.currentDebt = totalDebt;
+        console.log("✅ Datos vinculados al botón de abono para cliente:", clientName);
+    }
         // 6. Mostrar el modal
         openModal('modal-client-debt-report');
 
