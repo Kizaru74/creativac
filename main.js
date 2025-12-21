@@ -1805,66 +1805,110 @@ window.handleViewClientDebt = async function(clientId) {
     if (!supabase) return;
 
     try {
-        // 1. Obtener datos del cliente y sus ventas con saldo
-        const { data: sales, error } = await supabase
-            .from('ventas')
-            .select(`venta_id, total_amount, saldo_pendiente, created_at, description`)
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: true });
+        // 1. Consultar VENTAS y PAGOS en paralelo
+        const [salesRes, paymentsRes, clientRes] = await Promise.all([
+            supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
+            supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
+            supabase.from('clientes').select('name').eq('client_id', clientId).single()
+        ]);
 
-        if (error) throw error;
+        if (salesRes.error || paymentsRes.error) throw new Error("Error al obtener movimientos");
 
-        // 2. Obtener nombre del cliente (puedes sacarlo de la primera venta o una consulta rápida)
-        const { data: clientData } = await supabase
-            .from('clientes')
-            .select('name')
-            .eq('client_id', clientId)
-            .single();
-
-        const clientName = clientData?.name || "Cliente #" + clientId;
-
-        // 3. Actualizar la interfaz del Modal de Reporte
-        document.getElementById('client-report-name').textContent = clientName;
+        const clientName = clientRes.data?.name || "Cliente #" + clientId;
         
-        // Calcular deuda total sumando saldos pendientes
-        const totalDebt = sales.reduce((acc, s) => acc + (s.saldo_pendiente || 0), 0);
-        document.getElementById('client-report-total-debt').textContent = formatCurrency(totalDebt);
+        // 2. Combinar y marcar movimientos
+        const movimientos = [
+            ...salesRes.data.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at) })),
+            ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at) }))
+        ].sort((a, b) => a.fecha - b.fecha);
 
-        // 4. Llenar la tabla de transacciones
+        // 3. Calcular Deuda Total Actual
+        const totalDebt = salesRes.data.reduce((acc, s) => acc + (s.saldo_pendiente || 0), 0);
+
+        // 4. Guardar datos para que la función de impresión los encuentre
+        window.currentReportData = {
+            cliente: clientName,
+            movimientos: movimientos,
+            totalDebt: totalDebt
+        };
+
+        // --- 4.5 CONEXIÓN CON TU FUNCIÓN PDF (IMPORTANTE) ---
+        // Aquí generamos el HTML limpio que espera tu función generarPDFEstadoCuenta
+        let saldoAcumulado = 0;
+        const transaccionesHTMLParaPDF = movimientos.map(mov => {
+            const esVenta = mov.tipo === 'VENTA';
+            const monto = esVenta ? mov.total_amount : mov.amount;
+            
+            // Calculamos el saldo acumulado para la columna derecha del PDF
+            if (esVenta) saldoAcumulado += monto;
+            else saldoAcumulado -= monto;
+
+            return `
+                <tr>
+                    <td>${mov.fecha.toLocaleDateString()}</td>
+                    <td>
+                        <strong>${esVenta ? 'VENTA #' + mov.venta_id : 'ABONO RECIBIDO'}</strong><br>
+                        <small style="color:#666">${mov.description || (esVenta ? 'Venta de productos' : 'Pago a cuenta')}</small>
+                    </td>
+                    <td class="text-right ${esVenta ? 'text-red' : 'text-green'}">
+                        ${esVenta ? '+' : '-'} ${formatCurrency(monto)}
+                    </td>
+                    <td class="text-right"><strong>${formatCurrency(saldoAcumulado)}</strong></td>
+                </tr>
+            `;
+        }).join('');
+
+        // Llenamos el objeto exacto que busca tu función window.generarPDFEstadoCuenta
+        window.currentClientDataForPrint = {
+            nombre: clientName,
+            totalDeuda: totalDebt,
+            transaccionesHTML: transaccionesHTMLParaPDF
+        };
+        // ---------------------------------------------------
+
+        // 5. Renderizar en la tabla del Modal (Interfaz Oscura)
         const tbody = document.getElementById('client-transactions-body');
         tbody.innerHTML = '';
 
-        sales.forEach(sale => {
-            const date = new Date(sale.created_at).toLocaleDateString();
+        movimientos.forEach(mov => {
+            const esVenta = mov.tipo === 'VENTA';
+            const fechaTxt = mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'});
+            
             tbody.insertAdjacentHTML('beforeend', `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-xs">${date}</td>
+                    <td class="px-6 py-4 text-[10px] text-white/40 italic">${fechaTxt}</td>
                     <td class="px-6 py-4">
-                        <div class="text-white font-bold text-xs uppercase">Venta #${sale.venta_id}</div>
-                        <div class="text-[10px] text-gray-500">${sale.description || 'Sin descripción'}</div>
+                        <div class="text-xs font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
+                            ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
+                        </div>
+                        <div class="text-[9px] text-gray-500 uppercase">${mov.description || (esVenta ? 'Venta de productos' : 'Pago a cuenta')}</div>
                     </td>
-                    <td class="px-6 py-4 text-right text-white font-mono">$${sale.total_amount.toFixed(2)}</td>
-                    <td class="px-6 py-4 text-right text-red-500 font-black font-mono">$${sale.saldo_pendiente.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right text-xs font-mono">
+                        ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.total_amount)}</span>` : ''}
+                    </td>
+                    <td class="px-6 py-4 text-right text-xs font-mono">
+                        ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.amount)}</span>` : ''}
+                    </td>
                 </tr>
             `);
         });
 
-       // GUARDAR CONTEXTO EN EL BOTÓN (IMPORTANTE)
-    // Buscamos el botón de abono dentro del modal de reporte
-    const btnAbono = document.querySelector('#modal-client-debt-report button[onclick="prepararAbonoDesdeReporte()"]');
-    
-    if (btnAbono) {
-        btnAbono.dataset.clientId = clientId;
-        btnAbono.dataset.clientName = clientName;
-        btnAbono.dataset.currentDebt = totalDebt;
-        console.log("✅ Datos vinculados al botón de abono para cliente:", clientName);
-    }
-        // 6. Mostrar el modal
+        // Actualizar encabezados del modal
+        document.getElementById('client-report-name').textContent = clientName;
+        document.getElementById('client-report-total-debt').textContent = formatCurrency(totalDebt);
+
+        // Vincular datos al botón de abono
+        const btnAbono = document.querySelector('button[onclick="prepararAbonoDesdeReporte()"]');
+        if (btnAbono) {
+            btnAbono.dataset.clientId = clientId;
+            btnAbono.dataset.clientName = clientName;
+            btnAbono.dataset.currentDebt = totalDebt;
+        }
+
         openModal('modal-client-debt-report');
 
     } catch (err) {
-        console.error("Error al cargar estado de cuenta:", err);
-        alert("No se pudo cargar el historial del cliente");
+        console.error("Error en reporte:", err);
     }
 };
 
