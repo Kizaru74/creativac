@@ -42,40 +42,22 @@ try {
 // ====================================================================
 
 async function initializeApp() {
-    console.log("🚀 Iniciando carga de la aplicación...");
-
+    console.log("🚀 Iniciando Aplicación...");
     try {
-        // 1. CARGAR PRODUCTOS
-        // Asegúrate de que loadProducts guarde en window.allProducts
-        await loadProducts(); 
-        
-        // 2. CARGAR CLIENTES Y MAPAS
-        // Esta función debe llenar window.allClients y window.allClientsMap
-        await loadClientsTable('gestion'); 
-
-        // 3. CARGAR MÉTRICAS DEL DASHBOARD
-        if (typeof loadDashboardMetrics === 'function') {
-            await loadDashboardMetrics();
-        }
-
-        // 4. POBLAR SELECTORES DE VENTA
-        // Es vital que esto ocurra DESPUÉS de loadProducts
-        if (typeof populateProductSelects === 'function') {
-            populateProductSelects(); 
-        }
-
-        // 5. CARGAR PRODUCTOS PARA MODAL SUBPRODUCTO (TU PASO CRÍTICO)
-        if (typeof loadMainProductsAndPopulateSelect === 'function') {
-            await loadMainProductsAndPopulateSelect(); 
-        }
-
-        console.log("✅ Aplicación inicializada correctamente.");
-        
+        await Promise.all([
+            loadProductsData(),
+            loadSalesData(),
+            loadClientsTable('gestion')
+        ]);
+        window.handleFilterSales(); // Renderiza la tabla de reportes
+        console.log("✅ Datos cargados correctamente");
     } catch (error) {
-        console.error("❌ Error crítico durante la inicialización:", error);
+        console.error("❌ Error en inicialización:", error);
     }
 }
 
+// Llamar al final del archivo
+document.addEventListener('DOMContentLoaded', initializeApp);
 // Ejecutar al cargar el DOM
 document.addEventListener('DOMContentLoaded', initializeApp);
 //FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
@@ -997,16 +979,16 @@ window.handleNewSale = async function(e) {
     if (!client_id) { alert('Selecciona un cliente.'); return; }
     if (currentSaleItems.length === 0) { alert('El carrito está vacío.'); return; }
 
-    const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
+    // Referencia al botón de registro (usando la clase del nuevo diseño)
+    const submitBtn = e.target.querySelector('button[onclick*="handleNewSale"]') || document.querySelector('#new-sale-modal button.bg-emerald-600');
+    
     if (submitBtn) { 
         submitBtn.disabled = true; 
-        submitBtn.textContent = 'Procesando...'; 
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando...'; 
     }
 
     try {
-        // --- PROCESO EN SUPABASE ---
-
-        // 1. Insertar la Venta principal
+        // --- PROCESO EN SUPABASE (Mantenemos tu lógica intacta) ---
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
@@ -1022,7 +1004,6 @@ window.handleNewSale = async function(e) {
         if (saleError) throw saleError;
         const new_venta_id = saleData[0].venta_id;
 
-        // 2. Insertar Detalles de la Venta
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
@@ -1035,7 +1016,6 @@ window.handleNewSale = async function(e) {
         const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
         if (dError) throw dError;
 
-        // 3. Registrar Pago inicial (si el cliente pagó algo en el momento)
         if (final_paid_amount > 0) {
             await supabase.from('pagos').insert([{
                 venta_id: new_venta_id,
@@ -1046,7 +1026,6 @@ window.handleNewSale = async function(e) {
             }]);
         }
 
-        // 4. Actualizar Deuda del Cliente (Si quedó saldo pendiente)
         if (final_saldo_pendiente > 0) {
             const { data: c } = await supabase
                 .from('clientes')
@@ -1060,35 +1039,33 @@ window.handleNewSale = async function(e) {
                 .eq('client_id', client_id);
         }
 
-        // --- ÉXITO Y ACTUALIZACIÓN DE INTERFAZ (Corrección aquí) ---
-        
+        // --- ÉXITO Y REINICIO DE INTERFAZ "CLEAN" ---
         alert('Venta registrada con éxito');
         closeModal('new-sale-modal');
 
-        // Limpieza de UI del TPV
+        // 1. Limpieza de variables globales
         currentSaleItems = [];
-        if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
-        document.getElementById('new-sale-form')?.reset();
 
-        // RECARGA DE DATOS PARA REPORTES Y TABLAS
-        console.log("🔄 Sincronizando datos tras venta...");
+        // 2. Reset del formulario y campos de texto grandes (Total/Monto/Saldo)
+        document.getElementById('new-sale-form')?.reset();
         
-        // A. Recargar array global de ventas (Vital para Reportes)
+        // Forzamos el valor visual a 0.00 para evitar que queden residuos del diseño anterior
+        const displays = ['total-amount', 'paid-amount', 'display-saldo-pendiente'];
+        displays.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = "0.00";
+        });
+
+        // 3. Actualizar tablas
+        if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
+
+        // 4. Sincronización de datos
         if (typeof window.loadSalesData === 'function') {
             await window.loadSalesData();
-            // Refrescar la tabla de ventas si el usuario está en esa vista
             if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
         }
-
-        // B. Recargar Dashboard (Métricas de ventas diarias)
-        if (typeof window.loadDashboardData === 'function') {
-            await window.loadDashboardData();
-        }
-
-        // C. Recargar Clientes (Si hubo cambio en deuda)
-        if (final_saldo_pendiente > 0 && typeof window.loadClientsTable === 'function') {
-            await window.loadClientsTable('gestion');
-        }
+        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
 
     } catch (err) {
         console.error('Error al procesar venta:', err);
@@ -1096,7 +1073,7 @@ window.handleNewSale = async function(e) {
     } finally {
         if (submitBtn) { 
             submitBtn.disabled = false; 
-            submitBtn.textContent = 'Registrar Venta'; 
+            submitBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Registrar Venta'; 
         }
     }
 };
@@ -1709,133 +1686,58 @@ window.loadDashboardMetrics = async function() {
  * Esta función unifica tu lógica original con el sistema de reporte.
  */
 window.handleViewClientDebt = async function(clientId) {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        alert("Error de conexión a la base de datos.");
-        return;
-    }
-    
-    window.viewingClientId = clientId;
+    if (!supabase) return;
     
     try {
-        // 1. BÚSQUEDA DEL CLIENTE (Tu lógica robusta original)
-        let client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
-        
-        if (!client) {
-            const { data: retryClient } = await supabase.from('clientes').select('name').eq('client_id', clientId).single();
-            if (!retryClient) {
-                alert("Error: No se encontró la información del cliente.");
-                return;
-            }
-            client = retryClient;
+        // 1. Obtener datos
+        const { data: sales } = await supabase
+            .from('ventas')
+            .select(`venta_id, total_amount, created_at, description, detalle_ventas(name)`)
+            .eq('client_id', clientId);
+
+        const { data: payments } = await supabase
+            .from('pagos')
+            .select(`amount, metodo_pago, created_at`)
+            .eq('client_id', clientId);
+
+        // 2. Llenar Nombre del Cliente (ID real en tu index.html: detail-client-name)
+        const nameElem = document.getElementById('detail-client-name');
+        if (nameElem) {
+            const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
+            nameElem.textContent = client ? client.name : `Cliente #${clientId}`;
         }
 
-        // 2. OBTENER VENTAS Y PAGOS
-        const { data: salesData, error: salesError } = await supabase
-            .from('ventas')
-            .select(`venta_id, total_amount, paid_amount, created_at, description, detalle_ventas ( name )`)
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: true });
+        // 3. Llenar Tabla de Ventas (ID real: lista-notas-pendientes)
+        const salesBody = document.getElementById('lista-notas-pendientes');
+        if (salesBody) {
+            salesBody.innerHTML = sales.map(s => `
+                <tr class="border-b border-white/5">
+                    <td class="px-6 py-4">${new Date(s.created_at).toLocaleDateString()}</td>
+                    <td class="px-6 py-4">${s.detalle_ventas?.map(d => d.name).join(', ') || 'Venta'}</td>
+                    <td class="px-6 py-4 text-right font-mono text-white">$${s.total_amount.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
 
-        if (salesError) throw salesError;
-        const sales = salesData || []; 
+        // 4. Llenar Tabla de Pagos (ID real: historial-abonos-cliente)
+        const paymentsBody = document.getElementById('historial-abonos-cliente');
+        if (paymentsBody) {
+            paymentsBody.innerHTML = payments.map(p => `
+                <tr class="border-b border-white/5">
+                    <td class="px-6 py-4">${new Date(p.created_at).toLocaleDateString()}</td>
+                    <td class="px-6 py-4">${p.metodo_pago}</td>
+                    <td class="px-6 py-4 text-right font-mono text-emerald-500">$${p.amount.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
 
-        const { data: paymentsData, error: paymentsError } = await supabase
-            .from('pagos')
-            .select(`venta_id, amount, metodo_pago, created_at`)
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: true });
+        // 5. ABRIR MODAL
+        openModal('modal-client-debt-report');
 
-        if (paymentsError) throw paymentsError;
-        const payments = paymentsData || []; 
-
-        // 3. UNIFICAR Y NORMALIZAR TRANSACCIONES
-        let transactions = [];
-
-        sales.forEach(sale => {
-            const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
-            let transactionDescription = `Venta: ${productNames}`;
-            if (sale.description) transactionDescription += ` — ${sale.description.trim()}`; 
-
-            transactions.push({
-                date: new Date(sale.created_at),
-                type: 'cargo_venta',
-                description: transactionDescription,
-                amount: sale.total_amount,
-                venta_id: sale.venta_id,
-                order: 1 
-            });
-        });
-
-        payments.forEach(payment => {
-            let description = `Abono a Deuda (${payment.metodo_pago})`;
-            if (payment.venta_id) {
-                const sale = sales.find(s => s.venta_id === payment.venta_id);
-                if (sale) {
-                    const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
-                    const timeDiff = Math.abs(new Date(sale.created_at) - new Date(payment.created_at)); 
-                    description = timeDiff < 60000 
-                        ? `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`
-                        : `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
-                }
-            }
-
-            transactions.push({
-                date: new Date(payment.created_at),
-                type: 'abono',
-                description: description,
-                amount: payment.amount, 
-                venta_id: payment.venta_id,
-                order: 2
-            });
-        });
-
-        // 4. ORDENAR Y CALCULAR SALDO DINÁMICO
-        transactions.sort((a, b) => a.date - b.date || a.order - b.order);
-
-        document.getElementById('client-report-name').textContent = client.name;
-        const historyBody = document.getElementById('client-transactions-body'); 
-        let historyHTML = ""; 
-        let currentRunningBalance = 0; 
-
-        transactions.forEach(t => {
-            if (t.type === 'cargo_venta') currentRunningBalance += t.amount;
-            else currentRunningBalance -= t.amount;
-
-            const balanceClass = currentRunningBalance > 0.01 ? 'text-red-600' : 'text-green-600';
-            const amountClass = t.type === 'cargo_venta' ? 'text-red-600' : 'text-green-600';
-
-            historyHTML += `
-                <tr class="hover:bg-gray-50 text-sm border-b">
-                    <td class="px-3 py-3 text-gray-500">${new Date(t.date).toLocaleDateString()}</td>
-                    <td class="px-3 py-3 text-gray-800">${t.description}</td>
-                    <td class="px-3 py-3 text-right font-bold ${amountClass}">${formatCurrency(t.amount)}</td>
-                    <td class="px-3 py-3 text-right font-bold ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
-                </tr>`;
-        });
-        
-        historyBody.innerHTML = historyHTML;
-        
-        // 5. ACTUALIZAR TOTALES Y "MOCHILA" DE IMPRESIÓN
-        const totalDebtValue = Math.abs(currentRunningBalance);
-        const totalDebtElement = document.getElementById('client-report-total-debt');
-        totalDebtElement.textContent = formatCurrency(totalDebtValue);
-        totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-600 font-bold text-xl' : 'text-green-600 font-bold text-xl';
-
-        // Guardar para la función de impresión
-        window.currentClientDataForPrint = {
-            nombre: client.name,
-            totalDeuda: totalDebtValue,
-            transaccionesHTML: historyHTML
-        };
-
-        openModal('modal-client-debt-report'); 
-        
     } catch (e) {
-        console.error('Error al cargar la deuda:', e);
-        alert('Error al cargar el historial.');
+        console.error("Error al cargar estado de cuenta:", e);
     }
-}
+};
 
 /**
  * FUNCIÓN PARA LANZAR EL MODAL DE ABONO DESDE EL REPORTE
@@ -3094,100 +2996,100 @@ window.loadProductsTable = function() {
     const products = window.allProducts || []; 
 
     if (products.length === 0) {
-        document.getElementById('no-products-message')?.classList.remove('hidden');
+        const noDataMsg = document.getElementById('no-products-message');
+        if (noDataMsg) noDataMsg.classList.remove('hidden');
         return;
     }
     document.getElementById('no-products-message')?.classList.add('hidden');
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Estilo Dark Premium: Hover sutil con brillo y bordes transparentes
-        row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
+        // Transición de opacidad y color definida en tu CSS
+        row.className = 'border-b border-white/5 group hover:bg-white/[0.02] transition-all duration-300';
         
         const formattedPrice = formatCurrency(product.price);
         
-        // Configuración de Glass Badges según el tipo de producto
         let badgeClass = '';
         let typeText = '';
         let icon = '';
 
         switch(product.type) {
             case 'MAIN':
-                badgeClass = 'glass-badge-success'; // Verde/Neon
+                badgeClass = 'glass-badge-success';
                 typeText = 'Principal';
                 icon = 'fa-star';
                 break;
             case 'PACKAGE':
-                badgeClass = 'glass-badge-warning'; // Usaremos el estilo naranja/amber
-                typeText = 'Subproducto';
+                badgeClass = 'glass-badge-danger'; 
+                typeText = 'Paquete';
                 icon = 'fa-box-open';
                 break;
             case 'SERVICE':
-                badgeClass = 'glass-badge-info'; // Azul
+                badgeClass = 'glass-badge-success'; 
                 typeText = 'Servicio';
                 icon = 'fa-tools';
                 break;
             default:
-                badgeClass = 'glass-badge-secondary';
+                badgeClass = 'glass-badge-success';
                 typeText = product.type || 'General';
                 icon = 'fa-tag';
         }
 
         row.innerHTML = `
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="font-mono bg-white/5 text-white/40 px-2 py-1 rounded border border-white/10 text-[10px] inline-block">
+                <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px]">
                     #${product.producto_id}
-                </div>
+                </span>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
                 <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-orange-500/20 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                        <i class="fas ${icon} text-orange-500 text-sm"></i>
+                    <div class="h-10 w-10 rounded-xl bg-orange-500 border border-orange-600 shadow-lg shadow-orange-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform duration-300">
+                        <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-bold text-white tracking-wide">${product.name}</div>
-                        <div class="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">Producto Registrado</div>
+                        <div class="text-sm font-bold text-white uppercase tracking-wide">${product.name}</div>
+                        <div class="text-[9px] text-white/30 uppercase font-sans font-bold tracking-widest mt-1">Inventario Activo</div>
                     </div>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="text-lg font-black text-emerald-500 tracking-tighter">
+                <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Precio Unitario</div>
+                <div class="text-sm font-bold text-white font-mono">
                     ${formattedPrice}
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
+                <div class="text-[9px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest">Categoría</div>
                 <div class="glass-badge ${badgeClass}">
-                    <span class="text-[10px] font-black uppercase tracking-widest">
-                        <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
+                    <span class="flex items-center font-bold font-sans text-[11px] tracking-tight">
+                        <i class="fas ${icon} mr-2 text-[9px] opacity-70"></i>
+                        <span class="uppercase">${typeText}</span>
                     </span>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap text-right">
-                <div class="flex justify-end items-center space-x-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                     <button 
                         onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all border border-transparent hover:border-orange-500/20"
-                        title="Editar Producto">
-                        <i class="fas fa-pen text-xs"></i>
+                        class="edit-client-btn text-white/50 hover:text-orange-500" title="Editar Producto">
+                        <i class="fas fa-pen text-[11px]"></i>
                     </button>
                     
                     <button 
                         onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/20"
-                        title="Eliminar Producto">
-                        <i class="fas fa-trash-alt text-xs"></i>
+                        class="delete-client-btn text-white/50 hover:text-red-500" title="Eliminar Producto">
+                        <i class="fas fa-trash-alt text-[11px]"></i>
                     </button>
                 </div>
             </td>
         `;
         container.appendChild(row);
     });
-}
-window.loadProductsTable = loadProductsTable;
+};
 
 function loadProductDataToForm(product) {
     if (!product) return;
@@ -3668,19 +3570,16 @@ async function loadClientDebtsTable() {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
     }
 }
+
 window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
+    if (!supabase) return;
 
     const container = document.getElementById('clients-list-body');
     if (!container) return;
-
     const showActions = mode === 'gestion';
 
     try {
-        // 1. Obtener lista base
+        // 1. Obtener clientes de Supabase
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3688,53 +3587,47 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
-        // --- Actualización de Mapas Globales ---
+        // 2. Actualización de Mapas Globales (Vital para que handleViewClientDebt encuentre al cliente)
         window.allClients = clients; 
         window.allClientsMap = {}; 
         clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
 
-        // 2. Obtener Resúmenes (Totales y Deudas)
+        // 3. Obtener resúmenes de deuda
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Renderizado con Estilo Premium Dark
         container.innerHTML = '';
 
         if (clients.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 italic tracking-widest uppercase text-[10px]">No hay clientes registrados</td></tr>`;
+            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 font-sans uppercase text-[10px] tracking-widest">No hay registros</td></tr>`;
             return;
         }
 
+        // 4. Renderizado de filas
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
-            // Fila con efecto Glass y Hover sutil
-            row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
+            row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
             const deudaVisual = summary.deudaNeta;
             const tieneDeuda = deudaVisual > 0.01;
 
-            // Celda de Acciones Estilizada
             let actionCell = '';
             if (showActions) {
                 actionCell = `
                     <td class="px-6 py-5 whitespace-nowrap text-right">
-                        <div class="flex justify-end items-center space-x-1 opacity-30 group-hover:opacity-100 transition-all duration-300">
-                            <button type="button" class="edit-client-btn p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all" 
-                                    data-id="${client.client_id}" title="Editar Perfil">
-                                <i class="fas fa-edit text-xs"></i>
+                        <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                            <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}" title="Editar Cliente">
+                                <i class="fas fa-user-edit text-[13px]"></i>
                             </button>
-                            <button type="button" class="abono-btn p-2.5 text-white/60 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all" 
-                                    onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Abono">
-                                <i class="fas fa-hand-holding-usd text-xs"></i>
+                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" data-id="${client.client_id}" title="Agregar Abono">
+                                <i class="fas fa-file-invoice-dollar text-[13px]"></i>
                             </button>
-                            <button type="button" class="view-debt-btn p-2.5 text-white/60 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all" 
-                                    data-id="${client.client_id}" title="Estado de Cuenta">
-                                <i class="fas fa-file-invoice-dollar text-xs"></i>
+                            <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}" title="Ver Historial">
+                                <i class="fas fa-history text-[13px]"></i>
                             </button>
-                            <button type="button" class="delete-client-btn p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all" 
-                                    data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
-                                <i class="fas fa-trash-alt text-xs"></i>
+                            <button type="button" class="delete-client-btn text-white/50 hover:text-red-500" data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
+                                <i class="fas fa-trash-alt text-[13px]"></i>
                             </button>
                         </div>
                     </td>
@@ -3743,31 +3636,35 @@ window.loadClientsTable = async function(mode = 'gestion') {
             
             row.innerHTML = `
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <span class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded text-[10px]">#${client.client_id}</span>
+                    <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px]">
+                        ID #${client.client_id}
+                    </span>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 text-white flex items-center justify-center font-black text-xs mr-4 group-hover:scale-110 transition-transform">
-                            ${client.name.charAt(0).toUpperCase()}
+                        <div class="h-10 w-10 rounded-xl bg-orange-500 border border-orange-600 shadow-lg shadow-orange-500/20 flex items-center justify-center text-white mr-4 group-hover:scale-105 transition-transform duration-300">
+                            <i class="fas fa-user text-sm"></i>
                         </div>
                         <div>
-                            <div class="text-sm font-bold text-white tracking-wide">${client.name}</div>
-                            <div class="text-[10px] text-white/30 flex items-center mt-1">
-                                <i class="fas fa-phone-alt mr-2 text-[8px]"></i>
-                                ${client.telefono || 'Sin teléfono'}
+                            <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
+                            <div class="text-[12px] text-white/40 font-sans mt-0.5 flex items-center">
+                                <i class="fas fa-phone-alt mr-1.5 opacity-50 text-[8px]"></i>
+                                ${client.telefono || 'Sin contacto'}
                             </div>
                         </div>
                     </div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1">Total Consumo</div>
-                    <div class="text-sm font-medium text-white/70 font-mono">${formatCurrency(summary.totalVentas)}</div>
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest">Total Consumo</div>
+                    <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
                 </td>
                 <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1">Estado de Cuenta</div>
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest">Estado Actual</div>
                     <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                        <span class="font-mono">${formatCurrency(deudaVisual)}</span>
+                        <span class="flex items-center font-bold font-sans text-[12px]">
+                            <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                            ${formatCurrency(deudaVisual)}
+                        </span>
                     </div>
                 </td>
                 ${actionCell} 
@@ -3775,83 +3672,43 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // --- 4. Re-vincular eventos ---
+        // 5. VINCULACIÓN DE EVENTOS MEDIANTE DELEGACIÓN (Solución al error de apertura)
         if (showActions) {
-            container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
-            });
-            container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => window.handleViewClientDebt(btn.dataset.id);
-            });
+            const setupButton = (selector, handler) => {
+                container.querySelectorAll(selector).forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        if (id) {
+                            // Convertimos a Number para asegurar compatibilidad con el mapa de clientes
+                            handler(Number(id));
+                        }
+                    };
+                });
+            };
+
+            setupButton('.edit-client-btn', window.handleEditClientClick);
+            setupButton('.view-debt-btn', window.handleViewClientDebt); // Ver Estado de Cuenta
+            setupButton('.abono-btn', window.handleAbonoClick);        // Agregar Abono
+
+            // Especial para borrar (requiere nombre)
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name);
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    const name = btn.getAttribute('data-name');
+                    if (id) window.handleDeleteClientClick(Number(id), name);
+                };
             });
         }
-
-    } catch (e) {
-        console.error('Error al cargar tabla de clientes:', e);
+    } catch (e) { 
+        console.error('Error en loadClientsTable:', e); 
     }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
-
-window.handleDeleteClientClick = function(clientId) {
-    // 1. Guardar el ID asegurándonos de que sea un String para comparar
-    window.clientIdToDelete = String(clientId);
-    
-    // 2. Buscar en el mapa usando el ID convertido a String
-    const cliente = window.allClientsMap[window.clientIdToDelete];
-    
-    const placeholder = document.getElementById('delete-client-name-placeholder');
-    if (placeholder && cliente) {
-        placeholder.textContent = cliente.name;
-    } else {
-        console.error("Error: Cliente no encontrado en el mapa global.", clientId);
-        // Si no está en el mapa, intentamos buscarlo en el array
-        const clienteArray = window.allClients.find(c => String(c.client_id) === String(clientId));
-        if (clienteArray && placeholder) placeholder.textContent = clienteArray.name;
-    }
-
-    openModal('delete-client-modal');
-};
-
-async function confirmDeleteClient() {
-    const idToDelete = clientToDeleteId; 
-
-    if (!idToDelete) {
-        alert("Error de Eliminación: ID del cliente no encontrada.");
-        return;
-    }
-
-    // 1. Ejecutar la eliminación en Supabase
-    const { error } = await supabase
-        .from('clientes')
-        .delete() // <--- Eliminación física
-        .eq('client_id', idToDelete); 
-
-    if (error) {
-        console.error('Error al intentar eliminar el cliente:', error);
-        
-        // 2. Manejo de error específico (Restricción de Clave Foránea)
-        if (error.code === '23503') {
-            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados. Asegúrate de eliminar el historial del cliente o configurar la eliminación en cascada en Supabase.');
-        } else {
-            alert('❌ Error desconocido al eliminar cliente: ' + error.message);
-        }
-        closeModal('client-delete-confirmation'); 
-        return; 
-    }
-
-    // 3. Éxito y recarga de datos
-    alert('✅ Cliente eliminado definitivamente.');
-    closeModal('client-delete-confirmation'); 
-    clientToDeleteId = null; 
-    
-    await loadDashboardData(); 
-}
-
-
 
 window.handleNewClient = async function(e) {
     // 🛑 CRÍTICO: Detiene el envío nativo del formulario.
@@ -3886,7 +3743,6 @@ window.handleNewClient = async function(e) {
 
     // 🛑 LOG 3: INTENTO DE INSERCIÓN
    // console.log('3. Intentando insertar en Supabase...');
-
     // Usamos un bloque try/catch para manejar errores de red o Supabase
     try {
         const { error } = await supabase
@@ -3904,6 +3760,13 @@ window.handleNewClient = async function(e) {
         } else {
         //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
             alert('Cliente registrado exitosamente.');
+
+// Actualizar mapa global para que el nuevo cliente sea "editable" de inmediato
+if (window.loadAllClientsMap) await window.loadAllClientsMap();
+
+if (typeof window.loadClientsTable === 'function') {
+    await window.loadClientsTable('gestion');
+}
             
             // --- Cierre y Limpieza ---
             
@@ -3934,23 +3797,76 @@ window.handleNewClient = async function(e) {
     }
 }
 
-window.handleEditClientClick = function(clientId) {
-    console.log("Editando cliente ID:", clientId);
+window.handleDeleteClientClick = function(clientId) {
+    // Forzamos que sea un string para evitar fallos de tipos
+    const idStr = String(clientId);
+    window.clientToDeleteId = idStr; // <--- Cambiado para coincidir con confirmDeleteClient
     
-    // 1. Intentar obtener del mapa (asegurando que el ID sea String)
-    let cliente = window.allClientsMap ? window.allClientsMap[String(clientId)] : null;
-
-    // 2. Si no aparece en el mapa, buscarlo en el array global
-    if (!cliente && window.allClients) {
-        cliente = window.allClients.find(c => String(c.client_id) === String(clientId));
+    const cliente = window.allClientsMap ? window.allClientsMap[idStr] : null;
+    const placeholder = document.getElementById('delete-client-name-placeholder');
+    
+    if (placeholder) {
+        if (cliente) {
+            placeholder.textContent = cliente.name;
+        } else {
+            // Intento de rescate si el mapa falló
+            const cArray = window.allClients.find(c => String(c.client_id) === idStr);
+            placeholder.textContent = cArray ? cArray.name : "Cliente #" + idStr;
+        }
     }
+    openModal('delete-client-modal');
+};
 
-    if (!cliente) {
-        alert("Error: Cliente no encontrado para editar (ID: " + clientId + ")");
+async function confirmDeleteClient() {
+    // Ahora sí coinciden las variables
+    const idToDelete = window.clientToDeleteId; 
+
+    if (!idToDelete || idToDelete === "null") {
+        alert("Error: No se seleccionó un cliente válido.");
         return;
     }
 
-    // 3. Llenar el formulario de edición (Asegúrate de que estos IDs existan en tu modal de editar)
+    const { error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('client_id', idToDelete); 
+
+    if (error) {
+        if (error.code === '23503') {
+            alert('❌ No se puede eliminar: El cliente tiene historial de ventas activo.');
+        } else {
+            alert('❌ Error: ' + error.message);
+        }
+    } else {
+        alert('✅ Cliente eliminado definitivamente.');
+        // Importante: Recargar el mapa global después de borrar
+        if (window.loadAllClientsMap) await window.loadAllClientsMap();
+        await loadDashboardData(); 
+    }
+    
+    closeModal('delete-client-modal'); 
+    window.clientToDeleteId = null; 
+}
+
+window.handleEditClientClick = function(clientId) {
+    // 🛑 FILTRO DE SEGURIDAD: Si entra un null o un objeto de evento, abortamos.
+    if (!clientId || typeof clientId === 'object') return;
+
+    console.log("Editando cliente ID:", clientId);
+    
+    const idStr = String(clientId);
+    let cliente = window.allClientsMap ? window.allClientsMap[idStr] : null;
+
+    if (!cliente && window.allClients) {
+        cliente = window.allClients.find(c => String(c.client_id) === idStr);
+    }
+
+    if (!cliente) {
+        console.warn("Cliente no encontrado en memoria para ID:", idStr);
+        return;
+    }
+
+    // Llenado de campos...
     const idInput = document.getElementById('edit-client-id');
     const nameInput = document.getElementById('edit-client-name');
     const phoneInput = document.getElementById('edit-client-phone');
@@ -3959,10 +3875,8 @@ window.handleEditClientClick = function(clientId) {
     if (nameInput) nameInput.value = cliente.name || '';
     if (phoneInput) phoneInput.value = cliente.telefono || '';
 
-    // 4. Abrir el modal de edición
     openModal('edit-client-modal');
 };
-
 async function handleEditClient(e) {
     e.preventDefault();
     
@@ -4003,7 +3917,6 @@ async function handleEditClient(e) {
         closeModal('edit-client-modal'); 
     }
 }
-
 // 11. DETALLE Y ABONO DE VENTA 
 window.handleRegisterPayment = async function(e) {
     if (e) {
@@ -4224,11 +4137,18 @@ async function handleSaleAbono(e) {
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
 window.handleViewAction = async function(btn, ventaId, clientId) {
-    btn.classList.add('btn-loading'); // Activa el spinner
+    btn.classList.add('loading'); // Activa el spinner
     try {
+        // 1. Cargar los datos
         await handleViewSaleDetails(ventaId, clientId);
+        
+        // 2. ABRIR EL MODAL (Corregido el nombre según tu HTML)
+        openModal('modal-detail-sale'); 
+        
+    } catch (error) {
+        console.error("Error al cargar detalles:", error);
     } finally {
-        btn.classList.remove('btn-loading'); // Lo quita al terminar
+        btn.classList.remove('loading');
     }
 };
 
@@ -4240,10 +4160,7 @@ window.handleDeleteAction = async function(btn, ventaId, month, year) {
 
 window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFromEvent) {
     (async () => {
-        if (!supabase) {
-            console.error("Supabase no está inicializado.");
-            return;
-        }
+        if (!supabase) return;
 
         const reportBody = document.getElementById('monthly-sales-report-body');
         const totalSalesEl = document.getElementById('report-total-sales');
@@ -4252,13 +4169,15 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
         if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) return;
 
-        // 1. Estado de carga Dark Premium
+        // 1. Estado de carga: ICONO NARANJA SÓLIDO Y FUENTE SANS
         reportBody.innerHTML = `
             <tr>
-                <td colspan="5" class="px-6 py-16 text-center">
-                    <div class="flex flex-col justify-center items-center space-y-3">
-                        <i class="fas fa-circle-notch animate-spin text-orange-500 text-2xl"></i>
-                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">Sincronizando Reportes Globales</span>
+                <td colspan="5" class="px-6 py-24 text-center">
+                    <div class="flex flex-col justify-center items-center">
+                        <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse mb-4">
+                            <i class="fas fa-chart-line text-xl"></i>
+                        </div>
+                        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30 font-sans">Sincronizando Reporte</span>
                     </div>
                 </td>
             </tr>`;
@@ -4266,9 +4185,8 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         try {
             const currentMonthNum = new Date().getMonth() + 1;
             const currentYearNum = new Date().getFullYear();
-            
             let selectedMonth = (selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) ? selectedMonthFromEvent : currentMonthNum;
-            let selectedYear = (selectedYearFromEvent >= 2000) ? selectedYearFromEvent : currentYearNum;
+            let selectedYear = (selectedYearFromEvent >= 2020) ? selectedYearFromEvent : currentYearNum;
 
             let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
             let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1));
@@ -4290,48 +4208,55 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 sales.forEach(sale => {
                     totalSales += sale.total_amount;
                     totalDebtGenerated += sale.saldo_pendiente;
-        
+                    
                     const clientName = sale.clientes?.name || 'Cliente Final';
                     const dateObj = new Date(sale.created_at);
-                    const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
-                    const formattedTime = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+                    const day = dateObj.toLocaleDateString('es-MX', { day: '2-digit' });
+                    const month = dateObj.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase().replace('.', '');
+                    
                     const tienePendiente = sale.saldo_pendiente > 0.01;
                     
                     const rowHTML = `
-                        <tr class="group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5">
-                            <td class="px-8 py-5 whitespace-nowrap">
-                                <div class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] inline-block mb-1">
-                                    #${sale.venta_id}
-                                </div>
-                                <div class="text-[9px] text-white/30 uppercase tracking-widest font-bold">${formattedDate} • ${formattedTime}</div>
-                            </td>
+                        <tr class="group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300">
                             <td class="px-8 py-5 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <div class="h-8 w-8 rounded-lg bg-gradient-to-br from-white/10 to-transparent border border-white/10 text-white flex items-center justify-center text-[10px] font-black mr-3 group-hover:border-orange-500/30 transition-colors">
-                                        ${clientName.charAt(0).toUpperCase()}
+                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-colors">
+                                        <span class="text-[12px] font-bold text-white leading-none font-sans">${day}</span>
+                                        <span class="text-[9px] font-bold text-orange-500 leading-none mt-1 font-sans">${month}</span>
                                     </div>
-                                    <div class="text-sm font-bold text-white/90 tracking-wide">${clientName}</div>
+                                    <div>
+                                        <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[9px] block w-fit">
+                                            ID #${sale.venta_id}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-8 py-5 whitespace-nowrap">
+                                <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${clientName}</div>
+                                <div class="text-[12px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">${sale.metodo_pago || 'CONTADO'}</div>
+                            </td>
+                            <td class="px-8 py-5 whitespace-nowrap text-right">
+                                <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Venta</div>
+                                <div class="text-sm font-bold text-white font-mono">${formatCurrency(sale.total_amount)}</div>
+                            </td>
+                            <td class="px-8 py-5 whitespace-nowrap text-right">
+                                <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Pendiente</div>
+                                <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
+                                    <span class="flex items-center font-bold font-sans text-[16px]">
+                                        <span class="h-1.5 w-1.5 rounded-full ${tienePendiente ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                                        ${formatCurrency(sale.saldo_pendiente)}
+                                    </span>
                                 </div>
                             </td>
                             <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="text-sm font-black text-white font-mono">${formatCurrency(sale.total_amount)}</div>
-                                <div class="text-[9px] text-white/20 uppercase tracking-[0.1em] mt-0.5">${sale.metodo_pago}</div>
-                            </td>
-                            <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center">
-                                    <span class="h-1 w-1 rounded-full ${tienePendiente ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                                    <span class="font-mono text-[11px]">${formatCurrency(sale.saldo_pendiente)}</span>
-                                </div>
-                            </td>
-                            <td class="px-8 py-5 whitespace-nowrap text-right text-sm font-medium">
-                                <div class="flex justify-end space-x-2 opacity-20 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                                <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
-                                            class="p-2 text-white/60 hover:text-blue-400 hover:bg-blue-400/10 rounded-xl transition-all border border-transparent hover:border-blue-400/20" title="Ver Detalles">
-                                        <i class="fas fa-eye text-xs"></i>
+                                            class="text-white/40 hover:text-blue-500 transition-colors" title="Ver Venta">
+                                    <i class="fas fa-eye text-[15px]"></i>
                                     </button>
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                                            class="p-2 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/20" title="Anular Venta">
-                                        <i class="fas fa-trash-alt text-xs"></i>
+                                            class="text-white/40 hover:text-red-500 transition-colors" title="Anular Venta">
+                                     <i class="fas fa-trash-alt text-[15px]"></i>
                                     </button>
                                 </div>
                             </td>
@@ -4341,15 +4266,16 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 noDataMessage.classList.add('hidden'); 
             } else {
                 noDataMessage.classList.remove('hidden'); 
+                reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Sin actividad comercial</td></tr>`;
             }
             
-            // Actualización de contadores superiores con estilo neón
-            totalSalesEl.innerHTML = `<span class="text-emerald-500 font-black">${formatCurrency(totalSales)}</span>`;
-            totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/40'} font-black">${formatCurrency(totalDebtGenerated)}</span>`;
+            // TOTALES EN FOOTER
+            totalSalesEl.innerHTML = `<span class="text-white font-black font-sans italic">${formatCurrency(totalSales)}</span>`;
+totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0 ? 'text-red-500' : 'text-white/20'} font-black font-sans italic">${formatCurrency(totalDebtGenerated)}</span>`;
 
         } catch (e) {
             console.error('Error:', e);
-            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 font-bold uppercase text-[10px] tracking-widest">Fallo de conexión con el servidor</td></tr>';
+            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Fallo en la comunicación con servidor</td></tr>';
         }
     })();
 }
@@ -4705,19 +4631,26 @@ async function printTicketQZ(ventaId) {
 // ====================================================================
 
 async function loadAllClientsMap() {
-        const { data: clients, error } = await supabase
-        .from('clientes') // ✅ ESTO DEBE SER 'clientes'
-        .select('client_id, name');
+    // 1. Traemos todos los campos importantes
+    const { data: clients, error } = await supabase
+        .from('clientes') 
+        .select('*'); 
 
     if (error) {
         console.error("Error al cargar datos de clientes para el mapa:", error);
         return;
     }
 
+    // 2. Construimos el mapa guardando el OBJETO, no solo el nombre
     allClientsMap = clients.reduce((map, client) => {
-        map[client.client_id] = client.name;
+        // Guardamos todo el registro indexado por su ID
+        map[client.client_id] = client; 
         return map;
     }, {});
+
+    // 3. Lo hacemos disponible globalmente para todas las funciones
+    window.allClientsMap = allClientsMap;
+    console.log("✅ Mapa de clientes sincronizado:", Object.keys(allClientsMap).length, "registros.");
 }
 
 async function loadAndRenderClients() {
@@ -5149,6 +5082,9 @@ document.querySelectorAll('[data-view]').forEach(link => {
     }
     // 2. Continúa con tus llamadas iniciales
     await loadAllClientsMap();
+    if (window.loadClientsTable) {
+        window.loadClientsTable(); // Luego renderiza la tabla
+    }
     checkUserSession();
 
     // 3. Inicializar el selector con los meses (esto selecciona el mes actual)

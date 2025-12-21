@@ -8,12 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
-        /* Forzamos el tema oscuro Premium */
-        body { background-color: #121212 !important; color: #e5e7eb; }
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
-        
-        /* Estilos del Menú Lateral para legibilidad */
+         /* Estilos del Menú Lateral para legibilidad */
         .menu-item { color: #9ca3af; transition: all 0.2s; }
         .menu-item:hover { color: #ffffff; background-color: rgba(255,255,255,0.05); }
         
@@ -24,37 +22,63 @@
             border-left: 4px solid #f97316;
             border-radius: 0 12px 12px 0;
         }
-        
-        /* Tablas oscuras */
-        thead { background-color: rgba(255, 255, 255, 0.02); }
-        tr { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-
-        /* Scrollbars */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #121212; }
-        ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 10px; }
-    </style>
+</style>
 </head>
-<body class="min-h-screen font-sans">
+<body class="bg-gray-550 min-h-screen font-sans">
+    
+    <div id="auth-container" class="min-h-screen flex items-center justify-center hidden bg-[#0a0a0a] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-black">
+    <div class="bg-[#1c1c1c]/80 backdrop-blur-xl p-10 rounded-[3rem] shadow-2xl w-full max-w-md border border-white/5 relative overflow-hidden">
+        
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-orange-600/10 rounded-full blur-3xl"></div>
+        
+        <div class="relative z-10">
+            <div class="flex justify-center mb-6">
+                <div class="w-20 h-20 bg-orange-600 rounded-3xl flex items-center justify-center shadow-lg shadow-orange-900/40 rotate-12 group-hover:rotate-0 transition-transform duration-500">
+                    <i class="fas fa-rocket text-3xl text-white -rotate-12"></i>
+                </div>
+            </div>
 
-    <div id="auth-container" class="min-h-screen flex items-center justify-center hidden">
-        <div class="bg-[#1c1c1c] p-10 rounded-3xl shadow-2xl w-full max-w-sm border border-white/5 text-center">
-            <h2 class="text-3xl font-extrabold mb-8 text-white">Creativa <span class="text-orange-500">POS</span></h2>
-            <form id="login-form" class="text-left">
-                <div class="mb-4">
-                    <label class="block text-gray-500 text-xs font-bold mb-2 uppercase tracking-widest">Email</label>
-                    <input type="email" id="login-email" class="w-full p-3 bg-[#2a2a2a] border border-white/5 rounded-xl text-white outline-none focus:ring-2 focus:ring-orange-500" required>
+            <h2 class="text-4xl font-black mb-2 text-center text-white italic tracking-tighter uppercase">
+                Bienvenido
+            </h2>
+            <p class="text-center text-gray-500 text-xs uppercase tracking-[0.3em] mb-10 font-bold">
+                Creativa <span class="text-orange-500">POS</span> System
+            </p>
+
+            <form id="login-form" class="space-y-6">
+                <div class="space-y-2">
+                    <label for="email" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                    <div class="relative">
+                        <input type="email" id="email" required 
+                            class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 pl-12 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner"
+                            placeholder="usuario@creativa.com">
+                        <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"></i>
+                    </div>
                 </div>
-                <div class="mb-6">
-                    <label class="block text-gray-500 text-xs font-bold mb-2 uppercase tracking-widest">Contraseña</label>
-                    <input type="password" id="login-password" class="w-full p-3 bg-[#2a2a2a] border border-white/5 rounded-xl text-white outline-none focus:ring-2 focus:ring-orange-500" required>
+
+                <div class="space-y-2">
+                    <label for="password" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Contraseña</label>
+                    <div class="relative">
+                        <input type="password" id="password" required 
+                            class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 pl-12 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner"
+                            placeholder="••••••••">
+                        <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"></i>
+                    </div>
                 </div>
-                <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all uppercase tracking-widest">Entrar</button>
+
+                <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group mt-4">
+                    <span>Entrar al Sistema</span>
+                    <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                </button>
             </form>
+
+            <p id="auth-error-message" class="text-red-500 text-center mt-6 text-xs font-bold bg-red-500/10 py-3 rounded-xl border border-red-500/20 hidden uppercase tracking-tighter">
+                </p>
         </div>
     </div>
+</div>
 
-    <div id="dashboard-container" class="flex min-h-screen hidden">
+<div id="dashboard-container" class="flex min-h-screen hidden bg-[#0a0a0a]">
     
     <aside class="w-64 bg-[#1c1c1c] flex flex-col fixed h-full z-30 border-r border-white/5">
         <div class="p-8 text-center">
@@ -62,8 +86,11 @@
         </div>
         
         <nav class="flex-grow p-4 space-y-2">
-            <a href="#" data-view="home-view" class="menu-item flex items-center p-3 rounded-xl font-bold text-gray-400 hover:text-white transition-all">
-                <i class="fas fa-wallet w-6"></i><span class="ml-3">Deudas</span>
+            <a href="#" data-view="home-view" class="menu-item active-menu-item flex items-center p-3 rounded-xl font-bold transition-all">
+                <i class="fas fa-th-large w-6"></i><span class="ml-3">Inicio</span>
+            </a>
+            <a href="#" data-view="deudas-view" class="menu-item flex items-center p-3 rounded-xl font-bold text-gray-400 hover:text-white transition-all">
+                <i class="fas fa-wallet w-6"></i><span class="ml-3">Control de Deudas</span>
             </a>
             <a href="#" data-view="products-view" class="menu-item flex items-center p-3 rounded-xl font-bold text-gray-400 hover:text-white transition-all">
                 <i class="fas fa-boxes w-6"></i><span class="ml-3">Productos</span>
@@ -75,50 +102,178 @@
                 <i class="fas fa-chart-pie w-6"></i><span class="ml-3">Reportes</span>
             </a>
 
-            <div class="pt-6 mt-6 border-t border-white/5">
+            <div class="pt-6 mt-6 border-t border-white/5 space-y-3">
                 <button id="open-sale-modal-btn" class="w-full flex items-center p-4 bg-orange-600 text-white rounded-2xl hover:bg-orange-700 font-black shadow-lg shadow-orange-900/40 transition-all group">
-                    <i class="fas fa-plus-circle text-xl group-hover:scale-110 transition-transform"></i>
+                    <i class="fas fa-plus-circle text-xl group-hover:rotate-90 transition-transform duration-300"></i>
                     <span class="ml-3 uppercase text-[10px] tracking-widest">Nueva Venta</span>
+                </button>
+
+                <button data-open-modal="new-product-modal" class="w-full flex items-center p-4 bg-[#2a2a2a] text-white rounded-2xl hover:bg-[#333] font-black transition-all group border border-white/5">
+                    <i class="fas fa-box text-xl text-orange-500 group-hover:scale-110 transition-transform"></i>
+                    <span class="ml-3 uppercase text-[10px] tracking-widest">Nuevo Producto</span>
                 </button>
             </div>
         </nav>
 
         <div class="p-6 border-t border-white/5 flex items-center justify-between bg-black/10">
             <div class="flex flex-col">
-                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Usuario</span>
-                <span id="user-display" class="text-white text-sm font-bold">---</span>
+                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ADMIN</span>
+                <span id="user-display" class="text-white text-sm font-bold truncate w-32">---</span>
             </div>
-            <button id="logout-btn" class="text-red-500 p-2 hover:bg-red-500/10 rounded-xl transition-all" title="Cerrar Sesión">
+            <button id="logout-btn" class="text-red-500 p-2 hover:bg-red-500/10 rounded-xl transition-all">
                 <i class="fas fa-power-off"></i>
             </button>
         </div>
     </aside>
 
-    <main class="flex-grow ml-64 p-10 bg-[#121212]">
+    <main class="flex-grow ml-64 p-10 bg-[#121212] min-h-screen">
         
         <section id="home-view" class="dashboard-view">
-            <header class="mb-10">
-                <h2 class="text-4xl font-black text-white italic tracking-tighter">Gestión de <span class="text-orange-500">Deudas</span></h2>
-                <p class="text-gray-400 font-medium">Control de saldos pendientes y cobranza.</p>
-            </header>
-            <div class="bg-[#1c1c1c] rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl">
-                <table class="w-full text-left">
-                    <thead class="bg-white/5 border-b border-white/5 text-gray-500 uppercase text-[10px] font-bold tracking-[0.2em]">
-                        <tr>
-                            <th class="px-8 py-5">Cliente</th>
-                            <th class="px-8 py-5">Saldo Pendiente</th>
-                            <th class="px-8 py-5">Último Movimiento</th>
-                            <th class="px-8 py-5 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="debts-table-body" class="text-sm text-gray-200 divide-y divide-white/5"></tbody>
-                </table>
-                <div id="no-debts-message" class="p-16 text-center text-gray-600 hidden">
-                    <i class="fas fa-check-circle text-4xl mb-3 opacity-20"></i>
-                    <p class="uppercase tracking-widest text-xs font-bold">No hay deudas pendientes</p>
-                </div>
+    <div class="mb-12">
+        <p class="text-orange-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-2">Panel de Control</p>
+        <h2 class="text-5xl font-black text-white italic tracking-tighter uppercase">Bienvenido</h2>
+        <p class="text-gray-500 mt-2 font-medium">Selecciona una sección para comenzar a gestionar.</p>
+    </div>
+    <div class="absolute top-6 right-8 text-right z-10">
+        <div class="flex items-center justify-end gap-2 mb-2">
+            <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Servidor Conectado a <span class="text-white">Supabase</span>
+            </span>
+        </div>
+
+        <p class="text-xs italic text-gray-500 font-medium max-w-[200px] leading-tight">
+            "La creatividad es la inteligencia divirtiéndose."
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <button onclick="switchView('deudas-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-orange-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-orange-600/5 rounded-full blur-3xl group-hover:bg-orange-600/10 transition-all"></div>
+            <div class="bg-orange-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-orange-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-wallet text-white text-xl"></i>
             </div>
-        </section>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Deudas</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Cobros y saldos pendientes</p>
+        </button>
+
+        <button onclick="switchView('products-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-blue-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-600/5 rounded-full blur-3xl group-hover:bg-blue-600/10 transition-all"></div>
+            <div class="bg-blue-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-boxes text-white text-xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Productos</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Inventario y catálogo</p>
+        </button>
+
+        <button onclick="switchView('clients-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-emerald-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-600/5 rounded-full blur-3xl group-hover:bg-emerald-600/10 transition-all"></div>
+            <div class="bg-emerald-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-user-friends text-white text-xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Clientes</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Directorio y registros</p>
+        </button>
+
+        <button onclick="switchView('report-view')" class="group relative bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] text-left hover:border-purple-500/50 transition-all shadow-2xl overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-600/5 rounded-full blur-3xl group-hover:bg-purple-600/10 transition-all"></div>
+            <div class="bg-purple-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-900/20 group-hover:scale-110 transition-transform">
+                <i class="fas fa-chart-pie text-white text-xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-white uppercase italic tracking-tighter">Reportes</h3>
+            <p class="text-gray-500 text-xs mt-2 font-bold uppercase tracking-widest">Análisis de ventas</p>
+        </button>
+
+        <button onclick="document.getElementById('open-sale-modal-btn').click()" class="group relative bg-orange-600/10 border border-orange-500/20 p-8 rounded-[2.5rem] text-left hover:bg-orange-600 transition-all shadow-2xl overflow-hidden lg:col-span-2">
+            <div class="bg-orange-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:bg-white group-hover:text-orange-600 transition-all">
+                <i class="fas fa-plus text-xl"></i>
+            </div>
+            <h3 class="text-2xl font-black text-white uppercase italic tracking-tighter group-hover:text-white">Registrar Nueva Venta</h3>
+            <p class="text-orange-500 text-xs mt-2 font-bold uppercase tracking-widest group-hover:text-orange-100">Abrir terminal de punto de venta</p>
+        </button>
+    </div>
+</section>
+
+        <section id="deudas-view" class="dashboard-view hidden">
+    <header class="mb-10">
+        <div class="flex items-center gap-4 mb-2">
+            <span class="w-8 h-[2px] bg-orange-500"></span>
+            <p class="text-orange-500 font-bold uppercase tracking-[0.3em] text-[10px]">Gestión Financiera</p>
+        </div>
+        <h2 class="text-5xl font-black text-white italic tracking-tighter uppercase">Control de <span class="text-orange-500">Deudas</span></h2>
+        <p class="text-gray-500 mt-2 font-medium">Resumen de saldos pendientes por cobrar y gestión de pagos en cascada.</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-orange-600/5 rounded-full blur-3xl"></div>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Total por Cobrar</p>
+            <h3 id="total-deuda-global" class="text-4xl font-black text-white italic tracking-tighter">$0.00</h3>
+            <div class="mt-4 flex items-center gap-2 text-orange-500/50 text-[10px] font-bold uppercase">
+                <i class="fas fa-chart-line"></i> Cartera Activa
+            </div>
+        </div>
+
+        <div class="bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Clientes con Saldo</p>
+            <h3 id="total-clientes-deuda" class="text-4xl font-black text-white italic tracking-tighter">0</h3>
+            <div class="mt-4 flex items-center gap-2 text-blue-500/50 text-[10px] font-bold uppercase">
+                <i class="fas fa-users"></i> Registros Únicos
+            </div>
+        </div>
+
+        <div class="bg-[#1c1c1c] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden border-l-4 border-l-orange-600">
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Saldo Individual Máximo</p>
+            <h3 id="max-deuda-individual" class="text-4xl font-black text-orange-500 italic tracking-tighter">$0.00</h3>
+            <div class="mt-4 flex items-center gap-2 text-gray-600 text-[10px] font-bold uppercase">
+                <i class="fas fa-exclamation-triangle"></i> Revisión Prioritaria
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div class="relative w-full md:w-96">
+            <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-gray-600"></i>
+            <input type="text" id="search-debts" 
+                class="w-full bg-[#1c1c1c] border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-white placeholder:text-gray-700 focus:border-orange-500/50 outline-none transition-all shadow-xl" 
+                placeholder="Buscar cliente deudor...">
+        </div>
+        <div class="flex gap-3">
+            <button onclick="loadDebtsTable()" class="p-4 bg-[#1c1c1c] border border-white/5 rounded-2xl text-gray-500 hover:text-white hover:border-white/20 transition-all shadow-xl">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-white/[0.02] border-b border-white/5 text-gray-500 uppercase text-[10px] font-black tracking-[0.2em]">
+                        <th class="px-10 py-6">Información del Cliente</th>
+                        <th class="px-10 py-6 text-center">Saldo Total Pendiente</th>
+                        <th class="px-10 py-6">Estado de Cuenta</th>
+                        <th class="px-10 py-6 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="debts-table-body" class="divide-y divide-white/5 text-sm text-gray-300">
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="no-debts-message" class="hidden p-20 text-center group">
+            <div class="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                <i class="fas fa-check-double text-emerald-500 text-3xl"></i>
+            </div>
+            <h4 class="text-white font-bold uppercase tracking-widest text-sm">Cartera Limpia</h4>
+            <p class="text-gray-600 text-xs mt-2 font-medium italic">No se encontraron clientes con deudas pendientes.</p>
+        </div>
+    </div>
+</section>
 
         <section id="products-view" class="dashboard-view hidden">
             <div class="flex justify-between items-end mb-10">
@@ -136,7 +291,8 @@
                         <tr>
                             <th class="px-8 py-5">ID / Ref</th>
                             <th class="px-8 py-5">Nombre del Producto</th>
-                            <th class="px-8 py-5">Precio Unitario</th>
+                            <th class="px-8 py-5">Tipo</th>
+                            <th class="px-8 py-5">Precio</th>
                             <th class="px-8 py-5 text-right">Opciones</th>
                         </tr>
                     </thead>
@@ -161,6 +317,8 @@
                         <tr>
                             <th class="px-8 py-5">Nombre del Cliente</th>
                             <th class="px-8 py-5">Contacto / Teléfono</th>
+                            <th class="px-8 py-5">Total</th>
+                            <th class="px-8 py-5">Deuda</th>
                             <th class="px-8 py-5 text-right">Acciones</th>
                         </tr>
                     </thead>
@@ -174,186 +332,868 @@
 
         <section id="report-view" class="dashboard-view hidden">
     <div class="flex justify-between items-center mb-10">
-        <h2 class="text-4xl font-black text-white italic tracking-tighter">Análisis <span class="text-orange-500">Mensual</span></h2>
+        <h2 class="text-4xl font-black text-white italic tracking-tighter font-sans uppercase">Análisis <span class="text-orange-500">Mensual</span></h2>
         <div class="flex gap-3">
-            <select id="report-month-select" class="bg-[#1c1c1c] border border-white/10 rounded-xl p-3 text-white font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all"></select>
-            <select id="report-year-select" class="bg-[#1c1c1c] border border-white/10 rounded-xl p-3 text-white font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all"></select>
+            <select id="report-month-select" class="bg-white/5 border border-white/10 rounded-xl p-3 text-white font-bold font-sans outline-none focus:ring-2 focus:ring-orange-500 transition-all"></select>
+            <select id="report-year-select" class="bg-white/5 border border-white/10 rounded-xl p-3 text-white font-bold font-sans outline-none focus:ring-2 focus:ring-orange-500 transition-all"></select>
         </div>
     </div>
     
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <div class="bg-gradient-to-br from-green-900/30 to-[#1c1c1c] border border-green-500/20 p-8 rounded-[2rem] shadow-xl">
-            <p class="text-xs font-bold text-green-500 uppercase tracking-widest mb-2">Ingresos Totales</p>
-            <p id="report-total-sales" class="text-5xl font-black text-white tracking-tighter">$0.00</p>
+        <div class="bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 p-8 rounded-[2rem] shadow-xl backdrop-blur-md">
+            <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] mb-2 font-sans">Ingresos Totales</p>
+            <p id="report-total-sales" class="text-5xl font-black text-white tracking-tight font-sans">$0.00</p>
         </div>
-        <div class="bg-gradient-to-br from-orange-900/30 to-[#1c1c1c] border border-orange-500/20 p-8 rounded-[2rem] shadow-xl">
-            <p class="text-xs font-bold text-orange-500 uppercase tracking-widest mb-2">Deuda Generada</p>
+        <div class="bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 p-8 rounded-[2rem] shadow-xl backdrop-blur-md">
+            <p class="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-2 font-sans">Deuda Generada</p>
             <p id="report-total-debt-generated" class="text-5xl font-black text-white tracking-tighter">$0.00</p>
         </div>
     </div>
 
-    <div class="bg-[#1c1c1c] rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl">
+    <div class="bg-white/[0.02] rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl backdrop-blur-xl">
         <table class="w-full text-left">
-            <thead class="bg-white/5 border-b border-white/5 text-gray-500 uppercase text-[10px] font-bold tracking-[0.2em]">
+            <thead class="bg-white/5 border-b border-white/5 text-white/30 uppercase text-[9px] font-bold tracking-[0.3em] font-sans">
                 <tr>
-                    <th class="px-8 py-5">Fecha</th>
-                    <th class="px-8 py-5">Nombre / Cliente</th>
-                    <th class="px-8 py-5">Monto</th>
-                    <th class="px-8 py-5 text-right">Acciones</th>
+                    <th class="px-8 py-6">Registro</th>
+                    <th class="px-8 py-6">Cliente</th>
+                    <th class="px-8 py-6 text-right">Monto Total</th>
+                    <th class="px-8 py-6 text-right">Saldo Pendiente</th>
+                    <th class="px-8 py-6 text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody id="monthly-sales-report-body" class="text-sm text-gray-300 divide-y divide-white/5">
+            <tbody id="monthly-sales-report-body" class="divide-y divide-white/5 font-sans">
                 </tbody>
         </table>
 
-        <div id="monthly-report-no-data" class="p-20 text-center hidden">
-            <p class="text-gray-600 font-bold uppercase tracking-widest text-xs">Sin movimientos en este periodo</p>
+        <div id="monthly-report-no-data" class="p-24 text-center hidden">
+            <div class="inline-flex h-16 w-16 bg-white/5 rounded-full items-center justify-center mb-4 border border-white/10">
+                <i class="fas fa-folder-open text-white/10 text-2xl"></i>
+            </div>
+            <p class="text-white/20 font-bold uppercase tracking-[0.3em] text-[10px] font-sans">Sin movimientos en este periodo</p>
         </div>
     </div>
 </section>
-    </main>
+
+        </main>
 </div>
 
-    <div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] rounded-[2rem] w-full max-w-4xl border border-white/10 overflow-hidden shadow-2xl">
-            <div class="bg-[#242424] p-8 flex justify-between items-center border-b border-white/5">
-                <h3 class="text-2xl font-black text-white">GENERAR VENTA</h3>
-                <button data-close-modal="new-sale-modal" class="text-gray-500 hover:text-white text-3xl">&times;</button>
-            </div>
-            <div class="p-10">
-                <div class="grid grid-cols-2 gap-6 mb-8">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cliente</label>
-                        <select id="sale-client-select" class="w-full bg-[#2a2a2a] p-4 rounded-2xl border-none text-white font-bold outline-none focus:ring-2 focus:ring-orange-500"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Método Inicial</label>
-                        <select id="sale-payment-method" class="w-full bg-[#2a2a2a] p-4 rounded-2xl border-none text-white font-bold outline-none focus:ring-2 focus:ring-orange-500">
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Transferencia">Transferencia</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="bg-[#242424] p-8 rounded-[2rem] border border-white/5 mb-8">
-                    <div class="flex gap-4 mb-6">
-                        <select id="sale-product-select" class="flex-grow bg-[#121212] p-4 rounded-xl border-none text-white outline-none"></select>
-                        <input type="number" id="sale-quantity-input" value="1" min="1" class="w-24 bg-[#121212] p-4 rounded-xl border-none text-white text-center font-bold">
-                        <button id="add-product-btn" class="bg-white text-black px-8 rounded-xl font-black hover:bg-orange-500 hover:text-white transition-all">AÑADIR</button>
-                    </div>
-                    <table class="w-full text-sm">
-                        <tbody id="sale-items-table-body"></tbody> </table>
-                </div>
-
-                <div class="flex flex-col md:flex-row justify-between items-center">
-                    <div>
-                        <p class="text-xs font-bold text-gray-500 uppercase mb-1">Total a Liquidar</p>
-                        <p id="sale-total-display" class="text-6xl font-black text-white tracking-tighter">$0.00</p>
-                    </div>
-                    <div class="flex gap-4 mt-6 md:mt-0">
-                        <button id="save-debt-btn" class="bg-[#333] px-10 py-4 rounded-2xl font-black hover:bg-[#444] transition-all uppercase text-xs">Anotar Deuda</button>
-                        <button id="complete-sale-btn" class="bg-orange-600 px-10 py-4 rounded-2xl font-black hover:bg-orange-700 transition-all shadow-xl shadow-orange-900/40 uppercase text-xs">Pago Completo</button>
-                    </div>
-                </div>
-            </div>
+<div id="delete-product-modal" class="modal-overlay hidden fixed inset-0 z-[80] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+    <div class="bg-[#1c1c1c] rounded-[2rem] shadow-2xl w-full max-w-sm mx-auto p-8 border border-white/10 text-center">
+        
+        <div class="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fas fa-boxes text-3xl text-red-500 animate-pulse"></i>
         </div>
-    </div>
 
-    <div id="client-report-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] rounded-[2rem] w-full max-w-6xl border border-white/10 h-[85vh] overflow-y-auto p-10 text-white shadow-2xl">
-            <header class="flex justify-between items-start mb-10 border-b border-white/5 pb-8">
-                <div>
-                    <h3 id="report-client-name" class="text-5xl font-black uppercase tracking-tighter">CLIENTE</h3>
-                    <p class="text-orange-500 font-bold uppercase text-xs tracking-widest mt-2">Detalle de créditos y pagos</p>
-                </div>
-                <button data-close-modal="client-report-modal" class="text-4xl text-gray-600 hover:text-white">&times;</button>
-            </header>
+        <h3 class="text-xl font-black text-white uppercase tracking-tighter mb-2">
+            Confirmar <span class="text-red-500">Eliminación</span>
+        </h3>
+        
+        <p class="text-sm text-gray-400 leading-relaxed mb-4">
+            ¿Estás seguro de que deseas eliminar permanentemente el producto:
+        </p>
+        
+        <div class="bg-white/5 py-3 px-6 rounded-xl border border-white/5 inline-block mb-6">
+            <span id="delete-product-name-placeholder" class="text-sm font-bold text-red-400 tracking-tight">
+                [NOMBRE DEL PRODUCTO]
+            </span>
+        </div>
+
+        <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-8 px-4">
+            Esta acción afectará el inventario y no se puede deshacer.
+        </p>
+
+        <div class="flex flex-col gap-3">
+            <button id="confirm-delete-btn" 
+                class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl transition-all uppercase text-[10px] tracking-[0.2em] shadow-lg shadow-red-900/20 group">
+                <i class="fas fa-trash-alt mr-2 group-hover:scale-110 transition-transform"></i>
+                Sí, Eliminar Producto
+            </button>
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                <div class="bg-[#242424] p-8 rounded-3xl border border-white/5 h-fit shadow-xl">
-                    <h4 class="text-sm font-black text-white mb-6 uppercase tracking-widest">Registrar Abono</h4>
-                    <div class="space-y-4">
-                        <input type="number" id="abono-monto" class="w-full bg-[#121212] p-4 rounded-xl border-none text-white text-2xl font-black" placeholder="0.00">
-                        <select id="abono-metodo" class="w-full bg-[#121212] p-4 rounded-xl border-none text-white font-bold">
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Transferencia">Transferencia</option>
-                        </select>
-                        <button id="btn-confirmar-abono" class="w-full bg-green-600 py-5 rounded-2xl font-black hover:bg-green-700 transition-all shadow-lg shadow-green-900/20">CONFIRMAR ABONO</button>
-                    </div>
-                </div>
-                <div class="lg:col-span-2 space-y-10">
-                    <div>
-                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-4 tracking-widest">Notas Pendientes de Pago</h4>
-                        <div class="bg-[#121212] rounded-2xl border border-white/5 overflow-hidden">
-                            <table class="w-full text-sm text-left"><tbody id="lista-notas-pendientes"></tbody></table>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-4 tracking-widest">Historial de Transacciones</h4>
-                        <div class="bg-[#121212] rounded-2xl border border-white/5 overflow-hidden">
-                            <table class="w-full text-sm text-left"><tbody id="historial-abonos-cliente"></tbody></table>
-                        </div>
-                    </div>
-                </div>
+            <button data-close-modal="delete-product-modal" 
+                class="w-full bg-transparent hover:bg-white/5 text-gray-500 hover:text-white py-3 rounded-xl transition-all text-[10px] uppercase font-bold tracking-widest">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="delete-client-modal" class="modal-overlay hidden fixed inset-0 z-[80] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+    <div class="bg-[#1c1c1c] rounded-[2rem] shadow-2xl w-full max-w-sm mx-auto p-8 border border-white/10 text-center">
+        
+        <div class="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fas fa-user-minus text-3xl text-red-500 animate-pulse"></i>
+        </div>
+
+        <h3 class="text-xl font-black text-white uppercase tracking-tighter mb-2">
+            Confirmar <span class="text-red-500">Eliminación</span>
+        </h3>
+        
+        <p class="text-sm text-gray-400 leading-relaxed mb-4">
+            ¿Estás seguro de que deseas eliminar permanentemente al cliente:
+        </p>
+        
+        <div class="bg-white/5 py-3 px-6 rounded-xl border border-white/5 inline-block mb-6">
+            <span id="delete-client-name-placeholder" class="text-sm font-bold text-red-400 tracking-tight">
+                [NOMBRE DEL CLIENTE]
+            </span>
+        </div>
+
+        <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-8 px-4">
+            Esta acción borrará todo su historial y no se puede deshacer.
+        </p>
+
+        <div class="flex flex-col gap-3">
+            <button id="confirm-delete-client-btn" 
+                class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl transition-all uppercase text-[10px] tracking-[0.2em] shadow-lg shadow-red-900/20 group">
+                <i class="fas fa-check-circle mr-2 group-hover:scale-110 transition-transform"></i>
+                Sí, Eliminar Cliente
+            </button>
+            
+            <button data-close-modal="delete-client-modal" 
+                class="w-full bg-transparent hover:bg-white/5 text-gray-500 hover:text-white py-3 rounded-xl transition-all text-[10px] uppercase font-bold tracking-widest">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<div id="modal-ticket-preview" class="modal-overlay hidden fixed inset-0 z-[70] items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-auto p-6">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-bold">Previsualización de Ticket</h3>
+                <button data-close-modal="modal-ticket-preview" class="text-gray-400 hover:text-gray-700 text-3xl leading-none">
+                    &times;
+                </button>
+            </div>
+            
+            <div id="ticket-preview-content" class="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50 max-h-96 overflow-y-auto font-mono text-xs">
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button data-close-modal="modal-ticket-preview" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl transition-colors">
+                    Cerrar
+                </button>
+                <button id="print-ticket-qz-btn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-xl transition-colors">
+                    <i class="fas fa-print mr-2"></i>Imprimir Ticket
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 max-w-lg w-full text-white">
-            <h3 class="text-2xl font-black mb-6">Detalle de Operación</h3>
-            <div id="detail-sale-content" class="text-sm space-y-3 font-medium text-gray-300"></div>
-            <button data-close-modal="modal-detail-sale" class="mt-8 w-full bg-white/5 py-4 rounded-2xl font-bold hover:bg-white/10 transition-all">Cerrar</button>
+<div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-lg mx-auto p-8 border border-white/5 overflow-hidden">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 id="client-modal-title" class="text-2xl font-black text-white italic tracking-tighter">
+                Nuevo <span class="text-orange-500">Cliente</span>
+            </h3>
+            <button type="button" data-close-modal="new-client-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
         </div>
+
+        <form id="new-client-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+                <label for="new-client-name" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre Completo</label>
+                <div class="relative">
+                    <input type="text" id="new-client-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner"
+                        placeholder="Nombre y Apellido">
+                    <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label for="new-client-phone" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Teléfono</label>
+                <div class="relative">
+                    <input type="tel" id="new-client-phone" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner font-mono"
+                        placeholder="000-000-0000">
+                    <i class="fas fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
+                </div>
+            </div>
+
+            <div class="md:col-span-2 mt-4">
+                <button type="submit" id="save-client-btn" 
+                    class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group">
+                    <i class="fas fa-user-plus text-lg group-hover:scale-110 transition-transform"></i>
+                    Registrar Cliente
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+    
+<div id="edit-client-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-sm mx-auto p-8 border border-white/5 overflow-hidden">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+                Editar <span class="text-orange-500">Cliente</span>
+            </h3>
+            <button data-close-modal="edit-client-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <form id="edit-client-form">
+            <input type="hidden" id="edit-client-id">
+            
+            <div class="mb-6 space-y-2">
+                <label for="edit-client-name" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre Completo</label>
+                <div class="relative">
+                    <input type="text" id="edit-client-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner"
+                        placeholder="Nombre del cliente">
+                    <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
+                </div>
+            </div>
+
+            <div class="mb-10 space-y-2">
+                <label for="edit-client-phone" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Teléfono de Contacto</label>
+                <div class="relative">
+                    <input type="tel" id="edit-client-phone" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 pl-10 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner font-mono"
+                        placeholder="000 000 0000">
+                    <i class="fas fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 text-xs"></i>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group">
+                <i class="fas fa-user-check text-lg group-hover:scale-110 transition-transform"></i>
+                Actualizar Datos
+            </button>
+        </form>
+    </div>
+</div>
+    
+<div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm bg-black/60">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-lg mx-auto p-8 border border-white/10 overflow-hidden transform transition-all">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter uppercase">
+                Nuevo <span class="text-orange-500">Registro</span>
+            </h3>
+            <button data-close-modal="new-product-modal" class="text-gray-500 hover:text-white transition-all hover:rotate-90 duration-300">
+                <i class="fas fa-times-circle text-2xl"></i>
+            </button>
+        </div>
+
+        <form id="new-product-form">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label for="new-product-name" class="flex items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
+                        <i class="fas fa-tag mr-2 text-orange-500/50"></i> Nombre del Producto
+                    </label>
+                    <input type="text" id="new-product-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner text-sm"
+                        placeholder="Ej. Corte Laser Acrílico">
+                </div>
+                
+                <div class="space-y-2">
+                    <label for="new-product-price" class="flex items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
+                        <i class="fas fa-dollar-sign mr-2 text-orange-500/50"></i> Precio Unitario
+                    </label>
+                    <input type="number" id="new-product-price" required min="0" step="0.01" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner font-mono text-lg text-orange-400"
+                        placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                <div class="space-y-2">
+                    <label for="new-product-type" class="flex items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
+                        <i class="fas fa-layer-group mr-2 text-orange-500/50"></i> Categoría
+                    </label>
+                    <div class="relative group">
+                        <select id="new-product-type" required onchange="handleProductTypeChange()"
+                            class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer text-sm">
+                            <option value="PRODUCT" class="bg-[#1c1c1c]">Producto Principal</option>
+                            <option value="PACKAGE" class="bg-[#1c1c1c]">Subproducto / Parte</option>
+                            <option value="SERVICE" class="bg-[#1c1c1c]">Servicio / Mano de Obra</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-orange-500 transition-colors pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+
+                <div id="new-product-parent-container" class="hidden space-y-2">
+                    <label for="new-product-parent-select" class="flex items-center text-[10px] font-bold text-orange-500 uppercase tracking-widest ml-1">
+                        <i class="fas fa-link mr-2"></i> Asignar a Padre
+                    </label>
+                    <div class="relative group">
+                        <select id="new-product-parent-select" 
+                            class="w-full bg-orange-600/10 border border-orange-500/30 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer text-sm">
+                        </select>
+                        <i class="fas fa-link absolute right-4 top-1/2 -translate-y-1/2 text-orange-500/50 group-hover:text-orange-500 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" 
+    id="btn-register-product"
+    class="btn-premium w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group overflow-hidden relative">
+    <span class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
+        <i class="fas fa-plus-circle text-lg group-hover:rotate-90 transition-transform duration-300 relative z-10 icon-default"></i>
+    <i class="fas fa-circle-notch animate-spin text-lg relative z-10 hidden icon-loading"></i>
+    <span class="relative z-10 btn-text">Finalizar Registro</span>
+</button>
+        </form>
+    </div>
+</div>
+    
+<div id="edit-product-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-lg mx-auto p-8 border border-white/5 overflow-hidden">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-8">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+                Editar <span class="text-orange-500">Producto</span>
+            </h3>
+            <button data-close-modal="edit-product-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <form id="edit-product-form">
+            <input type="hidden" id="edit-product-id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label for="edit-product-name" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre del Ítem</label>
+                    <input type="text" id="edit-product-name" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder:text-gray-700 shadow-inner"
+                        placeholder="Ej. Diseño Gráfico">
+                </div>
+                <div class="space-y-2">
+                    <label for="edit-product-price" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Precio Unitario ($)</label>
+                    <input type="number" id="edit-product-price" required min="0" step="0.01" 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-inner font-mono text-lg">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                <div class="space-y-2">
+                    <label for="edit-product-category" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Categoría</label>
+                    <select id="edit-product-category" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                        <option value="Producto">Producto</option>
+                        <option value="Servicio">Servicio</option>
+                        <option value="Paquete">Paquete/Subproducto</option>
+                    </select>
+                </div>
+                
+                <div id="edit-product-parent-container" class="hidden space-y-2">
+                    <label for="edit-product-parent" class="block text-[10px] font-bold text-orange-500 uppercase tracking-widest ml-1">Vincular a Padre</label>
+                    <select id="edit-product-parent" 
+                        class="w-full bg-orange-600/5 border border-orange-500/20 rounded-xl p-3.5 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                    </select>
+                </div>
+
+                <div id="edit-product-placeholder" class="col-span-1 hidden md:block"></div> 
+            </div>
+
+            <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-900/40 uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 group">
+                <i class="fas fa-save text-lg group-hover:scale-110 transition-transform"></i>
+                Guardar Cambios
+            </button>
+        </form>
+    </div>
+</div>
+    
+<div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-[80] flex items-center justify-center p-4 backdrop-blur-md bg-black/60">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-5xl mx-auto flex flex-col max-h-[95vh] border border-white/5 overflow-hidden"> 
+        
+        <div class="flex justify-between items-center border-b border-white/5 p-8 bg-white/5">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter uppercase font-sans">
+                Registrar <span class="text-orange-500">Nueva Venta</span>
+            </h3>
+            <button data-close-modal="new-sale-modal" class="text-gray-500 hover:text-white text-3xl transition-all leading-none">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto flex-grow p-8 custom-scrollbar"> 
+            <form id="new-sale-form" onsubmit="handleNewSale(event)">
+                
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8 items-end">
+                    <div class="md:col-span-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <label for="product-main-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Producto / Servicio</label>
+                        <select id="product-main-select" required class="w-full bg-transparent border-none text-white focus:ring-0 outline-none font-sans font-bold"></select>
+                    </div>
+
+                    <div class="md:col-span-2 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <label for="subproduct-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Paquete</label>
+                        <select id="subproduct-select" class="w-full bg-transparent border-none text-white focus:ring-0 outline-none font-sans font-bold"></select>
+                    </div>
+                    
+                    <div class="md:col-span-2 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <label for="product-quantity" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Cant.</label>
+                        <input type="number" id="product-quantity" value="1" min="1" class="w-full bg-transparent border-none text-white focus:ring-0 outline-none font-sans font-bold">
+                    </div>
+                    
+                    <div class="md:col-span-3 bg-black/20 p-4 rounded-2xl border border-white/5">
+                        <label for="product-unit-price" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Precio Unitario ($)</label>
+                        <input type="number" id="product-unit-price" placeholder="0.00" min="0" step="0.01" class="w-full bg-transparent border-none text-emerald-500 focus:ring-0 outline-none font-sans font-black text-lg">
+                    </div>
+
+                    <div class="md:col-span-1 flex justify-center pb-2">
+                        <button type="button" id="add-product-btn" 
+                                class="bg-orange-600 hover:bg-orange-500 text-white text-xl font-bold h-14 w-14 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-orange-900/20 active:scale-95">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <h4 class="text-sm font-bold text-white uppercase tracking-widest mb-4 flex items-center font-sans">
+    <i class="fas fa-shopping-cart mr-2 text-orange-500"></i> Carrito de Venta
+</h4>
+<div class="mb-8 border border-white/5 rounded-[1.5rem] overflow-hidden bg-black/20"> 
+    <table class="min-w-full">
+        <thead class="bg-white/5"> 
+            <tr>
+                <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Producto</th>
+                <th class="px-6 py-4 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">Cantidad</th>
+                <th class="px-6 py-4 text-right text-[10px] font-bold text-gray-500 uppercase tracking-widest">Precio</th>
+                <th class="px-6 py-4 text-right text-[10px] font-bold text-gray-500 uppercase tracking-widest">Subtotal</th>
+                <th class="px-6 py-4 w-16"></th>
+            </tr>
+        </thead>
+        <tbody id="sale-items-table-body" class="divide-y divide-white/5 text-sm text-gray-300 font-sans">
+            </tbody>
+    </table>
+</div>
+
+                <div class="mb-8 p-6 bg-orange-600/5 rounded-2xl border border-orange-500/10">
+                    <label for="sale-details" class="block text-xs font-bold text-orange-500 uppercase tracking-widest mb-3 font-sans">Comentarios y Detalles de la Venta:</label>
+                    <textarea id="sale-details" rows="2" 
+                        class="w-full bg-transparent border-none text-gray-300 italic text-sm outline-none focus:ring-0 p-0" 
+                        placeholder="Escribe aquí detalles importantes de la producción..."></textarea>
+                </div>
+
+                <h4 class="text-sm font-bold text-white uppercase tracking-widest mb-4 font-sans">Resumen de Pago</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    
+            <div class="p-5 bg-white/5 rounded-2xl border border-white/5 text-center">
+        <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total a Pagar</span>
+        <input type="text" id="total-amount" value="0.00" 
+               class="w-full bg-transparent text-center text-3xl font-black text-white border-none outline-none font-sans" readonly>
     </div>
 
-    <div id="new-product-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <form id="product-form" class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 w-full max-w-md text-white">
-            <h3 class="text-2xl font-black mb-6 italic">Producto</h3>
-            <div class="space-y-4">
-                <input type="text" id="product-name" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="Nombre del artículo" required>
-                <input type="number" id="product-price" step="0.01" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="Precio $" required>
-                <select id="product-category" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none">
-                    <option value="Corte CNC">Corte CNC</option>
-                    <option value="Diseño">Diseño</option>
-                    <option value="Material">Material</option>
+    <div class="p-5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-center">
+        <label for="paid-amount" class="block text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Monto Pagado</label>
+        <input type="number" id="paid-amount" value="0.00" min="0" step="0.01" 
+               class="w-full bg-transparent text-center text-3xl font-black text-green-500 border-none outline-none focus:ring-0 font-sans appearance-none">
+    </div>
+
+    <div class="p-5 bg-red-500/10 rounded-2xl border border-red-500/20 text-center">
+        <span class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Saldo Pendiente</span>
+        <input type="text" id="display-saldo-pendiente" value="0.00" 
+               class="w-full bg-transparent text-center text-3xl font-black text-red-500 border-none outline-none font-sans" readonly>
+    </div>
+</div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+    <div class="bg-black/20 p-4 rounded-2xl border border-white/5 focus-within:border-orange-500/50 transition-colors">
+        <label for="client-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 font-sans">Asignar Cliente</label>
+        <select id="client-select" required 
+                class="w-full bg-transparent border-none text-white font-bold outline-none focus:ring-0 cursor-pointer">
+            </select>
+    </div>
+
+    <div class="bg-black/20 p-4 rounded-2xl border border-white/5 focus-within:border-orange-500/50 transition-colors">
+        <label for="payment-method" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 font-sans">Método de Pago</label>
+        <select id="payment-method" required 
+                class="w-full bg-transparent border-none text-orange-500 font-bold outline-none focus:ring-0 cursor-pointer">
+            <option value="Efectivo" class="bg-[#1c1c1c] text-white">Efectivo</option>
+            <option value="Tarjeta" class="bg-[#1c1c1c] text-white">Tarjeta</option>
+            <option value="Transferencia" class="bg-[#1c1c1c] text-white">Transferencia</option>
+            <option value="Deuda" class="bg-[#1c1c1c] text-white">Deuda/Crédito</option>
+        </select>
+    </div>
+</div>
+
+        <div class="flex justify-end gap-4 p-8 border-t border-white/5 bg-black/20">
+            <button data-close-modal="new-sale-modal" type="button" 
+                class="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold py-3 px-8 rounded-xl transition-all uppercase text-xs tracking-widest font-sans">
+                Cancelar
+            </button>
+            <button type="button" onclick="handleNewSale(event)" 
+                class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-10 rounded-xl transition-all shadow-lg shadow-emerald-900/20 group uppercase text-xs tracking-widest font-sans flex items-center">
+                <i class="fas fa-check-circle mr-2 text-lg group-hover:scale-110 transition-transform"></i>
+                Registrar Venta
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-detail-sale" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-5xl mx-auto flex flex-col max-h-[95vh] border border-white/5 overflow-hidden"> 
+        
+        <div class="flex justify-between items-center border-b border-white/5 p-8 bg-white/5">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+                Detalles de Venta <span class="text-orange-500">#<span id="detail-sale-id"></span></span>
+            </h3>
+            <button data-close-modal="modal-detail-sale" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto flex-grow p-8 custom-scrollbar"> 
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
+                    <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Cliente</span>
+                    <span id="detail-client-name" class="text-lg font-bold text-white uppercase"></span>
+                </div>
+                <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
+                    <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Fecha de Registro</span>
+                    <span id="detail-sale-date" class="text-lg font-bold text-white"></span>
+                </div>
+                <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
+                    <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Método de Pago</span>
+                    <span id="detail-payment-method" class="text-lg font-bold text-orange-500 uppercase"></span>
+                </div>
+            </div>
+
+            <div class="mb-8 p-6 bg-orange-600/5 rounded-2xl border border-orange-500/10">
+                <h4 class="text-xs font-bold text-orange-500 uppercase tracking-widest mb-2">Comentarios / Descripción:</h4>
+                <p id="detail-sale-description" class="text-gray-300 italic text-sm whitespace-pre-wrap"></p>
+            </div>
+            
+            <h4 class="text-sm font-bold text-white uppercase tracking-widest mb-4 flex items-center">
+                <i class="fas fa-boxes mr-2 text-orange-500"></i> Productos Vendidos
+            </h4>
+            <div class="mb-8 border border-white/5 rounded-[1.5rem] overflow-hidden bg-black/20"> 
+                <table class="min-w-full">
+                    <thead class="bg-white/5"> 
+                        <tr>
+                            <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Producto</th>
+                            <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Cantidad</th>
+                            <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Precio Unit.</th>
+                            <th class="px-6 py-4 text-right text-[10px] font-bold text-gray-500 uppercase tracking-widest">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-products-body" class="divide-y divide-white/5 text-sm text-gray-300">
+                    </tbody>
+                </table>
+            </div>
+            
+            <h4 class="text-sm font-bold text-white uppercase tracking-widest mb-4">Resumen Financiero</h4>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="p-5 bg-white/5 rounded-2xl border border-white/5">
+                    <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Venta</span>
+                    <span id="detail-grand-total" class="text-2xl font-black text-white tracking-tighter"></span>
+                </div>
+                <div class="p-5 bg-green-900/20 rounded-2xl border border-green-500/20">
+                    <span class="block text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Pagado</span>
+                    <span id="detail-paid-amount" class="text-2xl font-black text-green-500 tracking-tighter"></span>
+                </div>
+                <div class="p-5 bg-red-900/20 rounded-2xl border border-red-500/20">
+                    <span class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Pendiente</span>
+                    <span id="detail-remaining-debt" class="text-2xl font-black text-red-500 tracking-tighter"></span>
+                </div>
+                <button data-open-modal="abono-client-modal" class="bg-orange-600 hover:bg-orange-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-orange-900/20 flex flex-col items-center justify-center group uppercase text-[10px] tracking-widest">
+                    <i class="fas fa-wallet mb-1 text-lg group-hover:scale-110 transition-transform"></i>
+                    Registrar Abono
+                </button>
+            </div>
+
+            <h4 class="text-sm font-bold text-white uppercase tracking-widest mb-4">Historial de Abonos</h4>
+            <div class="mb-8 border border-white/5 rounded-2xl overflow-hidden bg-black/20">
+                <table class="min-w-full">
+                    <thead class="bg-white/5">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Fecha</th>
+                            <th class="px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Monto</th>
+                            <th class="px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Método</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-abonos-body" class="divide-y divide-white/5 text-sm text-gray-400"></tbody>
+                </table>
+                <p id="no-abonos-message" class="text-center text-gray-600 py-6 text-xs uppercase tracking-widest hidden">No se han registrado abonos.</p>
+            </div>
+
+            <div id="price-edit-section" class="bg-orange-600/10 p-6 rounded-[2rem] border border-orange-500/20 hidden mb-4">
+                <h5 class="text-sm font-bold text-orange-500 mb-4 uppercase tracking-widest">Ajuste de Precio Unitario</h5>
+                <form id="edit-sale-price-form" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                    <input type="hidden" id="edit-sale-transaction-id">
+                    <input type="hidden" id="edit-sale-detail-id">
+                    
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Producto:</label>
+                        <p id="edit-product-name" class="text-white font-bold"></p>
+                    </div>
+                    
+                    <div>
+                        <label for="edit-new-price" class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Nuevo Precio ($)</label>
+                        <input type="number" step="0.01" id="edit-new-price" class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                    </div>
+
+                    <button type="submit" class="bg-white text-black font-black py-3 rounded-xl hover:bg-orange-500 hover:text-white transition-all uppercase text-[10px] tracking-widest">
+                        Actualizar Todo
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 p-8 border-t border-white/5 bg-black/20">
+            <button id="detail-print-ticket-btn" onclick="generarPDFVenta()" class="bg-white/5 hover:bg-white/10 text-white border border-white/10 font-bold py-3 px-6 rounded-xl transition-all uppercase text-xs tracking-widest flex items-center">
+                <i class="fas fa-file-pdf mr-2 text-red-500"></i> Exportar PDF
+            </button>
+            
+            <button data-close-modal="modal-detail-sale" class="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold py-3 px-8 rounded-xl transition-all uppercase text-xs tracking-widest">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+    
+<div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[67] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-md mx-auto p-8 border border-white/10">
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-6">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter uppercase">
+                Registrar <span class="text-green-500">Abono</span>
+            </h3>
+            <button data-close-modal="abono-client-modal" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <form id="abono-client-form" onsubmit="handleRegisterPayment(event)">
+            <input type="hidden" id="abono-client-id">
+            
+            <div class="mb-6 bg-black/20 p-4 rounded-2xl border border-white/5">
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Cliente</p>
+                <p id="abono-client-name-display" class="text-lg font-bold text-white uppercase tracking-tighter">---</p>
+                <div class="flex justify-between items-center mt-2 pt-2 border-t border-white/5">
+                    <span class="text-[10px] text-gray-500 uppercase font-bold">Deuda actual:</span>
+                    <span id="abono-current-debt" class="font-black text-red-500 text-lg"></span>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="abono-amount" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-2">Monto a abonar ($)</label>
+                <input type="number" id="abono-amount" name="amount" required min="0.01" step="0.01" 
+                       class="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-2xl font-black text-green-500 focus:border-green-500 outline-none transition-all shadow-inner"
+                       placeholder="0.00">
+            </div>
+
+            <div class="mb-6">
+                <label for="payment-method-abono" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-2">Método de Pago</label>
+                <select id="payment-method-abono" name="method" required 
+                        class="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none focus:border-blue-500 appearance-none cursor-pointer">
+                    <option value="" disabled selected>--- Seleccionar ---</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Tarjeta">Tarjeta</option>
                 </select>
             </div>
-            <div class="flex gap-3 mt-8">
-                <button type="button" data-close-modal="new-product-modal" class="flex-grow bg-white/5 py-4 rounded-xl">Cerrar</button>
-                <button type="submit" class="flex-grow bg-orange-600 py-4 rounded-xl font-black shadow-lg">Guardar</button>
-            </div>
+            
+            <button type="submit" id="btn-confirm-abono" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-green-900/20 uppercase tracking-widest text-sm italic">
+                Confirmar Pago en Cascada
+            </button>
         </form>
-    </div>
 
-    <div id="new-client-modal" class="modal-overlay hidden fixed inset-0 z-40 flex items-center justify-center p-4">
-        <form id="client-form" class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 w-full max-w-md text-white shadow-2xl">
-            <h3 class="text-2xl font-black mb-6 italic">Cliente</h3>
-            <div class="space-y-4">
-                <input type="text" id="client-name" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="Nombre completo" required>
-                <input type="text" id="client-phone" class="w-full bg-[#2a2a2a] p-4 rounded-xl border-none" placeholder="WhatsApp / Teléfono">
-            </div>
-            <div class="flex gap-3 mt-8">
-                <button type="button" data-close-modal="new-client-modal" class="flex-grow bg-white/5 py-4 rounded-xl">Cerrar</button>
-                <button type="submit" class="flex-grow bg-orange-600 py-4 rounded-xl font-black shadow-lg">Registrar</button>
-            </div>
-        </form>
-    </div>
-
-    <div id="delete-product-modal" class="modal-overlay hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="bg-[#1c1c1c] p-10 rounded-[2rem] border border-white/10 max-w-sm w-full text-white text-center shadow-2xl">
-            <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-trash-alt text-red-500 text-3xl"></i>
-            </div>
-            <h3 class="text-2xl font-black mb-2 italic">¿Eliminar?</h3>
-            <p class="text-gray-500 text-sm mb-8">Esta acción es permanente y afectará los registros vinculados.</p>
-            <div class="flex gap-3">
-                <button data-close-modal="delete-product-modal" class="flex-grow bg-white/5 py-4 rounded-2xl font-bold">No</button>
-                <button id="confirm-delete-product-btn" class="flex-grow bg-red-600 py-4 rounded-2xl font-black">Sí, borrar</button>
+        <div id="log-container-fifo" class="mt-6 border-t border-white/5 pt-4 hidden">
+            <p class="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-3 italic">Distribución del abono:</p>
+            <div class="max-h-32 overflow-y-auto custom-scrollbar bg-black/10 rounded-xl p-2">
+                <table class="w-full text-[11px]">
+                    <tbody id="recent-payments-log" class="text-gray-400 divide-y divide-white/5">
+                        </tbody>
+                </table>
             </div>
         </div>
     </div>
+</div><form id="abono-client-form" onsubmit="handleRegisterPayment(event)"></form>
 
-    <script type="module" src="main.js"></script>
+<div id="modal-client-debt-report" class="modal-overlay hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] mx-auto overflow-hidden border border-white/5 flex flex-col">
+        
+        <div class="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+                <i class="fas fa-file-invoice-dollar mr-3 text-orange-500"></i>Estado de <span class="text-orange-500">Cuenta</span>
+            </h3>
+            <button data-close-modal="modal-client-debt-report" class="text-gray-500 hover:text-white text-3xl transition-colors">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <div class="p-8 overflow-y-auto custom-scrollbar">
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-orange-600/10 p-6 rounded-[2rem] border border-orange-500/20">
+                <div>
+                    <p class="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-1">Cliente Seleccionado</p>
+                    <h4 class="text-3xl font-black text-white uppercase tracking-tighter" id="client-report-name">---</h4>
+                </div>
+                <div class="text-left md:text-right">
+                    <p class="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-1">Total Pendiente</p>
+                    <span id="client-report-total-debt" class="text-4xl font-black text-red-500 tracking-tighter">$0.00</span>
+                </div>
+            </div>
+
+            <div class="flex gap-4 mb-8">
+                <button onclick="prepararAbonoDesdeReporte()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-green-900/20 transition-all flex items-center justify-center uppercase text-xs tracking-widest">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Registrar Abono
+                </button>
+                
+                <button onclick="generarPDFEstadoCuenta()" class="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black py-4 px-6 rounded-2xl transition-all flex items-center justify-center uppercase text-xs tracking-widest">
+                    <i class="fas fa-print mr-2 text-orange-500"></i> Imprimir Reporte
+                </button>
+            </div>
+
+            <div class="rounded-[1.5rem] border border-white/5 overflow-hidden">
+                <table class="min-w-full">
+                    <thead class="bg-white/5">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5">Fecha</th>
+                            <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5">Descripción / Detalle</th>
+                            <th class="px-6 py-4 text-right text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5">Monto</th>
+                            <th class="px-6 py-4 text-right text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-transactions-body" class="divide-y divide-white/5 text-sm text-gray-300 bg-transparent">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="p-6 border-t border-white/5 bg-black/20 text-right">
+            <button data-close-modal="modal-client-debt-report" class="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold py-3 px-8 rounded-xl transition-all text-xs uppercase tracking-widest">
+                Cerrar Ventana
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-record-abono" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+        
+        <div class="p-6 border-b flex justify-between items-center">
+            <h3 class="text-2xl font-semibold text-gray-800">
+                <i class="fas fa-hand-holding-dollar mr-2 text-green-600"></i> Registrar Abono de Cliente
+            </h3>
+            <button onclick="closeModal('modal-record-abono')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="abono-client-form">
+            <div class="p-6 space-y-4">
+                
+                <input type="hidden" id="abono-client-id-input" name="client_id">
+
+                <p class="text-sm text-gray-600">
+                    Abono para el cliente: 
+                    <span id="abono-client-name-display" class="font-semibold text-indigo-700">Cargando...</span>
+                </p>
+
+                <div>
+                    <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
+                    <input type="number" step="0.01" min="1" id="abono-amount" name="amount" required
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500 text-lg">
+                </div>
+
+                <div>
+                    <label for="abono-method" class="block text-sm font-medium text-gray-700">Método de Pago</label>
+                    <select id="abono-method" name="method" required
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
+                        <option value="">Seleccione un método</option>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Transferencia">Transferencia</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t bg-gray-50 flex justify-end">
+                <button type="button" onclick="closeModal('modal-record-abono')" 
+                        class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg mr-2 transition duration-150">
+                    Cancelar
+                </button>
+                <button type="submit" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
+                    <i class="fas fa-check mr-2"></i> Registrar Abono
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-deudas-cliente" class="modal-overlay hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div class="bg-[#1c1c1c] rounded-[2.5rem] w-full max-w-5xl max-h-[90vh] overflow-y-auto p-8 border border-white/5 shadow-2xl custom-scrollbar">
+        
+        <div class="flex justify-between items-center border-b border-white/5 pb-6 mb-6">
+            <div>
+                <p class="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-1">Expediente de Cliente</p>
+                <h2 class="text-3xl font-black text-white italic tracking-tighter uppercase" id="nombre-cliente-deuda">Estado de Cuenta</h2>
+            </div>
+            <button onclick="closeModal('modal-deudas-cliente')" class="text-gray-500 hover:text-white text-3xl transition-all">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="bg-gradient-to-br from-orange-900/20 to-transparent p-6 rounded-[2rem] border border-orange-500/20 shadow-lg">
+                <p class="text-[10px] text-orange-500 font-bold uppercase tracking-widest mb-2">Deuda Total Pendiente</p>
+                <p class="text-3xl font-black text-white tracking-tighter" id="total-deuda-general">$0.00</p>
+            </div>
+            
+            <div class="bg-white/5 p-6 rounded-[2rem] border border-white/5">
+                <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Último Abono Detectado</p>
+                <p class="text-xl font-bold text-gray-200" id="fecha-ultimo-abono">---</p>
+            </div>
+
+            <button onclick="abrirModalAbonoGeneral()" class="bg-orange-600 text-white font-black rounded-2xl hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20 uppercase text-xs tracking-widest flex flex-col items-center justify-center gap-2 group">
+                <i class="fas fa-plus-circle text-xl group-hover:scale-110 transition-transform"></i>
+                + Registrar Abono
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            
+            <div>
+                <h3 class="font-bold text-white mb-4 flex items-center gap-3 text-sm uppercase tracking-widest">
+                    <i class="fas fa-folder-open text-orange-500"></i> Notas con Saldo
+                </h3>
+                <div class="overflow-hidden border border-white/5 rounded-2xl bg-black/20">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-white/5 text-gray-500 uppercase text-[10px] font-bold tracking-widest">
+                            <tr>
+                                <th class="px-6 py-4">Nota</th>
+                                <th class="px-6 py-4">Fecha</th>
+                                <th class="px-6 py-4 text-right">Saldo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-notas-pendientes" class="divide-y divide-white/5 text-gray-300">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-bold text-white mb-4 flex items-center gap-3 text-sm uppercase tracking-widest">
+                    <i class="fas fa-history text-orange-500"></i> Historial de Pagos
+                </h3>
+                <div class="overflow-hidden border border-white/5 rounded-2xl bg-black/20">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-white/5 text-gray-500 uppercase text-[10px] font-bold tracking-widest">
+                            <tr>
+                                <th class="px-6 py-4">Fecha</th>
+                                <th class="px-6 py-4">Método</th>
+                                <th class="px-6 py-4 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historial-abonos-cliente" class="divide-y divide-white/5 text-gray-300">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script type="module" src="main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </body>
 </html>
