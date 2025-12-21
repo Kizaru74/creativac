@@ -1872,16 +1872,25 @@ window.handleViewClientDebt = async function(clientId) {
  * FUNCIÓN PARA LANZAR EL MODAL DE ABONO DESDE EL REPORTE
  */
 window.prepararAbonoDesdeReporte = function() {
-    // 1. Obtener los datos que guardamos en el paso anterior
+    // 1. Buscar el botón que tiene los datos guardados
     const btn = document.querySelector('#modal-client-debt-report button[onclick="prepararAbonoDesdeReporte()"]');
-    const clientId = btn.dataset.clientId;
-    const clientName = btn.dataset.clientName;
-    const currentDebt = btn.dataset.currentDebt;
+    
+    if (!btn || !btn.dataset.clientId) {
+        console.error("❌ Error: No se encontraron atributos dataset en el botón");
+        alert("⚠️ Error al recuperar datos del cliente. Por favor, cierra y abre el reporte de nuevo.");
+        return;
+    }
 
-    if (!clientId) return alert("Error: No se encontró información del cliente");
+    const { clientId, clientName, currentDebt } = btn.dataset;
 
-    // 2. Llamar a la función que abre el modal de abono (la que corregimos en el paso anterior)
-    window.openAbonoModal(clientId, clientName, currentDebt);
+    console.log("🔄 Pasando datos al modal de abono:", { clientId, clientName, currentDebt });
+
+    // 2. Llamar al modal de abono con los datos recuperados
+    if (window.openAbonoModal) {
+        window.openAbonoModal(clientId, clientName, parseFloat(currentDebt));
+    } else {
+        alert("Error: La función openAbonoModal no está definida.");
+    }
 };
 
 window.handleAbonoClick = function(clientId) {
