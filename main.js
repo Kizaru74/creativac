@@ -3679,8 +3679,21 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
     const showActions = mode === 'gestion';
 
+    // 1. Estado de carga: ICONO NARANJA SÓLIDO (Estilo Reporte)
+    container.innerHTML = `
+        <tr>
+            <td colspan="6" class="px-6 py-24 text-center">
+                <div class="flex flex-col justify-center items-center">
+                    <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse mb-4">
+                        <i class="fas fa-users text-xl"></i>
+                    </div>
+                    <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30 font-sans">Sincronizando Clientes</span>
+                </div>
+            </td>
+        </tr>`;
+
     try {
-        // 1. Obtener lista de clientes
+        // Obtener datos base
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3688,51 +3701,50 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
-        // --- Actualización de Mapas Globales ---
         window.allClients = clients; 
         window.allClientsMap = {}; 
         clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
 
-        // 2. Obtener Resúmenes (Totales y Deudas)
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Renderizado de la tabla
         container.innerHTML = '';
 
         if (clients.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-4 py-12 text-center text-white/20 italic tracking-widest uppercase text-[10px]">No hay clientes registrados</td></tr>`;
+            container.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">No hay clientes registrados</td></tr>`;
             return;
         }
 
         clients.forEach((client, index) => {
             const summary = summaries[index];
-            const row = document.createElement('tr');
-            row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
-
             const deudaVisual = summary.deudaNeta;
             const tieneDeuda = deudaVisual > 0.01;
 
+            const row = document.createElement('tr');
+            // Clase de fila con efecto de transición del reporte
+            row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
+
+            // Celda de Acciones (Estilo Reporte con botones flotantes)
             let actionCell = '';
             if (showActions) {
                 actionCell = `
-                    <td class="px-6 py-5 whitespace-nowrap text-right">
-                        <div class="flex justify-end items-center space-x-1 opacity-30 group-hover:opacity-100 transition-all duration-300">
-                            <button type="button" class="edit-client-btn p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all" 
+                    <td class="px-8 py-5 whitespace-nowrap text-right">
+                        <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                            <button type="button" class="edit-client-btn text-white/40 hover:text-orange-500 transition-colors" 
                                     data-id="${client.client_id}" title="Editar Perfil">
-                                <i class="fas fa-edit text-xs"></i>
+                                <i class="fas fa-edit text-[15px]"></i>
                             </button>
-                            <button type="button" class="abono-btn p-2.5 text-white/60 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all" 
+                            <button type="button" class="abono-btn text-white/40 hover:text-emerald-500 transition-colors" 
                                     onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Abono">
-                                <i class="fas fa-hand-holding-usd text-xs"></i>
+                                <i class="fas fa-hand-holding-usd text-[15px]"></i>
                             </button>
-                            <button type="button" class="view-debt-btn p-2.5 text-white/60 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all" 
+                            <button type="button" class="view-debt-btn text-white/40 hover:text-blue-500 transition-colors" 
                                     data-id="${client.client_id}" title="Estado de Cuenta">
-                                <i class="fas fa-file-invoice-dollar text-xs"></i>
+                                <i class="fas fa-file-invoice-dollar text-[15px]"></i>
                             </button>
-                            <button type="button" class="delete-client-btn p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all" 
+                            <button type="button" class="delete-client-btn text-white/40 hover:text-red-500 transition-colors" 
                                     data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
-                                <i class="fas fa-trash-alt text-xs"></i>
+                                <i class="fas fa-trash-alt text-[15px]"></i>
                             </button>
                         </div>
                     </td>
@@ -3740,32 +3752,31 @@ window.loadClientsTable = async function(mode = 'gestion') {
             }
             
             row.innerHTML = `
-                <td class="px-6 py-5 whitespace-nowrap">
-                    <span class="font-mono text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded text-[10px]">#${client.client_id}</span>
-                </td>
-                <td class="px-6 py-5 whitespace-nowrap">
+                <td class="px-8 py-5 whitespace-nowrap">
                     <div class="flex items-center">
-                        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/10 text-white flex items-center justify-center font-black text-xs mr-4 group-hover:scale-110 transition-transform">
-                            ${client.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold text-white tracking-wide">${client.name}</div>
-                            <div class="text-[10px] text-white/30 flex items-center mt-1">
-                                <i class="fas fa-phone-alt mr-2 text-[8px]"></i>
-                                ${client.telefono || 'Sin teléfono'}
-                            </div>
+                        <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-colors">
+                            <span class="text-[11px] font-bold text-white leading-none font-sans uppercase">${client.name.charAt(0)}</span>
+                            <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">#${client.client_id}</span>
                         </div>
                     </div>
                 </td>
-                <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1">Total Consumo</div>
-                    <div class="text-sm font-medium text-white/70 font-mono">${formatCurrency(summary.totalVentas)}</div>
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
+                    <div class="text-[12px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">
+                        <i class="fas fa-phone-alt mr-1 text-[10px]"></i> ${client.telefono || 'Sin teléfono'}
+                    </div>
                 </td>
-                <td class="px-6 py-5 whitespace-nowrap">
-                    <div class="text-[9px] text-white/30 uppercase tracking-widest font-bold mb-1">Estado de Cuenta</div>
-                    <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'}">
-                        <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                        <span class="font-mono">${formatCurrency(deudaVisual)}</span>
+                <td class="px-8 py-5 whitespace-nowrap text-right">
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Consumo</div>
+                    <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
+                </td>
+                <td class="px-8 py-5 whitespace-nowrap text-right">
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Estado Actual</div>
+                    <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
+                        <span class="flex items-center font-bold font-sans text-[14px]">
+                            <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                            ${formatCurrency(deudaVisual)}
+                        </span>
                     </div>
                 </td>
                 ${actionCell} 
@@ -3773,27 +3784,20 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // --- 4. Re-vincular eventos con protección contra ID NULL ---
+        // Re-vinculación de eventos (usando currentTarget para evitar IDs nulos)
         if (showActions) {
-            // Botones de Editar
             container.querySelectorAll('.edit-client-btn').forEach(btn => {
                 btn.onclick = (e) => {
                     const id = e.currentTarget.getAttribute('data-id');
-                    console.log("Editando cliente ID:", id); // Debug
                     if (id) window.handleEditClientClick(id);
                 };
             });
-
-            // Botones de Estado de Cuenta (Deuda)
             container.querySelectorAll('.view-debt-btn').forEach(btn => {
                 btn.onclick = (e) => {
                     const id = e.currentTarget.getAttribute('data-id');
-                    console.log("Viendo deuda ID:", id); // Debug
                     if (id) window.handleViewClientDebt(id);
                 };
             });
-
-            // Botones de Eliminar
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
                 btn.onclick = (e) => {
                     const id = e.currentTarget.getAttribute('data-id');
@@ -3804,7 +3808,8 @@ window.loadClientsTable = async function(mode = 'gestion') {
         }
 
     } catch (e) {
-        console.error('Error al cargar tabla de clientes:', e);
+        console.error('Error:', e);
+        container.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización con la base de datos</td></tr>';
     }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
