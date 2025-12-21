@@ -133,9 +133,15 @@ function getMonthDateRange(monthString) {
 window.openModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) {
+        // 1. Quitamos hidden y ponemos flex
         modal.classList.remove('hidden');
-        modal.classList.add('flex'); // El CSS ahora detecta .flex para mostrarlo
+        modal.classList.add('flex');
+        
+        // 2. EL TRUCO: Forzar un reflow (esto arregla el error invisible)
+        void modal.offsetWidth; 
+        
         document.body.style.overflow = 'hidden';
+        console.log(`✅ Modal ${id} activado y renderizado.`);
     }
 };
 

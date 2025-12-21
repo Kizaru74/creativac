@@ -1,24 +1,24 @@
-/* style.css - Creativa Cortes CNC (DARK PREMIUM EDITION) */
+/* style.css - Creativa Cortes CNC (MAQUETACIÓN PREMIUM FINAL) */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- 1. FONDO BASE Y TIPOGRAFÍA --- */
+/* --- 1. CONFIGURACIÓN BASE DARK --- */
 body {
-    background-color: #0a0a0a !important; /* Negro profundo para el fondo */
-    color: #f3f4f6 !important;
-    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    background-color: #0a0a0a !important; /* Negro profundo */
+    color: #e5e7eb !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* --- 2. MODALES: EL EFECTO "GLASS" PREMIUM --- */
+/* --- 2. MODALES: EL EFECTO CRISTAL (GLASSMORPHISM) --- */
 .modal-overlay {
     position: fixed !important;
     inset: 0 !important;
     z-index: 9999 !important;
-    background-color: rgba(0, 0, 0, 0.7) !important;
-    backdrop-filter: blur(12px) saturate(150%); /* Desenfoque de cristal */
-    display: none;
+    background-color: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: blur(12px) saturate(160%) !important; /* Efecto Apple */
+    display: none; 
 }
 
 .modal-overlay.flex {
@@ -27,92 +27,99 @@ body {
     justify-content: center;
 }
 
-/* El cuadro del modal con borde brillante */
+/* El cuadro del modal con diseño premium */
 .modal-content {
-    background: rgba(23, 23, 23, 0.95) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Brillo en el borde */
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6), 0 0 2px rgba(255, 255, 255, 0.05) inset;
-    border-radius: 28px !important;
+    background: rgba(25, 25, 25, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 
+                inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+    border-radius: 2.5rem !important; /* Bordes muy redondeados */
     padding: 2.5rem !important;
     max-width: 95vw;
     max-height: 90vh;
     overflow-y: auto;
+    position: relative;
 }
 
-/* --- 3. BOTONES DE ACCIÓN (EFECTO VIDRIO) --- */
+/* --- 3. BOTONES DE ACCIÓN (DISEÑO Sutil y Elegante) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
-    width: 40px !important;
-    height: 40px !important;
+    width: 42px !important;
+    height: 42px !important;
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    border-radius: 12px !important;
-    background: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    color: #e5e7eb !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #f97316 !important; /* Naranja corporativo */
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-action-report:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(249, 115, 22, 0.1) !important;
+    border-color: rgba(249, 115, 22, 0.3) !important;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-/* --- 4. AISLAMIENTO PARA EL TPV (ELIMINAR RECUADROS) --- */
-/* Esto mantiene la limpieza que querías en la Nueva Venta */
+/* --- 4. SECCIÓN TPV: LIMPIEZA TOTAL SIN RECUADROS --- */
+/* Esto mantiene la estética de "cobro limpio" que pediste */
 #new-sale-modal .text-red-500, 
 #new-sale-modal .text-green-500,
 #new-sale-modal .text-emerald-500,
-#new-sale-modal input {
-    background: transparent !important;
+#new-sale-modal input,
+#new-sale-modal select {
+    background-color: transparent !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
 }
 
-/* --- 5. ESTADOS DE PAGO (DISEÑO CAPSULA) --- */
+/* --- 5. TABLAS DE DATOS (REPORTES Y ABONOS) --- */
+/* Recuperamos el diseño de las filas para que no se vea plano */
+#sales-table-body tr, 
+#lista-notas-pendientes tr, 
+#historial-abonos-cliente tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    transition: background 0.2s;
+}
+
+#sales-table-body tr:hover, 
+#lista-notas-pendientes tr:hover {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+td {
+    padding: 1.25rem 1rem !important;
+    color: #d1d5db !important;
+}
+
+/* --- 6. BADGES DE ESTADO (DISEÑO CÁPSULA) --- */
 .glass-badge-success {
     background: rgba(16, 185, 129, 0.1) !important;
     color: #34d399 !important;
     border: 1px solid rgba(16, 185, 129, 0.2) !important;
-    padding: 6px 14px;
-    border-radius: 100px;
-    font-size: 0.7rem;
-    font-weight: 700;
+    padding: 5px 14px !important;
+    border-radius: 9999px !important;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 .glass-badge-danger {
     background: rgba(239, 68, 68, 0.1) !important;
     color: #f87171 !important;
     border: 1px solid rgba(239, 68, 68, 0.2) !important;
-    padding: 6px 14px;
-    border-radius: 100px;
-    font-size: 0.7rem;
-    font-weight: 700;
+    padding: 5px 14px !important;
+    border-radius: 9999px !important;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
-/* --- 6. TABLAS E INTERFACES --- */
-td {
-    padding: 1rem !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
-    color: #d1d5db !important;
-}
-
-tr:hover td {
-    background: rgba(255, 255, 255, 0.01) !important;
-}
-
-/* Ocultar scrollbars feos */
-.modal-content::-webkit-scrollbar {
-    width: 6px;
-}
-.modal-content::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+/* --- 7. SCROLLBAR ESTILO DARK --- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+    background: rgba(255, 255, 255, 0.1); 
+    border-radius: 10px; 
 }
