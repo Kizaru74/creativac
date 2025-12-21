@@ -2152,18 +2152,20 @@ window.handleViewSaleDetails = async function(venta_id) {
             elCliente.textContent = c ? c.name : 'Cliente General';
         }
 
-        // 2. FECHA (Corrección de zona horaria)
+        // 2. FECHA (CORREGIDA: Evita "Invalid Date")
         const elFecha = document.getElementById('detail-sale-date');
-        if (elFecha) {
-            // Usamos split('T')[0] y reemplazamos guiones para evitar el desfase de un día
-            const fechaObjeto = new Date(venta.created_at.replace(/-/g, '\/')); 
-            const fechaFormateada = fechaObjeto.toLocaleDateString();
+        if (elFecha && venta.created_at) {
+            // Extraemos solo YYYY-MM-DD y cambiamos guiones por barras para evitar desfase
+            const datePart = venta.created_at.split('T')[0].replace(/-/g, '/');
+            const fechaFormateada = new Date(datePart).toLocaleDateString();
 
             elFecha.innerHTML = `
-                ${fechaFormateada}
-                <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="ml-2 text-orange-500 hover:text-white transition-colors">
-                    <i class="fas fa-calendar-alt" style="font-size: 12px;"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <span>${fechaFormateada}</span>
+                    <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="text-orange-500 hover:text-orange-400 transition-colors">
+                        <i class="fas fa-calendar-alt text-[10px]"></i>
+                    </button>
+                </div>
             `;
         }
 
@@ -2179,22 +2181,27 @@ window.handleViewSaleDetails = async function(venta_id) {
             `;
         }
 
-        // 4. COMENTARIO / DESCRIPCIÓN (Añadida edición)
+        // 4. COMENTARIO / DESCRIPCIÓN (CORREGIDA: Diseño compacto)
         const elDesc = document.getElementById('detail-sale-description');
         if (elDesc) {
             const descTxt = venta.description || 'Sin notas adicionales';
+            const escapedDesc = descTxt.replace(/'/g, "\\'"); // Evita errores de comillas
+            
             elDesc.innerHTML = `
-                <div class="flex justify-between items-start group">
-                    <span>${descTxt}</span>
-                    <button onclick="window.editSaleDescription(${venta.venta_id}, '${descTxt.replace(/'/g, "\\'")}')" class="text-orange-500 opacity-50 group-hover:opacity-100 transition-all ml-2">
-                        <i class="fas fa-pen" style="font-size: 10px;"></i> Editar Nota
-                    </button>
+                <div class="flex flex-col gap-1 w-full">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-1 mb-1">
+                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Notas del Sistema:</span>
+                        <button onclick="window.editSaleDescription(${venta.venta_id}, '${escapedDesc}')" class="text-[9px] text-orange-500 font-bold hover:underline">
+                            <i class="fas fa-pen mr-1"></i>EDITAR
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-300 italic leading-tight">"${descTxt}"</p>
                 </div>
             `;
         }
 
-        // ... (Resto del código de tablas y resumen igual que antes)
-        // [Tabla de productos, totales e historial de abonos]
+        // --- (Aquí va tu código de tablas de productos y abonos que ya tienes) ---
+        // ... (No lo incluyo para no alargar el mensaje, pero mantenlo igual)
         
         window.openModal('modal-detail-sale');
 
@@ -2203,38 +2210,24 @@ window.handleViewSaleDetails = async function(venta_id) {
     }
 };
 // --- FUNCIÓN PARA CAMBIAR LA FECHA ---
+// CORRECCIÓN FECHA: Función global para editar fecha
 window.editSaleDate = async function(venta_id, fechaActual) {
-    // Extraemos solo la parte de la fecha (YYYY-MM-DD) para el input
     const fechaBase = fechaActual.split('T')[0];
-    const nuevaFecha = prompt("Cambiar fecha de venta (AAAA-MM-DD):", fechaBase);
+    const nuevaFecha = prompt("Cambiar fecha (AAAA-MM-DD):", fechaBase);
     
     if (nuevaFecha && nuevaFecha !== fechaBase) {
         try {
-            // Añadimos una hora fija (ej. mediodía) para evitar que por zona horaria 
-            // el sistema lo regrese al día anterior al guardar
-            const fechaParaGuardar = `${nuevaFecha}T12:00:00`;
-
+            // Usamos mediodía para evitar desfases de zona horaria
             const { error } = await supabase
                 .from('ventas')
-                .update({ created_at: fechaParaGuardar })
+                .update({ created_at: `${nuevaFecha}T12:00:00` })
                 .eq('venta_id', venta_id);
 
             if (error) throw error;
-
-            alert("✅ Fecha actualizada correctamente.");
-
-            // REFRESCO TOTAL DE REPORTES
-            await Promise.all([
-                window.handleViewSaleDetails(venta_id), // Refresca el modal actual
-                typeof loadDashboardData === 'function' ? loadDashboardData() : null,
-                typeof loadSales === 'function' ? loadSales() : null,
-                // Si tienes una función específica para reportes mensuales:
-                typeof loadMonthlyReports === 'function' ? loadMonthlyReports() : null
-            ]);
-
+            alert("✅ Fecha actualizada.");
+            if (window.handleViewSaleDetails) window.handleViewSaleDetails(venta_id);
         } catch (err) {
-            console.error(err);
-            alert("Error al actualizar la fecha: " + err.message);
+            alert("Error: " + err.message);
         }
     }
 };
@@ -2274,6 +2267,29 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
 };
 //imprimir pdf de detalles de la venta
 // Generar PDF y Vista Previa de la venta
+window.editSaleDescription = async function(venta_id, descActual) {
+    // Limpiamos el texto por si viene con el placeholder de "Sin notas"
+    const valorInicial = (descActual === 'Sin notas adicionales') ? '' : descActual;
+    const nuevaDesc = prompt("Editar comentarios de la venta:", valorInicial);
+    
+    if (nuevaDesc !== null) {
+        try {
+            const { error } = await supabase
+                .from('ventas')
+                .update({ description: nuevaDesc.trim() })
+                .eq('venta_id', venta_id);
+
+            if (error) throw error;
+
+            alert("✅ Comentario actualizado.");
+            // Refrescar el modal de detalles
+            if (window.handleViewSaleDetails) window.handleViewSaleDetails(venta_id);
+        } catch (err) {
+            alert("Error: " + err.message);
+        }
+    }
+};
+
 window.generarPDFVenta = function() {
     const venta = window.currentSaleForPrint;
     if (!venta) return alert("No hay datos para generar el PDF");
