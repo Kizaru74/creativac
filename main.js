@@ -1816,33 +1816,25 @@ window.handleViewClientDebt = async function(clientId) {
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
         
-        // 2. Combinar movimientos con DESEMPATE (Venta primero que Abono)
+        // 2. Combinar movimientos con DESEMPATE (Venta primero, Abono después)
         const movimientos = [
             ...salesRes.data.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at), prioridad: 1 })),
             ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at), prioridad: 2 }))
         ].sort((a, b) => {
-            // Comparar por tiempo (milisegundos)
-            if (a.fecha.getTime() !== b.fecha.getTime()) {
-                return a.fecha - b.fecha;
-            }
-            // Si el tiempo es idéntico, la prioridad 1 (VENTA) va antes que la 2 (ABONO)
+            if (a.fecha.getTime() !== b.fecha.getTime()) return a.fecha - b.fecha;
             return a.prioridad - b.prioridad;
         });
 
-        // 3. Calcular Deuda Total Actual (Suma de saldos pendientes de ventas)
-        const totalDebt = salesRes.data.reduce((acc, s) => acc + (parseFloat(s.saldo_pendiente) || 0), 0);
-
-        // 4. Preparar Datos para PDF y Renderizado
-        let saldoAcumulado = 0;
+        // 3. CÁLCULO DE SALDO ACUMULADO PASO A PASO (Garantiza coherencia)
+        let saldoCorriente = 0;
         const transaccionesHTMLParaPDF = movimientos.map(mov => {
             const esVenta = mov.tipo === 'VENTA';
             const monto = esVenta ? parseFloat(mov.total_amount) : parseFloat(mov.amount);
             
-            // Cálculo del saldo acumulado con precisión de 2 decimales
             if (esVenta) {
-                saldoAcumulado = parseFloat((saldoAcumulado + monto).toFixed(2));
+                saldoCorriente = parseFloat((saldoCorriente + monto).toFixed(2));
             } else {
-                saldoAcumulado = parseFloat((saldoAcumulado - monto).toFixed(2));
+                saldoCorriente = parseFloat((saldoCorriente - monto).toFixed(2));
             }
 
             return `
@@ -1856,20 +1848,20 @@ window.handleViewClientDebt = async function(clientId) {
                         ${esVenta ? '+' : '-'} ${formatCurrency(monto)}
                     </td>
                     <td class="text-right" style="background: #f9f9f9;">
-                        <strong>${formatCurrency(saldoAcumulado)}</strong>
+                        <strong>${formatCurrency(saldoCorriente)}</strong>
                     </td>
                 </tr>
             `;
         }).join('');
 
-        // Guardar para la función generarPDFEstadoCuenta
+        // 4. GUARDAR DATOS (Usamos saldoCorriente como el Total Final)
         window.currentClientDataForPrint = {
             nombre: clientName,
-            totalDeuda: totalDebt,
+            totalDeuda: saldoCorriente, // Ahora el total coincide con el historial
             transaccionesHTML: transaccionesHTMLParaPDF
         };
 
-        // 5. Renderizar en la tabla del Modal (Interfaz de la aplicación)
+        // 5. RENDERIZAR EN LA TABLA DEL MODAL (Interfaz de la aplicación)
         const tbody = document.getElementById('client-transactions-body');
         if (tbody) {
             tbody.innerHTML = '';
@@ -1884,7 +1876,7 @@ window.handleViewClientDebt = async function(clientId) {
                             <div class="text-xs font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
                                 ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
                             </div>
-                            <div class="text-[9px] text-gray-500 uppercase">${mov.description || (esVenta ? 'Venta de productos' : 'Pago a cuenta')}</div>
+                            <div class="text-[9px] text-gray-500 uppercase">${mov.description || ''}</div>
                         </td>
                         <td class="px-6 py-4 text-right text-xs font-mono">
                             ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.total_amount)}</span>` : ''}
@@ -1897,25 +1889,25 @@ window.handleViewClientDebt = async function(clientId) {
             });
         }
 
-        // 6. Actualizar UI del Modal
+        // 6. ACTUALIZAR UI DEL MODAL CON EL SALDO CALCULADO
         const uiName = document.getElementById('client-report-name');
         const uiDebt = document.getElementById('client-report-total-debt');
         if (uiName) uiName.textContent = clientName;
-        if (uiDebt) uiDebt.textContent = formatCurrency(totalDebt);
+        if (uiDebt) uiDebt.textContent = formatCurrency(saldoCorriente); // Sincronizado
 
-        // Actualizar datos del botón de abono
+        // Vincular datos al botón para abrir el modal de abono
         const btnAbono = document.querySelector('button[onclick="prepararAbonoDesdeReporte()"]');
         if (btnAbono) {
             btnAbono.dataset.clientId = clientId;
             btnAbono.dataset.clientName = clientName;
-            btnAbono.dataset.currentDebt = totalDebt;
+            btnAbono.dataset.currentDebt = saldoCorriente; // Pasamos el saldo real calculado
         }
 
         openModal('modal-client-debt-report');
 
     } catch (err) {
-        console.error("❌ Error en reporte detallado:", err);
-        alert("No se pudo cargar el estado de cuenta.");
+        console.error("❌ Error en reporte:", err);
+        alert("No se pudo sincronizar el estado de cuenta.");
     }
 };
 
