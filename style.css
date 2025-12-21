@@ -214,3 +214,31 @@ input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
+
+/* --- LIMPIEZA TOTAL DE RECUADROS EN MODALES --- */
+#new-sale-modal .text-red-500, 
+#new-sale-modal .text-green-500,
+#new-sale-modal .text-emerald-500,
+#new-sale-modal .bg-emerald-500\/10,
+#new-sale-modal .bg-red-500\/10 {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Limpiar específicamente los inputs de la tabla y totales */
+#sale-items-table-body td, 
+#total-amount, 
+#paid-amount, 
+#display-saldo-pendiente {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+/* Quitar el recuadro gris de los iconos de eliminar en la tabla */
+#sale-items-table-body button {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
