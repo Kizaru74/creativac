@@ -1,25 +1,26 @@
+/* style.css - Creativa Cortes CNC (SOLUCIÓN TOTAL) */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- 1. BASE --- */
-body {
-    background-color: #0a0a0a !important;
+/* --- 1. CONFIGURACIÓN BASE DARK --- */
+body, #main-content {
     color: #ffffff !important;
+    background-color: #0a0a0a !important; /* Negro más profundo */
 }
 
-/* --- 2. MODALES (FIX DEFINITIVO) --- */
-/* Eliminamos el 'display: flex' global que causaba el desorden al inicio */
+/* --- 2. MODALES (ELIMINAR ERROR DE MOSTRAR AL INICIO) --- */
 .modal-overlay {
     position: fixed !important;
     inset: 0 !important;
     z-index: 9999 !important;
     background-color: rgba(0, 0, 0, 0.8) !important;
     backdrop-filter: blur(12px);
-    display: none; /* Importante: por defecto oculto sin !important */
+    display: none; /* ESTO evita que se vean al inicio */
 }
 
-/* Esta es la única clase que debe mostrar el modal */
+/* Solo se muestran cuando el JS les pone la clase 'flex' */
 .modal-overlay.flex {
     display: flex !important;
 }
@@ -27,36 +28,25 @@ body {
 .modal-content {
     background: #161616 !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
     border-radius: 2rem !important;
-    padding: 2.5rem !important;
-    margin: auto; /* Centrado extra */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
 }
 
 /* --- 3. MENÚ LATERAL (INDICADOR RECUPERADO) --- */
-/* Buscamos las clases que usa tu HTML para el estado activo */
-.bg-orange-500\/10 {
+/* Esta regla asegura que el botón activo se vea naranja */
+.nav-item-active, 
+nav a[class*="bg-orange-500/10"] {
     background-color: rgba(249, 115, 22, 0.15) !important;
     color: #f97316 !important;
     border-right: 3px solid #f97316 !important;
 }
 
-/* Asegura que el icono naranja brille */
-.nav-item-active i, .text-orange-500 {
-    color: #f97316 !important;
+/* --- 4. TABLAS Y BOTONES --- */
+tbody tr td {
+    color: #e5e7eb !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
-/* --- 4. AISLAMIENTO TPV (NUEVA VENTA) --- */
-#new-sale-modal .text-red-500, 
-#new-sale-modal .text-emerald-500,
-#new-sale-modal input,
-#new-sale-modal #total-amount {
-    background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* --- 5. BOTONES DE ACCIÓN --- */
 .btn-action-report, .abono-btn, .edit-client-btn, .delete-client-btn, .view-debt-btn {
     background: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -67,6 +57,15 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 10px !important;
+}
+
+/* --- 5. AISLAMIENTO TPV (NUEVA VENTA) --- */
+#new-sale-modal input, 
+#new-sale-modal #total-amount,
+#new-sale-modal #paid-amount {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .btn-action-report:hover {

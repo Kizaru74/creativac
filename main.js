@@ -133,18 +133,15 @@ function getMonthDateRange(monthString) {
 window.openModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) {
-        // 1. Limpieza de clases de Tailwind que puedan estorbar
         modal.classList.remove('hidden');
+        modal.classList.add('flex'); // Activa la regla del CSS
+        modal.style.display = 'flex'; // Refuerzo para que sea visible sí o sí
         
-        // 2. Aplicar el estado visual
-        modal.classList.add('flex');
-        modal.style.display = 'flex'; // Refuerzo directo
-        
-        // 3. Forzar al navegador a dibujar (Reflow)
+        // Forzar renderizado visual
         void modal.offsetWidth;
         
         document.body.style.overflow = 'hidden';
-        console.log(`✅ Modal ${id} renderizado visualmente.`);
+        console.log(`✅ Renderizado visual de: ${id}`);
     }
 };
 
