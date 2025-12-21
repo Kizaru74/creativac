@@ -460,7 +460,6 @@ window.loadDebts = async function() {
         tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-red-500 font-bold uppercase text-[10px]">Error al sincronizar datos</td></tr>';
     }
 };
-
 // Vinculamos para que el HTML la encuentre
 window.loadDebtsTable = loadDebts;
 
@@ -1797,15 +1796,44 @@ window.loadDashboardMetrics = async function() {
     }
 }
 
-/**
- * ESTADO DE CUENTA: CARGA DE DATOS, RENDERIZADO Y PREPARACIÓN DE IMPRESIÓN
- * Esta función unifica tu lógica original con el sistema de reporte.
- */
+// 1. FUNCIÓN DE APOYO: Sincroniza la DB con el historial real
+window.repararSaldoCliente = async function(clientId) {
+    try {
+        const { data: ventas } = await supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true });
+        const { data: pagos } = await supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true });
+
+        if (!ventas || !pagos) return;
+
+        let bolsaDinero = pagos.reduce((acc, p) => acc + parseFloat(p.amount), 0);
+        
+        for (let venta of ventas) {
+            let totalVenta = parseFloat(venta.total_amount);
+            let nuevoSaldo = totalVenta;
+
+            if (bolsaDinero > 0) {
+                if (bolsaDinero >= totalVenta) {
+                    nuevoSaldo = 0;
+                    bolsaDinero -= totalVenta;
+                } else {
+                    nuevoSaldo = parseFloat((totalVenta - bolsaDinero).toFixed(2));
+                    bolsaDinero = 0;
+                }
+            }
+            
+            // Actualización física en Supabase
+            await supabase.from('ventas').update({ saldo_pendiente: nuevoSaldo }).eq('venta_id', venta.venta_id);
+        }
+        console.log(`✅ Base de datos sincronizada para cliente ${clientId}`);
+    } catch (err) {
+        console.error("Error en reparación:", err);
+    }
+};
+
+// 2. FUNCIÓN PRINCIPAL: Reporte con Auditoría Automática
 window.handleViewClientDebt = async function(clientId) {
     if (!supabase) return;
 
     try {
-        // 1. Consultar VENTAS, PAGOS y CLIENTE en paralelo
         const [salesRes, paymentsRes, clientRes] = await Promise.all([
             supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
             supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
@@ -1816,7 +1844,6 @@ window.handleViewClientDebt = async function(clientId) {
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
         
-        // 2. Combinar movimientos con DESEMPATE (Venta primero, Abono después)
         const movimientos = [
             ...salesRes.data.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at), prioridad: 1 })),
             ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at), prioridad: 2 }))
@@ -1825,24 +1852,20 @@ window.handleViewClientDebt = async function(clientId) {
             return a.prioridad - b.prioridad;
         });
 
-        // 3. CÁLCULO DE SALDO ACUMULADO PASO A PASO (Garantiza coherencia)
+        // CÁLCULO DE SALDO REAL (Origen de la verdad)
         let saldoCorriente = 0;
         const transaccionesHTMLParaPDF = movimientos.map(mov => {
             const esVenta = mov.tipo === 'VENTA';
             const monto = esVenta ? parseFloat(mov.total_amount) : parseFloat(mov.amount);
-            
-            if (esVenta) {
-                saldoCorriente = parseFloat((saldoCorriente + monto).toFixed(2));
-            } else {
-                saldoCorriente = parseFloat((saldoCorriente - monto).toFixed(2));
-            }
+            if (esVenta) saldoCorriente = parseFloat((saldoCorriente + monto).toFixed(2));
+            else saldoCorriente = parseFloat((saldoCorriente - monto).toFixed(2));
 
             return `
                 <tr>
                     <td style="font-size: 10px;">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td>
                         <strong>${esVenta ? 'VENTA #' + (mov.venta_id || 'S/N') : 'ABONO RECIBIDO'}</strong><br>
-                        <small style="color:#666">${mov.description || (esVenta ? 'Venta de productos' : 'Pago a cuenta')}</small>
+                        <small style="color:#666">${mov.description || ''}</small>
                     </td>
                     <td class="text-right ${esVenta ? 'text-red' : 'text-green'}">
                         ${esVenta ? '+' : '-'} ${formatCurrency(monto)}
@@ -1850,28 +1873,33 @@ window.handleViewClientDebt = async function(clientId) {
                     <td class="text-right" style="background: #f9f9f9;">
                         <strong>${formatCurrency(saldoCorriente)}</strong>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         }).join('');
 
-        // 4. GUARDAR DATOS (Usamos saldoCorriente como el Total Final)
+        // AUDITORÍA: Si lo que dice la DB (92) es distinto al historial (78), reparamos
+        const saldoDB = salesRes.data.reduce((acc, s) => acc + (parseFloat(s.saldo_pendiente) || 0), 0);
+        if (Math.abs(saldoDB - saldoCorriente) > 0.01) {
+            console.warn("⚠️ Desajuste detectado. Corrigiendo saldos en la nube...");
+            await window.repararSaldoCliente(clientId);
+            // Refrescamos la tabla principal de deudas al fondo
+            if (typeof window.loadDebts === 'function') window.loadDebts();
+        }
+
+        // GUARDAR DATOS PARA EL PDF
         window.currentClientDataForPrint = {
             nombre: clientName,
-            totalDeuda: saldoCorriente, // Ahora el total coincide con el historial
+            totalDeuda: saldoCorriente,
             transaccionesHTML: transaccionesHTMLParaPDF
         };
 
-        // 5. RENDERIZAR EN LA TABLA DEL MODAL (Interfaz de la aplicación)
+        // RENDERIZAR EN EL MODAL
         const tbody = document.getElementById('client-transactions-body');
         if (tbody) {
-            tbody.innerHTML = '';
-            movimientos.forEach(mov => {
+            tbody.innerHTML = movimientos.map(mov => {
                 const esVenta = mov.tipo === 'VENTA';
-                const fechaTxt = mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'});
-                
-                tbody.insertAdjacentHTML('beforeend', `
+                return `
                     <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td class="px-6 py-4 text-[10px] text-white/40 italic">${fechaTxt}</td>
+                        <td class="px-6 py-4 text-[10px] text-white/40 italic">${mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}</td>
                         <td class="px-6 py-4">
                             <div class="text-xs font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
                                 ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
@@ -1884,36 +1912,27 @@ window.handleViewClientDebt = async function(clientId) {
                         <td class="px-6 py-4 text-right text-xs font-mono">
                             ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.amount)}</span>` : ''}
                         </td>
-                    </tr>
-                `);
-            });
+                    </tr>`;
+            }).join('');
         }
 
-        // 6. ACTUALIZAR UI DEL MODAL CON EL SALDO CALCULADO
-        const uiName = document.getElementById('client-report-name');
-        const uiDebt = document.getElementById('client-report-total-debt');
-        if (uiName) uiName.textContent = clientName;
-        if (uiDebt) uiDebt.textContent = formatCurrency(saldoCorriente); // Sincronizado
+        document.getElementById('client-report-name').textContent = clientName;
+        document.getElementById('client-report-total-debt').textContent = formatCurrency(saldoCorriente);
 
-        // Vincular datos al botón para abrir el modal de abono
         const btnAbono = document.querySelector('button[onclick="prepararAbonoDesdeReporte()"]');
         if (btnAbono) {
             btnAbono.dataset.clientId = clientId;
             btnAbono.dataset.clientName = clientName;
-            btnAbono.dataset.currentDebt = saldoCorriente; // Pasamos el saldo real calculado
+            btnAbono.dataset.currentDebt = saldoCorriente;
         }
 
         openModal('modal-client-debt-report');
 
     } catch (err) {
-        console.error("❌ Error en reporte:", err);
-        alert("No se pudo sincronizar el estado de cuenta.");
+        console.error("❌ Error:", err);
     }
 };
 
-/**
- * FUNCIÓN PARA LANZAR EL MODAL DE ABONO DESDE EL REPORTE
- */
 window.prepararAbonoDesdeReporte = function() {
     // 1. Buscar el botón que tiene los datos guardados
     const btn = document.querySelector('#modal-client-debt-report button[onclick="prepararAbonoDesdeReporte()"]');
