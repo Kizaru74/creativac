@@ -1,0 +1,258 @@
+ /* style.css - Creativa Cortes CNC (VERSIÓN FINAL COMPLETA) */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- 1. CONFIGURACIÓN BASE DARK --- */
+
+body, #main-content, .modal-overlay {
+    color: #ffffff !important;
+    background-color: #121212 !important;
+}
+
+/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
+tbody tr td,
+.text-slate-800, .text-slate-700, .text-gray-800, .text-gray-900,
+.text-slate-500, .text-gray-500, .text-gray-400 {
+    color: #ffffff !important;
+}
+
+.text-slate-400, .text-gray-400, .text-white\/60 {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+tbody tr {
+    transition: background-color 0.2s ease;
+    background-color: transparent !important;
+}
+
+tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* --- 3. BADGES DE IDENTIFICACIÓN (ESTILO SANS PREMIUM) --- */
+.badge-id-orange {
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+    font-weight: 800 !important;
+    font-size: 10px !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    background: rgba(249, 115, 22, 0.1) !important;
+    color: #f97316 !important;
+    border: 1px solid rgba(249, 115, 22, 0.2) !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
+    display: inline-block;
+}
+
+/* --- 4. ESTADOS DE DEUDA Y PAGOS --- */
+.bg-red-50, .bg-red-500\/10, .text-red-600 {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    color: #ef4444 !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+
+.bg-emerald-50, .bg-emerald-500\/10, .text-green-600  {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
+}
+
+
+/* --- 5. BOTONES Y SPINNERS (CORREGIDO) --- */
+
+.btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    transition: all 0.2s !important;
+    position: relative;
+}
+
+/* Ocultar el spinner por defecto */
+.btn-spinner {
+    display: none !important;
+}
+
+/* Cuando el botón tiene la clase 'loading' */
+.loading .btn-spinner {
+    display: inline-block !important; /* Muestra el spinner */
+}
+
+.loading i:not(.btn-spinner) {
+    display: none !important; /* Oculta el icono normal (lupa, basura, etc) */
+}
+
+/* --- 6. ESTILO VIDRIO PREMIUM (GLASSMORPHISM) --- */
+.glass-badge {
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 9999px !important;
+    padding: 6px 16px !important;
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 130px;
+    transition: all 0.3s ease;
+}
+
+.glass-badge-success {
+    background: rgba(16, 185, 129, 0.1) !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
+    backdrop-filter: blur(4px);
+    border-radius: 12px;
+    padding: 4px 12px;
+}
+
+.glass-badge-danger {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+    backdrop-filter: blur(4px);
+    border-radius: 12px;
+    padding: 4px 12px;
+}
+
+
+/* Limpieza de recuadros internos en badges de vidrio */
+.glass-badge .text-red-500,
+.glass-badge .text-emerald-500,
+.glass-badge .bg-red-500\/10,
+.glass-badge .bg-emerald-500\/10 {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+/* --- 7. MEJORAS DE CONTROL DE DEUDAS --- */
+.saldo-pendiente-highlight {
+    background-color: rgba(239, 68, 68, 0.05) !important;
+    position: relative;
+    border-left: 2px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+tbody tr:hover .saldo-pendiente-highlight {
+    background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* --- 8. ESPECÍFICOS DE PRODUCTOS --- */
+#products-list-body .bg-indigo-50,
+#products-list-body .bg-amber-50 {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #f97316 !important;
+}
+
+/* Reset de botones en tablas para evitar el 'cuadro' de fondo */
+tbody button {
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Efecto hover suave y moderno */
+
+tbody button:hover {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-1px);
+}
+
+
+/* Botón Estilo Glass para Deudas */
+.btn-glass-debt {
+    background: rgba(239, 68, 68, 0.1); /* Rojo tenue */
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), inset 0 0 10px rgba(239, 68, 68, 0.05);
+    transition: all 0.3s ease;
+}
+
+
+.btn-glass-debt:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.15);
+
+}
+
+/* Badge de deuda con brillo sutil */
+.debt-highlight-sans {
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.05) 100%);
+    border-left: 3px solid #ef4444;
+
+}
+
+/* Limpieza definitiva de recuadros en los totales del modal */
+#total-amount,
+#paid-amount,
+#display-saldo-pendiente {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Eliminar el fondo que Tailwind o las reglas generales aplican a estos IDs */
+input#paid-amount.bg-emerald-500\/10,
+input#display-saldo-pendiente.text-red-500 {
+    background-color: transparent !important;
+}
+
+/* Parche para limpiar los inputs de los totales */
+#total-amount, #paid-amount, #display-saldo-pendiente {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Ocultar flechas en Chrome/Safari/Edge */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+
+/* --- LIMPIEZA TOTAL DE RECUADROS EN MODALES --- */
+#new-sale-modal .text-red-500,
+#new-sale-modal .text-green-500,
+#new-sale-modal .text-emerald-500,
+#new-sale-modal .bg-emerald-500\/10,
+#new-sale-modal .bg-red-500\/10 {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+
+/* Limpiar específicamente los inputs de la tabla y totales */
+#sale-items-table-body td,
+#total-amount,
+#paid-amount,
+#display-saldo-pendiente {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+/* Quitar el recuadro gris de los iconos de eliminar en la tabla */
+#sale-items-table-body button {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+} 
