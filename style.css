@@ -42,19 +42,6 @@ tbody tr:hover {
     border-radius: 4px !important;
 }
 
-/* --- 4. ESTADOS DE DEUDA Y PAGOS --- */
-.bg-red-50, .bg-red-500\/10, .text-red-600 { 
-    background-color: rgba(239, 68, 68, 0.1) !important; 
-    color: #ef4444 !important; 
-    border: 1px solid rgba(239, 68, 68, 0.2) !important;
-}
-
-.bg-emerald-50, .bg-emerald-500\/10, .text-green-600  { 
-    background-color: rgba(16, 185, 129, 0.1) !important; 
-    color: #10b981 !important; 
-    border: 1px solid rgba(16, 185, 129, 0.2) !important;
-}
-
 /* --- 5. BOTONES Y SPINNERS (CORREGIDO) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
     width: 32px;
