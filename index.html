@@ -819,23 +819,25 @@
     </div>
 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                    <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
-                        <label for="client-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 font-sans">Asignar Cliente</label>
-                        <select id="client-select" required class="w-full bg-transparent border-none text-white font-bold outline-none focus:ring-0"></select>
-                    </div>
-                    <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
-                        <label for="payment-method" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 font-sans">Método de Pago</label>
-                        <select id="payment-method" required class="w-full bg-transparent border-none text-orange-500 font-bold outline-none focus:ring-0">
-                            <option value="Efectivo" class="bg-[#1c1c1c]">Efectivo</option>
-                            <option value="Tarjeta" class="bg-[#1c1c1c]">Tarjeta</option>
-                            <option value="Transferencia" class="bg-[#1c1c1c]">Transferencia</option>
-                            <option value="Deuda" class="bg-[#1c1c1c]">Deuda/Crédito</option>
-                        </select>
-                    </div>
-                </div>
-            </form>
-        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+    <div class="bg-black/20 p-4 rounded-2xl border border-white/5 focus-within:border-orange-500/50 transition-colors">
+        <label for="client-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 font-sans">Asignar Cliente</label>
+        <select id="client-select" required 
+                class="w-full bg-transparent border-none text-white font-bold outline-none focus:ring-0 cursor-pointer">
+            </select>
+    </div>
+
+    <div class="bg-black/20 p-4 rounded-2xl border border-white/5 focus-within:border-orange-500/50 transition-colors">
+        <label for="payment-method" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 font-sans">Método de Pago</label>
+        <select id="payment-method" required 
+                class="w-full bg-transparent border-none text-orange-500 font-bold outline-none focus:ring-0 cursor-pointer">
+            <option value="Efectivo" class="bg-[#1c1c1c] text-white">Efectivo</option>
+            <option value="Tarjeta" class="bg-[#1c1c1c] text-white">Tarjeta</option>
+            <option value="Transferencia" class="bg-[#1c1c1c] text-white">Transferencia</option>
+            <option value="Deuda" class="bg-[#1c1c1c] text-white">Deuda/Crédito</option>
+        </select>
+    </div>
+</div>
 
         <div class="flex justify-end gap-4 p-8 border-t border-white/5 bg-black/20">
             <button data-close-modal="new-sale-modal" type="button" 
