@@ -2188,19 +2188,23 @@ window.handleViewSaleDetails = async function(venta_id) {
             const descTxt = venta.description || 'Sin notas adicionales';
             const escapedDesc = descTxt.replace(/'/g, "\\'"); 
             
-            elDesc.innerHTML = `
-                <div class="bg-black/20 rounded-xl p-4 border border-white/5 mt-2">
-                    <div class="flex justify-between items-center mb-2 border-b border-white/5 pb-1">
-                        <span class="text-[10px] font-black text-orange-500 uppercase tracking-widest">Notas de la Venta</span>
-                        <button onclick="window.editSaleDescription(${venta.venta_id}, '${escapedDesc}')" class="text-[10px] text-gray-400 hover:text-orange-500 transition-colors font-bold">
-                            <i class="fas fa-pen mr-1"></i>EDITAR
-                        </button>
-                    </div>
-                    <p class="text-sm text-gray-300 italic leading-relaxed">
-                        "${descTxt}"
-                    </p>
+            // Inyectamos solo el contenido, sin cajas grandes envolventes
+        elDesc.innerHTML = `
+        <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
+            <div class="flex justify-between items-center mb-2 border-b border-white/5 pb-1">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-comment-alt text-orange-500 text-[10px]"></i>
+                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Notas de la Venta</span>
                 </div>
-            `;
+                <button onclick="window.editSaleDescription(${venta.venta_id}, '${escapedDesc}')" class="text-[10px] text-orange-500 hover:text-white transition-colors font-bold flex items-center gap-1">
+                    <i class="fas fa-pen text-[8px]"></i> EDITAR
+                </button>
+            </div>
+            <p class="text-sm text-gray-300 italic leading-snug">
+                "${descTxt}"
+            </p>
+        </div>
+         `;
         }
 
         // 4. TABLA DE PRODUCTOS
