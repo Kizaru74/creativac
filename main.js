@@ -3641,7 +3641,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
     const showActions = mode === 'gestion';
 
-    // 1. Estado de carga profesional
+    // 1. Estado de carga: ICONO NARANJA SÓLIDO (Estilo Reporte)
     container.innerHTML = `
         <tr>
             <td colspan="6" class="px-6 py-24 text-center">
@@ -3687,7 +3687,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
             const row = document.createElement('tr');
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
-            // Celda de Acciones
+            // Celda de Acciones (Estilo Reporte con botones flotantes)
             let actionCell = '';
             if (showActions) {
                 actionCell = `
@@ -3756,12 +3756,11 @@ window.loadClientsTable = async function(mode = 'gestion') {
         if (showActions) {
             const bindAction = (selector, callback) => {
                 container.querySelectorAll(selector).forEach(btn => {
-                    btn.onclick = null; // Evita acumulación de eventos
+                    btn.onclick = null; 
                     btn.onclick = (e) => {
                         e.preventDefault();
-                        e.stopImmediatePropagation(); // Evita doble disparo
+                        e.stopImmediatePropagation();
                         const id = e.currentTarget.getAttribute('data-id');
-                        // Verificamos que el ID no sea nulo ni el string "null"
                         if (id && id !== "null" && id !== "undefined") {
                             callback(id);
                         }
@@ -3773,7 +3772,6 @@ window.loadClientsTable = async function(mode = 'gestion') {
             bindAction('.view-debt-btn', window.handleViewClientDebt);
             bindAction('.abono-btn', window.handleAbonoClick);
 
-            // Botón eliminar (necesita el nombre extra)
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
                 btn.onclick = null;
                 btn.onclick = (e) => {
