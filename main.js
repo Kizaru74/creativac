@@ -3654,6 +3654,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
     const showActions = mode === 'gestion';
 
     try {
+        // 1. Obtener clientes de Supabase
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3661,11 +3662,12 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
-        // ACTUALIZACIÓN DE MAPAS (Vital para evitar el error de "no encontrado")
+        // 2. Actualización de Mapas Globales (Vital para que handleViewClientDebt encuentre al cliente)
         window.allClients = clients; 
         window.allClientsMap = {}; 
         clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
 
+        // 3. Obtener resúmenes de deuda
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
@@ -3676,6 +3678,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
             return;
         }
 
+        // 4. Renderizado de filas
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
@@ -3692,7 +3695,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
                             <button type="button" class="edit-client-btn text-white/50 hover:text-orange-500" data-id="${client.client_id}" title="Editar Cliente">
                                 <i class="fas fa-user-edit text-[13px]"></i>
                             </button>
-                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" onclick="window.handleAbonoClick(${client.client_id})" title="Agregar Abono">
+                            <button type="button" class="abono-btn text-white/50 hover:text-emerald-500" data-id="${client.client_id}" title="Agregar Abono">
                                 <i class="fas fa-file-invoice-dollar text-[13px]"></i>
                             </button>
                             <button type="button" class="view-debt-btn text-white/50 hover:text-blue-500" data-id="${client.client_id}" title="Ver Historial">
@@ -3744,34 +3747,39 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // RE-VINCULACIÓN DE EVENTOS (Aquí se asegura que el ID no sea null)
+        // 5. VINCULACIÓN DE EVENTOS MEDIANTE DELEGACIÓN (Solución al error de apertura)
         if (showActions) {
-    container.querySelectorAll('.edit-client-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            e.stopPropagation(); // 🛑 Evita que se disparen otros listeners
-            const id = btn.getAttribute('data-id');
-            if (id) window.handleEditClientClick(id);
-        };
-    });
+            const setupButton = (selector, handler) => {
+                container.querySelectorAll(selector).forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        if (id) {
+                            // Convertimos a Number para asegurar compatibilidad con el mapa de clientes
+                            handler(Number(id));
+                        }
+                    };
+                });
+            };
 
-    container.querySelectorAll('.view-debt-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            e.stopPropagation(); // 🛑 Evita que se disparen otros listeners
-            const id = btn.getAttribute('data-id');
-            if (id) window.handleViewClientDebt(id);
-        };
-    });
+            setupButton('.edit-client-btn', window.handleEditClientClick);
+            setupButton('.view-debt-btn', window.handleViewClientDebt); // Ver Estado de Cuenta
+            setupButton('.abono-btn', window.handleAbonoClick);        // Agregar Abono
 
-    container.querySelectorAll('.delete-client-btn').forEach(btn => {
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            const name = btn.getAttribute('data-name');
-            if (id) window.handleDeleteClientClick(id, name);
-        };
-    });
-}
-    } catch (e) { console.error('Error:', e); }
+            // Especial para borrar (requiere nombre)
+            container.querySelectorAll('.delete-client-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    const name = btn.getAttribute('data-name');
+                    if (id) window.handleDeleteClientClick(Number(id), name);
+                };
+            });
+        }
+    } catch (e) { 
+        console.error('Error en loadClientsTable:', e); 
+    }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
