@@ -3066,11 +3066,12 @@ window.loadProductsTable = function() {
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Estilo Dark Premium
-        row.className = 'group hover:bg-white/[0.02] transition-all duration-300 border-b border-white/5';
+        // Estilo Dark Premium: Hover sutil y bordes finos
+        row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
         
         const formattedPrice = formatCurrency(product.price);
         
+        // Configuración de iconos y badges
         let badgeClass = '';
         let typeText = '';
         let icon = '';
@@ -3082,7 +3083,7 @@ window.loadProductsTable = function() {
                 icon = 'fa-star';
                 break;
             case 'PACKAGE':
-                badgeClass = 'glass-badge-warning';
+                badgeClass = 'glass-badge-danger';
                 typeText = 'Subproducto';
                 icon = 'fa-box-open';
                 break;
@@ -3106,12 +3107,12 @@ window.loadProductsTable = function() {
             
             <td class="px-8 py-5 whitespace-nowrap">
                 <div class="flex items-center gap-3">
-                    <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
+                    <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
                         <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
                         <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
-                        <div class="text-[10px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha Técnica</div>
+                        <div class="text-[10px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha de Producto</div>
                     </div>
                 </div>
             </td>
@@ -3131,19 +3132,19 @@ window.loadProductsTable = function() {
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap text-right">
-                <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                     <button 
                         onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/20 transition-all backdrop-blur-md"
+                        class="p-2.5 text-white/40 hover:text-orange-500 transition-colors"
                         title="Editar Producto">
-                        <i class="fas fa-edit text-xs"></i>
+                        <i class="fas fa-edit text-[15px]"></i>
                     </button>
                     
                     <button 
                         onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all backdrop-blur-md"
+                        class="p-2.5 text-white/40 hover:text-red-500 transition-colors"
                         title="Eliminar Producto">
-                        <i class="fas fa-trash-alt text-xs"></i>
+                        <i class="fas fa-trash-alt text-[15px]"></i>
                     </button>
                 </div>
             </td>
