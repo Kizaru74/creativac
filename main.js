@@ -3680,7 +3680,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
     const showActions = mode === 'gestion';
 
     try {
-        // 1. Obtener lista base
+        // 1. Obtener lista de clientes
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3697,7 +3697,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
-        // 3. Renderizado con Estilo Premium Dark
+        // 3. Renderizado de la tabla
         container.innerHTML = '';
 
         if (clients.length === 0) {
@@ -3708,13 +3708,11 @@ window.loadClientsTable = async function(mode = 'gestion') {
         clients.forEach((client, index) => {
             const summary = summaries[index];
             const row = document.createElement('tr');
-            // Fila con efecto Glass y Hover sutil
             row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
 
             const deudaVisual = summary.deudaNeta;
             const tieneDeuda = deudaVisual > 0.01;
 
-            // Celda de Acciones Estilizada
             let actionCell = '';
             if (showActions) {
                 actionCell = `
@@ -3775,16 +3773,33 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // --- 4. Re-vincular eventos ---
+        // --- 4. Re-vincular eventos con protección contra ID NULL ---
         if (showActions) {
+            // Botones de Editar
             container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleEditClientClick(btn.dataset.id);
+                btn.onclick = (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    console.log("Editando cliente ID:", id); // Debug
+                    if (id) window.handleEditClientClick(id);
+                };
             });
+
+            // Botones de Estado de Cuenta (Deuda)
             container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = () => window.handleViewClientDebt(btn.dataset.id);
+                btn.onclick = (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    console.log("Viendo deuda ID:", id); // Debug
+                    if (id) window.handleViewClientDebt(id);
+                };
             });
+
+            // Botones de Eliminar
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = () => window.handleDeleteClientClick(btn.dataset.id, btn.dataset.name);
+                btn.onclick = (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    const name = e.currentTarget.getAttribute('data-name');
+                    if (id) window.handleDeleteClientClick(id, name);
+                };
             });
         }
 
