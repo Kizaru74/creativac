@@ -799,20 +799,25 @@
 
                 <h4 class="text-sm font-bold text-white uppercase tracking-widest mb-4 font-sans">Resumen de Pago</h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="p-5 bg-white/5 rounded-2xl border border-white/5 text-center">
-                        <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total a Pagar</span>
-                        <input type="text" id="total-amount" value="0.00" class="w-full bg-transparent text-center text-3xl font-black text-white border-none outline-none font-sans" readonly>
-                    </div>
-                    <div class="p-5 bg-green-900/20 rounded-2xl border border-green-500/20 text-center">
-                        <label for="paid-amount" class="block text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Monto Pagado</label>
-                        <input type="number" id="paid-amount" value="0.00" min="0" step="0.01" 
-                            class="w-full bg-transparent text-center text-3xl font-black text-green-500 border-none outline-none focus:ring-0 font-sans">
-                    </div>
-                    <div class="p-5 bg-red-900/20 rounded-2xl border border-red-500/20 text-center">
-                        <span class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Saldo Pendiente</span>
-                        <input type="text" id="display-saldo-pendiente" value="0.00" class="w-full bg-transparent text-center text-3xl font-black text-red-500 border-none outline-none font-sans" readonly>
-                    </div>
-                </div>
+    
+            <div class="p-5 bg-white/5 rounded-2xl border border-white/5 text-center">
+        <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total a Pagar</span>
+        <input type="text" id="total-amount" value="0.00" 
+               class="w-full bg-transparent text-center text-3xl font-black text-white border-none outline-none font-sans" readonly>
+    </div>
+
+    <div class="p-5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-center">
+        <label for="paid-amount" class="block text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Monto Pagado</label>
+        <input type="number" id="paid-amount" value="0.00" min="0" step="0.01" 
+               class="w-full bg-transparent text-center text-3xl font-black text-green-500 border-none outline-none focus:ring-0 font-sans appearance-none">
+    </div>
+
+    <div class="p-5 bg-red-500/10 rounded-2xl border border-red-500/20 text-center">
+        <span class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Saldo Pendiente</span>
+        <input type="text" id="display-saldo-pendiente" value="0.00" 
+               class="w-full bg-transparent text-center text-3xl font-black text-red-500 border-none outline-none font-sans" readonly>
+    </div>
+</div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                     <div class="bg-black/20 p-4 rounded-2xl border border-white/5">

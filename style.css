@@ -186,3 +186,18 @@ tbody button:hover {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.05) 100%);
     border-left: 3px solid #ef4444;
 }
+
+/* Limpieza definitiva de recuadros en los totales del modal */
+#total-amount, 
+#paid-amount, 
+#display-saldo-pendiente {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+/* Eliminar el fondo que Tailwind o las reglas generales aplican a estos IDs */
+input#paid-amount.bg-emerald-500\/10,
+input#display-saldo-pendiente.text-red-500 {
+    background-color: transparent !important;
+}
