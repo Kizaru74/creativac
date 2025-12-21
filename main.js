@@ -1653,32 +1653,45 @@ window.loadDashboardMetrics = async function() {
  * Esta función unifica tu lógica original con el sistema de reporte.
  */
 window.handleViewClientDebt = async function(clientId) {
+    // --- CORRECCIÓN 1: BLINDAJE CONTRA ID NULL ---
+    if (!clientId || clientId === "null" || clientId === "undefined") {
+        console.warn("handleViewClientDebt: Se intentó abrir un ID inválido.");
+        return; 
+    }
+
     if (!supabase) {
         console.error("Supabase no está inicializado.");
-        alert("Error de conexión a la base de datos.");
         return;
     }
     
-    window.viewingClientId = clientId;
+    // Aseguramos que el ID sea numérico
+    const cleanId = Number(clientId);
+    window.viewingClientId = cleanId;
     
     try {
-        // 1. BÚSQUEDA DEL CLIENTE (Tu lógica robusta original)
-        let client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
+        // 1. BÚSQUEDA DEL CLIENTE
+        let client = (window.allClients || []).find(c => Number(c.client_id) === cleanId);
         
         if (!client) {
-            const { data: retryClient } = await supabase.from('clientes').select('name').eq('client_id', clientId).single();
-            if (!retryClient) {
-                alert("Error: No se encontró la información del cliente.");
+            // --- CORRECCIÓN 2: USAR MAYBESINGLE PARA EVITAR ERROR 406/400 ---
+            const { data: retryClient, error: retryError } = await supabase
+                .from('clientes')
+                .select('name')
+                .eq('client_id', cleanId)
+                .maybeSingle(); 
+
+            if (retryError || !retryClient) {
+                console.error("No se encontró el cliente en DB:", cleanId);
                 return;
             }
             client = retryClient;
         }
 
-        // 2. OBTENER VENTAS Y PAGOS
+        // 2. OBTENER VENTAS Y PAGOS (Usando cleanId)
         const { data: salesData, error: salesError } = await supabase
             .from('ventas')
             .select(`venta_id, total_amount, paid_amount, created_at, description, detalle_ventas ( name )`)
-            .eq('client_id', clientId)
+            .eq('client_id', cleanId)
             .order('created_at', { ascending: true });
 
         if (salesError) throw salesError;
@@ -1687,7 +1700,7 @@ window.handleViewClientDebt = async function(clientId) {
         const { data: paymentsData, error: paymentsError } = await supabase
             .from('pagos')
             .select(`venta_id, amount, metodo_pago, created_at`)
-            .eq('client_id', clientId)
+            .eq('client_id', cleanId)
             .order('created_at', { ascending: true });
 
         if (paymentsError) throw paymentsError;
@@ -1737,8 +1750,12 @@ window.handleViewClientDebt = async function(clientId) {
         // 4. ORDENAR Y CALCULAR SALDO DINÁMICO
         transactions.sort((a, b) => a.date - b.date || a.order - b.order);
 
-        document.getElementById('client-report-name').textContent = client.name;
-        const historyBody = document.getElementById('client-transactions-body'); 
+        // --- CORRECCIÓN 3: VERIFICACIÓN DE ELEMENTOS DOM ANTES DE ESCRIBIR ---
+        const nameEl = document.getElementById('client-report-name');
+        const historyBody = document.getElementById('client-transactions-body');
+        
+        if (nameEl) nameEl.textContent = client.name;
+        
         let historyHTML = ""; 
         let currentRunningBalance = 0; 
 
@@ -1746,27 +1763,29 @@ window.handleViewClientDebt = async function(clientId) {
             if (t.type === 'cargo_venta') currentRunningBalance += t.amount;
             else currentRunningBalance -= t.amount;
 
-            const balanceClass = currentRunningBalance > 0.01 ? 'text-red-600' : 'text-green-600';
+            const balanceClass = currentRunningBalance > 0.01 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
             const amountClass = t.type === 'cargo_venta' ? 'text-red-600' : 'text-green-600';
 
             historyHTML += `
-                <tr class="hover:bg-gray-50 text-sm border-b">
-                    <td class="px-3 py-3 text-gray-500">${new Date(t.date).toLocaleDateString()}</td>
-                    <td class="px-3 py-3 text-gray-800">${t.description}</td>
+                <tr class="hover:bg-white/5 text-sm border-b border-white/5">
+                    <td class="px-3 py-3 text-gray-400">${new Date(t.date).toLocaleDateString()}</td>
+                    <td class="px-3 py-3 text-white">${t.description}</td>
                     <td class="px-3 py-3 text-right font-bold ${amountClass}">${formatCurrency(t.amount)}</td>
-                    <td class="px-3 py-3 text-right font-bold ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
+                    <td class="px-3 py-3 text-right ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
                 </tr>`;
         });
         
-        historyBody.innerHTML = historyHTML;
+        if (historyBody) historyBody.innerHTML = historyHTML;
         
-        // 5. ACTUALIZAR TOTALES Y "MOCHILA" DE IMPRESIÓN
+        // 5. ACTUALIZAR TOTALES
         const totalDebtValue = Math.abs(currentRunningBalance);
         const totalDebtElement = document.getElementById('client-report-total-debt');
-        totalDebtElement.textContent = formatCurrency(totalDebtValue);
-        totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-600 font-bold text-xl' : 'text-green-600 font-bold text-xl';
+        if (totalDebtElement) {
+            totalDebtElement.textContent = formatCurrency(totalDebtValue);
+            totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-500 font-black text-xl italic' : 'text-emerald-500 font-black text-xl italic';
+        }
 
-        // Guardar para la función de impresión
+        // Guardar para impresión
         window.currentClientDataForPrint = {
             nombre: client.name,
             totalDeuda: totalDebtValue,
@@ -1777,7 +1796,6 @@ window.handleViewClientDebt = async function(clientId) {
         
     } catch (e) {
         console.error('Error al cargar la deuda:', e);
-        alert('Error al cargar el historial.');
     }
 }
 
@@ -3623,7 +3641,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
     const showActions = mode === 'gestion';
 
-    // 1. Estado de carga: ICONO NARANJA SÓLIDO (Estilo Reporte)
+    // 1. Estado de carga
     container.innerHTML = `
         <tr>
             <td colspan="6" class="px-6 py-24 text-center">
@@ -3637,7 +3655,6 @@ window.loadClientsTable = async function(mode = 'gestion') {
         </tr>`;
 
     try {
-        // Obtener datos base
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3665,10 +3682,8 @@ window.loadClientsTable = async function(mode = 'gestion') {
             const tieneDeuda = deudaVisual > 0.01;
 
             const row = document.createElement('tr');
-            // Clase de fila con efecto de transición del reporte
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
-            // Celda de Acciones (Estilo Reporte con botones flotantes)
             let actionCell = '';
             if (showActions) {
                 actionCell = `
@@ -3679,7 +3694,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
                                 <i class="fas fa-edit text-[15px]"></i>
                             </button>
                             <button type="button" class="abono-btn text-white/40 hover:text-emerald-500 transition-colors" 
-                                    onclick="window.handleAbonoClick(${client.client_id})" title="Registrar Abono">
+                                    data-id="${client.client_id}" title="Registrar Abono">
                                 <i class="fas fa-hand-holding-usd text-[15px]"></i>
                             </button>
                             <button type="button" class="view-debt-btn text-white/40 hover:text-blue-500 transition-colors" 
@@ -3728,32 +3743,42 @@ window.loadClientsTable = async function(mode = 'gestion') {
             container.appendChild(row);
         });
 
-        // Re-vinculación de eventos (usando currentTarget para evitar IDs nulos)
+        // 🛑 RE-VINCULACIÓN PROTEGIDA (CORRECCIÓN AQUÍ)
         if (showActions) {
-            container.querySelectorAll('.edit-client-btn').forEach(btn => {
-                btn.onclick = (e) => {
-                    const id = e.currentTarget.getAttribute('data-id');
-                    if (id) window.handleEditClientClick(id);
-                };
+            const actions = [
+                { selector: '.edit-client-btn', fn: window.handleEditClientClick },
+                { selector: '.view-debt-btn', fn: window.handleViewClientDebt },
+                { selector: '.abono-btn', fn: window.handleAbonoClick }
+            ];
+
+            actions.forEach(action => {
+                container.querySelectorAll(action.selector).forEach(btn => {
+                    btn.onclick = null; // Limpiar previo
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        const id = e.currentTarget.getAttribute('data-id');
+                        if (id && id !== "null") action.fn(id);
+                    };
+                });
             });
-            container.querySelectorAll('.view-debt-btn').forEach(btn => {
-                btn.onclick = (e) => {
-                    const id = e.currentTarget.getAttribute('data-id');
-                    if (id) window.handleViewClientDebt(id);
-                };
-            });
+
+            // Borrado especial (requiere nombre)
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
+                btn.onclick = null;
                 btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
                     const id = e.currentTarget.getAttribute('data-id');
                     const name = e.currentTarget.getAttribute('data-name');
-                    if (id) window.handleDeleteClientClick(id, name);
+                    if (id && id !== "null") window.handleDeleteClientClick(id, name);
                 };
             });
         }
 
     } catch (e) {
         console.error('Error:', e);
-        container.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización con la base de datos</td></tr>';
+        container.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización</td></tr>';
     }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
