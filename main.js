@@ -3715,40 +3715,42 @@ window.loadClientsTable = async function(mode = 'gestion') {
             }
             
             row.innerHTML = `
-                <td class="px-8 py-5 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-colors">
-                            <span class="text-[11px] font-bold text-white leading-none font-sans uppercase">${client.name.charAt(0)}</span>
-                            <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">#${client.client_id}</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-8 py-5 whitespace-nowrap">
-                    <div class="flex items-center gap-3">
-                        <div class="flex items-center justify-center bg-orange-500 w-7 h-7 rounded shadow-sm shadow-orange-500/20">
-                            <i class="fas fa-user text-white text-[10px]"></i>
-                        </div>
-                        <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
-                    </div>
-                    <div class="text-[12px] text-white/30 font-sans mt-1 tracking-[0.1em] uppercase font-bold pl-10">
-                        <i class="fas fa-phone-alt mr-1 text-[10px]"></i> ${client.telefono || 'Sin teléfono'}
-                    </div>
-                </td>
-                <td class="px-8 py-5 whitespace-nowrap text-right">
-                    <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Consumo</div>
-                    <div class="text-sm font-black text-white font-sans italic tracking-tighter">${formatCurrency(summary.totalVentas)}</div>
-                </td>
-                <td class="px-8 py-5 whitespace-nowrap text-right">
-                    <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest text-right">Estado Actual</div>
-                    <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
-                        <span class="flex items-center font-bold font-sans text-[13px]">
-                            <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                            ${formatCurrency(deudaVisual)}
-                        </span>
-                    </div>
-                </td>
-                ${actionCell} 
-            `;
+    <td class="px-8 py-5 whitespace-nowrap">
+        <div class="flex items-center">
+            <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-all duration-300">
+                <span class="text-[11px] font-black text-white leading-none font-sans uppercase">${client.name.charAt(0)}</span>
+                <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">#${client.client_id}</span>
+            </div>
+        </div>
+    </td>
+    <td class="px-8 py-5 whitespace-nowrap">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
+                <i class="fas fa-user text-white text-xs"></i>
+            </div>
+            <div>
+                <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
+                <div class="text-[10px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">
+                    <i class="fas fa-phone-alt mr-1 text-[9px] opacity-50"></i> ${client.telefono || 'Sin registro'}
+                </div>
+            </div>
+        </div>
+    </td>
+    <td class="px-8 py-5 whitespace-nowrap text-right">
+        <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Consumo Total</div>
+        <div class="text-sm font-black text-white font-sans italic tracking-tighter">${formatCurrency(summary.totalVentas)}</div>
+    </td>
+    <td class="px-8 py-5 whitespace-nowrap text-right">
+        <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Balance Pendiente</div>
+        <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
+            <span class="flex items-center font-bold font-sans text-[13px]">
+                <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                ${formatCurrency(deudaVisual)}
+            </span>
+        </div>
+    </td>
+    ${actionCell} 
+`;
             container.appendChild(row);
         });
 
