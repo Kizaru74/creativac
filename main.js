@@ -1805,7 +1805,7 @@ window.handleViewClientDebt = async function(clientId) {
     if (!supabase) return;
 
     try {
-        // 1. Consultar VENTAS y PAGOS en paralelo
+        // 1. Consultar VENTAS, PAGOS y CLIENTE en paralelo
         const [salesRes, paymentsRes, clientRes] = await Promise.all([
             supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
             supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
@@ -1816,88 +1816,94 @@ window.handleViewClientDebt = async function(clientId) {
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
         
-        // 2. Combinar y marcar movimientos
+        // 2. Combinar movimientos con DESEMPATE (Venta primero que Abono)
         const movimientos = [
-            ...salesRes.data.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at) })),
-            ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at) }))
-        ].sort((a, b) => a.fecha - b.fecha);
+            ...salesRes.data.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at), prioridad: 1 })),
+            ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at), prioridad: 2 }))
+        ].sort((a, b) => {
+            // Comparar por tiempo (milisegundos)
+            if (a.fecha.getTime() !== b.fecha.getTime()) {
+                return a.fecha - b.fecha;
+            }
+            // Si el tiempo es idéntico, la prioridad 1 (VENTA) va antes que la 2 (ABONO)
+            return a.prioridad - b.prioridad;
+        });
 
-        // 3. Calcular Deuda Total Actual
-        const totalDebt = salesRes.data.reduce((acc, s) => acc + (s.saldo_pendiente || 0), 0);
+        // 3. Calcular Deuda Total Actual (Suma de saldos pendientes de ventas)
+        const totalDebt = salesRes.data.reduce((acc, s) => acc + (parseFloat(s.saldo_pendiente) || 0), 0);
 
-        // 4. Guardar datos para que la función de impresión los encuentre
-        window.currentReportData = {
-            cliente: clientName,
-            movimientos: movimientos,
-            totalDebt: totalDebt
-        };
-
-        // --- 4.5 CONEXIÓN CON TU FUNCIÓN PDF (IMPORTANTE) ---
-        // Aquí generamos el HTML limpio que espera tu función generarPDFEstadoCuenta
+        // 4. Preparar Datos para PDF y Renderizado
         let saldoAcumulado = 0;
         const transaccionesHTMLParaPDF = movimientos.map(mov => {
             const esVenta = mov.tipo === 'VENTA';
-            const monto = esVenta ? mov.total_amount : mov.amount;
+            const monto = esVenta ? parseFloat(mov.total_amount) : parseFloat(mov.amount);
             
-            // Calculamos el saldo acumulado para la columna derecha del PDF
-            if (esVenta) saldoAcumulado += monto;
-            else saldoAcumulado -= monto;
+            // Cálculo del saldo acumulado con precisión de 2 decimales
+            if (esVenta) {
+                saldoAcumulado = parseFloat((saldoAcumulado + monto).toFixed(2));
+            } else {
+                saldoAcumulado = parseFloat((saldoAcumulado - monto).toFixed(2));
+            }
 
             return `
                 <tr>
-                    <td>${mov.fecha.toLocaleDateString()}</td>
+                    <td style="font-size: 10px;">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td>
-                        <strong>${esVenta ? 'VENTA #' + mov.venta_id : 'ABONO RECIBIDO'}</strong><br>
+                        <strong>${esVenta ? 'VENTA #' + (mov.venta_id || 'S/N') : 'ABONO RECIBIDO'}</strong><br>
                         <small style="color:#666">${mov.description || (esVenta ? 'Venta de productos' : 'Pago a cuenta')}</small>
                     </td>
                     <td class="text-right ${esVenta ? 'text-red' : 'text-green'}">
                         ${esVenta ? '+' : '-'} ${formatCurrency(monto)}
                     </td>
-                    <td class="text-right"><strong>${formatCurrency(saldoAcumulado)}</strong></td>
+                    <td class="text-right" style="background: #f9f9f9;">
+                        <strong>${formatCurrency(saldoAcumulado)}</strong>
+                    </td>
                 </tr>
             `;
         }).join('');
 
-        // Llenamos el objeto exacto que busca tu función window.generarPDFEstadoCuenta
+        // Guardar para la función generarPDFEstadoCuenta
         window.currentClientDataForPrint = {
             nombre: clientName,
             totalDeuda: totalDebt,
             transaccionesHTML: transaccionesHTMLParaPDF
         };
-        // ---------------------------------------------------
 
-        // 5. Renderizar en la tabla del Modal (Interfaz Oscura)
+        // 5. Renderizar en la tabla del Modal (Interfaz de la aplicación)
         const tbody = document.getElementById('client-transactions-body');
-        tbody.innerHTML = '';
+        if (tbody) {
+            tbody.innerHTML = '';
+            movimientos.forEach(mov => {
+                const esVenta = mov.tipo === 'VENTA';
+                const fechaTxt = mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'});
+                
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="border-b border-white/5 hover:bg-white/[0.02]">
+                        <td class="px-6 py-4 text-[10px] text-white/40 italic">${fechaTxt}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-xs font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
+                                ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
+                            </div>
+                            <div class="text-[9px] text-gray-500 uppercase">${mov.description || (esVenta ? 'Venta de productos' : 'Pago a cuenta')}</div>
+                        </td>
+                        <td class="px-6 py-4 text-right text-xs font-mono">
+                            ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.total_amount)}</span>` : ''}
+                        </td>
+                        <td class="px-6 py-4 text-right text-xs font-mono">
+                            ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.amount)}</span>` : ''}
+                        </td>
+                    </tr>
+                `);
+            });
+        }
 
-        movimientos.forEach(mov => {
-            const esVenta = mov.tipo === 'VENTA';
-            const fechaTxt = mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'});
-            
-            tbody.insertAdjacentHTML('beforeend', `
-                <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-[10px] text-white/40 italic">${fechaTxt}</td>
-                    <td class="px-6 py-4">
-                        <div class="text-xs font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
-                            ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
-                        </div>
-                        <div class="text-[9px] text-gray-500 uppercase">${mov.description || (esVenta ? 'Venta de productos' : 'Pago a cuenta')}</div>
-                    </td>
-                    <td class="px-6 py-4 text-right text-xs font-mono">
-                        ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.total_amount)}</span>` : ''}
-                    </td>
-                    <td class="px-6 py-4 text-right text-xs font-mono">
-                        ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.amount)}</span>` : ''}
-                    </td>
-                </tr>
-            `);
-        });
+        // 6. Actualizar UI del Modal
+        const uiName = document.getElementById('client-report-name');
+        const uiDebt = document.getElementById('client-report-total-debt');
+        if (uiName) uiName.textContent = clientName;
+        if (uiDebt) uiDebt.textContent = formatCurrency(totalDebt);
 
-        // Actualizar encabezados del modal
-        document.getElementById('client-report-name').textContent = clientName;
-        document.getElementById('client-report-total-debt').textContent = formatCurrency(totalDebt);
-
-        // Vincular datos al botón de abono
+        // Actualizar datos del botón de abono
         const btnAbono = document.querySelector('button[onclick="prepararAbonoDesdeReporte()"]');
         if (btnAbono) {
             btnAbono.dataset.clientId = clientId;
@@ -1908,7 +1914,8 @@ window.handleViewClientDebt = async function(clientId) {
         openModal('modal-client-debt-report');
 
     } catch (err) {
-        console.error("Error en reporte:", err);
+        console.error("❌ Error en reporte detallado:", err);
+        alert("No se pudo cargar el estado de cuenta.");
     }
 };
 
