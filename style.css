@@ -66,6 +66,19 @@ tbody tr:hover {
     display: none !important; /* Oculta el icono normal (lupa, basura, etc) */
 }
 
+/* Recuperar el indicador naranja del menú lateral */
+nav a.bg-orange-500\/10 {
+    background-color: rgba(249, 115, 22, 0.15) !important;
+    border-right: 4px solid #f97316 !important;
+    color: #f97316 !important;
+    font-weight: 600 !important;
+}
+
+/* Asegurar que el icono también sea naranja */
+nav a.bg-orange-500\/10 i {
+    color: #f97316 !important;
+}
+
 /* --- 6. ESTILO VIDRIO PREMIUM (GLASSMORPHISM) --- */
 .glass-badge {
     backdrop-filter: blur(10px) !important;

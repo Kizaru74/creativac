@@ -4212,15 +4212,19 @@ async function handleSaleAbono(e) {
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
 window.handleViewAction = async function(btn, ventaId, clientId) {
-    btn.classList.add('btn-loading'); // Activa el spinner
+    btn.classList.add('loading'); // Activa el spinner
     try {
+        // 1. Cargar los datos
         await handleViewSaleDetails(ventaId, clientId);
-    // 3. Abrir modal
-        openModal('modal-detalle-venta'); 
+        
+        // 2. ABRIR EL MODAL (Corregido el nombre según tu HTML)
+        openModal('modal-detail-sale'); 
+        
+    } catch (error) {
+        console.error("Error al cargar detalles:", error);
     } finally {
         btn.classList.remove('loading');
     }
-    
 };
 
 window.handleDeleteAction = async function(btn, ventaId, month, year) {
