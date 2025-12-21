@@ -201,3 +201,16 @@ input#paid-amount.bg-emerald-500\/10,
 input#display-saldo-pendiente.text-red-500 {
     background-color: transparent !important;
 }
+
+/* Parche para limpiar los inputs de los totales */
+#total-amount, #paid-amount, #display-saldo-pendiente {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+/* Ocultar flechas en Chrome/Safari/Edge */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
