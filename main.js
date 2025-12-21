@@ -997,16 +997,16 @@ window.handleNewSale = async function(e) {
     if (!client_id) { alert('Selecciona un cliente.'); return; }
     if (currentSaleItems.length === 0) { alert('El carrito está vacío.'); return; }
 
-    const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
+    // Referencia al botón de registro (usando la clase del nuevo diseño)
+    const submitBtn = e.target.querySelector('button[onclick*="handleNewSale"]') || document.querySelector('#new-sale-modal button.bg-emerald-600');
+    
     if (submitBtn) { 
         submitBtn.disabled = true; 
-        submitBtn.textContent = 'Procesando...'; 
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando...'; 
     }
 
     try {
-        // --- PROCESO EN SUPABASE ---
-
-        // 1. Insertar la Venta principal
+        // --- PROCESO EN SUPABASE (Mantenemos tu lógica intacta) ---
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
@@ -1022,7 +1022,6 @@ window.handleNewSale = async function(e) {
         if (saleError) throw saleError;
         const new_venta_id = saleData[0].venta_id;
 
-        // 2. Insertar Detalles de la Venta
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
@@ -1035,7 +1034,6 @@ window.handleNewSale = async function(e) {
         const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
         if (dError) throw dError;
 
-        // 3. Registrar Pago inicial (si el cliente pagó algo en el momento)
         if (final_paid_amount > 0) {
             await supabase.from('pagos').insert([{
                 venta_id: new_venta_id,
@@ -1046,7 +1044,6 @@ window.handleNewSale = async function(e) {
             }]);
         }
 
-        // 4. Actualizar Deuda del Cliente (Si quedó saldo pendiente)
         if (final_saldo_pendiente > 0) {
             const { data: c } = await supabase
                 .from('clientes')
@@ -1060,35 +1057,33 @@ window.handleNewSale = async function(e) {
                 .eq('client_id', client_id);
         }
 
-        // --- ÉXITO Y ACTUALIZACIÓN DE INTERFAZ (Corrección aquí) ---
-        
+        // --- ÉXITO Y REINICIO DE INTERFAZ "CLEAN" ---
         alert('Venta registrada con éxito');
         closeModal('new-sale-modal');
 
-        // Limpieza de UI del TPV
+        // 1. Limpieza de variables globales
         currentSaleItems = [];
-        if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
-        document.getElementById('new-sale-form')?.reset();
 
-        // RECARGA DE DATOS PARA REPORTES Y TABLAS
-        console.log("🔄 Sincronizando datos tras venta...");
+        // 2. Reset del formulario y campos de texto grandes (Total/Monto/Saldo)
+        document.getElementById('new-sale-form')?.reset();
         
-        // A. Recargar array global de ventas (Vital para Reportes)
+        // Forzamos el valor visual a 0.00 para evitar que queden residuos del diseño anterior
+        const displays = ['total-amount', 'paid-amount', 'display-saldo-pendiente'];
+        displays.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = "0.00";
+        });
+
+        // 3. Actualizar tablas
+        if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
+
+        // 4. Sincronización de datos
         if (typeof window.loadSalesData === 'function') {
             await window.loadSalesData();
-            // Refrescar la tabla de ventas si el usuario está en esa vista
             if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
         }
-
-        // B. Recargar Dashboard (Métricas de ventas diarias)
-        if (typeof window.loadDashboardData === 'function') {
-            await window.loadDashboardData();
-        }
-
-        // C. Recargar Clientes (Si hubo cambio en deuda)
-        if (final_saldo_pendiente > 0 && typeof window.loadClientsTable === 'function') {
-            await window.loadClientsTable('gestion');
-        }
+        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
 
     } catch (err) {
         console.error('Error al procesar venta:', err);
@@ -1096,7 +1091,7 @@ window.handleNewSale = async function(e) {
     } finally {
         if (submitBtn) { 
             submitBtn.disabled = false; 
-            submitBtn.textContent = 'Registrar Venta'; 
+            submitBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Registrar Venta'; 
         }
     }
 };
