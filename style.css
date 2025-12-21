@@ -1,5 +1,3 @@
-/* style.css - Creativa Cortes CNC (FINAL FIX) */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,39 +8,55 @@ body {
     color: #ffffff !important;
 }
 
-/* --- 2. MODALES (LA CLAVE DEL ERROR) --- */
-/* Eliminamos el 'display: flex' forzado que hacía que se vieran al inicio */
+/* --- 2. MODALES (FIX DEFINITIVO) --- */
+/* Eliminamos el 'display: flex' global que causaba el desorden al inicio */
 .modal-overlay {
     position: fixed !important;
     inset: 0 !important;
     z-index: 9999 !important;
     background-color: rgba(0, 0, 0, 0.8) !important;
     backdrop-filter: blur(12px);
-    display: none; /* JS se encarga de cambiar esto a 'flex' */
+    display: none; /* Importante: por defecto oculto sin !important */
 }
 
-/* El cuadro del modal con diseño premium */
+/* Esta es la única clase que debe mostrar el modal */
+.modal-overlay.flex {
+    display: flex !important;
+}
+
 .modal-content {
     background: #161616 !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
     border-radius: 2rem !important;
     padding: 2.5rem !important;
+    margin: auto; /* Centrado extra */
 }
 
-/* --- 3. AISLAMIENTO TPV (NUEVA VENTA) --- */
-/* Solo aquí quitamos los recuadros para que se vea limpio */
+/* --- 3. MENÚ LATERAL (INDICADOR RECUPERADO) --- */
+/* Buscamos las clases que usa tu HTML para el estado activo */
+.bg-orange-500\/10 {
+    background-color: rgba(249, 115, 22, 0.15) !important;
+    color: #f97316 !important;
+    border-right: 3px solid #f97316 !important;
+}
+
+/* Asegura que el icono naranja brille */
+.nav-item-active i, .text-orange-500 {
+    color: #f97316 !important;
+}
+
+/* --- 4. AISLAMIENTO TPV (NUEVA VENTA) --- */
 #new-sale-modal .text-red-500, 
 #new-sale-modal .text-emerald-500,
 #new-sale-modal input,
-#new-sale-modal #total-amount,
-#new-sale-modal #paid-amount {
+#new-sale-modal #total-amount {
     background-color: transparent !important;
     border: none !important;
     box-shadow: none !important;
 }
 
-/* --- 4. BOTONES DE ACCIÓN --- */
+/* --- 5. BOTONES DE ACCIÓN --- */
 .btn-action-report, .abono-btn, .edit-client-btn, .delete-client-btn, .view-debt-btn {
     background: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -53,13 +67,6 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 10px !important;
-}
-
-/* --- 5. INDICADOR DE MENÚ (RECUPERADO) --- */
-.nav-active-indicator {
-    background: rgba(249, 115, 22, 0.1) !important;
-    border-left: 4px solid #f97316 !important;
-    color: #f97316 !important;
 }
 
 .btn-action-report:hover {

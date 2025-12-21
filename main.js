@@ -133,15 +133,18 @@ function getMonthDateRange(monthString) {
 window.openModal = function(id) {
     const modal = document.getElementById(id);
     if (modal) {
-        // 1. Quitamos hidden y ponemos flex
+        // 1. Limpieza de clases de Tailwind que puedan estorbar
         modal.classList.remove('hidden');
-        modal.classList.add('flex');
         
-        // 2. EL TRUCO: Forzar un reflow (esto arregla el error invisible)
-        void modal.offsetWidth; 
+        // 2. Aplicar el estado visual
+        modal.classList.add('flex');
+        modal.style.display = 'flex'; // Refuerzo directo
+        
+        // 3. Forzar al navegador a dibujar (Reflow)
+        void modal.offsetWidth;
         
         document.body.style.overflow = 'hidden';
-        console.log(`✅ Modal ${id} activado y renderizado.`);
+        console.log(`✅ Modal ${id} renderizado visualmente.`);
     }
 };
 
@@ -150,6 +153,7 @@ window.closeModal = function(id) {
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+        modal.style.display = 'none';
         document.body.style.overflow = 'auto';
     }
 };
