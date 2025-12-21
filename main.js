@@ -1709,82 +1709,98 @@ window.loadDashboardMetrics = async function() {
  * Esta función unifica tu lógica original con el sistema de reporte.
  */
 window.handleViewClientDebt = async function(clientId) {
-    if (!supabase || !clientId) {
-        console.error("Supabase no inicializado o ID de cliente inválido.");
+    if (!supabase) return;
+
+    // 1. Blindaje: Si el ID llega como null o undefined, detenerse antes del error 400
+    if (!clientId || clientId === "null" || clientId === "undefined") {
+        console.error("ID de cliente inválido detectado:", clientId);
         return;
     }
 
-    // Aseguramos que el ID sea tratado como texto/número válido para la URL
     const cleanId = String(clientId).trim();
     window.viewingClientId = cleanId;
 
     try {
-        // 1. Obtener datos de ventas y pagos (Lógica que ya te funciona)
-        const { data: sales } = await supabase
-            .from('ventas')
-            .select(`venta_id, total_amount, created_at, description, detalle_ventas(name)`)
-            .eq('client_id', cleanId)
-            .order('created_at', { ascending: false });
-
-        const { data: payments } = await supabase
-            .from('pagos')
-            .select(`amount, metodo_pago, created_at`)
-            .eq('client_id', cleanId)
-            .order('created_at', { ascending: false });
-
-        // 2. CORRECCIÓN DEL ERROR 400: Validar nombre del cliente sin disparar peticiones null
+        // 2. Intentar obtener el nombre del cliente de la memoria (para evitar el error 400)
         let clientName = "Cliente #" + cleanId;
-        const clientObj = (window.allClients || []).find(c => String(c.client_id) === cleanId);
+        const cachedClient = (window.allClients || []).find(c => String(c.client_id) === cleanId);
         
-        if (clientObj) {
-            clientName = clientObj.name;
+        if (cachedClient) {
+            clientName = cachedClient.name;
         } else {
-            // Solo si no está en memoria, buscamos en DB cuidando que el ID no sea null
-            const { data: retryClient } = await supabase
+            // Solo si no está en memoria buscamos, pero validando el ID
+            const { data: dbClient } = await supabase
                 .from('clientes')
                 .select('name')
                 .eq('client_id', cleanId)
-                .single();
-            if (retryClient) clientName = retryClient.name;
+                .maybeSingle(); // maybeSingle evita errores si no encuentra nada
+            if (dbClient) clientName = dbClient.name;
         }
 
-        // 3. INYECTAR EN EL HTML (Usando los IDs de tu index.html)
+        // 3. Obtener Ventas y Pagos de forma paralela para mayor velocidad
+        const [salesRes, paymentsRes] = await Promise.all([
+            supabase.from('ventas')
+                .select(`venta_id, total_amount, created_at, description, detalle_ventas(name)`)
+                .eq('client_id', cleanId)
+                .order('created_at', { ascending: false }),
+            supabase.from('pagos')
+                .select(`amount, metodo_pago, created_at`)
+                .eq('client_id', cleanId)
+                .order('created_at', { ascending: false })
+        ]);
+
+        const sales = salesRes.data || [];
+        const payments = paymentsRes.data || [];
+
+        // 4. Inyectar datos en los IDs reales de tu index.html
         const nameElement = document.getElementById('detail-client-name');
         if (nameElement) nameElement.textContent = clientName;
 
         const salesBody = document.getElementById('lista-notas-pendientes');
         if (salesBody) {
-            salesBody.innerHTML = (sales || []).map(s => `
+            salesBody.innerHTML = sales.length > 0 ? sales.map(s => `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-white/50">${new Date(s.created_at).toLocaleDateString()}</td>
-                    <td class="px-6 py-4 text-white font-medium">
+                    <td class="px-6 py-4 text-white/50 text-xs">${new Date(s.created_at).toLocaleDateString()}</td>
+                    <td class="px-6 py-4 text-white font-medium text-sm">
                         ${s.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General'}
                     </td>
-                    <td class="px-6 py-4 text-right font-mono font-bold text-white">
+                    <td class="px-6 py-4 text-right font-mono font-bold text-white text-sm">
                         $${s.total_amount.toFixed(2)}
                     </td>
                 </tr>
-            `).join('');
+            `).join('') : `<tr><td colspan="3" class="px-6 py-4 text-center text-white/20 italic text-xs">Sin ventas registradas</td></tr>`;
         }
 
         const paymentsBody = document.getElementById('historial-abonos-cliente');
         if (paymentsBody) {
-            paymentsBody.innerHTML = (payments || []).map(p => `
+            paymentsBody.innerHTML = payments.length > 0 ? payments.map(p => `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-white/50">${new Date(p.created_at).toLocaleDateString()}</td>
-                    <td class="px-6 py-4 text-orange-500 font-bold">${p.metodo_pago}</td>
-                    <td class="px-6 py-4 text-right font-mono font-bold text-emerald-500">
+                    <td class="px-6 py-4 text-white/50 text-xs">${new Date(p.created_at).toLocaleDateString()}</td>
+                    <td class="px-6 py-4 text-orange-500 font-bold text-xs uppercase tracking-wider">${p.metodo_pago}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-emerald-500 text-sm">
                         $${p.amount.toFixed(2)}
                     </td>
                 </tr>
-            `).join('');
+            `).join('') : `<tr><td colspan="3" class="px-6 py-4 text-center text-white/20 italic text-xs">Sin abonos registrados</td></tr>`;
         }
 
-        // 4. ABRIR EL MODAL
+        // 5. Calcular deuda total para el resumen del modal
+        const totalVentas = sales.reduce((acc, s) => acc + (s.total_amount || 0), 0);
+        const totalAbonos = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
+        const deudaTotal = Math.max(0, totalVentas - totalAbonos);
+
+        // Si tienes un elemento para el total en el modal, actualízalo aquí
+        const totalDebtElement = document.getElementById('detail-grand-total'); // Verifica si este ID existe
+        if (totalDebtElement) {
+            totalDebtElement.textContent = `$${deudaTotal.toFixed(2)}`;
+            totalDebtElement.className = deudaTotal > 0.01 ? "text-red-500 font-bold" : "text-emerald-500 font-bold";
+        }
+
+        // 6. Finalmente abrir el modal
         openModal('modal-client-debt-report');
 
     } catch (e) {
-        console.error("Error crítico en estado de cuenta:", e);
+        console.error("Error en handleViewClientDebt:", e);
     }
 };
 
