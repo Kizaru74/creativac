@@ -229,62 +229,6 @@ async function handleLogout() {
 // 4. LÓGICA DEL DASHBOARD: CARGA DE DATOS
 // ====================================================================
 
-//Deudas
-async function loadDebts() {
-    const tbody = document.getElementById('debts-table-body');
-    if (!tbody) return;
-
-    const { data, error } = await supabase
-        .from('ventas')
-        .select('saldo_pendiente, clientes(name, client_id)')
-        .gt('saldo_pendiente', 0.01);
-
-    if (error) return console.error(error);
-
-    // Agrupamos por cliente para la vista de Control de Deudas
-    const grouped = data.reduce((acc, current) => {
-        const client = current.clientes;
-        if (!client) return acc;
-        if (!acc[client.client_id]) {
-            acc[client.client_id] = { name: client.name, total: 0, id: client.client_id };
-        }
-        acc[client.client_id].total += Number(current.saldo_pendiente);
-        return acc;
-    }, {});
-
-    const listaDeudores = Object.values(grouped);
-    
-    // Actualizar Tarjetas KPIs
-    const totalGlobal = listaDeudores.reduce((sum, c) => sum + c.total, 0);
-    const maxIndividual = Math.max(...listaDeudores.map(c => c.total), 0);
-    
-    document.getElementById('total-deuda-global').innerText = formatCurrency(totalGlobal);
-    document.getElementById('total-clientes-deuda').innerText = listaDeudores.length;
-    document.getElementById('max-deuda-individual').innerText = formatCurrency(maxIndividual);
-
-    // Renderizar filas
-    tbody.innerHTML = listaDeudores.map(deudor => `
-        <tr class="hover:bg-white/[0.02] border-b border-white/5">
-            <td class="px-10 py-6">
-                <div class="text-white font-bold text-base">${deudor.name}</div>
-                <div class="text-[10px] text-gray-600 uppercase tracking-widest mt-1">ID: ${deudor.id}</div>
-            </td>
-            <td class="px-10 py-6 text-center text-orange-500 font-black text-xl">
-                ${formatCurrency(deudor.total)}
-            </td>
-            <td class="px-10 py-6">
-                <span class="bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">Cobro Pendiente</span>
-            </td>
-            <td class="px-10 py-6 text-right">
-                <button onclick="handleViewClientDebt('${deudor.id}')" 
-                    class="bg-orange-600 hover:bg-orange-700 text-white text-[10px] font-black py-3 px-6 rounded-2xl uppercase transition-all shadow-lg shadow-orange-900/20">
-                    Gestionar Pagos
-                </button>
-            </td>
-        </tr>
-    `).join('');
-}
-
 // Función auxiliar para pintar las tarjetas rápidamente
 function renderizarTarjetas(total, cantidad, max) {
     const elTotal = document.getElementById('total-deuda-global');
@@ -1709,100 +1653,133 @@ window.loadDashboardMetrics = async function() {
  * Esta función unifica tu lógica original con el sistema de reporte.
  */
 window.handleViewClientDebt = async function(clientId) {
-    if (!supabase) return;
-
-    // 1. Blindaje: Si el ID llega como null o undefined, detenerse antes del error 400
-    if (!clientId || clientId === "null" || clientId === "undefined") {
-        console.error("ID de cliente inválido detectado:", clientId);
+    if (!supabase) {
+        console.error("Supabase no está inicializado.");
+        alert("Error de conexión a la base de datos.");
         return;
     }
-
-    const cleanId = String(clientId).trim();
-    window.viewingClientId = cleanId;
-
+    
+    window.viewingClientId = clientId;
+    
     try {
-        // 2. Intentar obtener el nombre del cliente de la memoria (para evitar el error 400)
-        let clientName = "Cliente #" + cleanId;
-        const cachedClient = (window.allClients || []).find(c => String(c.client_id) === cleanId);
+        // 1. BÚSQUEDA DEL CLIENTE (Tu lógica robusta original)
+        let client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
         
-        if (cachedClient) {
-            clientName = cachedClient.name;
-        } else {
-            // Solo si no está en memoria buscamos, pero validando el ID
-            const { data: dbClient } = await supabase
-                .from('clientes')
-                .select('name')
-                .eq('client_id', cleanId)
-                .maybeSingle(); // maybeSingle evita errores si no encuentra nada
-            if (dbClient) clientName = dbClient.name;
+        if (!client) {
+            const { data: retryClient } = await supabase.from('clientes').select('name').eq('client_id', clientId).single();
+            if (!retryClient) {
+                alert("Error: No se encontró la información del cliente.");
+                return;
+            }
+            client = retryClient;
         }
 
-        // 3. Obtener Ventas y Pagos de forma paralela para mayor velocidad
-        const [salesRes, paymentsRes] = await Promise.all([
-            supabase.from('ventas')
-                .select(`venta_id, total_amount, created_at, description, detalle_ventas(name)`)
-                .eq('client_id', cleanId)
-                .order('created_at', { ascending: false }),
-            supabase.from('pagos')
-                .select(`amount, metodo_pago, created_at`)
-                .eq('client_id', cleanId)
-                .order('created_at', { ascending: false })
-        ]);
+        // 2. OBTENER VENTAS Y PAGOS
+        const { data: salesData, error: salesError } = await supabase
+            .from('ventas')
+            .select(`venta_id, total_amount, paid_amount, created_at, description, detalle_ventas ( name )`)
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: true });
 
-        const sales = salesRes.data || [];
-        const payments = paymentsRes.data || [];
+        if (salesError) throw salesError;
+        const sales = salesData || []; 
 
-        // 4. Inyectar datos en los IDs reales de tu index.html
-        const nameElement = document.getElementById('detail-client-name');
-        if (nameElement) nameElement.textContent = clientName;
+        const { data: paymentsData, error: paymentsError } = await supabase
+            .from('pagos')
+            .select(`venta_id, amount, metodo_pago, created_at`)
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: true });
 
-        const salesBody = document.getElementById('lista-notas-pendientes');
-        if (salesBody) {
-            salesBody.innerHTML = sales.length > 0 ? sales.map(s => `
-                <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-white/50 text-xs">${new Date(s.created_at).toLocaleDateString()}</td>
-                    <td class="px-6 py-4 text-white font-medium text-sm">
-                        ${s.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General'}
-                    </td>
-                    <td class="px-6 py-4 text-right font-mono font-bold text-white text-sm">
-                        $${s.total_amount.toFixed(2)}
-                    </td>
-                </tr>
-            `).join('') : `<tr><td colspan="3" class="px-6 py-4 text-center text-white/20 italic text-xs">Sin ventas registradas</td></tr>`;
-        }
+        if (paymentsError) throw paymentsError;
+        const payments = paymentsData || []; 
 
-        const paymentsBody = document.getElementById('historial-abonos-cliente');
-        if (paymentsBody) {
-            paymentsBody.innerHTML = payments.length > 0 ? payments.map(p => `
-                <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-white/50 text-xs">${new Date(p.created_at).toLocaleDateString()}</td>
-                    <td class="px-6 py-4 text-orange-500 font-bold text-xs uppercase tracking-wider">${p.metodo_pago}</td>
-                    <td class="px-6 py-4 text-right font-mono font-bold text-emerald-500 text-sm">
-                        $${p.amount.toFixed(2)}
-                    </td>
-                </tr>
-            `).join('') : `<tr><td colspan="3" class="px-6 py-4 text-center text-white/20 italic text-xs">Sin abonos registrados</td></tr>`;
-        }
+        // 3. UNIFICAR Y NORMALIZAR TRANSACCIONES
+        let transactions = [];
 
-        // 5. Calcular deuda total para el resumen del modal
-        const totalVentas = sales.reduce((acc, s) => acc + (s.total_amount || 0), 0);
-        const totalAbonos = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
-        const deudaTotal = Math.max(0, totalVentas - totalAbonos);
+        sales.forEach(sale => {
+            const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
+            let transactionDescription = `Venta: ${productNames}`;
+            if (sale.description) transactionDescription += ` — ${sale.description.trim()}`; 
 
-        // Si tienes un elemento para el total en el modal, actualízalo aquí
-        const totalDebtElement = document.getElementById('detail-grand-total'); // Verifica si este ID existe
-        if (totalDebtElement) {
-            totalDebtElement.textContent = `$${deudaTotal.toFixed(2)}`;
-            totalDebtElement.className = deudaTotal > 0.01 ? "text-red-500 font-bold" : "text-emerald-500 font-bold";
-        }
+            transactions.push({
+                date: new Date(sale.created_at),
+                type: 'cargo_venta',
+                description: transactionDescription,
+                amount: sale.total_amount,
+                venta_id: sale.venta_id,
+                order: 1 
+            });
+        });
 
-        // 6. Finalmente abrir el modal
-        openModal('modal-client-debt-report');
+        payments.forEach(payment => {
+            let description = `Abono a Deuda (${payment.metodo_pago})`;
+            if (payment.venta_id) {
+                const sale = sales.find(s => s.venta_id === payment.venta_id);
+                if (sale) {
+                    const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
+                    const timeDiff = Math.abs(new Date(sale.created_at) - new Date(payment.created_at)); 
+                    description = timeDiff < 60000 
+                        ? `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`
+                        : `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
+                }
+            }
 
+            transactions.push({
+                date: new Date(payment.created_at),
+                type: 'abono',
+                description: description,
+                amount: payment.amount, 
+                venta_id: payment.venta_id,
+                order: 2
+            });
+        });
+
+        // 4. ORDENAR Y CALCULAR SALDO DINÁMICO
+        transactions.sort((a, b) => a.date - b.date || a.order - b.order);
+
+        document.getElementById('client-report-name').textContent = client.name;
+        const historyBody = document.getElementById('client-transactions-body'); 
+        let historyHTML = ""; 
+        let currentRunningBalance = 0; 
+
+        transactions.forEach(t => {
+            if (t.type === 'cargo_venta') currentRunningBalance += t.amount;
+            else currentRunningBalance -= t.amount;
+
+            const balanceClass = currentRunningBalance > 0.01 ? 'text-red-600' : 'text-green-600';
+            const amountClass = t.type === 'cargo_venta' ? 'text-red-600' : 'text-green-600';
+
+            historyHTML += `
+                <tr class="hover:bg-gray-50 text-sm border-b">
+                    <td class="px-3 py-3 text-gray-500">${new Date(t.date).toLocaleDateString()}</td>
+                    <td class="px-3 py-3 text-gray-800">${t.description}</td>
+                    <td class="px-3 py-3 text-right font-bold ${amountClass}">${formatCurrency(t.amount)}</td>
+                    <td class="px-3 py-3 text-right font-bold ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
+                </tr>`;
+        });
+        
+        historyBody.innerHTML = historyHTML;
+        
+        // 5. ACTUALIZAR TOTALES Y "MOCHILA" DE IMPRESIÓN
+        const totalDebtValue = Math.abs(currentRunningBalance);
+        const totalDebtElement = document.getElementById('client-report-total-debt');
+        totalDebtElement.textContent = formatCurrency(totalDebtValue);
+        totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-600 font-bold text-xl' : 'text-green-600 font-bold text-xl';
+
+        // Guardar para la función de impresión
+        window.currentClientDataForPrint = {
+            nombre: client.name,
+            totalDeuda: totalDebtValue,
+            transaccionesHTML: historyHTML
+        };
+
+        openModal('modal-client-debt-report'); 
+        
     } catch (e) {
-        console.error("Error en handleViewClientDebt:", e);
+        console.error('Error al cargar la deuda:', e);
+        alert('Error al cargar el historial.');
     }
-};
+}
 
 /**
  * FUNCIÓN PARA LANZAR EL MODAL DE ABONO DESDE EL REPORTE
