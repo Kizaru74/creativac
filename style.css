@@ -8,6 +8,12 @@
 body, #main-content, .modal-overlay {
     color: #ffffff !important;
     background-color: #121212 !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(12px);
+    display: none; /* Oculto por defecto */
 }
 
 /* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
