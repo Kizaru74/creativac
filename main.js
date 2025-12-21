@@ -1550,43 +1550,16 @@ window.handleNewSale = async function(e) {
     // Validaciones de UI
     if (!client_id) { alert('Por favor, selecciona un cliente.'); return; }
     if (currentSaleItems.length === 0) { alert('Debes agregar al menos un producto a la venta.'); return; }
-    if (total_amount < 0) { alert('El total de la venta no puede ser negativo.'); return; }
     
-    if (total_amount < 0.01) {
-        final_paid_amount = 0;
-        final_saldo_pendiente = 0;
-    } else if (final_saldo_pendiente < 0) {
-        final_paid_amount = total_amount; 
-        final_saldo_pendiente = 0; 
-    }
-    
-    if (final_paid_amount < 0 || final_paid_amount > total_amount) {
-        alert('El monto pagado es inválido.'); return;
-    }
-
-    if (final_saldo_pendiente > 0.01 && !confirm(`¡Atención! Hay un saldo pendiente de ${formatCurrency(final_saldo_pendiente)}. ¿Deseas continuar?`)) {
-        return;
-    }
-
-    // Validación de IDs en el carrito
-    const itemWithoutValidId = currentSaleItems.find(item => 
-        !item.product_id || isNaN(item.product_id) || parseInt(item.product_id, 10) === 0
-    );
-    
-    if (itemWithoutValidId) {
-        alert(`Error: El ítem "${itemWithoutValidId.name}" tiene un ID inválido.`); 
-        return; 
-    }
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const submitBtn = e.target.querySelector('button[type="button"], button[type="submit"]');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando Venta...';
+        submitBtn.textContent = 'Procesando...';
     }
 
     let new_venta_id = null;
     try {
-        // 2.1. REGISTRAR VENTA (Tabla 'ventas')
+        // 2.1. REGISTRAR VENTA
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
@@ -1599,86 +1572,57 @@ window.handleNewSale = async function(e) {
             }])
             .select('venta_id'); 
 
-        if (saleError || !saleData || saleData.length === 0) {
-            throw new Error(`Error al registrar venta principal: ${saleError?.message}`);
-        }
+        if (saleError || !saleData || saleData.length === 0) throw new Error(saleError?.message);
 
         new_venta_id = saleData[0].venta_id;
 
-        // 2.2. REGISTRAR DETALLE DE VENTA (Tabla 'detalle_ventas')
-        // ✅ CORRECCIÓN: Se agrega 'name' para evitar el error de restricción NOT NULL
+        // 2.2. REGISTRAR DETALLES
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: parseInt(item.product_id, 10),
-            name: item.name || 'Producto', // Nombre del producto/paquete
+            name: item.name || 'Producto',
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
         }));
         
-        const { error: detailError } = await supabase
-            .from('detalle_ventas') 
-            .insert(detailsToInsert);
+        await supabase.from('detalle_ventas').insert(detailsToInsert);
 
-        if (detailError) {
-            console.error('🛑 ERROR BD - DETALLES FALLIDOS:', detailError);
-            throw new Error(`BD Falló al insertar detalles. Mensaje: ${detailError.message}`);
-        }
-
-        // 2.3. REGISTRAR PAGO (Tabla 'pagos')
+        // 2.3. REGISTRAR PAGO
         if (final_paid_amount > 0) { 
-            const { error: paymentError } = await supabase
-                .from('pagos')
-                .insert([{
-                    venta_id: new_venta_id,
-                    amount: final_paid_amount,
-                    client_id: client_id,
-                    metodo_pago: payment_method,
-                    type: 'INICIAL',
-                }]);
-
-            if (paymentError) alert(`Advertencia: El pago falló. ${paymentError.message}`);
+            await supabase.from('pagos').insert([{
+                venta_id: new_venta_id,
+                amount: final_paid_amount,
+                client_id: client_id,
+                metodo_pago: payment_method,
+                type: 'INICIAL',
+            }]);
         }
         
-        // 2.4. ACTUALIZAR DEUDA DEL CLIENTE
-        if (final_saldo_pendiente > 0) {
-            const { data: clientData, error: clientFetchError } = await supabase
-                .from('clientes')
-                .select('deuda_total')
-                .eq('client_id', client_id)
-                .single();
-
-            if (!clientFetchError && clientData) {
-                const newClientDebt = (clientData.deuda_total || 0) + final_saldo_pendiente;
-                await supabase
-                    .from('clientes')
-                    .update({ deuda_total: newClientDebt })
-                    .eq('client_id', client_id);
-            }
-        }
-        
-        // --- 3. FINALIZACIÓN Y LIMPIEZA ---
+        // --- 3. FINALIZACIÓN Y REFRESCO DE TABLAS ---
         closeModal('new-sale-modal'); 
         window.currentSaleItems = []; 
-        window.updateSaleTableDisplay(); 
-        document.getElementById('new-sale-form')?.reset(); // ✅ Esto siempre funcionará
+        if (window.updateSaleTableDisplay) window.updateSaleTableDisplay(); 
+        document.getElementById('new-sale-form')?.reset();
         
-        await loadDashboardData(); 
-        await loadClientsTable('gestion'); 
+        // RECARGAR TODAS LAS VISTAS PARA QUE COINCIDAN LOS REPORTES
+        await Promise.all([
+            loadDashboardData(),
+            loadClientsTable('gestion'),
+            typeof loadClientDebtsTable === 'function' ? loadClientDebtsTable() : Promise.resolve(),
+            typeof loadSales === 'function' ? loadSales() : Promise.resolve()
+        ]);
 
-        if (window.showTicketPreviewModal) {
-            showTicketPreviewModal(new_venta_id);
-        } else {
-             alert(`Venta #${new_venta_id} registrada con éxito.`);
-        }
+        // SUSTITUCIÓN DE TICKET POR ALERTA SIMPLE
+        alert(`✅ Venta #${new_venta_id} registrada con éxito.`);
         
     } catch (error) {
-        console.error('Error FATAL:', error);
-        alert('Error: ' + error.message);
+        console.error('Error:', error);
+        alert('No se pudo registrar la venta: ' + error.message);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Finalizar Venta';
+            submitBtn.textContent = 'Registrar Venta';
         }
     }
 }
@@ -4111,9 +4055,10 @@ async function handleEditClient(e) {
 window.handleRegisterPayment = async function(e) {
     if (e) {
         e.preventDefault();
-        e.stopPropagation(); // 🛑 Evita que se disparen otros eventos
+        e.stopPropagation();
     }
     
+    // 1. CAPTURAR DATOS
     const clientId = document.getElementById('abono-client-id')?.value;
     const amountStr = document.getElementById('abono-amount')?.value;
     const metodo_pago = document.getElementById('payment-method-abono')?.value;
@@ -4129,40 +4074,65 @@ window.handleRegisterPayment = async function(e) {
     try {
         if (btn) { btn.disabled = true; btn.innerText = "PROCESANDO..."; }
 
+        // 2. OBTENER VENTAS PENDIENTES
         const { data: ventas, error: fErr } = await supabase
             .from('ventas')
             .select('venta_id, saldo_pendiente, paid_amount')
-            .eq('client_id', clientId).gt('saldo_pendiente', 0).order('created_at', { ascending: true });
+            .eq('client_id', clientId)
+            .gt('saldo_pendiente', 0.01) // Evitar saldos insignificantes
+            .order('created_at', { ascending: true });
 
         if (fErr) throw fErr;
 
         let restante = paymentAmount;
         let historial = [];
 
+        // 3. DISTRIBUIR EL PAGO (CASCADA)
         for (let v of ventas) {
-            if (restante <= 0) break;
-            let pago = Math.min(restante, v.saldo_pendiente);
+            if (restante <= 0.01) break;
             
+            let pago = Math.min(restante, v.saldo_pendiente);
+            pago = parseFloat(pago.toFixed(2)); // 🔥 Forzar 2 decimales
+
+            // Insertar registro de pago vinculado a la venta
             await supabase.from('pagos').insert([{ 
-                venta_id: v.venta_id, client_id: clientId, amount: pago, metodo_pago 
+                venta_id: v.venta_id, 
+                client_id: clientId, 
+                amount: pago, 
+                metodo_pago,
+                description: 'Abono a cuenta (Cascada)'
             }]);
 
+            // Actualizar la venta específica
             await supabase.from('ventas').update({ 
-                saldo_pendiente: v.saldo_pendiente - pago,
-                paid_amount: (v.paid_amount || 0) + pago 
+                saldo_pendiente: parseFloat((v.saldo_pendiente - pago).toFixed(2)),
+                paid_amount: parseFloat(((v.paid_amount || 0) + pago).toFixed(2)) 
             }).eq('venta_id', v.venta_id);
 
-            historial.push({ id: v.id || v.venta_id, monto: pago });
-            restante -= pago;
+            historial.push({ id: v.venta_id, monto: pago });
+            restante = parseFloat((restante - pago).toFixed(2));
         }
 
-        // Actualizar deuda total cliente
+        // 4. SI SOBRÓ DINERO (Abono a favor sin venta específica)
+        if (restante > 0.01) {
+            await supabase.from('pagos').insert([{ 
+                client_id: clientId, 
+                amount: restante, 
+                metodo_pago,
+                description: 'Saldo a favor / Abono excedente'
+            }]);
+        }
+
+        // 5. REPARACIÓN Y SINCRONIZACIÓN FINAL
+        // Esto recalcula la deuda_total en la tabla clientes automáticamente
+        await window.repararSaldoCliente(clientId);
+
+        // 6. OBTENER NUEVA DEUDA PARA EL PDF
         const { data: vts } = await supabase.from('ventas').select('saldo_pendiente').eq('client_id', clientId);
         const nuevaDeudaTotal = vts.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
-        await supabase.from('clientes').update({ deuda_total: nuevaDeudaTotal }).eq('client_id', clientId);
 
-        // Feedback y PDF
-        if (confirm(`✅ Pago de $${paymentAmount} registrado. ¿Generar comprobante PDF?`)) {
+        // 7. FEEDBACK Y PDF
+        if (confirm(`✅ Pago de $${paymentAmount.toFixed(2)} registrado. ¿Generar comprobante PDF?`)) {
             window.generarComprobanteAbono({
                 cliente: nombreCliente,
                 montoTotal: paymentAmount,
@@ -4172,10 +4142,16 @@ window.handleRegisterPayment = async function(e) {
             });
         }
 
-        // Refresco de interfaz
+        // 8. REFRESCO DE TODA LA INTERFAZ (Sin recargar página)
         closeModal('abono-client-modal');
-        if (typeof window.loadDebts === 'function') await window.loadDebts();
-        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        
+        await Promise.all([
+            typeof window.loadDebts === 'function' ? window.loadDebts() : null,
+            typeof window.loadClientDebtsTable === 'function' ? window.loadClientDebtsTable() : null,
+            typeof window.loadDashboardData === 'function' ? window.loadDashboardData() : null,
+            // Si el reporte detallado estaba abierto, lo refresca
+            typeof window.handleViewClientDebt === 'function' ? window.handleViewClientDebt(clientId) : null
+        ]);
 
     } catch (err) {
         console.error(err);
