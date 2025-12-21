@@ -2209,28 +2209,49 @@ window.handleViewSaleDetails = async function(venta_id) {
         console.error("Error crítico en handleViewSaleDetails:", err);
     }
 };
-// --- FUNCIÓN PARA CAMBIAR LA FECHA ---
-// CORRECCIÓN FECHA: Función global para editar fecha
-window.editSaleDate = async function(venta_id, fechaActual) {
-    const fechaBase = fechaActual.split('T')[0];
-    const nuevaFecha = prompt("Cambiar fecha (AAAA-MM-DD):", fechaBase);
+
+// Función para procesar el cambio de descripción
+window.editSaleDescription = async function(venta_id, descActual) {
+    const valorInicial = (descActual === 'Sin notas adicionales') ? '' : descActual;
+    const nuevaDesc = prompt("Editar nota de la venta:", valorInicial);
     
-    if (nuevaFecha && nuevaFecha !== fechaBase) {
+    if (nuevaDesc !== null) {
         try {
-            // Usamos mediodía para evitar desfases de zona horaria
             const { error } = await supabase
                 .from('ventas')
-                .update({ created_at: `${nuevaFecha}T12:00:00` })
+                .update({ description: nuevaDesc.trim() })
                 .eq('venta_id', venta_id);
 
             if (error) throw error;
-            alert("✅ Fecha actualizada.");
-            if (window.handleViewSaleDetails) window.handleViewSaleDetails(venta_id);
+            alert("✅ Nota actualizada.");
+            window.handleViewSaleDetails(venta_id); // Recarga el modal
         } catch (err) {
             alert("Error: " + err.message);
         }
     }
 };
+
+// Función para procesar el cambio de fecha
+window.editSaleDate = async function(venta_id, fechaActual) {
+    const fechaBase = fechaActual.split('T')[0];
+    const nuevaFecha = prompt("Nueva fecha (AAAA-MM-DD):", fechaBase);
+    
+    if (nuevaFecha && nuevaFecha !== fechaBase) {
+        try {
+            const { error } = await supabase
+                .from('ventas')
+                .update({ created_at: `${nuevaFecha}T12:00:00` }) // Mediodía para evitar errores de zona horaria
+                .eq('venta_id', venta_id);
+
+            if (error) throw error;
+            alert("✅ Fecha cambiada.");
+            window.handleViewSaleDetails(venta_id); // Recarga el modal
+        } catch (err) {
+            alert("Error: " + err.message);
+        }
+    }
+};
+
 // --- FUNCIÓN PARA ELIMINAR UN PRODUCTO DE LA VENTA ---
 window.deleteItemFromSale = async function(detalleId, ventaId) {
     if (!confirm("¿Estás seguro de eliminar este producto? El total de la venta y el saldo se recalcularán.")) return;
@@ -2265,30 +2286,7 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
         alert("Error al eliminar el producto.");
     }
 };
-//imprimir pdf de detalles de la venta
-// Generar PDF y Vista Previa de la venta
-window.editSaleDescription = async function(venta_id, descActual) {
-    // Limpiamos el texto por si viene con el placeholder de "Sin notas"
-    const valorInicial = (descActual === 'Sin notas adicionales') ? '' : descActual;
-    const nuevaDesc = prompt("Editar comentarios de la venta:", valorInicial);
-    
-    if (nuevaDesc !== null) {
-        try {
-            const { error } = await supabase
-                .from('ventas')
-                .update({ description: nuevaDesc.trim() })
-                .eq('venta_id', venta_id);
 
-            if (error) throw error;
-
-            alert("✅ Comentario actualizado.");
-            // Refrescar el modal de detalles
-            if (window.handleViewSaleDetails) window.handleViewSaleDetails(venta_id);
-        } catch (err) {
-            alert("Error: " + err.message);
-        }
-    }
-};
 
 window.generarPDFVenta = function() {
     const venta = window.currentSaleForPrint;
