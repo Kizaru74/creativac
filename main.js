@@ -3056,36 +3056,39 @@ window.loadProductsTable = function() {
     const products = window.allProducts || []; 
 
     if (products.length === 0) {
-        document.getElementById('no-products-message')?.classList.remove('hidden');
+        const noDataMsg = document.getElementById('no-products-message');
+        if (noDataMsg) noDataMsg.classList.remove('hidden');
+        container.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">No hay productos registrados</td></tr>`;
         return;
     }
+    
     document.getElementById('no-products-message')?.classList.add('hidden');
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Estilo Dark Premium: Hover sutil con brillo y bordes transparentes
+        // Estilo Dark Premium: Hover sutil y bordes finos
         row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
         
         const formattedPrice = formatCurrency(product.price);
         
-        // Configuración de Glass Badges según el tipo de producto
+        // Configuración de iconos y badges
         let badgeClass = '';
         let typeText = '';
         let icon = '';
 
         switch(product.type) {
             case 'MAIN':
-                badgeClass = 'glass-badge-success'; // Verde/Neon
+                badgeClass = 'glass-badge-success';
                 typeText = 'Principal';
                 icon = 'fa-star';
                 break;
             case 'PACKAGE':
-                badgeClass = 'glass-badge-warning'; // Usaremos el estilo naranja/amber
+                badgeClass = 'glass-badge-warning';
                 typeText = 'Subproducto';
                 icon = 'fa-box-open';
                 break;
             case 'SERVICE':
-                badgeClass = 'glass-badge-info'; // Azul
+                badgeClass = 'glass-badge-info';
                 typeText = 'Servicio';
                 icon = 'fa-tools';
                 break;
@@ -3097,51 +3100,51 @@ window.loadProductsTable = function() {
 
         row.innerHTML = `
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="font-mono bg-white/5 text-white/40 px-2 py-1 rounded border border-white/10 text-[10px] inline-block">
+                <div class="font-sans font-bold bg-white/5 text-orange-500/50 px-2 py-1 rounded border border-white/10 text-[10px] inline-block tracking-wider">
                     #${product.producto_id}
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="flex items-center">
-                    <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500/20 to-transparent border border-orange-500/20 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                        <i class="fas ${icon} text-orange-500 text-sm"></i>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                        <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-bold text-white tracking-wide">${product.name}</div>
-                        <div class="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">Producto Registrado</div>
+                        <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
+                        <div class="text-[10px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha de Producto</div>
                     </div>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="text-lg font-black text-emerald-500 tracking-tighter">
+                <div class="text-lg font-black text-emerald-500 tracking-tighter font-sans italic">
                     ${formattedPrice}
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="glass-badge ${badgeClass}">
-                    <span class="text-[10px] font-black uppercase tracking-widest">
+                <div class="glass-badge ${badgeClass} inline-flex">
+                    <span class="text-[10px] font-black uppercase tracking-widest font-sans flex items-center">
                         <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
                     </span>
                 </div>
             </td>
             
             <td class="px-8 py-5 whitespace-nowrap text-right">
-                <div class="flex justify-end items-center space-x-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                     <button 
                         onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/60 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all border border-transparent hover:border-orange-500/20"
+                        class="p-2.5 text-white/40 hover:text-orange-500 transition-colors"
                         title="Editar Producto">
-                        <i class="fas fa-pen text-xs"></i>
+                        <i class="fas fa-edit text-[15px]"></i>
                     </button>
                     
                     <button 
                         onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/60 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/20"
+                        class="p-2.5 text-white/40 hover:text-red-500 transition-colors"
                         title="Eliminar Producto">
-                        <i class="fas fa-trash-alt text-xs"></i>
+                        <i class="fas fa-trash-alt text-[15px]"></i>
                     </button>
                 </div>
             </td>
