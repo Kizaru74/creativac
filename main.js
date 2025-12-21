@@ -3641,7 +3641,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
     const showActions = mode === 'gestion';
 
-    // 1. Estado de carga
+    // 1. Estado de carga profesional
     container.innerHTML = `
         <tr>
             <td colspan="6" class="px-6 py-24 text-center">
@@ -3655,6 +3655,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
         </tr>`;
 
     try {
+        // Obtener datos de clientes
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -3662,10 +3663,12 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
+        // Actualizar variables globales
         window.allClients = clients; 
         window.allClientsMap = {}; 
         clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
 
+        // Obtener resúmenes de deuda
         const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
         const summaries = await Promise.all(summaryPromises);
 
@@ -3684,6 +3687,7 @@ window.loadClientsTable = async function(mode = 'gestion') {
             const row = document.createElement('tr');
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
 
+            // Celda de Acciones
             let actionCell = '';
             if (showActions) {
                 actionCell = `
@@ -3711,62 +3715,65 @@ window.loadClientsTable = async function(mode = 'gestion') {
             }
             
             row.innerHTML = `
-        <td class="px-8 py-5 whitespace-nowrap">
-        <div class="flex items-center">
-            <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-colors">
-                <span class="text-[11px] font-bold text-white leading-none font-sans uppercase">${client.name.charAt(0)}</span>
-                <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">#${client.client_id}</span>
-            </div>
-        </div>
-        </td>
-        <td class="px-8 py-5 whitespace-nowrap">
-        <div class="flex items-center gap-2">
-            <i class="fas fa-user text-orange-500 text-xs"></i>
-            <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
-        </div>
-        <div class="text-[12px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold pl-5">
-            <i class="fas fa-phone-alt mr-1 text-[10px]"></i> ${client.telefono || 'Sin teléfono'}
-        </div>
-        </td>
-        <td class="px-8 py-5 whitespace-nowrap text-right">
-        <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Consumo</div>
-        <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
-           </td>
-          <td class="px-8 py-5 whitespace-nowrap text-right">
-        <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Estado Actual</div>
-        <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
-            <span class="flex items-center font-bold font-sans text-[14px]">
-                <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                ${formatCurrency(deudaVisual)}
-            </span>
-        </div>
-          </td>
-             ${actionCell} 
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-colors">
+                            <span class="text-[11px] font-bold text-white leading-none font-sans uppercase">${client.name.charAt(0)}</span>
+                            <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">#${client.client_id}</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center bg-orange-500 w-7 h-7 rounded shadow-sm shadow-orange-500/20">
+                            <i class="fas fa-user text-white text-[10px]"></i>
+                        </div>
+                        <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
+                    </div>
+                    <div class="text-[12px] text-white/30 font-sans mt-1 tracking-[0.1em] uppercase font-bold pl-10">
+                        <i class="fas fa-phone-alt mr-1 text-[10px]"></i> ${client.telefono || 'Sin teléfono'}
+                    </div>
+                </td>
+                <td class="px-8 py-5 whitespace-nowrap text-right">
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Total Consumo</div>
+                    <div class="text-sm font-bold text-white font-mono">${formatCurrency(summary.totalVentas)}</div>
+                </td>
+                <td class="px-8 py-5 whitespace-nowrap text-right">
+                    <div class="text-[12px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest text-right">Estado Actual</div>
+                    <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
+                        <span class="flex items-center font-bold font-sans text-[14px]">
+                            <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                            ${formatCurrency(deudaVisual)}
+                        </span>
+                    </div>
+                </td>
+                ${actionCell} 
             `;
             container.appendChild(row);
         });
 
-        // 🛑 RE-VINCULACIÓN PROTEGIDA (CORRECCIÓN AQUÍ)
+        // 🛑 RE-VINCULACIÓN DE EVENTOS PROTEGIDA
         if (showActions) {
-            const actions = [
-                { selector: '.edit-client-btn', fn: window.handleEditClientClick },
-                { selector: '.view-debt-btn', fn: window.handleViewClientDebt },
-                { selector: '.abono-btn', fn: window.handleAbonoClick }
-            ];
-
-            actions.forEach(action => {
-                container.querySelectorAll(action.selector).forEach(btn => {
-                    btn.onclick = null; // Limpiar previo
+            const bindAction = (selector, callback) => {
+                container.querySelectorAll(selector).forEach(btn => {
+                    btn.onclick = null; // Evita acumulación de eventos
                     btn.onclick = (e) => {
                         e.preventDefault();
-                        e.stopImmediatePropagation();
+                        e.stopImmediatePropagation(); // Evita doble disparo
                         const id = e.currentTarget.getAttribute('data-id');
-                        if (id && id !== "null") action.fn(id);
+                        // Verificamos que el ID no sea nulo ni el string "null"
+                        if (id && id !== "null" && id !== "undefined") {
+                            callback(id);
+                        }
                     };
                 });
-            });
+            };
 
-            // Borrado especial (requiere nombre)
+            bindAction('.edit-client-btn', window.handleEditClientClick);
+            bindAction('.view-debt-btn', window.handleViewClientDebt);
+            bindAction('.abono-btn', window.handleAbonoClick);
+
+            // Botón eliminar (necesita el nombre extra)
             container.querySelectorAll('.delete-client-btn').forEach(btn => {
                 btn.onclick = null;
                 btn.onclick = (e) => {
@@ -3780,8 +3787,8 @@ window.loadClientsTable = async function(mode = 'gestion') {
         }
 
     } catch (e) {
-        console.error('Error:', e);
-        container.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización</td></tr>';
+        console.error('Error en loadClientsTable:', e);
+        container.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización con la base de datos</td></tr>';
     }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
