@@ -939,50 +939,6 @@
         </div>
     </div>
 </div>
-    
-<div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[67] flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8">
-        <div class="flex justify-between items-center border-b pb-4 mb-6">
-            <h3 class="text-2xl font-bold text-gray-800">Registrar Abono</h3>
-            <button data-close-modal="abono-client-modal" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
-                &times;
-            </button>
-        </div>
-        <form id="abono-client-form" onsubmit="console.log('Formulario enviado'); window.handleAbonoSubmit(event); return false;">
-            <input type="hidden" id="abono-client-id">
-            
-            <div class="mb-4">
-                <p class="text-xs font-semibold text-gray-500 uppercase">Cliente</p>
-                <p id="abono-client-name-display" class="text-lg font-bold text-gray-800 mb-2 font-mono uppercase">---</p>
-                
-                <p class="text-sm font-medium text-gray-700">Deuda actual: 
-                    <span id="abono-current-debt" class="font-extrabold text-red-600"></span>
-                </p>
-            </div>
-            
-            <div class="mb-4">
-                <label for="abono-amount" class="block text-xs font-semibold text-gray-600 mb-1">Monto del Abono</label>
-                <input type="number" id="abono-amount" name="amount" required min="0.01" step="0.01" 
-                       class="w-full p-3 border border-gray-300 rounded-lg text-xl font-extrabold focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                       placeholder="0.00">
-            </div>
-
-            <div class="mb-6">
-                <label for="payment-method-abono" class="block text-xs font-semibold text-gray-600 mb-1">Método de Pago</label>
-                <select id="payment-method-abono" name="method" required 
-                        class="w-full p-2.5 border border-gray-300 rounded-lg shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
-                    <option value="" disabled selected>--- Seleccione Método ---</option>
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Transferencia">Transferencia</option>
-                </select>
-            </div>
-            
-            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-shadow shadow-md hover:shadow-lg active:transform active:scale-95">
-                Confirmar Abono
-            </button>
-        </form>
-    </div>
-</div>
 
 <div id="modal-client-debt-report" class="modal-overlay hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
     <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] mx-auto overflow-hidden border border-white/5 flex flex-col">
@@ -1043,55 +999,57 @@
     </div>
 </div>
 
-<div id="modal-record-abono" class="modal-overlay hidden fixed inset-0 z-[60] bg-gray-900 bg-opacity-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
-        
-        <div class="p-6 border-b flex justify-between items-center">
-            <h3 class="text-2xl font-semibold text-gray-800">
-                <i class="fas fa-hand-holding-dollar mr-2 text-green-600"></i> Registrar Abono de Cliente
-            </h3>
-            <button onclick="closeModal('modal-record-abono')" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times text-xl"></i>
+<div id="abono-client-modal" class="modal-overlay hidden fixed inset-0 z-[67] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8 relative">
+        <div class="flex justify-between items-center border-b pb-4 mb-6">
+            <h3 class="text-2xl font-bold text-gray-800 tracking-tighter">Registrar Abono</h3>
+            <button onclick="closeModal('abono-client-modal')" class="text-gray-400 hover:text-gray-700 text-3xl transition-colors leading-none">
+                &times;
             </button>
         </div>
 
-        <form id="abono-client-form">
-            <div class="p-6 space-y-4">
+        <form id="abono-client-form" onsubmit="window.handleAbonoSubmit(event); return false;">
+            <input type="hidden" id="abono-client-id">
+            
+            <div class="mb-4">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cliente Seleccionado</p>
+                <p id="abono-client-name-display" class="text-lg font-bold text-gray-800 mb-2 font-mono uppercase tracking-tighter italic">---</p>
                 
-                <input type="hidden" id="abono-client-id-input" name="client_id">
-
-                <p class="text-sm text-gray-600">
-                    Abono para el cliente: 
-                    <span id="abono-client-name-display" class="font-semibold text-indigo-700">Cargando...</span>
-                </p>
-
-                <div>
-                    <label for="abono-amount" class="block text-sm font-medium text-gray-700">Monto del Abono</label>
-                    <input type="number" step="0.01" min="1" id="abono-amount" name="amount" required
-                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500 text-lg">
-                </div>
-
-                <div>
-                    <label for="abono-method" class="block text-sm font-medium text-gray-700">Método de Pago</label>
-                    <select id="abono-method" name="method" required
-                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 focus:ring-green-500 focus:border-green-500">
-                        <option value="">Seleccione un método</option>
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Transferencia">Transferencia</option>
-                    </select>
+                <div class="bg-red-50 p-2 rounded-lg border border-red-100">
+                    <p class="text-xs font-medium text-red-800">Saldo Pendiente: 
+                        <span id="abono-current-debt" class="font-black text-red-600 ml-1">---</span>
+                    </p>
                 </div>
             </div>
             
-            <div class="p-4 border-t bg-gray-50 flex justify-end">
-                <button type="button" onclick="closeModal('modal-record-abono')" 
-                        class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg mr-2 transition duration-150">
-                    Cancelar
-                </button>
-                <button type="submit" 
-                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150">
-                    <i class="fas fa-check mr-2"></i> Registrar Abono
-                </button>
+            <div class="mb-4">
+                <label for="abono-amount" class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Monto a abonar</label>
+                <input type="number" id="abono-amount" name="amount" required min="0.01" step="0.01" 
+                       class="w-full p-4 border-2 border-gray-100 rounded-xl text-2xl font-black text-gray-800 focus:ring-4 focus:ring-green-500/10 focus:border-green-500 outline-none transition-all placeholder:text-gray-200"
+                       placeholder="0.00">
             </div>
+
+            <div class="mb-6">
+                <label for="payment-method-abono" class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Método de Cobro</label>
+                <select id="payment-method-abono" name="method" required 
+                        class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 outline-none transition-all appearance-none cursor-pointer">
+                    <option value="" disabled selected>--- Seleccione ---</option>
+                    <option value="Efectivo">💵 Efectivo</option>
+                    <option value="Transferencia">📱 Transferencia</option>
+                </select>
+            </div>
+            
+            <div id="log-container-fifo" class="hidden mb-4 p-3 bg-gray-900 rounded-xl border border-white/10">
+                <p class="text-[9px] font-black text-orange-500 uppercase mb-2 tracking-widest">Distribución en Cascada:</p>
+                <table class="w-full">
+                    <tbody id="recent-payments-log" class="text-[10px] font-mono">
+                        </tbody>
+                </table>
+            </div>
+
+            <button type="submit" id="btn-confirm-abono" class="w-full bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest py-4 rounded-xl transition-all shadow-lg shadow-green-600/20 active:scale-95">
+                Confirmar Abono
+            </button>
         </form>
     </div>
 </div>

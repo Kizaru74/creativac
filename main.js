@@ -1436,18 +1436,22 @@ window.handleAbonoSubmit = async function(e) {
     const methodSelect = document.getElementById('payment-method-abono');
     const method = methodSelect ? methodSelect.value : "";
 
-    // Validaciones
+    // 1. VALIDACIONES INICIALES
     if (!clientId) return alert("⚠️ Error: Cliente no identificado.");
     if (isNaN(amount) || amount <= 0) return alert("⚠️ Ingrese un monto mayor a 0.");
     if (!method || method === "" || method === "seleccionar") return alert("⚠️ Selecciona un Método de Pago.");
 
+    // 2. BLOQUEO ANTI-DUPLICIDAD (Importante)
     if (submitBtn) {
+        if (submitBtn.disabled) return; // Si ya se está procesando, ignorar
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando Cascada...';
+        submitBtn.innerHTML = '<i class="fas fa-spinner animate-spin mr-2"></i> Procesando...';
     }
 
     try {
-        // 1. Ejecutamos el proceso en el servidor (RPC)
+        console.log(`🚀 Iniciando abono de ${amount} para cliente ${clientId}`);
+
+        // 3. EJECUCIÓN RPC
         const { error } = await supabase.rpc('registrar_abono_cascada', {
             p_client_id: parseInt(clientId),
             p_amount: amount,
@@ -1456,14 +1460,20 @@ window.handleAbonoSubmit = async function(e) {
 
         if (error) throw error;
 
-        // 2. MOSTRAR DISTRIBUCIÓN: Consultamos los últimos pagos registrados para este cliente
-        // Esto llenará la tablita que añadimos al HTML
-        const { data: pagosRecientes, error: errorPagos } = await supabase
+        // 4. ACTUALIZACIÓN INMEDIATA DEL ESTADO DE CUENTA
+        // No esperamos al setTimeout. Refrescamos el historial del cliente YA.
+        if (typeof window.handleViewClientDebt === 'function') {
+            // Pasamos 'true' o similar si tu función permite refrescar sin reabrir el modal
+            await window.handleViewClientDebt(clientId);
+        }
+
+        // 5. MOSTRAR LOG DE DISTRIBUCIÓN
+        const { data: pagosRecientes } = await supabase
             .from('pagos')
             .select('venta_id, amount')
             .eq('client_id', clientId)
             .order('created_at', { ascending: false })
-            .limit(5); // Traemos los últimos 5 para mostrar el desglose
+            .limit(5);
 
         const logContainer = document.getElementById('log-container-fifo');
         const logBody = document.getElementById('recent-payments-log');
@@ -1473,41 +1483,37 @@ window.handleAbonoSubmit = async function(e) {
             logBody.innerHTML = pagosRecientes.map(p => `
                 <tr class="border-b border-white/5">
                     <td class="py-2 text-gray-500 font-mono text-[10px]">Venta #${p.venta_id}</td>
-                    <td class="py-2 text-right text-green-500 font-bold">-$${p.amount.toFixed(2)}</td>
+                    <td class="py-2 text-right text-green-500 font-bold">-${formatCurrency(p.amount)}</td>
                 </tr>
             `).join('');
         }
 
-        // 3. ÉXITO
-        alert(`✅ Abono de ${formatCurrency(amount)} aplicado correctamente.`);
-        
-        // Esperamos 2 segundos para que el usuario vea la distribución en el log
-        setTimeout(async () => {
+        // 6. MENSAJE DE ÉXITO
+        // Usar un Toast o Alert pequeño para no interrumpir
+        console.log("✅ Abono aplicado con éxito.");
+
+        // 7. CIERRE Y LIMPIEZA PROGRAMADA
+        setTimeout(() => {
             window.closeModal('abono-client-modal');
-            form.reset();
+            if (form) form.reset();
             if (logContainer) logContainer.classList.add('hidden');
 
-            // 4. ACTUALIZACIÓN SILENCIOSA DE VISTAS
-            if (typeof window.loadDebts === 'function') await window.loadDebts();
-            if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
-            if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
-            
-            // Si el detalle de venta estaba abierto, refrescarlo
-            const detailModal = document.getElementById('modal-detail-sale');
-            if (detailModal && !detailModal.classList.contains('hidden')) {
-                const currentVentaId = document.getElementById('detail-sale-id')?.textContent;
-                if (currentVentaId) await window.handleViewSaleDetails(currentVentaId);
-            }
-        }, 2000);
+            // Actualización de tablas de fondo
+            if (typeof window.loadDebts === 'function') window.loadDebts();
+            if (typeof window.loadClientsTable === 'function') window.loadClientsTable('gestion');
+        }, 2500);
 
     } catch (err) {
-        console.error("❌ Error:", err);
+        console.error("❌ Error en abono:", err);
         alert("Error técnico: " + err.message);
-    } finally {
+        // Si hay error, rehabilitamos el botón para reintentar
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Confirmar Abono';
         }
+    } finally {
+        // Nota: No quitamos el disabled aquí para evitar que el usuario 
+        // pulse de nuevo durante el setTimeout de cierre.
     }
 };
 
@@ -1789,171 +1795,85 @@ window.loadDashboardMetrics = async function() {
  * Esta función unifica tu lógica original con el sistema de reporte.
  */
 window.handleViewClientDebt = async function(clientId) {
-    // --- CORRECCIÓN 1: BLINDAJE CONTRA ID NULL ---
-    if (!clientId || clientId === "null" || clientId === "undefined") {
-        console.warn("handleViewClientDebt: Se intentó abrir un ID inválido.");
-        return; 
-    }
+    if (!supabase) return;
 
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
-    
-    // Aseguramos que el ID sea numérico
-    const cleanId = Number(clientId);
-    window.viewingClientId = cleanId;
-    
     try {
-        // 1. BÚSQUEDA DEL CLIENTE
-        let client = (window.allClients || []).find(c => Number(c.client_id) === cleanId);
-        
-        if (!client) {
-            // --- CORRECCIÓN 2: USAR MAYBESINGLE PARA EVITAR ERROR 406/400 ---
-            const { data: retryClient, error: retryError } = await supabase
-                .from('clientes')
-                .select('name')
-                .eq('client_id', cleanId)
-                .maybeSingle(); 
-
-            if (retryError || !retryClient) {
-                console.error("No se encontró el cliente en DB:", cleanId);
-                return;
-            }
-            client = retryClient;
-        }
-
-        // 2. OBTENER VENTAS Y PAGOS (Usando cleanId)
-        const { data: salesData, error: salesError } = await supabase
+        // 1. Obtener datos del cliente y sus ventas con saldo
+        const { data: sales, error } = await supabase
             .from('ventas')
-            .select(`venta_id, total_amount, paid_amount, created_at, description, detalle_ventas ( name )`)
-            .eq('client_id', cleanId)
+            .select(`venta_id, total_amount, saldo_pendiente, created_at, description`)
+            .eq('client_id', clientId)
             .order('created_at', { ascending: true });
 
-        if (salesError) throw salesError;
-        const sales = salesData || []; 
+        if (error) throw error;
 
-        const { data: paymentsData, error: paymentsError } = await supabase
-            .from('pagos')
-            .select(`venta_id, amount, metodo_pago, created_at`)
-            .eq('client_id', cleanId)
-            .order('created_at', { ascending: true });
+        // 2. Obtener nombre del cliente (puedes sacarlo de la primera venta o una consulta rápida)
+        const { data: clientData } = await supabase
+            .from('clientes')
+            .select('name')
+            .eq('client_id', clientId)
+            .single();
 
-        if (paymentsError) throw paymentsError;
-        const payments = paymentsData || []; 
+        const clientName = clientData?.name || "Cliente #" + clientId;
 
-        // 3. UNIFICAR Y NORMALIZAR TRANSACCIONES
-        let transactions = [];
+        // 3. Actualizar la interfaz del Modal de Reporte
+        document.getElementById('client-report-name').textContent = clientName;
+        
+        // Calcular deuda total sumando saldos pendientes
+        const totalDebt = sales.reduce((acc, s) => acc + (s.saldo_pendiente || 0), 0);
+        document.getElementById('client-report-total-debt').textContent = formatCurrency(totalDebt);
+
+        // 4. Llenar la tabla de transacciones
+        const tbody = document.getElementById('client-transactions-body');
+        tbody.innerHTML = '';
 
         sales.forEach(sale => {
-            const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
-            let transactionDescription = `Venta: ${productNames}`;
-            if (sale.description) transactionDescription += ` — ${sale.description.trim()}`; 
-
-            transactions.push({
-                date: new Date(sale.created_at),
-                type: 'cargo_venta',
-                description: transactionDescription,
-                amount: sale.total_amount,
-                venta_id: sale.venta_id,
-                order: 1 
-            });
+            const date = new Date(sale.created_at).toLocaleDateString();
+            tbody.insertAdjacentHTML('beforeend', `
+                <tr class="border-b border-white/5 hover:bg-white/[0.02]">
+                    <td class="px-6 py-4 text-xs">${date}</td>
+                    <td class="px-6 py-4">
+                        <div class="text-white font-bold text-xs uppercase">Venta #${sale.venta_id}</div>
+                        <div class="text-[10px] text-gray-500">${sale.description || 'Sin descripción'}</div>
+                    </td>
+                    <td class="px-6 py-4 text-right text-white font-mono">$${sale.total_amount.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right text-red-500 font-black font-mono">$${sale.saldo_pendiente.toFixed(2)}</td>
+                </tr>
+            `);
         });
 
-        payments.forEach(payment => {
-            let description = `Abono a Deuda (${payment.metodo_pago})`;
-            if (payment.venta_id) {
-                const sale = sales.find(s => s.venta_id === payment.venta_id);
-                if (sale) {
-                    const productNames = sale.detalle_ventas?.map(d => d.name).join(', ') || 'Venta General';
-                    const timeDiff = Math.abs(new Date(sale.created_at) - new Date(payment.created_at)); 
-                    description = timeDiff < 60000 
-                        ? `Pago Inicial (${payment.metodo_pago}) - Venta: "${productNames}"`
-                        : `Abono (${payment.metodo_pago}) - Venta: "${productNames}"`;
-                }
-            }
-
-            transactions.push({
-                date: new Date(payment.created_at),
-                type: 'abono',
-                description: description,
-                amount: payment.amount, 
-                venta_id: payment.venta_id,
-                order: 2
-            });
-        });
-
-        // 4. ORDENAR Y CALCULAR SALDO DINÁMICO
-        transactions.sort((a, b) => a.date - b.date || a.order - b.order);
-
-        // --- CORRECCIÓN 3: VERIFICACIÓN DE ELEMENTOS DOM ANTES DE ESCRIBIR ---
-        const nameEl = document.getElementById('client-report-name');
-        const historyBody = document.getElementById('client-transactions-body');
-        
-        if (nameEl) nameEl.textContent = client.name;
-        
-        let historyHTML = ""; 
-        let currentRunningBalance = 0; 
-
-        transactions.forEach(t => {
-            if (t.type === 'cargo_venta') currentRunningBalance += t.amount;
-            else currentRunningBalance -= t.amount;
-
-            const balanceClass = currentRunningBalance > 0.01 ? 'text-red-600 font-bold' : 'text-green-600 font-bold';
-            const amountClass = t.type === 'cargo_venta' ? 'text-red-600' : 'text-green-600';
-
-            historyHTML += `
-                <tr class="hover:bg-white/5 text-sm border-b border-white/5">
-                    <td class="px-3 py-3 text-gray-400">${new Date(t.date).toLocaleDateString()}</td>
-                    <td class="px-3 py-3 text-white">${t.description}</td>
-                    <td class="px-3 py-3 text-right font-bold ${amountClass}">${formatCurrency(t.amount)}</td>
-                    <td class="px-3 py-3 text-right ${balanceClass}">${formatCurrency(Math.abs(currentRunningBalance))}</td>
-                </tr>`;
-        });
-        
-        if (historyBody) historyBody.innerHTML = historyHTML;
-        
-        // 5. ACTUALIZAR TOTALES
-        const totalDebtValue = Math.abs(currentRunningBalance);
-        const totalDebtElement = document.getElementById('client-report-total-debt');
-        if (totalDebtElement) {
-            totalDebtElement.textContent = formatCurrency(totalDebtValue);
-            totalDebtElement.className = currentRunningBalance > 0.01 ? 'text-red-500 font-black text-xl italic' : 'text-emerald-500 font-black text-xl italic';
+        // 5. IMPORTANTE: Guardar el contexto para el botón de abono
+        // Guardamos los datos en atributos del botón de abono dentro del reporte
+        const btnAbono = document.querySelector('#modal-client-debt-report button[onclick="prepararAbonoDesdeReporte()"]');
+        if (btnAbono) {
+            btnAbono.dataset.clientId = clientId;
+            btnAbono.dataset.clientName = clientName;
+            btnAbono.dataset.currentDebt = totalDebt;
         }
 
-        // Guardar para impresión
-        window.currentClientDataForPrint = {
-            nombre: client.name,
-            totalDeuda: totalDebtValue,
-            transaccionesHTML: historyHTML
-        };
+        // 6. Mostrar el modal
+        openModal('modal-client-debt-report');
 
-        openModal('modal-client-debt-report'); 
-        
-    } catch (e) {
-        console.error('Error al cargar la deuda:', e);
+    } catch (err) {
+        console.error("Error al cargar estado de cuenta:", err);
+        alert("No se pudo cargar el historial del cliente");
     }
-}
+};
 
 /**
  * FUNCIÓN PARA LANZAR EL MODAL DE ABONO DESDE EL REPORTE
  */
 window.prepararAbonoDesdeReporte = function() {
-    // Usamos la variable global que definimos en handleViewClientDebt
-    const clientId = window.viewingClientId; 
-    
-    if (!clientId) {
-        alert("No se pudo identificar al cliente para el abono.");
-        return;
-    }
+    // 1. Obtener los datos que guardamos en el paso anterior
+    const btn = document.querySelector('#modal-client-debt-report button[onclick="prepararAbonoDesdeReporte()"]');
+    const clientId = btn.dataset.clientId;
+    const clientName = btn.dataset.clientName;
+    const currentDebt = btn.dataset.currentDebt;
 
-    // Llamamos a la función que ya tienes para preparar el modal de abono
-    // Esta función se encarga de llenar el nombre, deuda y ID en el modal pequeño
-    if (typeof window.handleAbonoClick === 'function') {
-        window.handleAbonoClick(clientId);
-    } else {
-        console.error("La función handleAbonoClick no está definida.");
-    }
+    if (!clientId) return alert("Error: No se encontró información del cliente");
+
+    // 2. Llamar a la función que abre el modal de abono (la que corregimos en el paso anterior)
+    window.openAbonoModal(clientId, clientName, currentDebt);
 };
 
 window.handleAbonoClick = function(clientId) {
@@ -4210,52 +4130,43 @@ window.handleRegisterPayment = async function(e) {
     }
 };
 
-window.openAbonoModal = function(id, name, remainingDebt = null) {
-    
-    // 1. Asignar el ID a la variable global (Usado por handleRecordAbono)
-    window.debtToPayId = id; 
+window.openAbonoModal = function(clientId, name, remainingDebt = null) {
+    console.log(`🎯 Abriendo abono para Cliente ID: ${clientId}, Nombre: ${name}`);
 
-    // 2. Determinar el contexto
-    // Usamos allClientsMap para saber si el ID es un cliente.
-    const isClientId = window.allClientsMap[id] !== undefined;
+    // 1. Referencias de los elementos del NUEVO modal
+    const modalId = 'abono-client-modal';
+    const inputId = document.getElementById('abono-client-id');
+    const displayLabel = document.getElementById('abono-client-name-display');
+    const debtLabel = document.getElementById('abono-current-debt');
+    const form = document.getElementById('abono-client-form');
+    const logContainer = document.getElementById('log-container-fifo');
 
-    // 3. Obtener referencias del modal
-    const clientIdInput = document.getElementById('abono-client-id-input');
-    const clientNameDisplay = document.getElementById('abono-client-name-display');
-    // Asegúrese de que este ID exista en su HTML (contenedor de saldo pendiente)
-    const debtDisplayContainer = document.getElementById('abono-debt-info-container'); 
-    const currentDebtSpan = document.getElementById('abono-current-debt');
-    const modalTitle = document.querySelector('#modal-record-abono h3');
+    // 2. Limpieza previa
+    if (form) form.reset();
+    if (logContainer) logContainer.classList.add('hidden');
 
-    // 4. Inyectar datos en el formulario y ajustar la interfaz
-    
-    // El ID principal (client_id o venta_id) va al input oculto
-    if (clientIdInput) {
-        clientIdInput.value = id; 
+    // 3. Inyectar datos
+    if (inputId) {
+        inputId.value = clientId; 
     }
 
-    if (clientNameDisplay) {
-        let nameText = isClientId ? `Deuda General de: ${name}` : `Venta #${id} de ${name}`;
-        clientNameDisplay.textContent = nameText;
-    }
-    
-    if (modalTitle) {
-         // Ajustamos el título del modal según el tipo de abono
-        modalTitle.textContent = isClientId ? 'Registrar Abono General' : 'Registrar Pago a Venta Específica';
+    if (displayLabel) {
+        displayLabel.textContent = name;
     }
 
-    // 5. Mostrar/Ocultar el saldo pendiente
-    if (remainingDebt !== null && remainingDebt > 0) {
-        if (debtDisplayContainer) debtDisplayContainer.classList.remove('hidden');
-        if (currentDebtSpan) currentDebtSpan.textContent = formatCurrency(remainingDebt);
+    if (debtLabel) {
+        // Si no pasamos la deuda en el clic, ponemos "Consultando..." 
+        // o el valor si ya lo tenemos
+        debtLabel.textContent = remainingDebt !== null ? formatCurrency(remainingDebt) : "Consultar en Estado de Cuenta";
+    }
+
+    // 4. Abrir el modal correcto
+    if (typeof window.openModal === 'function') {
+        window.openModal(modalId);
     } else {
-        // Ocultar si no hay deuda o si es abono general (la deuda se ve en el reporte)
-        if (debtDisplayContainer) debtDisplayContainer.classList.add('hidden');
+        // Si no tienes una función global openModal, usamos la lógica directa:
+        document.getElementById(modalId)?.classList.remove('hidden');
     }
-
-    // 6. Limpia el formulario (excepto el input oculto) y abre el modal
-    document.getElementById('abono-client-form')?.reset();
-    openModal('modal-record-abono');
 };
 
 // ====================================================================
