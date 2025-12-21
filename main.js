@@ -2125,6 +2125,7 @@ window.generarComprobanteAbono = function(datos) {
 //Detalles de la venta
 window.handleViewSaleDetails = async function(venta_id) {
     try {
+        // 1. OBTENER DATOS DE SUPABASE
         const { data: venta, error: vError } = await supabase
             .from('ventas')
             .select('*')
@@ -2142,7 +2143,7 @@ window.handleViewSaleDetails = async function(venta_id) {
         const pagos = pagosRes.data || [];
         window.currentSaleForPrint = { ...venta, productos, pagos };
 
-        // 1. ID y Cliente
+        // 2. LLENAR CABECERA (ID, CLIENTE, FECHA, MÉTODO)
         const elId = document.getElementById('detail-sale-id');
         if (elId) elId.textContent = venta.venta_id;
 
@@ -2152,61 +2153,103 @@ window.handleViewSaleDetails = async function(venta_id) {
             elCliente.textContent = c ? c.name : 'Cliente General';
         }
 
-        // 2. FECHA (CORREGIDA: Evita "Invalid Date")
+        // FECHA: Corrección para evitar "Invalid Date" y desfase de zona horaria
         const elFecha = document.getElementById('detail-sale-date');
         if (elFecha && venta.created_at) {
-            // Extraemos solo YYYY-MM-DD y cambiamos guiones por barras para evitar desfase
             const datePart = venta.created_at.split('T')[0].replace(/-/g, '/');
             const fechaFormateada = new Date(datePart).toLocaleDateString();
 
             elFecha.innerHTML = `
                 <div class="flex items-center gap-2">
                     <span>${fechaFormateada}</span>
-                    <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="text-orange-500 hover:text-orange-400 transition-colors">
-                        <i class="fas fa-calendar-alt text-[10px]"></i>
+                    <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="text-orange-500 hover:text-white transition-colors">
+                        <i class="fas fa-calendar-alt" style="font-size: 12px;"></i>
                     </button>
                 </div>
             `;
         }
 
-        // 3. MÉTODO DE PAGO
         const elMetodo = document.getElementById('detail-payment-method');
         if (elMetodo) {
             const txt = venta.metodo_pago || 'No especificado';
             elMetodo.innerHTML = `
-                ${txt}
-                <button onclick="window.editSalePaymentMethod(${venta.venta_id}, '${txt}')" class="ml-2 text-orange-500 hover:text-white transition-colors">
-                    <i class="fas fa-edit" style="font-size: 12px;"></i>
-                </button>
-            `;
-        }
-
-        // 4. COMENTARIO / DESCRIPCIÓN (CORREGIDA: Diseño compacto)
-        const elDesc = document.getElementById('detail-sale-description');
-        if (elDesc) {
-            const descTxt = venta.description || 'Sin notas adicionales';
-            const escapedDesc = descTxt.replace(/'/g, "\\'"); // Evita errores de comillas
-            
-            elDesc.innerHTML = `
-                <div class="flex flex-col gap-1 w-full">
-                    <div class="flex justify-between items-center border-b border-white/5 pb-1 mb-1">
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Notas del Sistema:</span>
-                        <button onclick="window.editSaleDescription(${venta.venta_id}, '${escapedDesc}')" class="text-[9px] text-orange-500 font-bold hover:underline">
-                            <i class="fas fa-pen mr-1"></i>EDITAR
-                        </button>
-                    </div>
-                    <p class="text-sm text-gray-300 italic leading-tight">"${descTxt}"</p>
+                <div class="flex items-center gap-2">
+                    <span>${txt}</span>
+                    <button onclick="window.editSalePaymentMethod(${venta.venta_id}, '${txt}')" class="text-orange-500 hover:text-white transition-colors">
+                        <i class="fas fa-edit" style="font-size: 12px;"></i>
+                    </button>
                 </div>
             `;
         }
 
-        // --- (Aquí va tu código de tablas de productos y abonos que ya tienes) ---
-        // ... (No lo incluyo para no alargar el mensaje, pero mantenlo igual)
-        
+        // 3. COMENTARIO / DESCRIPCIÓN (DISEÑO INTEGRADO Y COMPACTO)
+        const elDesc = document.getElementById('detail-sale-description');
+        if (elDesc) {
+            const descTxt = venta.description || 'Sin notas adicionales';
+            const escapedDesc = descTxt.replace(/'/g, "\\'"); 
+            
+            elDesc.innerHTML = `
+                <div class="bg-black/20 rounded-xl p-4 border border-white/5 mt-2">
+                    <div class="flex justify-between items-center mb-2 border-b border-white/5 pb-1">
+                        <span class="text-[10px] font-black text-orange-500 uppercase tracking-widest">Notas de la Venta</span>
+                        <button onclick="window.editSaleDescription(${venta.venta_id}, '${escapedDesc}')" class="text-[10px] text-gray-400 hover:text-orange-500 transition-colors font-bold">
+                            <i class="fas fa-pen mr-1"></i>EDITAR
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-300 italic leading-relaxed">
+                        "${descTxt}"
+                    </p>
+                </div>
+            `;
+        }
+
+        // 4. TABLA DE PRODUCTOS
+        const productsBody = document.getElementById('detail-products-body');
+        if (productsBody) {
+            productsBody.innerHTML = productos.map(item => `
+                <tr class="border-b border-white/5 text-gray-300">
+                    <td class="px-4 py-3">${item.name}</td>
+                    <td class="px-4 py-3 text-right">${item.quantity}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(item.price)}</td>
+                    <td class="px-4 py-3 text-right font-bold text-white">${formatCurrency(item.subtotal)}</td>
+                    <td class="px-4 py-3 text-center">
+                        <div class="flex justify-center gap-3">
+                            <button onclick="window.editItemPrice(${item.detalle_id || item.id}, ${item.price}, ${item.quantity}, ${venta_id})" class="text-blue-400 hover:text-blue-300"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteItemFromSale(${item.detalle_id || item.id}, ${venta_id})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 5. RESUMEN FINANCIERO
+        const elTotal = document.getElementById('detail-grand-total');
+        if (elTotal) elTotal.textContent = formatCurrency(venta.total_amount);
+
+        const elPagado = document.getElementById('detail-paid-amount');
+        if (elPagado) elPagado.textContent = formatCurrency(venta.total_amount - (venta.saldo_pendiente || 0));
+
+        const elDeuda = document.getElementById('detail-remaining-debt');
+        if (elDeuda) elDeuda.textContent = formatCurrency(venta.saldo_pendiente || 0);
+
+        // 6. HISTORIAL DE ABONOS
+        const abonosBody = document.getElementById('detail-abonos-body');
+        if (abonosBody) {
+            abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
+                <tr class="text-xs border-b border-white/5 text-gray-400">
+                    <td class="py-2 px-4">${new Date(p.created_at.replace(/-/g, '/')).toLocaleDateString()}</td>
+                    <td class="py-2 px-4 font-bold text-green-500">${formatCurrency(p.amount)}</td>
+                    <td class="py-2 px-4 uppercase text-gray-500">${p.metodo_pago || 'EFECTIVO'}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" class="text-center py-4 text-gray-500 italic text-xs">No se han registrado abonos aún</td></tr>';
+        }
+
+        // 7. ABRIR MODAL
         window.openModal('modal-detail-sale');
 
     } catch (err) {
         console.error("Error crítico en handleViewSaleDetails:", err);
+        alert("No se pudieron cargar los detalles de la venta.");
     }
 };
 
