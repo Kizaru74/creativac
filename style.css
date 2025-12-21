@@ -123,3 +123,66 @@ input::-webkit-inner-spin-button {
 input[type=number] {
     -moz-appearance: textfield;
 }
+
+/* --- LIMPIEZA QUIRÚRGICA (Solo para elementos de entrada, no para el detalle) --- */
+#new-sale-modal input, 
+#new-sale-modal select,
+#new-sale-modal .summary-card input {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Asegurar que el contenedor de detalles SÍ sea visible */
+#sale-items-table-body, 
+.detalle-venta-container {
+    display: table-row-group !important; /* O 'block' según tu estructura */
+    color: white !important;
+}
+
+/* Si usas iconos de carga en el botón de ver detalle */
+.loading .btn-spinner {
+    display: inline-block !important;
+}
+
+/* --- LIMPIEZA EXCLUSIVA PARA EL MODAL DE NUEVA VENTA --- */
+/* Esto asegura que los 'badges' no aparezcan en los inputs de cobro */
+#new-sale-modal .text-red-500, 
+#new-sale-modal .text-green-500,
+#new-sale-modal .text-emerald-500,
+#new-sale-modal .bg-emerald-500\/10,
+#new-sale-modal .bg-red-500\/10 {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+/* Limpiar fondos de inputs SOLO en el modal de ventas */
+#new-sale-modal input, 
+#new-sale-modal select {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* --- RESTAURACIÓN DE VISIBILIDAD PARA ABONOS E HISTORIAL --- */
+/* Forzamos que las tablas de abonos e historial SÍ tengan sus bordes y colores */
+#lista-notas-pendientes tr, 
+#historial-abonos-cliente tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Asegurar que los textos de estado (Pagado/Pendiente) en el historial sean visibles */
+#modal-historial .glass-badge-success,
+#modal-historial .glass-badge-danger {
+    display: inline-block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Evitar que el reset de botones afecte a la funcionalidad de los otros modales */
+#modal-abono button, 
+#modal-historial button {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
