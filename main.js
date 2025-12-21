@@ -42,40 +42,22 @@ try {
 // ====================================================================
 
 async function initializeApp() {
-    console.log("🚀 Iniciando carga de la aplicación...");
-
+    console.log("🚀 Iniciando Aplicación...");
     try {
-        // 1. CARGAR PRODUCTOS
-        // Asegúrate de que loadProducts guarde en window.allProducts
-        await loadProducts(); 
-        
-        // 2. CARGAR CLIENTES Y MAPAS
-        // Esta función debe llenar window.allClients y window.allClientsMap
-        await loadClientsTable('gestion'); 
-
-        // 3. CARGAR MÉTRICAS DEL DASHBOARD
-        if (typeof loadDashboardMetrics === 'function') {
-            await loadDashboardMetrics();
-        }
-
-        // 4. POBLAR SELECTORES DE VENTA
-        // Es vital que esto ocurra DESPUÉS de loadProducts
-        if (typeof populateProductSelects === 'function') {
-            populateProductSelects(); 
-        }
-
-        // 5. CARGAR PRODUCTOS PARA MODAL SUBPRODUCTO (TU PASO CRÍTICO)
-        if (typeof loadMainProductsAndPopulateSelect === 'function') {
-            await loadMainProductsAndPopulateSelect(); 
-        }
-
-        console.log("✅ Aplicación inicializada correctamente.");
-        
+        await Promise.all([
+            loadProductsData(),
+            loadSalesData(),
+            loadClientsTable('gestion')
+        ]);
+        window.handleFilterSales(); // Renderiza la tabla de reportes
+        console.log("✅ Datos cargados correctamente");
     } catch (error) {
-        console.error("❌ Error crítico durante la inicialización:", error);
+        console.error("❌ Error en inicialización:", error);
     }
 }
 
+// Llamar al final del archivo
+document.addEventListener('DOMContentLoaded', initializeApp);
 // Ejecutar al cargar el DOM
 document.addEventListener('DOMContentLoaded', initializeApp);
 //FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
@@ -4225,9 +4207,12 @@ window.handleViewAction = async function(btn, ventaId, clientId) {
     btn.classList.add('btn-loading'); // Activa el spinner
     try {
         await handleViewSaleDetails(ventaId, clientId);
+    // 3. Abrir modal
+        openModal('modal-detalle-venta'); 
     } finally {
-        btn.classList.remove('btn-loading'); // Lo quita al terminar
+        btn.classList.remove('loading');
     }
+    
 };
 
 window.handleDeleteAction = async function(btn, ventaId, month, year) {
