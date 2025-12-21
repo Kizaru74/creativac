@@ -337,19 +337,28 @@ window.actualizarMetricasDeudas = function(debtList) {
 
 // 2. FUNCIÓN PRINCIPAL (Consulta y Renderizado)
 window.loadDebts = async function() {
-    if (!supabase) return;
+    if (!supabase) {
+        console.error("Supabase no inicializado");
+        return;
+    }
 
     const tbody = document.getElementById('debts-table-body');
     const noDebtsMessage = document.getElementById('no-debts-message');
-    const searchInput = document.getElementById('search-debts');
     
+    // Elementos de las tarjetas superiores
+    const elTotal = document.getElementById('total-deuda-global');
+    const elCount = document.getElementById('total-clientes-deuda');
+    const elMax = document.getElementById('max-deuda-individual');
+    const searchInput = document.getElementById('search-debts');
+
     if (!tbody) return;
 
-    // Estado de carga visual
+    // 1. Estado de carga: Evita que el usuario vea el 0 anterior
     tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-16 text-center italic text-white/20 font-sans uppercase text-[10px] tracking-widest">Sincronizando deudas...</td></tr>`;
+    if (elTotal) elTotal.innerHTML = '<span class="animate-pulse opacity-50">...</span>';
 
     try {
-        // Consulta a Supabase: Solo ventas con saldo pendiente
+        // 2. Consulta real a la base de datos
         const { data: sales, error } = await supabase
             .from('ventas')
             .select(`venta_id, client_id, created_at, saldo_pendiente, clientes(name)`)
@@ -358,8 +367,10 @@ window.loadDebts = async function() {
 
         if (error) throw error;
         
-        // Agrupamos por cliente
+        // 3. Procesamiento de datos (Agrupación por cliente)
         const clientDebtsMap = {};
+        let sumaTotalGlobal = 0;
+
         (sales || []).forEach(sale => {
             const clientId = sale.client_id;
             if (!clientDebtsMap[clientId]) {
@@ -371,18 +382,25 @@ window.loadDebts = async function() {
                 };
             }
             clientDebtsMap[clientId].totalDebt += sale.saldo_pendiente;
+            sumaTotalGlobal += sale.saldo_pendiente;
         });
 
         const debtList = Object.values(clientDebtsMap);
 
-        // Actualizamos las tarjetas superiores inmediatamente
-        actualizarMetricasDeudas(debtList);
+        // 4. ACTUALIZACIÓN DE MÉTRICAS (Tarjetas Superiores)
+        if (elTotal) elTotal.innerText = formatCurrency(sumaTotalGlobal);
+        if (elCount) elCount.innerText = debtList.length;
+        if (elMax) {
+            const maxVal = debtList.length > 0 ? Math.max(...debtList.map(d => d.totalDebt)) : 0;
+            elMax.innerText = formatCurrency(maxVal);
+        }
 
-        // Función para dibujar la tabla (se usa aquí y en el buscador)
+        // 5. FUNCIÓN DE RENDERIZADO (Tabla)
         const renderTable = (list) => {
             tbody.innerHTML = '';
             if (list.length === 0) {
                 if (noDebtsMessage) noDebtsMessage.classList.remove('hidden');
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-20 text-center text-emerald-500/20 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Sin deudas pendientes</td></tr>`;
                 return;
             }
             if (noDebtsMessage) noDebtsMessage.classList.add('hidden');
@@ -392,28 +410,32 @@ window.loadDebts = async function() {
                 const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
 
                 tbody.insertAdjacentHTML('beforeend', `
-                    <tr class="group border-b border-white/5 hover:bg-white/[0.01] transition-all">
+                    <tr class="group border-b border-white/5 hover:bg-white/[0.01] transition-all duration-300">
                         <td class="px-10 py-6">
                             <div class="flex items-center gap-4">
                                 <div class="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
                                     <i class="fas fa-user text-[10px]"></i>
                                 </div>
                                 <div>
-                                    <div class="text-sm font-bold text-white uppercase font-sans">${debt.name}</div>
+                                    <div class="text-sm font-bold text-white uppercase font-sans tracking-wide">${debt.name}</div>
                                     <div class="text-[9px] text-white/20 font-bold uppercase tracking-widest">ID #${debt.clientId}</div>
                                 </div>
                             </div>
                         </td>
                         <td class="px-10 py-6 text-center">
                             <div class="glass-badge glass-badge-danger inline-flex">
-                                <span class="text-lg font-black text-red-500 font-sans italic tracking-tighter">${formatCurrency(debt.totalDebt)}</span>
+                                <span class="text-lg font-black text-red-500 font-sans italic tracking-tighter">
+                                    ${formatCurrency(debt.totalDebt)}
+                                </span>
                             </div>
                         </td>
-                        <td class="px-10 py-6 text-xs font-bold text-white/40 font-sans uppercase italic">${formattedDate}</td>
+                        <td class="px-10 py-6 text-xs font-bold text-white/40 font-sans uppercase italic">
+                            ${formattedDate}
+                        </td>
                         <td class="px-10 py-6 text-right">
                             <button onclick="window.handleViewClientDebt(${debt.clientId})" 
                                 class="opacity-0 group-hover:opacity-100 transition-all bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-black text-white/40 hover:text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/20 uppercase tracking-widest backdrop-blur-md">
-                                <i class="fas fa-history mr-2"></i> Detalles
+                                <i class="fas fa-history mr-2 text-[10px]"></i> Detalles
                             </button>
                         </td>
                     </tr>
@@ -421,10 +443,10 @@ window.loadDebts = async function() {
             });
         };
 
-        // Render inicial de la tabla
+        // Render inicial
         renderTable(debtList);
 
-        // Activamos el buscador
+        // 6. Buscador integrado
         if (searchInput) {
             searchInput.oninput = (e) => {
                 const term = e.target.value.toLowerCase();
@@ -435,7 +457,7 @@ window.loadDebts = async function() {
 
     } catch (e) {
         console.error('Error en loadDebts:', e);
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-red-500 font-bold uppercase text-[10px]">Error de conexión con la base de datos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-red-500 font-bold uppercase text-[10px]">Error al sincronizar datos</td></tr>';
     }
 };
 
@@ -5201,16 +5223,16 @@ window.switchView = async function(viewId) {
         } 
         
         else if (viewId === 'deudas-view') {
-            // Recargamos la tabla de deudas
-            if (typeof loadDebtsTable === 'function') {
-                await loadDebtsTable();
-            } else if (typeof loadDebts === 'function') {
-                await loadDebts();
+            // 1. Solo llamamos a la función principal. 
+            // Ella internamente ya llama a actualizarMetricasDeudas con datos reales.
+            if (typeof window.loadDebts === 'function') {
+                await window.loadDebts();
+            } else if (typeof window.loadDebtsTable === 'function') {
+                await window.loadDebtsTable();
             }
-            // Actualizamos las tarjetas superiores de deuda con datos frescos
-            if (typeof actualizarMetricasDeudas === 'function') {
-                await actualizarMetricasDeudas(window.allClients);
-            }
+            
+            // ELIMINAMOS la línea de actualizarMetricasDeudas(window.allClients) 
+            // de aquí, porque causaba el conflicto y el "0.00"
         }
 
         else if (viewId === 'report-view') {
