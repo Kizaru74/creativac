@@ -319,6 +319,130 @@ function openSaleDetailModal(saleId) {
 }
 
 // ====================================================================
+// DEUDAS VIEW - Funciones para mostrar los datos
+// ====================================================================
+// 1. FUNCIÓN DE MÉTRICAS (Actualiza los cuadros superiores)
+window.actualizarMetricasDeudas = function(debtList) {
+    const totalGlobal = debtList.reduce((acc, item) => acc + (item.totalDebt || 0), 0);
+    const maxIndividual = debtList.length > 0 ? Math.max(...debtList.map(d => d.totalDebt)) : 0;
+
+    const elTotal = document.getElementById('total-deuda-global');
+    const elCount = document.getElementById('total-clientes-deuda');
+    const elMax = document.getElementById('max-deuda-individual');
+
+    if (elTotal) elTotal.innerText = formatCurrency(totalGlobal);
+    if (elCount) elCount.innerText = debtList.length;
+    if (elMax) elMax.innerText = formatCurrency(maxIndividual);
+};
+
+// 2. FUNCIÓN PRINCIPAL (Consulta y Renderizado)
+window.loadDebts = async function() {
+    if (!supabase) return;
+
+    const tbody = document.getElementById('debts-table-body');
+    const noDebtsMessage = document.getElementById('no-debts-message');
+    const searchInput = document.getElementById('search-debts');
+    
+    if (!tbody) return;
+
+    // Estado de carga visual
+    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-16 text-center italic text-white/20 font-sans uppercase text-[10px] tracking-widest">Sincronizando deudas...</td></tr>`;
+
+    try {
+        // Consulta a Supabase: Solo ventas con saldo pendiente
+        const { data: sales, error } = await supabase
+            .from('ventas')
+            .select(`venta_id, client_id, created_at, saldo_pendiente, clientes(name)`)
+            .gt('saldo_pendiente', 0.01) 
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        // Agrupamos por cliente
+        const clientDebtsMap = {};
+        (sales || []).forEach(sale => {
+            const clientId = sale.client_id;
+            if (!clientDebtsMap[clientId]) {
+                clientDebtsMap[clientId] = {
+                    clientId: clientId,
+                    name: sale.clientes?.name || 'Cliente Desconocido',
+                    totalDebt: 0,
+                    lastSaleDate: sale.created_at
+                };
+            }
+            clientDebtsMap[clientId].totalDebt += sale.saldo_pendiente;
+        });
+
+        const debtList = Object.values(clientDebtsMap);
+
+        // Actualizamos las tarjetas superiores inmediatamente
+        actualizarMetricasDeudas(debtList);
+
+        // Función para dibujar la tabla (se usa aquí y en el buscador)
+        const renderTable = (list) => {
+            tbody.innerHTML = '';
+            if (list.length === 0) {
+                if (noDebtsMessage) noDebtsMessage.classList.remove('hidden');
+                return;
+            }
+            if (noDebtsMessage) noDebtsMessage.classList.add('hidden');
+
+            list.forEach(debt => {
+                const dateObj = new Date(debt.lastSaleDate);
+                const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="group border-b border-white/5 hover:bg-white/[0.01] transition-all">
+                        <td class="px-10 py-6">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-user text-[10px]"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-white uppercase font-sans">${debt.name}</div>
+                                    <div class="text-[9px] text-white/20 font-bold uppercase tracking-widest">ID #${debt.clientId}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-10 py-6 text-center">
+                            <div class="glass-badge glass-badge-danger inline-flex">
+                                <span class="text-lg font-black text-red-500 font-sans italic tracking-tighter">${formatCurrency(debt.totalDebt)}</span>
+                            </div>
+                        </td>
+                        <td class="px-10 py-6 text-xs font-bold text-white/40 font-sans uppercase italic">${formattedDate}</td>
+                        <td class="px-10 py-6 text-right">
+                            <button onclick="window.handleViewClientDebt(${debt.clientId})" 
+                                class="opacity-0 group-hover:opacity-100 transition-all bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-black text-white/40 hover:text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/20 uppercase tracking-widest backdrop-blur-md">
+                                <i class="fas fa-history mr-2"></i> Detalles
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+        };
+
+        // Render inicial de la tabla
+        renderTable(debtList);
+
+        // Activamos el buscador
+        if (searchInput) {
+            searchInput.oninput = (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = debtList.filter(d => d.name.toLowerCase().includes(term));
+                renderTable(filtered);
+            };
+        }
+
+    } catch (e) {
+        console.error('Error en loadDebts:', e);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-red-500 font-bold uppercase text-[10px]">Error de conexión con la base de datos</td></tr>';
+    }
+};
+
+// Vinculamos para que el HTML la encuentre
+window.loadDebtsTable = loadDebts;
+
+// ====================================================================
 // 5. CARGA DE DATOS PARA SELECTORES
 // ====================================================================
 
@@ -353,20 +477,118 @@ async function loadClientsForSale() {
         select.appendChild(option);
     });
 }
-window.loadDebts = async function() {
-    console.log("Refrescando datos de deudas...");
+// 1. EL PUENTE PARA EL BOTÓN DE REFRESCO - Tu HTML usa onclick="loadDebts()", así que definimos esa función:
+
+// 2. FUNCIÓN PRINCIPAL ACTUALIZADA (CON FILTRADO Y CONTADORES)
+async function loadClientDebtsTable() {
+    if (!supabase) return;
+
+    const tbody = document.getElementById('debts-table-body');
+    const noDebtsMessage = document.getElementById('no-debts-message');
+    const totalGlobalEl = document.getElementById('total-deuda-global');
+    const totalClientesEl = document.getElementById('total-clientes-deuda');
+    const maxDeudaEl = document.getElementById('max-deuda-individual');
+    const searchInput = document.getElementById('search-debts');
     
-    // 1. Llamamos a la función que ya tienes para cargar la tabla
-    // En tu main.js se llama loadDebtsTable
-    if (typeof loadDebtsTable === 'function') {
-        await loadDebtsTable();
+    if (!tbody) return;
+
+    // Efecto de carga en la tabla
+    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-16 text-center italic text-white/20 font-sans uppercase text-[10px] tracking-widest">Sincronizando deudas...</td></tr>`;
+
+    try {
+        const { data: sales, error } = await supabase
+            .from('ventas')
+            .select(`venta_id, client_id, created_at, saldo_pendiente, clientes(name)`)
+            .gt('saldo_pendiente', 0.01) 
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        const clientDebts = {};
+        let sumaTotalGlobal = 0;
+
+        (sales || []).forEach(sale => {
+            const clientId = sale.client_id;
+            if (!clientDebts[clientId]) {
+                clientDebts[clientId] = {
+                    clientId: clientId,
+                    name: sale.clientes?.name || 'Cliente Desconocido',
+                    totalDebt: 0,
+                    lastSaleDate: sale.created_at
+                };
+            }
+            clientDebts[clientId].totalDebt += sale.saldo_pendiente;
+            sumaTotalGlobal += sale.saldo_pendiente;
+        });
+
+        const debtList = Object.values(clientDebts);
+
+        // Actualizar cuadros superiores
+        if (totalGlobalEl) totalGlobalEl.innerText = formatCurrency(sumaTotalGlobal);
+        if (totalClientesEl) totalClientesEl.innerText = debtList.length;
+        if (maxDeudaEl) {
+            const maxVal = debtList.length > 0 ? Math.max(...debtList.map(d => d.totalDebt)) : 0;
+            maxDeudaEl.innerText = formatCurrency(maxVal);
+        }
+
+        // FUNCIÓN INTERNA PARA RENDERIZAR (Para poder filtrar)
+        const renderTable = (list) => {
+            tbody.innerHTML = '';
+            if (list.length === 0) {
+                noDebtsMessage.classList.remove('hidden');
+                return;
+            }
+            noDebtsMessage.classList.add('hidden');
+
+            list.forEach(debt => {
+                const dateObj = new Date(debt.lastSaleDate);
+                const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="group border-b border-white/5 hover:bg-white/[0.01] transition-all">
+                        <td class="px-10 py-6">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
+                                    <i class="fas fa-user text-[10px]"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-white uppercase font-sans">${debt.name}</div>
+                                    <div class="text-[9px] text-white/20 font-bold uppercase">ID #${debt.clientId}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-10 py-6 text-center">
+                            <span class="text-lg font-black text-red-500 font-sans italic tracking-tighter">${formatCurrency(debt.totalDebt)}</span>
+                        </td>
+                        <td class="px-10 py-6 text-sm font-bold text-white/40 font-sans uppercase italic">${formattedDate}</td>
+                        <td class="px-10 py-6 text-right">
+                            <button onclick="window.handleViewClientDebt(${debt.clientId})" 
+                                class="opacity-0 group-hover:opacity-100 transition-all bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-black text-white/40 hover:text-orange-500 hover:border-orange-500/30 uppercase tracking-widest backdrop-blur-sm">
+                                Detalles
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+        };
+
+        // Render inicial
+        renderTable(debtList);
+
+        // 3. LÓGICA DE BÚSQUEDA EN TIEMPO REAL
+        if (searchInput) {
+            searchInput.oninput = (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = debtList.filter(d => d.name.toLowerCase().includes(term));
+                renderTable(filtered);
+            };
+        }
+
+    } catch (e) {
+        console.error('Error:', e);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-red-500">Error de conexión</td></tr>';
     }
-    
-    // 2. Actualizamos las métricas (tarjetas superiores)
-    if (typeof actualizarMetricasDeudas === 'function') {
-        actualizarMetricasDeudas(window.allClients);
-    }
-};
+}
 //Llena el SELECT de Producto Padre en el modal de edición
 window.loadMainProductsForEditSelect = function() {
     const selectElement = document.getElementById('edit-product-parent');
@@ -1848,34 +2070,8 @@ window.handleAbonoClick = function(clientId) {
     openModal('abono-client-modal');
 };
 
-window.actualizarMetricasDeudas = function(clientes) {
-    // Si 'clientes' no llega, usamos un array vacío para que .reduce no falle
-    const data = clientes || [];
-    
-    console.log("Calculando métricas con:", data.length, "clientes");
 
-    // Calculamos el total sumando el campo deuda_total (o total_debt según tu DB)
-    const totalDeudaGlobal = data.reduce((acc, c) => {
-        const monto = parseFloat(c.deuda_total || c.total_debt || 0);
-        return acc + monto;
-    }, 0);
-
-    const clientesConDeuda = data.filter(c => {
-        const monto = parseFloat(c.deuda_total || c.total_debt || 0);
-        return monto > 0;
-    }).length;
-
-    // Actualizamos el DOM
-    const metricTotal = document.getElementById('total-deuda-global');
-    const metricCount = document.getElementById('total-clientes-deuda');
-
-    if (metricTotal) metricTotal.textContent = `$${totalDeudaGlobal.toFixed(2)}`;
-    if (metricCount) metricCount.textContent = clientesConDeuda;
-};
-
-/**
- * GENERACIÓN DE PDF: ESTADO DE CUENTA PROFESIONAL
- */
+// GENERACIÓN DE PDF: ESTADO DE CUENTA PROFESIONAL
 window.imprimirEstadoCuenta = function() {
     const data = window.currentClientDataForPrint;
     if (!data) return alert("Cargue primero el reporte del cliente.");
