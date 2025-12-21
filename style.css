@@ -1,36 +1,24 @@
-/* style.css - Creativa Cortes CNC (MAQUETACIÓN FINAL) */
+/* style.css - Creativa Cortes CNC (DARK PREMIUM EDITION) */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- 1. BASE Y RESET --- */
+/* --- 1. FONDO BASE Y TIPOGRAFÍA --- */
 body {
-    background-color: #121212 !important;
-    color: #ffffff !important;
+    background-color: #0a0a0a !important; /* Negro profundo para el fondo */
+    color: #f3f4f6 !important;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* --- 2. EL CONTENEDOR DE MODAL QUE FALTABA --- */
-/* Esto es lo que hace que el modal no sea solo una mancha gris */
-.modal-content {
-    background-color: #1a1a1a !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-    border-radius: 24px !important;
-    padding: 2rem !important;
-    max-width: 95vw;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-/* --- 3. MODALES: CAPAS Y CLICS --- */
+/* --- 2. MODALES: EL EFECTO "GLASS" PREMIUM --- */
 .modal-overlay {
     position: fixed !important;
     inset: 0 !important;
     z-index: 9999 !important;
-    background-color: rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(12px);
-    display: none; /* Se controla con .flex desde JS */
+    background-color: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(12px) saturate(150%); /* Desenfoque de cristal */
+    display: none;
 }
 
 .modal-overlay.flex {
@@ -39,28 +27,41 @@ body {
     justify-content: center;
 }
 
-/* --- 4. BOTONES DE ACCIÓN (RESTAURADOS TOTALMENTE) --- */
+/* El cuadro del modal con borde brillante */
+.modal-content {
+    background: rgba(23, 23, 23, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Brillo en el borde */
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6), 0 0 2px rgba(255, 255, 255, 0.05) inset;
+    border-radius: 28px !important;
+    padding: 2.5rem !important;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* --- 3. BOTONES DE ACCIÓN (EFECTO VIDRIO) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
-    width: 38px !important;
-    height: 38px !important;
+    width: 40px !important;
+    height: 40px !important;
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    border-radius: 10px !important;
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #e5e7eb !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-action-report:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-/* --- 5. AISLAMIENTO TPV (#new-sale-modal) --- */
-/* Solo aquí los inputs son invisibles para el estilo minimalista */
+/* --- 4. AISLAMIENTO PARA EL TPV (ELIMINAR RECUADROS) --- */
+/* Esto mantiene la limpieza que querías en la Nueva Venta */
 #new-sale-modal .text-red-500, 
 #new-sale-modal .text-green-500,
 #new-sale-modal .text-emerald-500,
@@ -68,35 +69,50 @@ body {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
+    padding: 0 !important;
 }
 
-/* --- 6. VISIBILIDAD DE TABLAS (REPORTES, ABONOS, HISTORIAL) --- */
-/* Esto garantiza que el contenido se vea separado por líneas */
-#lista-notas-pendientes td, 
-#historial-abonos-cliente td, 
-#sales-table-body td {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    padding: 1rem !important;
-    color: #e5e7eb !important;
-}
-
-/* --- 7. ESTADOS (BADGES) --- */
+/* --- 5. ESTADOS DE PAGO (DISEÑO CAPSULA) --- */
 .glass-badge-success {
     background: rgba(16, 185, 129, 0.1) !important;
-    color: #10b981 !important;
+    color: #34d399 !important;
     border: 1px solid rgba(16, 185, 129, 0.2) !important;
-    padding: 4px 12px;
-    border-radius: 99px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .glass-badge-danger {
     background: rgba(239, 68, 68, 0.1) !important;
-    color: #ef4444 !important;
+    color: #f87171 !important;
     border: 1px solid rgba(239, 68, 68, 0.2) !important;
-    padding: 4px 12px;
-    border-radius: 99px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* --- 6. TABLAS E INTERFACES --- */
+td {
+    padding: 1rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    color: #d1d5db !important;
+}
+
+tr:hover td {
+    background: rgba(255, 255, 255, 0.01) !important;
+}
+
+/* Ocultar scrollbars feos */
+.modal-content::-webkit-scrollbar {
+    width: 6px;
+}
+.modal-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
 }
