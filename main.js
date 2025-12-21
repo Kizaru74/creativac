@@ -3555,11 +3555,22 @@ async function loadClientDebtsTable() {
     
     if (!tbody || !noDebtsMessage) return; 
 
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Cargando deudas...</td></tr>';
+    // 1. Estado de carga Dark Premium
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="4" class="px-6 py-16 text-center">
+                <div class="flex flex-col justify-center items-center space-y-3">
+                    <div class="h-10 w-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse">
+                        <i class="fas fa-hand-holding-usd text-lg"></i>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20 font-sans">Analizando Cartera Vencida</span>
+                </div>
+            </td>
+        </tr>`;
+    
     noDebtsMessage.classList.add('hidden');
 
     try {
-        // 1. Consultar ventas con saldo pendiente > 0.01
         const { data: sales, error } = await supabase
             .from('ventas')
             .select(`
@@ -3574,63 +3585,78 @@ async function loadClientDebtsTable() {
 
         if (error) throw error;
         
-        // 2. Agrupar las deudas por Cliente y calcular el total
         const clientDebts = {};
-        
         (sales || []).forEach(sale => {
             const clientId = sale.client_id;
-            
             if (!clientDebts[clientId]) {
                 clientDebts[clientId] = {
                     clientId: clientId,
                     name: sale.clientes?.name || 'Cliente Desconocido',
                     totalDebt: 0,
-                    lastSaleDate: sale.created_at, 
-                    lastSaleId: sale.venta_id 
+                    lastSaleDate: sale.created_at
                 };
             }
-            
             clientDebts[clientId].totalDebt += sale.saldo_pendiente;
         });
 
         const debtList = Object.values(clientDebts);
-
-        // 3. Renderizar la tabla
         tbody.innerHTML = ''; 
 
         if (debtList.length === 0) {
             noDebtsMessage.classList.remove('hidden');
+            tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-20 text-center text-emerald-500/20 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Cartera Limpia - Sin Deudas</td></tr>`;
             return;
         }
 
-        let debtsHTML = []; 
-
         debtList.forEach(debt => {
-            const formattedDate = formatDate(debt.lastSaleDate); 
+            const dateObj = new Date(debt.lastSaleDate);
+            const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
-            debtsHTML.push(`
-                <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${debt.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-lg font-extrabold text-red-600">${formatCurrency(debt.totalDebt)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDate}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <button 
-                            onclick="window.handleViewClientDebt(${debt.clientId})" 
-                            class="text-indigo-600 hover:text-indigo-900 font-medium text-xs py-1 px-2 rounded bg-indigo-100"
-                            title="Ver historial completo de cargos y abonos"
-                        >
-                            Ver Historial (${formatCurrency(debt.totalDebt)})
-                        </button>
+            const rowHTML = `
+                <tr class="group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300">
+                    <td class="px-8 py-5 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
+                                <i class="fas fa-user text-white text-[10px]"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${debt.name}</div>
+                                <div class="text-[9px] text-white/20 uppercase tracking-widest font-bold font-sans mt-0.5">Deudor Activo</div>
+                            </div>
+                        </div>
+                    </td>
+                    
+                    <td class="px-8 py-5 whitespace-nowrap">
+                        <div class="text-[10px] text-red-500/50 uppercase font-bold mb-1 font-sans tracking-widest">Monto Pendiente</div>
+                        <div class="text-lg font-black text-red-500 font-sans italic tracking-tighter">
+                            ${formatCurrency(debt.totalDebt)}
+                        </div>
+                    </td>
+                    
+                    <td class="px-8 py-5 whitespace-nowrap">
+                        <div class="text-[10px] text-white/20 uppercase font-bold mb-1 font-sans tracking-widest text-left">Último Cargo</div>
+                        <div class="text-sm font-bold text-white/70 font-sans uppercase">${formattedDate}</div>
+                    </td>
+                    
+                    <td class="px-8 py-5 whitespace-nowrap text-right">
+                        <div class="flex justify-end items-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                            <button 
+                                onclick="window.handleViewClientDebt(${debt.clientId})" 
+                                class="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/20 transition-all backdrop-blur-md"
+                                title="Ver historial completo">
+                                <i class="fas fa-history text-xs"></i>
+                                Ver Historial
+                            </button>
+                        </div>
                     </td>
                 </tr>
-            `);
+            `;
+            tbody.insertAdjacentHTML('beforeend', rowHTML);
         });
-        
-        tbody.innerHTML = debtsHTML.join(''); // Inyección única
 
     } catch (e) {
-        console.error('Error al cargar la tabla de deudas:', e);
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-600">Error al cargar datos de deudas.</td></tr>';
+        console.error('Error:', e);
+        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-red-500 font-sans font-bold uppercase text-[10px] tracking-widest">Error de carga</td></tr>';
     }
 }
 window.loadClientsTable = async function(mode = 'gestion') {
