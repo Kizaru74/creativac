@@ -322,43 +322,17 @@ function openSaleDetailModal(saleId) {
 // DEUDAS VIEW - Funciones para mostrar los datos
 // ====================================================================
 // 1. FUNCIÓN DE MÉTRICAS (Actualiza los cuadros superiores)
-window.actualizarMetricasDeudas = function(dataArray) {
-    // 1. Aseguramos que dataArray sea una lista válida de deudores
-    const data = dataArray || [];
-    
-    // 2. Calculamos métricas de forma segura
-    const totalDeudaGlobal = data.reduce((acc, item) => {
-        // Buscamos el monto en .totalDebt (que es como lo calcula nuestra función de carga)
-        const monto = parseFloat(item.totalDebt || 0);
-        return acc + monto;
-    }, 0);
+window.actualizarMetricasDeudas = function(debtList) {
+    const totalGlobal = debtList.reduce((acc, item) => acc + (item.totalDebt || 0), 0);
+    const maxIndividual = debtList.length > 0 ? Math.max(...debtList.map(d => d.totalDebt)) : 0;
 
-    const clientesConDeuda = data.length;
+    const elTotal = document.getElementById('total-deuda-global');
+    const elCount = document.getElementById('total-clientes-deuda');
+    const elMax = document.getElementById('max-deuda-individual');
 
-    // Calculamos el máximo individual para tu tercera tarjeta
-    const maxDeudaIndividual = data.length > 0 
-        ? Math.max(...data.map(item => parseFloat(item.totalDebt || 0))) 
-        : 0;
-
-    // 3. Actualizamos el DOM con formato de moneda y estilo
-    const metricTotal = document.getElementById('total-deuda-global');
-    const metricCount = document.getElementById('total-clientes-deuda');
-    const metricMax = document.getElementById('max-deuda-individual');
-
-    if (metricTotal) {
-        // Usamos formatCurrency para que se vea igual que el resto del sistema
-        metricTotal.textContent = formatCurrency(totalDeudaGlobal);
-    }
-    
-    if (metricCount) {
-        metricCount.textContent = clientesConDeuda;
-    }
-
-    if (metricMax) {
-        metricMax.textContent = formatCurrency(maxDeudaIndividual);
-    }
-
-    console.log("Métricas actualizadas: Total", totalDeudaGlobal, "Deudores:", clientesConDeuda);
+    if (elTotal) elTotal.innerText = formatCurrency(totalGlobal);
+    if (elCount) elCount.innerText = debtList.length;
+    if (elMax) elMax.innerText = formatCurrency(maxIndividual);
 };
 
 // 2. FUNCIÓN PRINCIPAL (Consulta y Renderizado)
