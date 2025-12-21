@@ -1435,23 +1435,22 @@ window.handleAbonoSubmit = async function(e) {
     const amount = parseFloat(document.getElementById('abono-amount')?.value);
     const methodSelect = document.getElementById('payment-method-abono');
     const method = methodSelect ? methodSelect.value : "";
+    const clientName = document.getElementById('abono-client-name-display')?.textContent;
 
     // 1. VALIDACIONES INICIALES
     if (!clientId) return alert("⚠️ Error: Cliente no identificado.");
     if (isNaN(amount) || amount <= 0) return alert("⚠️ Ingrese un monto mayor a 0.");
     if (!method || method === "" || method === "seleccionar") return alert("⚠️ Selecciona un Método de Pago.");
 
-    // 2. BLOQUEO ANTI-DUPLICIDAD (Importante)
+    // 2. BLOQUEO ANTI-DUPLICIDAD
     if (submitBtn) {
-        if (submitBtn.disabled) return; // Si ya se está procesando, ignorar
+        if (submitBtn.disabled) return;
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner animate-spin mr-2"></i> Procesando...';
     }
 
     try {
-        console.log(`🚀 Iniciando abono de ${amount} para cliente ${clientId}`);
-
-        // 3. EJECUCIÓN RPC
+        // 3. EJECUCIÓN RPC (Cascada)
         const { error } = await supabase.rpc('registrar_abono_cascada', {
             p_client_id: parseInt(clientId),
             p_amount: amount,
@@ -1460,14 +1459,8 @@ window.handleAbonoSubmit = async function(e) {
 
         if (error) throw error;
 
-        // 4. ACTUALIZACIÓN INMEDIATA DEL ESTADO DE CUENTA
-        // No esperamos al setTimeout. Refrescamos el historial del cliente YA.
-        if (typeof window.handleViewClientDebt === 'function') {
-            // Pasamos 'true' o similar si tu función permite refrescar sin reabrir el modal
-            await window.handleViewClientDebt(clientId);
-        }
-
-        // 5. MOSTRAR LOG DE DISTRIBUCIÓN
+        // 4. OBTENER DATOS PARA EL RECIBO (Distribución y Saldo Final)
+        // Buscamos los pagos que acaba de crear el RPC
         const { data: pagosRecientes } = await supabase
             .from('pagos')
             .select('venta_id, amount')
@@ -1475,6 +1468,15 @@ window.handleAbonoSubmit = async function(e) {
             .order('created_at', { ascending: false })
             .limit(5);
 
+        // Consultamos el saldo que le quedó al cliente
+        const { data: ventasRestantes } = await supabase
+            .from('ventas')
+            .select('saldo_pendiente')
+            .eq('client_id', clientId);
+        
+        const saldoFinal = ventasRestantes.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
+
+        // 5. MOSTRAR LOG VISUAL EN EL MODAL
         const logContainer = document.getElementById('log-container-fifo');
         const logBody = document.getElementById('recent-payments-log');
         
@@ -1488,32 +1490,37 @@ window.handleAbonoSubmit = async function(e) {
             `).join('');
         }
 
-        // 6. MENSAJE DE ÉXITO
-        // Usar un Toast o Alert pequeño para no interrumpir
-        console.log("✅ Abono aplicado con éxito.");
+        // 6. DISPARAR EL COMPROBANTE (Tu diseño)
+        if (confirm(`✅ Abono de ${formatCurrency(amount)} aplicado. ¿Deseas imprimir el recibo de Creativa Cortes?`)) {
+            window.generarComprobanteAbono({
+                cliente: clientName,
+                metodo: method,
+                montoTotal: amount,
+                distribucion: pagosRecientes, // Pasamos el array con venta_id y amount
+                deudaRestante: saldoFinal
+            });
+        }
 
-        // 7. CIERRE Y LIMPIEZA PROGRAMADA
+        // 7. ACTUALIZACIÓN DE INTERFAZ
+        if (typeof window.handleViewClientDebt === 'function') {
+            await window.handleViewClientDebt(clientId);
+        }
+
+        // 8. CIERRE Y LIMPIEZA
         setTimeout(() => {
             window.closeModal('abono-client-modal');
             if (form) form.reset();
             if (logContainer) logContainer.classList.add('hidden');
-
-            // Actualización de tablas de fondo
             if (typeof window.loadDebts === 'function') window.loadDebts();
-            if (typeof window.loadClientsTable === 'function') window.loadClientsTable('gestion');
-        }, 2500);
+        }, 1500);
 
     } catch (err) {
         console.error("❌ Error en abono:", err);
         alert("Error técnico: " + err.message);
-        // Si hay error, rehabilitamos el botón para reintentar
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Confirmar Abono';
         }
-    } finally {
-        // Nota: No quitamos el disabled aquí para evitar que el usuario 
-        // pulse de nuevo durante el setTimeout de cierre.
     }
 };
 
@@ -1991,14 +1998,13 @@ window.imprimirEstadoCuenta = function() {
 };
 
 window.generarComprobanteAbono = function(datos) {
-    const colorOxido = '#b45309'; // El color ámbar/óxido de tu marca
+    const colorOxido = '#b45309'; 
     const fecha = new Date().toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
     const numRecibo = Math.floor(Math.random() * 900000 + 100000);
 
     const printWindow = window.open('', '_blank');
-    
     if (!printWindow) {
         alert("⚠️ El navegador bloqueó la ventana emergente. Por favor, permítelas para ver el comprobante.");
         return;
@@ -2013,40 +2019,17 @@ window.generarComprobanteAbono = function(datos) {
             <style>
                 @page { size: letter; margin: 15mm; }
                 body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 12px; background-color: #f4f4f4; padding: 20px; }
-                
-                .actions-bar { 
-                    max-width: 210mm; margin: 0 auto 10px auto; 
-                    display: flex; justify-content: flex-end; 
-                }
-                .btn-print { 
-                    background: ${colorOxido}; color: white; border: none; padding: 10px 20px; 
-                    border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px;
-                }
-
-                .sheet { 
-                    background: white; width: 210mm; min-height: 140mm; 
-                    margin: 0 auto; padding: 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.2);
-                    border-radius: 5px; position: relative; box-sizing: border-box;
-                }
-
+                .actions-bar { max-width: 210mm; margin: 0 auto 10px auto; display: flex; justify-content: flex-end; }
+                .btn-print { background: ${colorOxido}; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
+                .sheet { background: white; width: 210mm; min-height: 140mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.2); border-radius: 5px; position: relative; box-sizing: border-box; }
                 .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 15px; }
-                
-                .logo-c { 
-                    width:45px; height:45px; background:${colorOxido}; color:white; 
-                    display:flex; align-items:center; justify-content:center; 
-                    font-weight:bold; font-size:24px; border-radius:4px; margin-right:12px; 
-                }
-
+                .logo-c { width:45px; height:45px; background:${colorOxido}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:24px; border-radius:4px; margin-right:12px; }
                 .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 12px; margin-bottom: 15px; border: 1px solid #eee; }
-                
                 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                 th { background: ${colorOxido}; color: white; padding: 10px; font-size: 11px; text-transform: uppercase; text-align: left; }
                 td { padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; }
-
-                .totals-box { width: 280px; margin-left: auto; margin-top: 20px; background: #fdf8f5; padding: 15px; border: 1px solid #eee; border-radius: 4px; }
-                
+                .totals-box { width: 320px; margin-left: auto; margin-top: 20px; background: #fdf8f5; padding: 15px; border: 1px solid #eee; border-radius: 4px; }
                 .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
-
                 @media print {
                     body { background: white; padding: 0; }
                     .sheet { box-shadow: none; width: 100%; margin: 0; padding: 10mm; }
@@ -2058,14 +2041,13 @@ window.generarComprobanteAbono = function(datos) {
             <div class="actions-bar">
                 <button class="btn-print" onclick="window.print()">🖨️ Imprimir o Guardar PDF</button>
             </div>
-
             <div class="sheet">
                 <div class="header">
                     <div style="display:flex; align-items:center;">
                         <div class="logo-c">C</div>
                         <div>
                             <h2 style="margin:0; color:${colorOxido}; font-size:18px;">CREATIVA CORTES CNC</h2>
-                            <p style="margin:0; font-size:9px; letter-spacing: 1px;">DISEÑO • CORTE •</p>
+                            <p style="margin:0; font-size:9px; letter-spacing: 1px; font-weight:bold;">DISEÑO • CORTE • GRABADO</p>
                         </div>
                     </div>
                     <div style="text-align:right;">
@@ -2076,26 +2058,26 @@ window.generarComprobanteAbono = function(datos) {
 
                 <div class="data-grid">
                     <div>
-                        <strong>CLIENTE:</strong> ${datos.cliente}<br>
+                        <strong>CLIENTE:</strong> ${datos.cliente.toUpperCase()}<br>
                         <strong>MÉTODO DE PAGO:</strong> ${datos.metodo}
                     </div>
                     <div style="text-align:right;">
-                        <strong>NOTA</strong> DE ABONO
+                        <strong style="color:${colorOxido};">ESTADO:</strong> COMPROBANTE DE PAGO
                     </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 70%;">Descripción</th>
-                            <th style="width: 30%; text-align: right;">Monto Abonado</th>
+                            <th style="width: 70%;">Descripción de Aplicación (Cascada)</th>
+                            <th style="width: 30%; text-align: right;">Monto</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${datos.distribucion.map(item => `
                             <tr>
-                                <td>Abono aplicado a la Venta Folio #${item.id}</td>
-                                <td style="text-align: right; font-weight: bold;">$${item.monto.toFixed(2)}</td>
+                                <td>Abono aplicado a la Venta Folio <strong>#${item.venta_id}</strong></td>
+                                <td style="text-align: right; font-weight: bold;">$${item.amount.toFixed(2)}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -2103,7 +2085,7 @@ window.generarComprobanteAbono = function(datos) {
 
                 <div class="totals-box">
                     <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:14px;">
-                        <span>Monto Recibido:</span> 
+                        <span>Abono Total Recibido:</span> 
                         <span style="font-weight:bold; color:green;">$${datos.montoTotal.toFixed(2)}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:2px solid ${colorOxido}; margin-top:10px; font-size:16px; padding-top:10px;">
@@ -2113,8 +2095,9 @@ window.generarComprobanteAbono = function(datos) {
                 </div>
 
                 <div class="footer">
-                    📱 WhatsApp: 985 100 1141 | 📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán | Creativa Cortes CNC<br>
-                    <small style="display:block; margin-top:5px;">Este recibo es un comprobante de abono a cuenta. Conserve para cualquier aclaración.</small>
+                    📱 WhatsApp: 985 100 1141 | 📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
+                    <strong>Creativa Cortes CNC - Transformando tus ideas</strong>
+                    <small style="display:block; margin-top:5px;">Este documento es un comprobante de abono parcial. El saldo restante está sujeto a los términos de crédito acordados.</small>
                 </div>
             </div>
         </body>
