@@ -130,21 +130,21 @@ function getMonthDateRange(monthString) {
     return { start, end };
 }
 
-window.openModal = function(modalId) {
-    const modal = document.getElementById(modalId);
+window.openModal = function(id) {
+    const modal = document.getElementById(id);
     if (modal) {
         modal.classList.remove('hidden');
-        modal.classList.add('flex'); // Asegura que se centre si usas flexbox
-    } else {
-        console.error(`No se pudo encontrar el modal con ID: ${modalId}`);
+        modal.classList.add('flex'); // El CSS ahora detecta .flex para mostrarlo
+        document.body.style.overflow = 'hidden';
     }
 };
 
-window.closeModal = function(modalId) {
-    const modal = document.getElementById(modalId);
+window.closeModal = function(id) {
+    const modal = document.getElementById(id);
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+        document.body.style.overflow = 'auto';
     }
 };
 

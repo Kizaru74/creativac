@@ -1,108 +1,102 @@
-/* style.css - Creativa Cortes CNC (ESTRUCTURA DE CAPAS CORREGIDA) */
+/* style.css - Creativa Cortes CNC (MAQUETACIÓN FINAL) */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- 1. RESET DE VISIBILIDAD --- */
-body, #main-content {
-    color: #ffffff !important;
+/* --- 1. BASE Y RESET --- */
+body {
     background-color: #121212 !important;
+    color: #ffffff !important;
 }
 
-/* Forzar que cualquier modal oculto no bloquee la pantalla */
-.hidden {
-    display: none !important;
+/* --- 2. EL CONTENEDOR DE MODAL QUE FALTABA --- */
+/* Esto es lo que hace que el modal no sea solo una mancha gris */
+.modal-content {
+    background-color: #1a1a1a !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    border-radius: 24px !important;
+    padding: 2rem !important;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
-/* --- 2. MODALES: CAPAS Y CLICS (Z-INDEX) --- */
+/* --- 3. MODALES: CAPAS Y CLICS --- */
 .modal-overlay {
     position: fixed !important;
     inset: 0 !important;
-    z-index: 9999 !important; /* Asegura que esté por encima de todo */
+    z-index: 9999 !important;
     background-color: rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(8px);
-    display: flex;
+    backdrop-filter: blur(12px);
+    display: none; /* Se controla con .flex desde JS */
+}
+
+.modal-overlay.flex {
+    display: flex !important;
     align-items: center;
     justify-content: center;
 }
 
-/* --- 3. BOTONES DE ACCIÓN (ESTILO VISIBLE) --- */
+/* --- 4. BOTONES DE ACCIÓN (RESTAURADOS TOTALMENTE) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
-    width: 36px !important;
-    height: 36px !important;
+    width: 38px !important;
+    height: 38px !important;
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
     border-radius: 10px !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: white !important;
-    transition: all 0.2s ease;
     cursor: pointer !important;
+    transition: all 0.2s ease;
 }
 
 .btn-action-report:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
-/* --- 4. AISLAMIENTO TOTAL: MODAL DE VENTA (#new-sale-modal) --- */
-/* Aquí quitamos los fondos SOLO para este modal */
-
+/* --- 5. AISLAMIENTO TPV (#new-sale-modal) --- */
+/* Solo aquí los inputs son invisibles para el estilo minimalista */
 #new-sale-modal .text-red-500, 
 #new-sale-modal .text-green-500,
 #new-sale-modal .text-emerald-500,
-#new-sale-modal .bg-emerald-500\/10,
-#new-sale-modal .bg-red-500\/10 {
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-}
-
-#new-sale-modal input, #new-sale-modal select {
+#new-sale-modal input {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
 }
 
-/* --- 5. VISIBILIDAD DE OTROS MODALES (ABONOS, HISTORIAL, REPORTES) --- */
-/* Forzar que las tablas de estos modales SÍ tengan fondo y bordes */
-
-#modal-abono table, #modal-historial table, #modal-detalle-venta table {
-    background: rgba(255, 255, 255, 0.02) !important;
-    border-radius: 12px;
-}
-
-#modal-abono td, #modal-historial td, #modal-detalle-venta td {
+/* --- 6. VISIBILIDAD DE TABLAS (REPORTES, ABONOS, HISTORIAL) --- */
+/* Esto garantiza que el contenido se vea separado por líneas */
+#lista-notas-pendientes td, 
+#historial-abonos-cliente td, 
+#sales-table-body td {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    color: #ffffff !important;
-    padding: 12px !important;
+    padding: 1rem !important;
+    color: #e5e7eb !important;
 }
 
-/* --- 6. ESTADOS DE PAGO (BADGES) --- */
+/* --- 7. ESTADOS (BADGES) --- */
 .glass-badge-success {
-    background: rgba(16, 185, 129, 0.2) !important;
+    background: rgba(16, 185, 129, 0.1) !important;
     color: #10b981 !important;
-    border: 1px solid rgba(16, 185, 129, 0.3) !important;
-    padding: 4px 12px !important;
-    border-radius: 8px !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 .glass-badge-danger {
-    background: rgba(239, 68, 68, 0.2) !important;
+    background: rgba(239, 68, 68, 0.1) !important;
     color: #ef4444 !important;
-    border: 1px solid rgba(239, 68, 68, 0.3) !important;
-    padding: 4px 12px !important;
-    border-radius: 8px !important;
-}
-
-/* --- 7. TABLAS DE REPORTES (MES, ETC) --- */
-#sales-table-body tr {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-/* --- 8. FIX FINAL: CURSOR Y CLICS --- */
-button, select, input {
-    pointer-events: auto !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+    padding: 4px 12px;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
