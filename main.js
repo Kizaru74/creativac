@@ -4596,32 +4596,20 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         const totalDebtEl = document.getElementById('report-total-debt-generated');
         const noDataMessage = document.getElementById('monthly-report-no-data');
 
-        if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) return;
+        if (!reportBody) return;
 
-        // Estado de carga
-        reportBody.innerHTML = `
-            <tr>
-                <td colspan="5" class="px-6 py-24 text-center">
-                    <div class="flex flex-col justify-center items-center space-y-4">
-                        <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white animate-pulse">
-                            <i class="fas fa-sync-alt fa-spin"></i>
-                        </div>
-                        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30">Actualizando Datos</span>
-                    </div>
-                </td>
-            </tr>`;
+        // Limpieza y estado de carga
+        reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-orange-500 animate-pulse uppercase text-[10px] tracking-widest font-bold">Actualizando Reporte...</td></tr>`;
         
         try {
-            const currentMonthNum = new Date().getMonth() + 1;
-            const currentYearNum = new Date().getFullYear();
-            
-            let selectedMonth = (parseInt(selectedMonthFromEvent) >= 1) ? parseInt(selectedMonthFromEvent) : currentMonthNum;
-            let selectedYear = (parseInt(selectedYearFromEvent) >= 2000) ? parseInt(selectedYearFromEvent) : currentYearNum;
+            const ahora = new Date();
+            let selectedMonth = parseInt(selectedMonthFromEvent) || (ahora.getMonth() + 1);
+            let selectedYear = parseInt(selectedYearFromEvent) || ahora.getFullYear();
 
             let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
             let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1));
             
-            // 1. Traer Ventas
+            // 1. Obtener Ventas y Nombres de Clientes
             const { data: sales, error: sError } = await supabase
                 .from('ventas')
                 .select(`venta_id, client_id, created_at, total_amount, saldo_pendiente, metodo_pago, clientes(name)`)
@@ -4631,48 +4619,50 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
             if (sError) throw sError;
 
-            // 2. Traer Detalles (Productos) para estas ventas
+            // 2. Obtener Detalles de Productos para estas ventas
             let productosData = [];
             if (sales && sales.length > 0) {
+                const ids = sales.map(s => s.venta_id);
                 const { data: dData } = await supabase
                     .from('detalle_ventas')
                     .select('venta_id, name, quantity')
-                    .in('venta_id', sales.map(s => s.venta_id));
+                    .in('venta_id', ids);
                 productosData = dData || [];
             }
 
             let totalSales = 0;
             let totalDebtGenerated = 0;
-            reportBody.innerHTML = ''; 
+            let finalHTML = ''; // Construimos todo el HTML en una variable para evitar parpadeos
 
             if (sales && sales.length > 0) {
                 sales.forEach(sale => {
-                    totalSales += sale.total_amount;
-                    totalDebtGenerated += sale.saldo_pendiente;
+                    totalSales += (sale.total_amount || 0);
+                    totalDebtGenerated += (sale.saldo_pendiente || 0);
 
-                    // Agrupar productos de esta venta
                     const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
-                    const listaProds = misProds.map(p => `${p.name} (x${p.quantity})`).join(', ');
+                    const listaProds = misProds.length > 0 
+                        ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
+                        : 'Venta Directa';
         
                     const clientName = sale.clientes?.name || 'Cliente Final';
                     const dateObj = new Date(sale.created_at);
                     const day = dateObj.toLocaleDateString('es-MX', { day: '2-digit' });
                     const monthText = dateObj.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase().replace('.', '');
                     const formattedTime = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-                    const tienePendiente = sale.saldo_pendiente > 0.01;
+                    const tienePendiente = (sale.saldo_pendiente || 0) > 0.01;
                     
-                    const rowHTML = `
+                    finalHTML += `
                         <tr class="group hover:bg-white/[0.02] transition-all border-b border-white/5">
                             <td class="px-8 py-5">
                                 <div class="flex items-center">
-                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4">
+                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30">
                                         <span class="text-[12px] font-bold text-white leading-none">${day}</span>
                                         <span class="text-[9px] font-bold text-orange-500 leading-none mt-1">${monthText}</span>
                                     </div>
-                                    <div>
+                                    <div class="min-w-0">
                                         <div class="flex items-center gap-2 mb-1">
-                                            <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px]">ID #${sale.venta_id}</span>
-                                            <span class="text-[10px] text-orange-300/60 font-medium truncate max-w-[150px]">${listaProds}</span>
+                                            <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] whitespace-nowrap">ID #${sale.venta_id}</span>
+                                            <span class="text-[10px] text-white/40 font-medium truncate italic max-w-[200px]" title="${listaProds}">[ ${listaProds} ]</span>
                                         </div>
                                         <div class="text-[9px] text-white/20 uppercase tracking-widest font-bold">${formattedTime} HRS</div>
                                     </div>
@@ -4680,41 +4670,55 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             </td>
                             <td class="px-8 py-5">
                                 <div class="flex items-center gap-3">
-                                    <div class="bg-orange-500 w-6 h-6 rounded flex items-center justify-center"><i class="fas fa-user text-white text-[9px]"></i></div>
-                                    <div class="text-sm font-bold text-white uppercase">${clientName}</div>
+                                    <div class="bg-orange-500 w-6 h-6 rounded flex items-center justify-center shadow-lg shadow-orange-500/20">
+                                        <i class="fas fa-user text-white text-[9px]"></i>
+                                    </div>
+                                    <div class="text-sm font-bold text-white uppercase tracking-wide">${clientName}</div>
                                 </div>
-                                <div class="text-[10px] text-white/30 mt-1 uppercase pl-9">Metodo: ${sale.metodo_pago || 'CONTADO'}</div>
+                                <div class="text-[10px] text-white/30 mt-1 uppercase pl-9 font-medium">MÉTODO: ${sale.metodo_pago || 'CONTADO'}</div>
                             </td>
                             <td class="px-8 py-5 text-right">
-                                <div class="text-[10px] text-white/40 uppercase font-bold mb-1">Total</div>
-                                <div class="text-sm font-black text-white italic">${formatCurrency(sale.total_amount)}</div>
+                                <div class="text-[10px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Total Venta</div>
+                                <div class="text-sm font-black text-white italic tracking-tight">${formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-5 text-right">
-                                <div class="text-[10px] text-white/40 uppercase font-bold mb-1">Saldo</div>
+                                <div class="text-[10px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Saldo Pend.</div>
                                 <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center px-2 py-1 rounded">
                                     <span class="font-bold text-[12px]">${formatCurrency(sale.saldo_pendiente)}</span>
                                 </div>
                             </td>
                             <td class="px-8 py-5 text-right">
-                                <div class="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-all">
-                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" class="h-8 w-8 bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-blue-400"><i class="fas fa-eye"></i></button>
+                                <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
+                                            class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-blue-400 hover:bg-blue-400/10 transition-all" 
+                                            title="Ver Detalles">
+                                        <i class="fas fa-eye text-sm"></i>
+                                    </button>
+                                    
+                                    <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
+                                            class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-red-500 hover:bg-red-500/10 transition-all" 
+                                            title="Anular Venta">
+                                        <i class="fas fa-trash-alt text-sm"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>`;
-                    reportBody.insertAdjacentHTML('beforeend', rowHTML); 
                 });
-                noDataMessage.classList.add('hidden'); 
+                
+                if (noDataMessage) noDataMessage.classList.add('hidden');
+                reportBody.innerHTML = finalHTML;
             } else {
-                noDataMessage.classList.remove('hidden'); 
-                reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em]">Sin actividad comercial</td></tr>`;
+                if (noDataMessage) noDataMessage.classList.remove('hidden');
+                reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-bold">Sin actividad comercial</td></tr>`;
             }
             
-            totalSalesEl.innerHTML = `<span class="text-white font-black italic">${formatCurrency(totalSales)}</span>`;
-            totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0.01 ? 'text-red-500' : 'text-emerald-500/40'} font-black italic">${formatCurrency(totalDebtGenerated)}</span>`;
+            // Actualizar Totales del reporte
+            if (totalSalesEl) totalSalesEl.innerHTML = `<span class="text-white font-black italic">${formatCurrency(totalSales)}</span>`;
+            if (totalDebtEl) totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0.01 ? 'text-red-500' : 'text-emerald-500/40'} font-black italic">${formatCurrency(totalDebtGenerated)}</span>`;
 
         } catch (e) {
-            console.error('Error:', e);
-            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Error de comunicación</td></tr>';
+            console.error('Error en loadMonthlySalesReport:', e);
+            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 font-bold uppercase text-[10px]">Error de comunicación con Supabase</td></tr>';
         }
     })();
 }
