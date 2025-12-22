@@ -1505,104 +1505,106 @@ window.handleAbonoSubmit = async function(e) {
 // ====================================================================
 
 window.handleNewSale = async function(e) {
-    e.preventDefault();
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation(); // Evita que otros eventos interfieran
+    }
     
-    // --- 1. CAPTURAR Y VALIDAR DATOS INICIALES ---
-    const client_id = document.getElementById('client-select')?.value ?? null;
+    const clientSelect = document.getElementById('client-select');
+    const client_id = clientSelect ? clientSelect.value : "";
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
-    
     const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
-    
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
-    
-    if (payment_method === 'Deuda') {
-        paid_amount = 0;
-    }
-    
-    let final_paid_amount = paid_amount;
-    let final_saldo_pendiente = total_amount - paid_amount; 
 
-    // Validaciones de UI
-    if (!client_id) { alert('Por favor, selecciona un cliente.'); return; }
-    if (currentSaleItems.length === 0) { alert('Debes agregar al menos un producto a la venta.'); return; }
-    
-    const submitBtn = e.target.querySelector('button[type="button"], button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Procesando...';
+    // 1. VALIDACIÓN ANTI-ERRORES
+    if (!client_id || client_id === "" || currentSaleItems.length === 0) {
+        // Verificamos si Swal existe, si no, usamos el log para no romper el código
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Formulario Incompleto',
+                text: !client_id ? 'Debes seleccionar un cliente para continuar.' : 'El carrito está vacío. Agrega productos.',
+                icon: 'warning',
+                background: '#1c1c1c',
+                color: '#fff',
+                confirmButtonColor: '#f97316'
+            });
+        } else {
+            console.error("SweetAlert no está cargado");
+            alert(!client_id ? 'Selecciona un cliente.' : 'Carrito vacío.');
+        }
+        return;
     }
 
-    let new_venta_id = null;
+    const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
+    if (submitBtn) { 
+        submitBtn.disabled = true; 
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...'; 
+    }
+
     try {
-        // 2.1. REGISTRAR VENTA
+        // 2. GUARDAR EN SUPABASE
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
                 client_id: client_id,
-                total_amount: total_amount, 
-                paid_amount: final_paid_amount, 
-                saldo_pendiente: final_saldo_pendiente, 
+                total_amount: total_amount,
+                paid_amount: (paid_amount > total_amount ? total_amount : paid_amount),
+                saldo_pendiente: Math.max(0, total_amount - paid_amount),
                 metodo_pago: payment_method,
-                description: sale_description,
-            }])
-            .select('venta_id'); 
+                description: sale_description
+            }]).select('venta_id');
 
-        if (saleError || !saleData || saleData.length === 0) throw new Error(saleError?.message);
+        if (saleError) throw saleError;
+        const new_id = saleData[0].venta_id;
 
-        new_venta_id = saleData[0].venta_id;
-
-        // 2.2. REGISTRAR DETALLES
-        const detailsToInsert = currentSaleItems.map(item => ({
-            venta_id: new_venta_id, 
-            product_id: parseInt(item.product_id, 10),
-            name: item.name || 'Producto',
+        const details = currentSaleItems.map(item => ({
+            venta_id: new_id,
+            product_id: item.product_id,
+            name: item.name,
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal
         }));
-        
-        await supabase.from('detalle_ventas').insert(detailsToInsert);
 
-        // 2.3. REGISTRAR PAGO
-        if (final_paid_amount > 0) { 
-            await supabase.from('pagos').insert([{
-                venta_id: new_venta_id,
-                amount: final_paid_amount,
-                client_id: client_id,
-                metodo_pago: payment_method,
-                type: 'INICIAL',
-            }]);
-        }
-        
-        // --- 3. FINALIZACIÓN Y REFRESCO DE TABLAS ---
-        closeModal('new-sale-modal'); 
-        window.currentSaleItems = []; 
-        if (window.updateSaleTableDisplay) window.updateSaleTableDisplay(); 
+        await supabase.from('detalle_ventas').insert(details);
+
+        // 3. LIMPIEZA INMEDIATA
+        closeModal('new-sale-modal');
+        currentSaleItems = [];
+        if (window.updateSaleTableDisplay) window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
-        
-        // RECARGAR TODAS LAS VISTAS PARA QUE COINCIDAN LOS REPORTES
-        await Promise.all([
-            loadDashboardData(),
-            loadClientsTable('gestion'),
-            typeof loadClientDebtsTable === 'function' ? loadClientDebtsTable() : Promise.resolve(),
-            typeof loadSales === 'function' ? loadSales() : Promise.resolve()
-        ]);
 
-        // SUSTITUCIÓN DE TICKET POR ALERTA SIMPLE
-        alert(`✅ Venta #${new_venta_id} registrada con éxito.`);
-        
-    } catch (error) {
-        console.error('Error:', error);
-        alert('No se pudo registrar la venta: ' + error.message);
+        // 4. ACTUALIZACIÓN DE REPORTES (Antes del aviso de éxito)
+        if (window.loadSalesData) await window.loadSalesData();
+        if (window.handleFilterSales) window.handleFilterSales();
+
+        // 5. MENSAJE DE ÉXITO
+        if (typeof Swal !== 'undefined') {
+            await Swal.fire({
+                icon: 'success',
+                title: 'Venta Exitosa',
+                text: `Ticket #${new_id} registrado y reportes actualizados.`,
+                background: '#1c1c1c',
+                color: '#fff',
+                confirmButtonColor: '#f97316',
+                timer: 2000
+            });
+        }
+
+    } catch (err) {
+        console.error("Error:", err);
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: 'Error', text: err.message, icon: 'error', background: '#1c1c1c', color: '#fff' });
+        }
     } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Registrar Venta';
+        if (submitBtn) { 
+            submitBtn.disabled = false; 
+            submitBtn.textContent = 'Registrar Venta'; 
         }
     }
-}
+};
 
 function openPostSalePriceModal(ventaId, detalleVentaId, clientId, itemName) {
     // 1. Asignar IDs a los campos ocultos
