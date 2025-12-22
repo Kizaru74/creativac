@@ -1778,16 +1778,21 @@ window.handleViewClientDebt = async function(clientId) {
     if (!supabase) return;
 
     try {
-        const [salesRes, paymentsRes, clientRes] = await Promise.all([
+        // 1. OBTENEMOS VENTAS, PAGOS, CLIENTE Y AHORA TAMBIÉN DETALLES DE PRODUCTOS
+        const [salesRes, paymentsRes, clientRes, detailsRes] = await Promise.all([
             supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
             supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
-            supabase.from('clientes').select('name').eq('client_id', clientId).single()
+            supabase.from('clientes').select('name').eq('client_id', clientId).single(),
+            // Traemos todos los productos vendidos a este cliente
+            supabase.from('detalle_ventas').select('*').eq('client_id', clientId)
         ]);
 
         if (salesRes.error || paymentsRes.error) throw new Error("Error al obtener movimientos");
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
+        const productosPorVenta = detailsRes.data || [];
         
+        // Unimos movimientos
         const movimientos = [
             ...salesRes.data.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at), prioridad: 1 })),
             ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at), prioridad: 2 }))
@@ -1796,70 +1801,87 @@ window.handleViewClientDebt = async function(clientId) {
             return a.prioridad - b.prioridad;
         });
 
-        // CÁLCULO DE SALDO REAL (Origen de la verdad)
         let saldoCorriente = 0;
-        const transaccionesHTMLParaPDF = movimientos.map(mov => {
+
+        // --- CONSTRUCCIÓN DE FILAS ---
+        const filasProcesadas = movimientos.map(mov => {
             const esVenta = mov.tipo === 'VENTA';
             const monto = esVenta ? parseFloat(mov.total_amount) : parseFloat(mov.amount);
+            
+            // Calculamos saldo acumulado
             if (esVenta) saldoCorriente = parseFloat((saldoCorriente + monto).toFixed(2));
             else saldoCorriente = parseFloat((saldoCorriente - monto).toFixed(2));
 
+            // Si es venta, buscamos sus productos
+            let listaProductos = "";
+            if (esVenta) {
+                const misProductos = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
+                listaProductos = misProductos.map(p => `${p.name} (x${p.quantity})`).join(', ');
+            }
+
+            return {
+                ...mov,
+                monto,
+                saldoAcumulado: saldoCorriente,
+                listaProductos: listaProductos || (esVenta ? 'Sin detalles' : 'Abono a cuenta')
+            };
+        });
+
+        // 2. GENERAR HTML PARA EL PDF (ESTILO ÓXIDO)
+        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => {
+            const esVenta = mov.tipo === 'VENTA';
             return `
                 <tr>
                     <td style="font-size: 10px;">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td>
-                        <strong>${esVenta ? 'VENTA #' + (mov.venta_id || 'S/N') : 'ABONO RECIBIDO'}</strong><br>
-                        <small style="color:#666">${mov.description || ''}</small>
+                        <strong style="color: ${esVenta ? '#111' : '#16a34a'}">
+                            ${esVenta ? 'VENTA #' + mov.venta_id : 'ABONO RECIBIDO'}
+                        </strong><br>
+                        <div style="font-size: 10px; color: #555; line-height: 1.2;">${mov.listaProductos}</div>
+                        ${mov.description ? `<small style="color:#888; font-style: italic;">Nota: ${mov.description}</small>` : ''}
                     </td>
                     <td class="text-right ${esVenta ? 'text-red' : 'text-green'}">
-                        ${esVenta ? '+' : '-'} ${formatCurrency(monto)}
+                        ${esVenta ? '+' : '-'} ${formatCurrency(mov.monto)}
                     </td>
-                    <td class="text-right" style="background: #f9f9f9;">
-                        <strong>${formatCurrency(saldoCorriente)}</strong>
+                    <td class="text-right" style="background: #fdf8f5; font-weight: bold;">
+                        ${formatCurrency(mov.saldoAcumulado)}
                     </td>
                 </tr>`;
         }).join('');
 
-        // AUDITORÍA: Si lo que dice la DB (92) es distinto al historial (78), reparamos
-        const saldoDB = salesRes.data.reduce((acc, s) => acc + (parseFloat(s.saldo_pendiente) || 0), 0);
-        if (Math.abs(saldoDB - saldoCorriente) > 0.01) {
-            console.warn("⚠️ Desajuste detectado. Corrigiendo saldos en la nube...");
-            await window.repararSaldoCliente(clientId);
-            // Refrescamos la tabla principal de deudas al fondo
-            if (typeof window.loadDebts === 'function') window.loadDebts();
+        // 3. RENDERIZAR EN EL MODAL (PANTALLA)
+        const tbody = document.getElementById('client-transactions-body');
+        if (tbody) {
+            tbody.innerHTML = filasProcesadas.map(mov => {
+                const esVenta = mov.tipo === 'VENTA';
+                return `
+                    <tr class="border-b border-white/5 hover:bg-white/[0.02]">
+                        <td class="px-6 py-4 text-white/40">${mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
+                                ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
+                            </div>
+                            <div class="text-[11px] text-orange-200/50 font-medium">${mov.listaProductos}</div>
+                            ${mov.description ? `<div class="text-[10px] text-gray-500 italic uppercase">Nota: ${mov.description}</div>` : ''}
+                        </td>
+                        <td class="px-6 py-4 text-right font-mono text-[14px]">
+                            ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.monto)}</span>` : ''}
+                        </td>
+                        <td class="px-6 py-4 text-right font-mono text-[14px]">
+                            ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.monto)}</span>` : ''}
+                        </td>
+                    </tr>`;
+            }).join('');
         }
 
-        // GUARDAR DATOS PARA EL PDF
+        // GUARDAR PARA EL PDF
         window.currentClientDataForPrint = {
             nombre: clientName,
             totalDeuda: saldoCorriente,
             transaccionesHTML: transaccionesHTMLParaPDF
         };
 
-        // RENDERIZAR EN EL MODAL
-        const tbody = document.getElementById('client-transactions-body');
-        if (tbody) {
-            tbody.innerHTML = movimientos.map(mov => {
-                const esVenta = mov.tipo === 'VENTA';
-                return `
-                    <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td class="px-6 py-4 text-white/40">${mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}</td>
-                        <td class="px-6 py-4">
-                            <div class="text-base font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
-                                ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
-                            </div>
-                            <div class="text-[12px] text-gray-500 uppercase">${mov.description || ''}</div>
-                        </td>
-                        <td class="px-6 py-4 text-right font-mono">
-                            ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.total_amount)}</span>` : ''}
-                        </td>
-                        <td class="px-6 py-4 text-right font-mono">
-                            ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.amount)}</span>` : ''}
-                        </td>
-                    </tr>`;
-            }).join('');
-        }
-
+        // ACTUALIZAR CABECERA DEL MODAL
         document.getElementById('client-report-name').textContent = clientName;
         document.getElementById('client-report-total-debt').textContent = formatCurrency(saldoCorriente);
 
@@ -1874,6 +1896,7 @@ window.handleViewClientDebt = async function(clientId) {
 
     } catch (err) {
         console.error("❌ Error:", err);
+        alert("No se pudo cargar el historial del cliente.");
     }
 };
 
@@ -1933,87 +1956,145 @@ window.imprimirEstadoCuenta = function() {
     const data = window.currentClientDataForPrint;
     if (!data) return alert("Cargue primero el reporte del cliente.");
 
-    const colorOxido = "#8B4513";
+    const colorOxido = "#b45309"; // Naranja óxido profesional
+    
     const htmlContent = `
+        <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
+            <title>EdoCuenta_${data.nombre.replace(/\s+/g, '_')}</title>
             <style>
                 @page { size: letter; margin: 15mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; }
-                .header { border-bottom: 4px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-                .resumen { background: #fdf8f5; border: 1px solid ${colorOxido}44; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
-                table { width: 100%; border-collapse: collapse; font-size: 10px; }
-                th { background: #f4f4f4; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; font-weight: bold; text-transform: uppercase; }
-                td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; padding: 0; background: white; }
+                
+                /* Encabezado Estilo Óxido */
+                .header { 
+                    border-bottom: 3px solid ${colorOxido}; 
+                    padding-bottom: 15px; 
+                    margin-bottom: 25px; 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center; 
+                }
+                .brand { display: flex; align-items: center; }
+                .logo { width: 70px; height: 70px; margin-right: 15px; object-fit: contain; }
+                .brand-text h1 { margin: 0; color: #111; font-size: 22px; font-weight: 900; }
+                .brand-text p { margin: 0; font-size: 10px; letter-spacing: 2px; color: ${colorOxido}; font-weight: bold; }
+
+                /* Resumen de Cliente */
+                .resumen { 
+                    background: ${colorOxido}; 
+                    color: white; 
+                    padding: 20px; 
+                    border-radius: 6px; 
+                    margin-bottom: 30px; 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center;
+                }
+                .info-cliente .label { font-size: 9px; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px; }
+                .info-cliente .value { font-size: 18px; font-weight: bold; display: block; }
+                .info-saldo { text-align: right; }
+                .info-saldo .amount { font-size: 26px; font-weight: 900; }
+
+                /* Tabla de Movimientos */
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th { 
+                    text-align: left; 
+                    padding: 12px 10px; 
+                    border-bottom: 2px solid ${colorOxido}; 
+                    color: ${colorOxido}; 
+                    font-size: 10px; 
+                    text-transform: uppercase; 
+                    letter-spacing: 1px;
+                }
+                td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+                
                 .text-right { text-align: right; }
-                /* Colores dinámicos para el PDF */
-                .text-red { color: #dc2626; font-weight: bold; }
-                .text-green { color: #16a34a; font-weight: bold; }
-                .text-bold { font-weight: bold; color: #000; }
+                .text-red { color: #dc2626 !important; font-weight: bold; }
+                .text-green { color: #16a34a !important; font-weight: bold; }
+                
+                /* Estilo para los productos dentro de la tabla */
+                .prod-list { font-size: 9px; color: #666; margin-top: 2px; display: block; line-height: 1.2; }
+                .nota-mov { font-size: 9px; color: #999; font-style: italic; }
+
+                .footer { 
+                    margin-top: 50px; 
+                    text-align: center; 
+                    font-size: 10px; 
+                    color: #999; 
+                    border-top: 1px solid #eee; 
+                    padding-top: 15px; 
+                    line-height: 1.5;
+                }
             </style>
         </head>
         <body>
             <div class="header">
-                <div>
-                    <h1 style="margin:0; color:${colorOxido}; font-size: 24px;">CREATIVA CORTES CNC</h1>
-                    <p style="margin:0; font-size: 12px; font-weight: bold;">ESTADO DE CUENTA PROFESIONAL</p>
+                <div class="brand">
+                    <img src="https://raw.githubusercontent.com/Kizaru74/creativac/main/LogoCreativa.jpg" class="logo">
+                    <div class="brand-text">
+                        <h1>CREATIVA CORTES CNC</h1>
+                        <p>ESTADO DE CUENTA DETALLADO</p>
+                    </div>
                 </div>
                 <div style="text-align:right;">
-                    <p style="margin:0; font-size: 11px;">Fecha de emisión:</p>
-                    <p style="margin:0; font-size: 14px; font-weight: bold;">${new Date().toLocaleDateString()}</p>
+                    <p style="margin:0; font-size: 10px; color: #777;">FECHA DE EMISIÓN</p>
+                    <p style="margin:0; font-size: 14px; font-weight: bold;">${new Date().toLocaleDateString('es-MX')}</p>
                 </div>
             </div>
 
             <div class="resumen">
-                <table style="width: 100%; background: none; border: none;">
-                    <tr>
-                        <td style="border:none; padding:0;">
-                            <p style="margin:0; color:#666; font-size: 10px;">CLIENTE</p>
-                            <p style="margin:0; font-size: 18px; font-weight: bold;">${data.nombre.toUpperCase()}</p>
-                        </td>
-                        <td style="border:none; padding:0; text-align: right;">
-                            <p style="margin:0; color:#666; font-size: 10px;">SALDO TOTAL PENDIENTE</p>
-                            <p style="margin:0; font-size: 26px; font-weight: 900; color:${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
-                        </td>
-                    </tr>
-                </table>
+                <div class="info-cliente">
+                    <span class="label">CLIENTE</span>
+                    <span class="value">${data.nombre.toUpperCase()}</span>
+                </div>
+                <div class="info-saldo">
+                    <span class="label">SALDO TOTAL PENDIENTE</span>
+                    <div class="amount">${formatCurrency(data.totalDeuda)}</div>
+                </div>
             </div>
 
             <table>
                 <thead>
                     <tr>
                         <th style="width:12%">FECHA</th>
-                        <th style="width:58%">DESCRIPCIÓN / CONCEPTO</th>
-                        <th style="width:15%" class="text-right">MOVIMIENTO</th>
-                        <th style="width:15%" class="text-right">SALDO ACUM.</th>
+                        <th style="width:53%">DESCRIPCIÓN / PRODUCTOS</th>
+                        <th style="width:17%" class="text-right">CARGO/ABONO</th>
+                        <th style="width:18%" class="text-right">SALDO ACUM.</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.transaccionesHTML.replace(/text-red-600/g, 'text-red').replace(/text-green-600/g, 'text-green')}
+                    ${data.transaccionesHTML
+                        .replace(/text-red-600/g, 'text-red')
+                        .replace(/text-green-600/g, 'text-green')}
                 </tbody>
             </table>
 
-            <div style="margin-top:40px; text-align:center; font-size:10px; color:#999; border-top:1px solid #eee; padding-top:10px;">
-                <div class="footer">
-                    <strong>CREATIVA CORTES CNC - Transformando tus ideas</strong><br>
-                    📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
-                    📱 WhatsApp: 985 100 1141
-                </div>
+            <div class="footer">
+                <strong>CREATIVA CORTES CNC</strong><br>
+                📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
+                📱 WhatsApp: 985 100 1141<br>
+                <span style="display:block; margin-top:10px; opacity:0.7;">Este documento es un reporte de carácter informativo sobre sus saldos y movimientos pendientes.</span>
             </div>
 
             <script>
                 window.onload = () => { 
                     window.print(); 
-                    setTimeout(() => window.close(), 500); 
+                    // No cerramos automáticamente para que el usuario pueda ver si se generó bien
                 }
             </script>
         </body>
         </html>`;
 
     const pWin = window.open('', '_blank');
-    pWin.document.write(htmlContent);
-    pWin.document.close();
+    if (pWin) {
+        pWin.document.write(htmlContent);
+        pWin.document.close();
+    } else {
+        alert("Por favor, permite las ventanas emergentes.");
+    }
 };
 
 window.generarComprobanteAbono = function(datos) {
