@@ -1058,99 +1058,146 @@ window.handleAddProductToSale = function(e) {
 window.handleNewSale = async function(e) {
     if (e) e.preventDefault();
     
+    // 1. OBTENCIÓN DE DATOS DEL FORMULARIO
     const client_id = document.getElementById('client-select')?.value;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
-    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     
+    // Limpiamos el formato de moneda para obtener el número puro
+    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
+    
+    // Calcular el total desde el carrito global (currentSaleItems)
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
+    // Lógica de saldo y pagos
     if (payment_method === 'Deuda') paid_amount = 0;
     let final_paid_amount = (paid_amount > total_amount) ? total_amount : paid_amount;
     let final_saldo_pendiente = total_amount - final_paid_amount; 
 
+    // 2. VALIDACIÓN (Uso de SweetAlert2 en lugar de alert)
     if (!client_id || currentSaleItems.length === 0) {
-        Swal.fire({ title: 'Atención', text: 'Selecciona un cliente y productos.', icon: 'warning', background: '#1a1a1a', color: '#fff' });
+        Swal.fire({
+            title: 'Formulario Incompleto',
+            text: 'Debes seleccionar un cliente y agregar al menos un producto.',
+            icon: 'warning',
+            background: '#1c1c1c',
+            color: '#fff',
+            confirmButtonColor: '#f97316'
+        });
         return;
     }
 
+    // Bloquear botón para evitar doble click
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Guardando...'; }
+    if (submitBtn) { 
+        submitBtn.disabled = true; 
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...'; 
+    }
 
     try {
-        // 1. Insertar Venta
+        // 3. INSERTAR VENTA PRINCIPAL
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
-                client_id, total_amount, paid_amount: final_paid_amount, 
-                saldo_pendiente: final_saldo_pendiente, metodo_pago: payment_method,
+                client_id: client_id,
+                total_amount: total_amount,
+                paid_amount: final_paid_amount,
+                saldo_pendiente: final_saldo_pendiente,
+                metodo_pago: payment_method,
                 description: sale_description
-            }]).select('venta_id'); 
+            }])
+            .select('venta_id'); 
 
         if (saleError) throw saleError;
         const new_venta_id = saleData[0].venta_id;
 
-        // 2. Insertar Detalles
+        // 4. INSERTAR DETALLES DE PRODUCTOS
         const detailsToInsert = currentSaleItems.map(item => ({
-            venta_id: new_venta_id, product_id: item.product_id,
-            name: item.name, quantity: item.quantity, price: item.price, subtotal: item.subtotal
+            venta_id: new_venta_id,
+            product_id: item.product_id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.subtotal
         }));
-        await supabase.from('detalle_ventas').insert(detailsToInsert);
 
-        // 3. Deuda y Pagos
+        const { error: detailsError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
+        if (detailsError) throw detailsError;
+
+        // 5. REGISTRAR PAGO INICIAL (Si existe)
         if (final_paid_amount > 0) {
             await supabase.from('pagos').insert([{
-                venta_id: new_venta_id, amount: final_paid_amount, client_id, type: 'INICIAL'
+                venta_id: new_venta_id,
+                amount: final_paid_amount,
+                client_id: client_id,
+                metodo_pago: payment_method,
+                type: 'INICIAL'
             }]);
         }
+
+        // 6. ACTUALIZAR DEUDA DEL CLIENTE (Si quedó saldo pendiente)
         if (final_saldo_pendiente > 0) {
-            const { data: c } = await supabase.from('clientes').select('deuda_total').eq('client_id', client_id).single();
-            await supabase.from('clientes').update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente }).eq('client_id', client_id);
+            const { data: cliente } = await supabase
+                .from('clientes')
+                .select('deuda_total')
+                .eq('client_id', client_id)
+                .single();
+            
+            const nuevaDeuda = (cliente?.deuda_total || 0) + final_saldo_pendiente;
+            await supabase.from('clientes').update({ deuda_total: nuevaDeuda }).eq('client_id', client_id);
         }
 
-        // --- ÉXITO ---
-        closeModal('new-sale-modal');
+        // --- FINALIZACIÓN EXITOSA ---
         
-        // Notificación que no detiene el código
+        // Cerramos el modal inmediatamente para dar fluidez
+        closeModal('new-sale-modal');
+
+        // Notificación elegante (Toast) que no detiene el código
         Swal.fire({
-            title: 'Venta Exitosa',
-            text: `Ticket #${new_venta_id} generado`,
             icon: 'success',
-            timer: 2000,
-            showConfirmButton: false,
-            background: '#1a1a1a',
-            color: '#fff',
+            title: '¡Venta registrada!',
+            text: `Ticket #${new_venta_id} creado con éxito`,
             toast: true,
-            position: 'top-end'
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            background: '#1c1c1c',
+            color: '#fff',
+            iconColor: '#f97316'
         });
 
-        // Limpiar Carrito
+        // Limpiar formulario y carrito
         currentSaleItems = [];
         if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
-        // --- RECARGA DE DATOS ---
-        const ahora = new Date();
-        const m = ahora.getMonth() + 1;
-        const y = ahora.getFullYear();
+        // 7. RECARGA AUTOMÁTICA DE TABLAS Y REPORTES
+        const hoy = new Date();
+        const mes = hoy.getMonth() + 1;
+        const anio = hoy.getFullYear();
 
-        console.log(`🔄 Sincronizando reporte para mes ${m}...`);
-        
-        // Forzamos el reporte mensual con los parámetros de hoy
-        if (typeof window.loadMonthlySalesReport === 'function') {
-            await window.loadMonthlySalesReport(m, y);
-        }
-
-        // Otras recargas secundarias
-        if (typeof window.loadSalesData === 'function') await window.loadSalesData();
-        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        // Ejecutamos las recargas de datos para que la tabla se actualice sola
+        if (window.loadMonthlySalesReport) await window.loadMonthlySalesReport(mes, anio);
+        if (window.loadSalesData) await window.loadSalesData();
+        if (window.loadDashboardData) await window.loadDashboardData();
 
     } catch (err) {
-        console.error(err);
-        Swal.fire({ title: 'Error', text: err.message, icon: 'error' });
+        console.error('Error en proceso de venta:', err);
+        Swal.fire({
+            title: 'Error en el sistema',
+            text: err.message,
+            icon: 'error',
+            background: '#1c1c1c',
+            color: '#fff'
+        });
     } finally {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Registrar Venta'; }
+        // Reactivar el botón
+        if (submitBtn) { 
+            submitBtn.disabled = false; 
+            submitBtn.textContent = 'Registrar Venta'; 
+        }
     }
 };
 
@@ -2897,66 +2944,35 @@ window.editSalePaymentMethod = async function(ventaId, metodoActual) {
     }
 };
 window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaId) {
-    const nuevoPrecio = prompt("Ingrese el nuevo precio unitario:", precioActual);
-    
-    // Validar que sea un número válido y no se haya cancelado
-    if (nuevoPrecio === null || nuevoPrecio === "" || isNaN(nuevoPrecio)) return;
+    const { value: nuevoPrecio } = await Swal.fire({
+        title: 'Actualizar Precio',
+        input: 'number',
+        inputValue: precioActual,
+        inputLabel: 'Nuevo precio unitario',
+        showCancelButton: true,
+        background: '#1c1c1c',
+        color: '#fff',
+        confirmButtonColor: '#f97316',
+        inputAttributes: { step: '0.01' }
+    });
 
-    const p = parseFloat(nuevoPrecio);
-    const nuevoSubtotal = p * cantidad;
+    if (!nuevoPrecio) return;
 
     try {
-        // 1. Actualizar el detalle en detalle_ventas
-        const { error: pError } = await supabase
+        const p = parseFloat(nuevoPrecio);
+        const { error } = await supabase
             .from('detalle_ventas')
-            .update({ price: p, subtotal: nuevoSubtotal })
-            .eq('detalle_id', detalle_id); // Asegúrate si tu columna es 'id' o 'detalle_id'
+            .update({ price: p, subtotal: p * cantidad })
+            .eq('detalle_id', detalle_id);
 
-        if (pError) throw pError;
-
-        // 2. Obtener todos los detalles de esta venta para el nuevo Total
-        const { data: detalles } = await supabase
-            .from('detalle_ventas')
-            .select('subtotal')
-            .eq('venta_id', ventaId);
+        if (error) throw error;
         
-        const nuevoTotalVenta = detalles.reduce((acc, curr) => acc + curr.subtotal, 0);
-
-        // 3. Obtener cuánto ha pagado el cliente en total para esta venta
-        const { data: pagos } = await supabase
-            .from('pagos')
-            .select('amount')
-            .eq('venta_id', ventaId);
-        
-        const totalAbonado = pagos ? pagos.reduce((acc, curr) => acc + (curr.amount || 0), 0) : 0;
-
-        // 4. Calcular el nuevo saldo pendiente REAL
-        const nuevoSaldo = nuevoTotalVenta - totalAbonado;
-
-        // 5. Actualizar la tabla de VENTAS
-        const { error: vError } = await supabase
-            .from('ventas')
-            .update({ 
-                total_amount: nuevoTotalVenta,
-                saldo_pendiente: nuevoSaldo 
-            })
-            .eq('venta_id', ventaId);
-
-        if (vError) throw vError;
-
-        alert("✅ Precio y saldo actualizados.");
-        
-        // 6. Refrescar el modal de detalles para ver los cambios
-        if (typeof window.handleViewSaleDetails === 'function') {
-            window.handleViewSaleDetails(ventaId);
-        }
-        
-        // Opcional: Refrescar dashboard si tienes la función
+        // Refrescar automáticamente
+        window.handleViewSaleDetails(ventaId);
         if (window.loadDashboardData) window.loadDashboardData();
-
+        
     } catch (err) {
-        console.error("Error al actualizar:", err);
-        alert("No se pudo actualizar el precio.");
+        Swal.fire({ icon: 'error', title: 'Error al actualizar', background: '#1c1c1c', color: '#fff' });
     }
 };
 
@@ -4130,38 +4146,47 @@ window.handleDeleteClientClick = function(clientId) {
 };
 
 async function confirmDeleteClient() {
-    const idToDelete = clientToDeleteId; 
+    const idToDelete = window.clientIdToDelete; 
+    if (!idToDelete) return;
 
-    if (!idToDelete) {
-        alert("Error de Eliminación: ID del cliente no encontrada.");
-        return;
-    }
+    const result = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: "Esta acción no se puede deshacer y eliminará al cliente permanentemente.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#374151',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        background: '#1c1c1c',
+        color: '#fff'
+    });
 
-    // 1. Ejecutar la eliminación en Supabase
-    const { error } = await supabase
-        .from('clientes')
-        .delete() // <--- Eliminación física
-        .eq('client_id', idToDelete); 
+    if (result.isConfirmed) {
+        try {
+            const { error } = await supabase.from('clientes').delete().eq('client_id', idToDelete);
+            if (error) throw error;
 
-    if (error) {
-        console.error('Error al intentar eliminar el cliente:', error);
-        
-        // 2. Manejo de error específico (Restricción de Clave Foránea)
-        if (error.code === '23503') {
-            alert('❌ ERROR: No se puede eliminar el cliente. Tiene ventas o abonos pendientes asociados. Asegúrate de eliminar el historial del cliente o configurar la eliminación en cascada en Supabase.');
-        } else {
-            alert('❌ Error desconocido al eliminar cliente: ' + error.message);
+            Swal.fire({
+                title: 'Eliminado',
+                text: 'El cliente ha sido borrado.',
+                icon: 'success',
+                background: '#1c1c1c',
+                color: '#fff'
+            });
+            
+            closeModal('delete-client-modal');
+            await loadDashboardData();
+        } catch (err) {
+            Swal.fire({
+                title: 'Error',
+                text: 'No se pudo eliminar: ' + err.message,
+                icon: 'error',
+                background: '#1c1c1c',
+                color: '#fff'
+            });
         }
-        closeModal('client-delete-confirmation'); 
-        return; 
     }
-
-    // 3. Éxito y recarga de datos
-    alert('✅ Cliente eliminado definitivamente.');
-    closeModal('client-delete-confirmation'); 
-    clientToDeleteId = null; 
-    
-    await loadDashboardData(); 
 }
 
 
