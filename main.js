@@ -2026,6 +2026,10 @@ window.generarComprobanteAbono = function(datos) {
         return;
     }
 
+    // Validación de seguridad para evitar errores de punto flotante o valores nulos
+    const montoTotal = parseFloat(datos.montoTotal || 0).toFixed(2);
+    const deudaRestante = parseFloat(datos.deudaRestante || 0).toFixed(2);
+
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -2090,23 +2094,29 @@ window.generarComprobanteAbono = function(datos) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${datos.distribucion.map(item => `
-                            <tr>
-                                <td>Abono aplicado a la Venta Folio <strong>#${item.venta_id}</strong></td>
-                                <td style="text-align: right; font-weight: bold;">$${item.amount.toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
+                        ${datos.distribucion.map(item => {
+                            // CORRECCIÓN AQUÍ: Intentamos leer todas las variantes posibles de nombres
+                            const folio = item.venta_id || item.id || 'N/A';
+                            const valor = parseFloat(item.amount || item.monto || 0).toFixed(2);
+                            
+                            return `
+                                <tr>
+                                    <td>Abono aplicado a la Venta Folio <strong>#${folio}</strong></td>
+                                    <td style="text-align: right; font-weight: bold;">$${valor}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
 
                 <div class="totals-box">
                     <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:14px;">
                         <span>Abono Total Recibido:</span> 
-                        <span style="font-weight:bold; color:green;">$${datos.montoTotal.toFixed(2)}</span>
+                        <span style="font-weight:bold; color:green;">$${montoTotal}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:2px solid ${colorOxido}; margin-top:10px; font-size:16px; padding-top:10px;">
                         <span>SALDO PENDIENTE:</span> 
-                        <span>$${datos.deudaRestante.toFixed(2)}</span>
+                        <span>$${deudaRestante}</span>
                     </div>
                 </div>
 
