@@ -1778,23 +1778,34 @@ window.handleViewClientDebt = async function(clientId) {
     if (!supabase) return;
 
     try {
-        // 1. OBTENEMOS VENTAS, PAGOS, CLIENTE Y AHORA TAMBIÉN DETALLES DE PRODUCTOS
-        const [salesRes, paymentsRes, clientRes, detailsRes] = await Promise.all([
+        // 1. OBTENEMOS VENTAS, PAGOS Y DATOS DEL CLIENTE
+        const [salesRes, paymentsRes, clientRes] = await Promise.all([
             supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
             supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
-            supabase.from('clientes').select('name').eq('client_id', clientId).single(),
-            // Traemos todos los productos vendidos a este cliente
-            supabase.from('detalle_ventas').select('*').eq('client_id', clientId)
+            supabase.from('clientes').select('name').eq('client_id', clientId).single()
         ]);
 
         if (salesRes.error || paymentsRes.error) throw new Error("Error al obtener movimientos");
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
-        const productosPorVenta = detailsRes.data || [];
+        const ventasData = salesRes.data || [];
+
+        // 2. OBTENEMOS LOS DETALLES DE ESAS VENTAS (Usando los IDs de las ventas obtenidas)
+        const ventaIds = ventasData.map(v => v.venta_id);
+        let productosPorVenta = [];
         
-        // Unimos movimientos
+        if (ventaIds.length > 0) {
+            const { data: detailsData, error: dError } = await supabase
+                .from('detalle_ventas')
+                .select('*')
+                .in('venta_id', ventaIds); // Buscamos solo los detalles de estas ventas
+            
+            if (!dError) productosPorVenta = detailsData;
+        }
+        
+        // 3. PROCESAR MOVIMIENTOS
         const movimientos = [
-            ...salesRes.data.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at), prioridad: 1 })),
+            ...ventasData.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at), prioridad: 1 })),
             ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at), prioridad: 2 }))
         ].sort((a, b) => {
             if (a.fecha.getTime() !== b.fecha.getTime()) return a.fecha - b.fecha;
@@ -1803,42 +1814,45 @@ window.handleViewClientDebt = async function(clientId) {
 
         let saldoCorriente = 0;
 
-        // --- CONSTRUCCIÓN DE FILAS ---
+        // --- CONSTRUCCIÓN DE FILAS PARA MODAL Y PDF ---
         const filasProcesadas = movimientos.map(mov => {
             const esVenta = mov.tipo === 'VENTA';
             const monto = esVenta ? parseFloat(mov.total_amount) : parseFloat(mov.amount);
             
-            // Calculamos saldo acumulado
             if (esVenta) saldoCorriente = parseFloat((saldoCorriente + monto).toFixed(2));
             else saldoCorriente = parseFloat((saldoCorriente - monto).toFixed(2));
 
-            // Si es venta, buscamos sus productos
-            let listaProductos = "";
+            // Buscamos productos de esta venta específica
+            let textoProductos = "";
             if (esVenta) {
-                const misProductos = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
-                listaProductos = misProductos.map(p => `${p.name} (x${p.quantity})`).join(', ');
+                const misProds = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
+                textoProductos = misProds.length > 0 
+                    ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
+                    : 'Sin detalles';
             }
 
             return {
                 ...mov,
                 monto,
                 saldoAcumulado: saldoCorriente,
-                listaProductos: listaProductos || (esVenta ? 'Sin detalles' : 'Abono a cuenta')
+                textoProductos
             };
         });
 
-        // 2. GENERAR HTML PARA EL PDF (ESTILO ÓXIDO)
+        // 4. GENERAR HTML PARA EL PDF
         const transaccionesHTMLParaPDF = filasProcesadas.map(mov => {
             const esVenta = mov.tipo === 'VENTA';
             return `
                 <tr>
                     <td style="font-size: 10px;">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td>
-                        <strong style="color: ${esVenta ? '#111' : '#16a34a'}">
-                            ${esVenta ? 'VENTA #' + mov.venta_id : 'ABONO RECIBIDO'}
-                        </strong><br>
-                        <div style="font-size: 10px; color: #555; line-height: 1.2;">${mov.listaProductos}</div>
-                        ${mov.description ? `<small style="color:#888; font-style: italic;">Nota: ${mov.description}</small>` : ''}
+                        <div style="display: flex; align-items: baseline; gap: 5px;">
+                            <strong style="color: ${esVenta ? '#111' : '#16a34a'}; font-size: 11px;">
+                                ${esVenta ? 'VENTA #' + mov.venta_id : 'ABONO RECIBIDO'}
+                            </strong>
+                            ${esVenta ? `<span style="font-size: 10px; color: #b45309; font-weight: bold;">[ ${mov.textoProductos} ]</span>` : ''}
+                        </div>
+                        ${mov.description ? `<div style="font-size: 9px; color: #888; font-style: italic; margin-top: 2px;">Nota: ${mov.description}</div>` : ''}
                     </td>
                     <td class="text-right ${esVenta ? 'text-red' : 'text-green'}">
                         ${esVenta ? '+' : '-'} ${formatCurrency(mov.monto)}
@@ -1849,25 +1863,27 @@ window.handleViewClientDebt = async function(clientId) {
                 </tr>`;
         }).join('');
 
-        // 3. RENDERIZAR EN EL MODAL (PANTALLA)
+        // 5. RENDERIZAR EN EL MODAL (PANTALLA)
         const tbody = document.getElementById('client-transactions-body');
         if (tbody) {
             tbody.innerHTML = filasProcesadas.map(mov => {
                 const esVenta = mov.tipo === 'VENTA';
                 return `
                     <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td class="px-6 py-4 text-white/40">${mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}</td>
+                        <td class="px-6 py-4 text-white/40 text-xs">${mov.fecha.toLocaleDateString('es-MX')}</td>
                         <td class="px-6 py-4">
-                            <div class="text-sm font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
-                                ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-bold ${esVenta ? 'text-white' : 'text-green-400'}">
+                                    ${esVenta ? `VENTA #${mov.venta_id}` : `ABONO RECIBIDO`}
+                                </span>
+                                ${esVenta ? `<span class="text-[11px] text-orange-400 font-medium">| ${mov.textoProductos}</span>` : ''}
                             </div>
-                            <div class="text-[11px] text-orange-200/50 font-medium">${mov.listaProductos}</div>
-                            ${mov.description ? `<div class="text-[10px] text-gray-500 italic uppercase">Nota: ${mov.description}</div>` : ''}
+                            ${mov.description ? `<div class="text-[10px] text-gray-500 italic uppercase mt-1">Nota: ${mov.description}</div>` : ''}
                         </td>
-                        <td class="px-6 py-4 text-right font-mono text-[14px]">
+                        <td class="px-6 py-4 text-right font-mono text-sm">
                             ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.monto)}</span>` : ''}
                         </td>
-                        <td class="px-6 py-4 text-right font-mono text-[14px]">
+                        <td class="px-6 py-4 text-right font-mono text-sm">
                             ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.monto)}</span>` : ''}
                         </td>
                     </tr>`;
@@ -1881,22 +1897,15 @@ window.handleViewClientDebt = async function(clientId) {
             transaccionesHTML: transaccionesHTMLParaPDF
         };
 
-        // ACTUALIZAR CABECERA DEL MODAL
+        // ACTUALIZAR CABECERA
         document.getElementById('client-report-name').textContent = clientName;
         document.getElementById('client-report-total-debt').textContent = formatCurrency(saldoCorriente);
-
-        const btnAbono = document.querySelector('button[onclick="prepararAbonoDesdeReporte()"]');
-        if (btnAbono) {
-            btnAbono.dataset.clientId = clientId;
-            btnAbono.dataset.clientName = clientName;
-            btnAbono.dataset.currentDebt = saldoCorriente;
-        }
 
         openModal('modal-client-debt-report');
 
     } catch (err) {
         console.error("❌ Error:", err);
-        alert("No se pudo cargar el historial del cliente.");
+        alert("Error al cargar los datos del cliente.");
     }
 };
 
