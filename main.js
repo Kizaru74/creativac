@@ -1139,37 +1139,35 @@ window.handleNewSale = async function(e) {
                 .eq('client_id', client_id);
         }
 
-        // --- ÉXITO Y ACTUALIZACIÓN DE INTERFAZ ---
-        alert('Venta registrada con éxito');
+        // 1. Cerramos el modal inmediatamente
         closeModal('new-sale-modal');
 
-        // Limpieza de UI
+        // 2. Limpiamos los datos del carrito
         currentSaleItems = [];
         if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
-        console.log("🔄 Sincronizando reportes...");
-
-        // RECARGA DE REPORTES (SIN REFRESCAR PAGINA)
+        // 3. DISPARAMOS LA ACTUALIZACIÓN PRIMERO (Antes del Alert)
+        console.log("🚀 Actualizando tablas en segundo plano...");
         const ahora = new Date();
-        const mesAct = ahora.getMonth() + 1;
-        const añoAct = ahora.getFullYear();
+        const m = ahora.getMonth() + 1;
+        const y = ahora.getFullYear();
 
-        // 1. Actualizar Reporte Mensual (La tabla que pediste)
-        if (typeof window.loadMonthlySalesReport === 'function') {
-            await window.loadMonthlySalesReport(mesAct, añoAct);
-        }
+        // Ejecutamos las recargas
+        const refreshPromise = (async () => {
+            if (typeof window.loadMonthlySalesReport === 'function') {
+                await window.loadMonthlySalesReport(m, y);
+            }
+            if (typeof window.loadSalesData === 'function') await window.loadSalesData();
+            if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        })();
 
-        // 2. Actualizar Tabla de Ventas General
-        if (typeof window.loadSalesData === 'function') {
-            await window.loadSalesData();
-            if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
-        }
-
-        // 3. Actualizar Clientes y Dashboard
-        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
-        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
-
+        // 4. MOSTRAR EL MENSAJE (Ahora no importa si bloquea, porque la recarga ya inició)
+        alert('Venta registrada con éxito');
+        
+        // Esperamos a que terminen las recargas por si acaso
+        await refreshPromise;
+        
     } catch (err) {
         console.error('Error:', err);
         alert('Error: ' + err.message);
