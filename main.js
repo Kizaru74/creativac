@@ -429,13 +429,13 @@ window.loadDebts = async function() {
                                 </span>
                             </div>
                         </td>
-                        <td class="px-10 py-6 text-xs font-bold text-white/40 font-sans uppercase italic">
+                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercase italic">
                             ${formattedDate}
                         </td>
                         <td class="px-10 py-6 text-right">
                             <button onclick="window.handleViewClientDebt(${debt.clientId})" 
-                                class="opacity-0 group-hover:opacity-100 transition-all bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-black text-white/40 hover:text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/20 uppercase tracking-widest backdrop-blur-md">
-                                <i class="fas fa-history mr-2 text-[10px]"></i> Detalles
+                                class="opacity-0 group-hover:opacity-100 transition-all bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[14px] font-black text-white/40 hover:text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/20 uppercase tracking-widest backdrop-blur-md">
+                                <i class="fas fa-history mr-2 text-xl"></i> Detalles
                             </button>
                         </td>
                     </tr>
@@ -4615,9 +4615,9 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-2 mb-1">
                                             <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] whitespace-nowrap">ID #${sale.venta_id}</span>
-                                            <span class="text-[10px] text-white/40 font-medium truncate italic max-w-[200px]" title="${listaProds}">[ ${listaProds} ]</span>
+                                            <span class="text-[14px] text-white/40 font-medium truncate italic max-w-[200px]" title="${listaProds}">[ ${listaProds} ]</span>
                                         </div>
-                                        <div class="text-[9px] text-white/20 uppercase tracking-widest font-bold">${formattedTime} HRS</div>
+                                        <div class="text-[12px] text-white/50 uppercase tracking-widest">${formattedTime} HRS</div>
                                     </div>
                                 </div>
                             </td>
@@ -4628,7 +4628,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                     </div>
                                     <div class="text-sm font-bold text-white uppercase tracking-wide">${clientName}</div>
                                 </div>
-                                <div class="text-[10px] text-white/30 mt-1 uppercase pl-9 font-medium">MÉTODO: ${sale.metodo_pago || 'CONTADO'}</div>
+                                <div class="text-[10px] text-white/50 mt-1 uppercase pl-9 font-medium">MÉTODO: ${sale.metodo_pago || 'CONTADO'}</div>
                             </td>
                             <td class="px-8 py-5 text-right">
                                 <div class="text-[10px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Total Venta</div>
