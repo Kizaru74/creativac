@@ -2486,7 +2486,7 @@ window.generarPDFVenta = function() {
                         </div>
                         <div class="brand-info">
                             <h2>CREATIVA CORTES CNC</h2>
-                            <p>DISEÑO • CORTE • GRABADO</p>
+                            <p>DISEÑO • CORTE • PRECISION</p>
                         </div>
                     </div>
                     <div class="receipt-meta">
@@ -2749,7 +2749,7 @@ window.generarPDFEstadoCuenta = function() {
                         </div>
                         <div class="brand-info">
                             <h2>CREATIVA CORTES CNC</h2>
-                            <p>DISEÑO • CORTE • GRABADO</p>
+                            <p>DISEÑO • CORTE • PRECISION</p>
                         </div>
                     </div>
                     <div class="receipt-meta">
@@ -4602,7 +4602,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
                                             class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-blue-400 hover:bg-blue-400/10 hover:border-blue-400/20 transition-all backdrop-blur-md" 
                                             title="Ver Detalles">
-                                        <i class="fas fa-eye text-xl"></i>
+                                        <i class="fas fa-file-invoice-dollar text-xl"></i>
                                     </button>
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
                                             class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all backdrop-blur-md" 
