@@ -1058,7 +1058,7 @@ window.handleAddProductToSale = function(e) {
 window.handleNewSale = async function(e) {
     if (e) e.preventDefault();
     
-    // 1. Obtención de datos del formulario
+    // 1. Obtención de datos
     const client_id = document.getElementById('client-select')?.value;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
@@ -1068,13 +1068,14 @@ window.handleNewSale = async function(e) {
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
     
     if (payment_method === 'Deuda') paid_amount = 0;
-    
     let final_paid_amount = (paid_amount > total_amount) ? total_amount : paid_amount;
     let final_saldo_pendiente = total_amount - final_paid_amount; 
 
     // Validaciones
-    if (!client_id) { alert('Selecciona un cliente.'); return; }
-    if (currentSaleItems.length === 0) { alert('El carrito está vacío.'); return; }
+    if (!client_id || currentSaleItems.length === 0) {
+        Swal.fire({ title: 'Error', text: 'Carrito vacío o sin cliente', icon: 'error', background: '#1a1a1a', color: '#fff' });
+        return;
+    }
 
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
     if (submitBtn) { 
@@ -1084,8 +1085,6 @@ window.handleNewSale = async function(e) {
 
     try {
         // --- PROCESO EN SUPABASE ---
-
-        // 1. Insertar la Venta principal
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
@@ -1101,7 +1100,6 @@ window.handleNewSale = async function(e) {
         if (saleError) throw saleError;
         const new_venta_id = saleData[0].venta_id;
 
-        // 2. Insertar Detalles de la Venta
         const detailsToInsert = currentSaleItems.map(item => ({
             venta_id: new_venta_id, 
             product_id: item.product_id,
@@ -1114,63 +1112,62 @@ window.handleNewSale = async function(e) {
         const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
         if (dError) throw dError;
 
-        // 3. Registrar Pago inicial
         if (final_paid_amount > 0) {
             await supabase.from('pagos').insert([{
-                venta_id: new_venta_id,
-                amount: final_paid_amount,
-                client_id: client_id,
-                metodo_pago: payment_method,
-                type: 'INICIAL'
+                venta_id: new_venta_id, amount: final_paid_amount,
+                client_id: client_id, metodo_pago: payment_method, type: 'INICIAL'
             }]);
         }
 
-        // 4. Actualizar Deuda del Cliente
         if (final_saldo_pendiente > 0) {
-            const { data: c } = await supabase
-                .from('clientes')
-                .select('deuda_total')
-                .eq('client_id', client_id)
-                .single();
-            
-            await supabase
-                .from('clientes')
-                .update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente })
-                .eq('client_id', client_id);
+            const { data: c } = await supabase.from('clientes').select('deuda_total').eq('client_id', client_id).single();
+            await supabase.from('clientes').update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente }).eq('client_id', client_id);
         }
 
-        // 1. Cerramos el modal inmediatamente
+        // --- ÉXITO ---
         closeModal('new-sale-modal');
 
-        // 2. Limpiamos los datos del carrito
+        // Notificación Toast (No bloquea el código)
+        Swal.fire({
+            title: '¡Venta Registrada!',
+            icon: 'success',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            background: '#1a1a1a',
+            color: '#fff'
+        });
+
+        // Limpieza de UI
         currentSaleItems = [];
         if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
-        // 3. DISPARAMOS LA ACTUALIZACIÓN PRIMERO (Antes del Alert)
-        console.log("🚀 Actualizando tablas en segundo plano...");
+        // --- ACTUALIZACIÓN CON RETRASO DE SEGURIDAD ---
+        console.log("⏳ Esperando sincronización de base de datos...");
+        
+        // Esperamos 500ms para dar tiempo a Supabase de que la venta sea consultable
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         const ahora = new Date();
         const m = ahora.getMonth() + 1;
         const y = ahora.getFullYear();
 
-        // Ejecutamos las recargas
-        const refreshPromise = (async () => {
-            if (typeof window.loadMonthlySalesReport === 'function') {
-                await window.loadMonthlySalesReport(m, y);
-            }
-            if (typeof window.loadSalesData === 'function') await window.loadSalesData();
-            if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
-        })();
+        if (typeof window.loadMonthlySalesReport === 'function') {
+            console.log("📊 Refrescando Monthly Report...");
+            await window.loadMonthlySalesReport(m, y);
+        }
+        
+        // Otras actualizaciones
+        if (typeof window.loadSalesData === 'function') await window.loadSalesData();
+        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
 
-        // 4. MOSTRAR EL MENSAJE (Ahora no importa si bloquea, porque la recarga ya inició)
-        alert('Venta registrada con éxito');
-        
-        // Esperamos a que terminen las recargas por si acaso
-        await refreshPromise;
-        
     } catch (err) {
         console.error('Error:', err);
-        alert('Error: ' + err.message);
+        Swal.fire({ title: 'Error', text: err.message, icon: 'error', background: '#1a1a1a', color: '#fff' });
     } finally {
         if (submitBtn) { 
             submitBtn.disabled = false; 
