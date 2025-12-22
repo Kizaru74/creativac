@@ -1022,7 +1022,7 @@
         </div>
 
         <div class="p-8">
-            <form id="abono-client-form" onsubmit="window.handleRegisterPayment(event); return false;">
+            <form id="abono-client-form" onsubmit="return false;">
                 <input type="hidden" id="abono-client-id">
                 
                 <div class="mb-6 bg-black/20 p-5 rounded-2xl border border-white/5">
@@ -1050,23 +1050,15 @@
                             <option value="" disabled selected>Seleccione método</option>
                             <option value="Efectivo">💵 Efectivo</option>
                             <option value="Transferencia">📱 Transferencia</option>
-                            <option value="Tarjeta">💳 Tarjeta</option>
                         </select>
                         <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-gray-500">
                             <i class="fas fa-chevron-down text-xs"></i>
                         </div>
                     </div>
                 </div>
-                
-                <div id="log-container-fifo" class="hidden mb-6 p-4 bg-black/40 rounded-2xl border border-white/5">
-                    <p class="text-[9px] font-black text-orange-500 uppercase mb-2 tracking-widest flex items-center">
-                        <i class="fas fa-stream mr-2"></i> Distribución Realizada:
-                    </p>
-                    <div id="recent-payments-log" class="text-[10px] font-mono text-gray-400 space-y-1">
-                        </div>
-                </div>
 
-                <button type="submit" id="btn-confirm-abono" 
+                <button type="button" id="btn-confirm-abono" 
+                        onclick="window.handleRegisterPayment(event)"
                         class="w-full bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest py-5 rounded-[1.5rem] transition-all shadow-lg shadow-orange-900/20 active:scale-95 flex items-center justify-center gap-3">
                     <i class="fas fa-check-circle text-lg"></i>
                     Confirmar Pago
