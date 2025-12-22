@@ -4149,111 +4149,106 @@ async function handleEditClient(e) {
 
 // 11. DETALLE Y ABONO DE VENTA 
 window.handleRegisterPayment = async function(e) {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+    if (e) e.preventDefault();
     
-    // 1. CAPTURAR DATOS
+    const btn = document.getElementById('btn-confirm-abono');
+    if (btn.disabled) return; 
+
     const clientId = document.getElementById('abono-client-id')?.value;
     const amountStr = document.getElementById('abono-amount')?.value;
-    const metodo_pago = document.getElementById('payment-method-abono')?.value;
+    const metodo = document.getElementById('payment-method-abono')?.value;
     const paymentAmount = parseFloat(amountStr);
     const nombreCliente = document.getElementById('abono-client-name-display')?.textContent || "Cliente";
 
-    if (!clientId || isNaN(paymentAmount) || paymentAmount <= 0 || !metodo_pago) {
-        alert("⚠️ Por favor completa todos los campos correctamente.");
+    if (!clientId || isNaN(paymentAmount) || paymentAmount <= 0) {
+        alert("⚠️ Por favor ingresa un monto válido.");
         return;
     }
 
-    const btn = document.getElementById('btn-confirm-abono');
     try {
-        if (btn) { btn.disabled = true; btn.innerText = "PROCESANDO..."; }
+        btn.disabled = true;
+        btn.innerText = "PROCESANDO...";
 
-        // 2. OBTENER VENTAS PENDIENTES
-        const { data: ventas, error: fErr } = await supabase
+        // 1. Obtener ventas con saldo pendiente
+        const { data: ventas, error: vErr } = await supabase
             .from('ventas')
             .select('venta_id, saldo_pendiente, paid_amount')
             .eq('client_id', clientId)
-            .gt('saldo_pendiente', 0.01) // Evitar saldos insignificantes
+            .gt('saldo_pendiente', 0.01)
             .order('created_at', { ascending: true });
 
-        if (fErr) throw fErr;
+        if (vErr) throw vErr;
 
         let restante = paymentAmount;
-        let historial = [];
+        let historialDistribucion = [];
 
-        // 3. DISTRIBUIR EL PAGO (CASCADA)
+        // 2. Procesar en Cascada
         for (let v of ventas) {
             if (restante <= 0.01) break;
+
+            let pagoAplicado = Math.min(restante, v.saldo_pendiente);
+            pagoAplicado = parseFloat(pagoAplicado.toFixed(2));
+
+            // INSERTAR EN PAGOS (Columnas exactas según tu esquema)
+            const { error: pErr } = await supabase
+                .from('pagos')
+                .insert([{ 
+                    client_id: parseInt(clientId), 
+                    venta_id: parseInt(v.venta_id), 
+                    amount: pagoAplicado, 
+                    metodo_pago: metodo,
+                    note: 'Abono en cascada (Sistema)', // <--- Cambiado de 'description' a 'note'
+                    type: 'abono' // <--- Agregado para tu columna 'type'
+                }]);
+
+            if (pErr) throw pErr; // Si falla aquí, ahora sí detendremos para revisar
+
+            // ACTUALIZAR VENTA
+            const nuevoSaldo = parseFloat((v.saldo_pendiente - pagoAplicado).toFixed(2));
+            const nuevoPagado = parseFloat(((v.paid_amount || 0) + pagoAplicado).toFixed(2));
+
+            const { error: updErr } = await supabase
+                .from('ventas')
+                .update({ 
+                    saldo_pendiente: nuevoSaldo, 
+                    paid_amount: nuevoPagado 
+                })
+                .eq('venta_id', v.venta_id);
             
-            let pago = Math.min(restante, v.saldo_pendiente);
-            pago = parseFloat(pago.toFixed(2)); // 🔥 Forzar 2 decimales
+            if (updErr) throw updErr;
 
-            // Insertar registro de pago vinculado a la venta
-            await supabase.from('pagos').insert([{ 
-                venta_id: v.venta_id, 
-                client_id: clientId, 
-                amount: pago, 
-                metodo_pago,
-                description: 'Abono a cuenta (Cascada)'
-            }]);
-
-            // Actualizar la venta específica
-            await supabase.from('ventas').update({ 
-                saldo_pendiente: parseFloat((v.saldo_pendiente - pago).toFixed(2)),
-                paid_amount: parseFloat(((v.paid_amount || 0) + pago).toFixed(2)) 
-            }).eq('venta_id', v.venta_id);
-
-            historial.push({ id: v.venta_id, monto: pago });
-            restante = parseFloat((restante - pago).toFixed(2));
+            historialDistribucion.push({ venta_id: v.venta_id, amount: pagoAplicado });
+            restante = parseFloat((restante - pagoAplicado).toFixed(2));
         }
 
-        // 4. SI SOBRÓ DINERO (Abono a favor sin venta específica)
-        if (restante > 0.01) {
-            await supabase.from('pagos').insert([{ 
-                client_id: clientId, 
-                amount: restante, 
-                metodo_pago,
-                description: 'Saldo a favor / Abono excedente'
-            }]);
-        }
-
-        // 5. REPARACIÓN Y SINCRONIZACIÓN FINAL
-        // Esto recalcula la deuda_total en la tabla clientes automáticamente
-        await window.repararSaldoCliente(clientId);
-
-        // 6. OBTENER NUEVA DEUDA PARA EL PDF
-        const { data: vts } = await supabase.from('ventas').select('saldo_pendiente').eq('client_id', clientId);
-        const nuevaDeudaTotal = vts.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
-
-        // 7. FEEDBACK Y PDF
-        if (confirm(`✅ Pago de $${paymentAmount.toFixed(2)} registrado. ¿Generar comprobante PDF?`)) {
-            window.generarComprobanteAbono({
-                cliente: nombreCliente,
-                montoTotal: paymentAmount,
-                metodo: metodo_pago,
-                distribucion: historial,
-                deudaRestante: nuevaDeudaTotal
-            });
-        }
-
-        // 8. REFRESCO DE TODA LA INTERFAZ (Sin recargar página)
-        closeModal('abono-client-modal');
+        // 3. Sincronizar deuda total para el PDF
+        const { data: resumenVentas } = await supabase
+            .from('ventas')
+            .select('saldo_pendiente')
+            .eq('client_id', clientId);
         
-        await Promise.all([
-            typeof window.loadDebts === 'function' ? window.loadDebts() : null,
-            typeof window.loadClientDebtsTable === 'function' ? window.loadClientDebtsTable() : null,
-            typeof window.loadDashboardData === 'function' ? window.loadDashboardData() : null,
-            // Si el reporte detallado estaba abierto, lo refresca
-            typeof window.handleViewClientDebt === 'function' ? window.handleViewClientDebt(clientId) : null
-        ]);
+        const deudaFinal = resumenVentas.reduce((acc, curr) => acc + (parseFloat(curr.saldo_pendiente) || 0), 0);
+
+        // 4. Generar el Comprobante Óxido
+        window.generarComprobanteAbono({
+            cliente: nombreCliente,
+            montoTotal: paymentAmount,
+            metodo: metodo,
+            distribucion: historialDistribucion,
+            deudaRestante: deudaFinal
+        });
+
+        // 5. Limpieza de UI
+        closeModal('abono-client-modal');
+        if (window.loadClientsTable) await window.loadClientsTable();
+        alert("✅ Abono registrado y saldos actualizados.");
 
     } catch (err) {
-        console.error(err);
-        alert("Error al procesar abono");
+        console.error("Error en el proceso:", err);
+        alert("Hubo un error al registrar: " + (err.message || "Error desconocido"));
     } finally {
-        if (btn) { btn.disabled = false; btn.innerText = "Confirmar Pago en Cascada"; }
+        btn.disabled = false;
+        btn.innerText = "Confirmar Pago en Cascada";
     }
 };
 
