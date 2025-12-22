@@ -1058,7 +1058,6 @@ window.handleAddProductToSale = function(e) {
 window.handleNewSale = async function(e) {
     if (e) e.preventDefault();
     
-    // 1. Obtención de datos
     const client_id = document.getElementById('client-select')?.value;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
@@ -1071,54 +1070,40 @@ window.handleNewSale = async function(e) {
     let final_paid_amount = (paid_amount > total_amount) ? total_amount : paid_amount;
     let final_saldo_pendiente = total_amount - final_paid_amount; 
 
-    // Validaciones
     if (!client_id || currentSaleItems.length === 0) {
-        Swal.fire({ title: 'Error', text: 'Carrito vacío o sin cliente', icon: 'error', background: '#1a1a1a', color: '#fff' });
+        Swal.fire({ title: 'Atención', text: 'Selecciona un cliente y productos.', icon: 'warning', background: '#1a1a1a', color: '#fff' });
         return;
     }
 
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
-    if (submitBtn) { 
-        submitBtn.disabled = true; 
-        submitBtn.textContent = 'Procesando...'; 
-    }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Guardando...'; }
 
     try {
-        // --- PROCESO EN SUPABASE ---
+        // 1. Insertar Venta
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
-                client_id: client_id,
-                total_amount: total_amount, 
-                paid_amount: final_paid_amount, 
-                saldo_pendiente: final_saldo_pendiente, 
-                metodo_pago: payment_method,
-                description: sale_description,
-            }])
-            .select('venta_id'); 
+                client_id, total_amount, paid_amount: final_paid_amount, 
+                saldo_pendiente: final_saldo_pendiente, metodo_pago: payment_method,
+                description: sale_description
+            }]).select('venta_id'); 
 
         if (saleError) throw saleError;
         const new_venta_id = saleData[0].venta_id;
 
+        // 2. Insertar Detalles
         const detailsToInsert = currentSaleItems.map(item => ({
-            venta_id: new_venta_id, 
-            product_id: item.product_id,
-            name: item.name || 'Producto', 
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.subtotal
+            venta_id: new_venta_id, product_id: item.product_id,
+            name: item.name, quantity: item.quantity, price: item.price, subtotal: item.subtotal
         }));
-        
-        const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
-        if (dError) throw dError;
+        await supabase.from('detalle_ventas').insert(detailsToInsert);
 
+        // 3. Deuda y Pagos
         if (final_paid_amount > 0) {
             await supabase.from('pagos').insert([{
-                venta_id: new_venta_id, amount: final_paid_amount,
-                client_id: client_id, metodo_pago: payment_method, type: 'INICIAL'
+                venta_id: new_venta_id, amount: final_paid_amount, client_id, type: 'INICIAL'
             }]);
         }
-
         if (final_saldo_pendiente > 0) {
             const { data: c } = await supabase.from('clientes').select('deuda_total').eq('client_id', client_id).single();
             await supabase.from('clientes').update({ deuda_total: (c?.deuda_total || 0) + final_saldo_pendiente }).eq('client_id', client_id);
@@ -1126,53 +1111,46 @@ window.handleNewSale = async function(e) {
 
         // --- ÉXITO ---
         closeModal('new-sale-modal');
-
-        // Notificación Toast (No bloquea el código)
+        
+        // Notificación que no detiene el código
         Swal.fire({
-            title: '¡Venta Registrada!',
+            title: 'Venta Exitosa',
+            text: `Ticket #${new_venta_id} generado`,
             icon: 'success',
-            toast: true,
-            position: 'top-end',
+            timer: 2000,
             showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
             background: '#1a1a1a',
-            color: '#fff'
+            color: '#fff',
+            toast: true,
+            position: 'top-end'
         });
 
-        // Limpieza de UI
+        // Limpiar Carrito
         currentSaleItems = [];
         if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
-        // --- ACTUALIZACIÓN CON RETRASO DE SEGURIDAD ---
-        console.log("⏳ Esperando sincronización de base de datos...");
-        
-        // Esperamos 500ms para dar tiempo a Supabase de que la venta sea consultable
-        await new Promise(resolve => setTimeout(resolve, 500));
-
+        // --- RECARGA DE DATOS ---
         const ahora = new Date();
         const m = ahora.getMonth() + 1;
         const y = ahora.getFullYear();
 
+        console.log(`🔄 Sincronizando reporte para mes ${m}...`);
+        
+        // Forzamos el reporte mensual con los parámetros de hoy
         if (typeof window.loadMonthlySalesReport === 'function') {
-            console.log("📊 Refrescando Monthly Report...");
             await window.loadMonthlySalesReport(m, y);
         }
-        
-        // Otras actualizaciones
+
+        // Otras recargas secundarias
         if (typeof window.loadSalesData === 'function') await window.loadSalesData();
         if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
-        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
 
     } catch (err) {
-        console.error('Error:', err);
-        Swal.fire({ title: 'Error', text: err.message, icon: 'error', background: '#1a1a1a', color: '#fff' });
+        console.error(err);
+        Swal.fire({ title: 'Error', text: err.message, icon: 'error' });
     } finally {
-        if (submitBtn) { 
-            submitBtn.disabled = false; 
-            submitBtn.textContent = 'Registrar Venta'; 
-        }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Registrar Venta'; }
     }
 };
 
