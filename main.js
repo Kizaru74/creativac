@@ -1995,8 +1995,11 @@ window.imprimirEstadoCuenta = function() {
             </table>
 
             <div style="margin-top:40px; text-align:center; font-size:10px; color:#999; border-top:1px solid #eee; padding-top:10px;">
-                Taller Creativa Cortes CNC | Valladolid, Yucatán <br>
-                Este documento es un comprobante informativo de saldos y movimientos.
+                <div class="footer">
+                    <strong>CREATIVA CORTES CNC - Transformando tus ideas</strong><br>
+                    📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
+                    📱 WhatsApp: 985 100 1141
+                </div>
             </div>
 
             <script>
