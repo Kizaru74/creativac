@@ -2026,82 +2026,104 @@ window.generarComprobanteAbono = function(datos) {
         return;
     }
 
-    // Validación de seguridad para evitar errores de punto flotante o valores nulos
-    const montoTotal = parseFloat(datos.montoTotal || 0).toFixed(2);
+    // Validación de seguridad para montos
+    const montoTotal = parseFloat(datos.montoTotal || datos.amount || 0).toFixed(2);
     const deudaRestante = parseFloat(datos.deudaRestante || 0).toFixed(2);
+    const nombreCliente = (datos.cliente || datos.clientName || "Cliente").toUpperCase();
 
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>Recibo de Abono - ${datos.cliente}</title>
+            <title>Recibo de Abono - ${nombreCliente}</title>
             <style>
                 @page { size: letter; margin: 15mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; font-size: 12px; background-color: #f4f4f4; padding: 20px; }
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; margin: 0; font-size: 12px; background-color: #f4f4f4; padding: 20px; }
                 .actions-bar { max-width: 210mm; margin: 0 auto 10px auto; display: flex; justify-content: flex-end; }
-                .btn-print { background: ${colorOxido}; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
-                .sheet { background: white; width: 210mm; min-height: 140mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.2); border-radius: 5px; position: relative; box-sizing: border-box; }
-                .header { display: flex; justify-content: space-between; border-bottom: 3px solid ${colorOxido}; padding-bottom: 10px; margin-bottom: 15px; }
-                .logo-c { width:45px; height:45px; background:${colorOxido}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:24px; border-radius:4px; margin-right:12px; }
-                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fdf8f5; padding: 12px; margin-bottom: 15px; border: 1px solid #eee; }
+                .btn-print { background: ${colorOxido}; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                .sheet { background: white; width: 210mm; min-height: 140mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-radius: 4px; position: relative; box-sizing: border-box; border-top: 8px solid ${colorOxido}; }
+                
+                .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+                .brand-section { display: flex; align-items: center; }
+                .logo-container { width: 85px; height: 85px; margin-right: 18px; display: flex; align-items: center; justify-content: center; }
+                .logo-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+                
+                .receipt-info { text-align: right; }
+                .receipt-info h1 { margin: 0; color: ${colorOxido}; font-size: 22px; letter-spacing: -0.5px; }
+                .receipt-info p { margin: 2px 0; color: #666; font-size: 11px; }
+
+                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background: #fafafa; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #efefef; }
+                .data-label { color: #888; font-size: 10px; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
+                .data-value { font-size: 13px; font-weight: 600; color: #222; }
+
                 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                th { background: ${colorOxido}; color: white; padding: 10px; font-size: 11px; text-transform: uppercase; text-align: left; }
-                td { padding: 10px; border-bottom: 1px solid #eee; font-size: 12px; }
-                .totals-box { width: 320px; margin-left: auto; margin-top: 20px; background: #fdf8f5; padding: 15px; border: 1px solid #eee; border-radius: 4px; }
-                .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
+                th { background: #f8f8f8; color: #555; padding: 12px 10px; font-size: 10px; text-transform: uppercase; text-align: left; border-bottom: 2px solid #eee; }
+                td { padding: 12px 10px; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
+                
+                .totals-box { width: 300px; margin-left: auto; margin-top: 30px; }
+                .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
+                .total-row.final { border-top: 2px solid ${colorOxido}; margin-top: 10px; padding-top: 12px; font-size: 16px; font-weight: bold; color: ${colorOxido}; }
+                
+                .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #aaa; line-height: 1.5; }
+                
                 @media print {
                     body { background: white; padding: 0; }
-                    .sheet { box-shadow: none; width: 100%; margin: 0; padding: 10mm; }
+                    .sheet { box-shadow: none; border-radius: 0; width: 100%; margin: 0; padding: 10mm; }
                     .actions-bar { display: none; }
                 }
             </style>
         </head>
         <body>
             <div class="actions-bar">
-                <button class="btn-print" onclick="window.print()">🖨️ Imprimir o Guardar PDF</button>
+                <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR COMPROBANTE</button>
             </div>
+            
             <div class="sheet">
                 <div class="header">
-                    <div style="display:flex; align-items:center;">
-                        <div class="logo-c">C</div>
+                    <div class="brand-section">
+                        <div class="logo-container">
+                            <img src="./assets/logo-creativa.png" 
+                                 onerror="this.src='https://raw.githubusercontent.com/Kizaru74/creativac/main/LogoCreativa.jpg'" 
+                                 alt="Creativa Logo">
+                        </div>
                         <div>
-                            <h2 style="margin:0; color:${colorOxido}; font-size:18px;">CREATIVA CORTES CNC</h2>
-                            <p style="margin:0; font-size:9px; letter-spacing: 1px; font-weight:bold;">DISEÑO • CORTE • GRABADO</p>
+                            <h2 style="margin:0; color:#222; font-size:18px; font-weight: 800;">CREATIVA CORTES CNC</h2>
+                            <p style="margin:0; font-size:9px; letter-spacing: 1.5px; color:${colorOxido}; font-weight:bold;">DISEÑO • CORTE • GRABADO</p>
                         </div>
                     </div>
-                    <div style="text-align:right;">
-                        <h1 style="margin:0; color:${colorOxido}; font-size:18px;">RECIBO DE ABONO #${numRecibo}</h1>
-                        <p style="margin:0; font-size:11px;">${fecha}</p>
+                    <div class="receipt-info">
+                        <h1>RECIBO DE ABONO</h1>
+                        <p style="font-weight: bold; color: #333; font-size: 14px;">#${numRecibo}</p>
+                        <p>${fecha}</p>
                     </div>
                 </div>
 
                 <div class="data-grid">
                     <div>
-                        <strong>CLIENTE:</strong> ${datos.cliente.toUpperCase()}<br>
-                        <strong>MÉTODO DE PAGO:</strong> ${datos.metodo}
+                        <div class="data-label">Cliente</div>
+                        <div class="data-value">${nombreCliente}</div>
                     </div>
-                    <div style="text-align:right;">
-                        <strong style="color:${colorOxido};">ESTADO:</strong> COMPROBANTE DE PAGO
+                    <div style="text-align: right;">
+                        <div class="data-label">Método de Pago</div>
+                        <div class="data-value">${datos.metodo || 'No especificado'}</div>
                     </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 70%;">Descripción de Aplicación (Cascada)</th>
-                            <th style="width: 30%; text-align: right;">Monto</th>
+                            <th style="width: 75%;">Aplicación del Pago (Distribución Cascada)</th>
+                            <th style="width: 25%; text-align: right;">Monto Aplicado</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${datos.distribucion.map(item => {
-                            // CORRECCIÓN AQUÍ: Intentamos leer todas las variantes posibles de nombres
+                        ${(datos.distribucion || []).map(item => {
                             const folio = item.venta_id || item.id || 'N/A';
                             const valor = parseFloat(item.amount || item.monto || 0).toFixed(2);
-                            
                             return `
                                 <tr>
-                                    <td>Abono aplicado a la Venta Folio <strong>#${folio}</strong></td>
+                                    <td>Abono a cuenta de Venta Folio <strong>#${folio}</strong></td>
                                     <td style="text-align: right; font-weight: bold;">$${valor}</td>
                                 </tr>
                             `;
@@ -2110,20 +2132,21 @@ window.generarComprobanteAbono = function(datos) {
                 </table>
 
                 <div class="totals-box">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:14px;">
-                        <span>Abono Total Recibido:</span> 
-                        <span style="font-weight:bold; color:green;">$${montoTotal}</span>
+                    <div class="total-row">
+                        <span style="color: #666;">Abono Recibido:</span>
+                        <span style="font-weight: bold; color: #2e7d32;">$${montoTotal}</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-weight:bold; color:${colorOxido}; border-top:2px solid ${colorOxido}; margin-top:10px; font-size:16px; padding-top:10px;">
-                        <span>SALDO PENDIENTE:</span> 
+                    <div class="total-row final">
+                        <span>SALDO RESTANTE:</span>
                         <span>$${deudaRestante}</span>
                     </div>
                 </div>
 
                 <div class="footer">
-                    📱 WhatsApp: 985 100 1141 | 📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
-                    <strong>Creativa Cortes CNC - Transformando tus ideas</strong>
-                    <small style="display:block; margin-top:5px;">Este documento es un comprobante de abono parcial. El saldo restante está sujeto a los términos de crédito acordados.</small>
+                    <strong>Creativa Cortes CNC</strong><br>
+                    📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
+                    📱 WhatsApp: 985 100 1141<br>
+                    <span style="font-size: 8px; margin-top: 10px; display: block;">Este documento es un comprobante de operación interna. Verifique su saldo actualizado en su próximo estado de cuenta.</span>
                 </div>
             </div>
         </body>
