@@ -1843,17 +1843,17 @@ window.handleViewClientDebt = async function(clientId) {
                 const esVenta = mov.tipo === 'VENTA';
                 return `
                     <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td class="px-6 py-4 text-[10px] text-white/40 italic">${mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}</td>
+                        <td class="px-6 py-4 text-white/40">${mov.fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}</td>
                         <td class="px-6 py-4">
-                            <div class="text-xs font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
+                            <div class="text-base font-bold ${esVenta ? 'text-white' : 'text-green-400'} uppercase">
                                 ${esVenta ? `Venta #${mov.venta_id}` : `Abono Recibido`}
                             </div>
-                            <div class="text-[9px] text-gray-500 uppercase">${mov.description || ''}</div>
+                            <div class="text-[12px] text-gray-500 uppercase">${mov.description || ''}</div>
                         </td>
-                        <td class="px-6 py-4 text-right text-xs font-mono">
+                        <td class="px-6 py-4 text-right font-mono">
                             ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.total_amount)}</span>` : ''}
                         </td>
-                        <td class="px-6 py-4 text-right text-xs font-mono">
+                        <td class="px-6 py-4 text-right font-mono">
                             ${!esVenta ? `<span class="text-green-500">-${formatCurrency(mov.amount)}</span>` : ''}
                         </td>
                     </tr>`;
