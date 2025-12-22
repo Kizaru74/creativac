@@ -2673,7 +2673,10 @@ window.generarPDFEstadoCuenta = function() {
         return alert("No hay datos cargados. Por favor, abre el reporte del cliente primero.");
     }
 
-    const colorOxido = "#8B4513";
+    const colorOxido = '#b45309'; // Naranja óxido uniforme
+    const fechaEmision = new Date().toLocaleDateString('es-MX', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
     
     const htmlContent = `
         <!DOCTYPE html>
@@ -2683,69 +2686,111 @@ window.generarPDFEstadoCuenta = function() {
             <title>Estado de Cuenta - ${data.nombre}</title>
             <style>
                 @page { size: letter; margin: 15mm; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.4; margin: 0; background-color: #f0f0f0; padding: 20px; }
-                .sheet { background: white; max-width: 210mm; margin: 0 auto; padding: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-radius: 8px; }
-                .header { border-bottom: 3px solid ${colorOxido}; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-                .resumen { background: #fdf8f5; border: 1px solid ${colorOxido}44; padding: 20px; border-radius: 8px; margin-bottom: 25px; display: flex; justify-content: space-between; }
-                table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                th { background: #f4f4f4; color: #444; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; text-transform: uppercase; font-size: 11px; }
-                td { padding: 10px; border-bottom: 1px solid #eee; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; line-height: 1.4; margin: 0; background-color: #f4f4f4; padding: 20px; }
+                
+                .btn-print-container { max-width: 210mm; margin: 0 auto 10px; text-align: right; }
+                .btn-print { background: ${colorOxido}; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+                .sheet { background: white; max-width: 210mm; min-height: 250mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-radius: 4px; border-top: 12px solid ${colorOxido}; box-sizing: border-box; }
+                
+                .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+                .brand { display: flex; align-items: center; }
+                .logo-container { width: 80px; height: 80px; margin-right: 15px; display: flex; align-items: center; justify-content: center; }
+                .logo-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+                
+                .brand-info h2 { margin: 0; color: #111; font-size: 22px; font-weight: 900; line-height: 1; }
+                .brand-info p { margin: 5px 0 0 0; font-size: 10px; letter-spacing: 3px; color: ${colorOxido}; font-weight: bold; }
+
+                .receipt-meta { text-align: right; }
+                .receipt-meta h1 { margin: 0; color: ${colorOxido}; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+                .receipt-meta .fecha { font-size: 11px; color: #777; margin-top: 5px; }
+
+                /* BLOQUE ÓXIDO PARA RESUMEN DEL CLIENTE */
+                .resumen-cliente { 
+                    display: grid; 
+                    grid-template-columns: 1.5fr 1fr; 
+                    background-color: ${colorOxido}; 
+                    color: white; 
+                    padding: 20px; 
+                    border-radius: 6px; 
+                    margin-bottom: 30px; 
+                }
+                .data-box .label { font-size: 9px; text-transform: uppercase; font-weight: bold; opacity: 0.8; margin-bottom: 5px; display: block; letter-spacing: 1px; }
+                .data-box .value { font-size: 18px; font-weight: bold; text-transform: uppercase; }
+                .data-box .amount { font-size: 24px; font-weight: 900; }
+
+                table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 30px; }
+                th { background: #fafafa; color: ${colorOxido}; padding: 12px 10px; text-align: left; border-bottom: 2px solid ${colorOxido}; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+                td { padding: 12px 10px; border-bottom: 1px solid #eee; color: #444; }
+                
                 .text-right { text-align: right; }
                 .text-red { color: #dc2626 !important; font-weight: bold; }
                 .text-green { color: #16a34a !important; font-weight: bold; }
-                .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }
-                .actions-bar { max-width: 210mm; margin: 0 auto 10px; display: flex; justify-content: flex-end; }
-                .btn-pdf { background: ${colorOxido}; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+                .footer { margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; color: #999; font-size: 11px; line-height: 1.6; }
+
                 @media print {
+                    .btn-print-container { display: none; }
                     body { background: white; padding: 0; }
-                    .sheet { box-shadow: none; max-width: 100%; margin: 0; padding: 0; }
-                    .actions-bar { display: none; }
+                    .sheet { box-shadow: none; max-width: 100%; margin: 0; border-top: none; }
                 }
             </style>
         </head>
         <body>
-            <div class="actions-bar">
-                <button class="btn-pdf" onclick="window.print()">📥 Guardar como PDF / Imprimir</button>
+            <div class="btn-print-container">
+                <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR ESTADO DE CUENTA</button>
             </div>
+
             <div class="sheet">
                 <div class="header">
-                    <div>
-                        <h1 style="margin:0; color:${colorOxido}; font-size: 26px;">CREATIVA CORTES CNC</h1>
-                        <p style="margin:0; font-size: 11px; font-weight: bold; letter-spacing: 2px; color: #666;">ESTADO DE CUENTA DETALLADO</p>
+                    <div class="brand">
+                        <div class="logo-container">
+                            <img src="https://raw.githubusercontent.com/Kizaru74/creativac/main/LogoCreativa.jpg" alt="Logo">
+                        </div>
+                        <div class="brand-info">
+                            <h2>CREATIVA CORTES CNC</h2>
+                            <p>DISEÑO • CORTE • GRABADO</p>
+                        </div>
                     </div>
-                    <div style="text-align: right;">
-                        <p style="margin:0; font-size: 11px; color: #888;">FECHA DE EMISIÓN</p>
-                        <p style="margin:0; font-weight: bold; font-size: 14px;">${new Date().toLocaleDateString()}</p>
-                    </div>
-                </div>
-                <div class="resumen">
-                    <div>
-                        <p style="margin:0; font-size: 11px; color: #888;">DATOS DEL CLIENTE</p>
-                        <p style="margin:0; font-size: 20px; font-weight: bold; color: #222;">${data.nombre.toUpperCase()}</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <p style="margin:0; font-size: 11px; color: #888;">SALDO TOTAL A LA FECHA</p>
-                        <p style="margin:0; font-size: 28px; font-weight: 900; color: ${colorOxido};">${formatCurrency(data.totalDeuda)}</p>
+                    <div class="receipt-meta">
+                        <h1>Estado de Cuenta</h1>
+                        <div class="fecha">Emisión: ${fechaEmision}</div>
                     </div>
                 </div>
+
+                <div class="resumen-cliente">
+                    <div class="data-box">
+                        <span class="label">Cliente</span>
+                        <span class="value">${data.nombre.toUpperCase()}</span>
+                    </div>
+                    <div class="data-box" style="text-align: right;">
+                        <span class="label">Saldo Total Pendiente</span>
+                        <span class="amount">${formatCurrency(data.totalDeuda)}</span>
+                    </div>
+                </div>
+
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 15%;">FECHA</th>
-                            <th style="width: 50%;">DESCRIPCIÓN DE MOVIMIENTO</th>
-                            <th style="width: 17%; text-align: right;">CARGO/ABONO</th>
-                            <th style="width: 18%; text-align: right;">SALDO</th>
+                            <th style="width: 15%;">Fecha</th>
+                            <th style="width: 45%;">Descripción del Movimiento</th>
+                            <th style="width: 20%; text-align: right;">Monto</th>
+                            <th style="width: 20%; text-align: right;">Saldo Acum.</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${data.transaccionesHTML.replace(/text-red-600/g, 'text-red').replace(/text-green-600/g, 'text-green')}
+                        ${data.transaccionesHTML
+                            .replace(/text-red-600/g, 'text-red')
+                            .replace(/text-green-600/g, 'text-green')
+                            .replace(/px-4 py-2/g, '') /* Limpiamos clases de padding de la tabla original si existen */}
                     </tbody>
                 </table>
+
                 <div class="footer">
                     <strong>CREATIVA CORTES CNC - Transformando tus ideas</strong><br>
                     📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
-                    📱 WhatsApp: 985 100 1141
-                    <span style="font-size: 9px; margin-top: 10px; display: block;">Documento informativo de saldos y movimientos.</span>
+                    📱 WhatsApp: 985 100 1141<br>
+                    <span style="font-size: 9px; margin-top: 10px; display: block; opacity: 0.7;">Este documento es un reporte informativo de movimientos y saldos a la fecha de emisión.</span>
                 </div>
             </div>
         </body>
@@ -2756,6 +2801,8 @@ window.generarPDFEstadoCuenta = function() {
     if (pWin) {
         pWin.document.write(htmlContent);
         pWin.document.close();
+    } else {
+        alert("El navegador bloqueó la ventana emergente. Por favor, permite los pop-ups.");
     }
 };
 
