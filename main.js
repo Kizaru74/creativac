@@ -2742,7 +2742,9 @@ window.generarPDFEstadoCuenta = function() {
                     </tbody>
                 </table>
                 <div class="footer">
-                    <strong>Creativa Cortes CNC</strong> | Valladolid, Yucatán<br>
+                    <strong>CREATIVA CORTES CNC - Transformando tus ideas</strong><br>
+                    📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
+                    📱 WhatsApp: 985 100 1141
                     <span style="font-size: 9px; margin-top: 10px; display: block;">Documento informativo de saldos y movimientos.</span>
                 </div>
             </div>
