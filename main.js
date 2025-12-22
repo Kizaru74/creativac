@@ -1114,7 +1114,7 @@ window.handleNewSale = async function(e) {
         const { error: dError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
         if (dError) throw dError;
 
-        // 3. Registrar Pago inicial (si el cliente pagó algo en el momento)
+        // 3. Registrar Pago inicial
         if (final_paid_amount > 0) {
             await supabase.from('pagos').insert([{
                 venta_id: new_venta_id,
@@ -1125,7 +1125,7 @@ window.handleNewSale = async function(e) {
             }]);
         }
 
-        // 4. Actualizar Deuda del Cliente (Si quedó saldo pendiente)
+        // 4. Actualizar Deuda del Cliente
         if (final_saldo_pendiente > 0) {
             const { data: c } = await supabase
                 .from('clientes')
@@ -1139,38 +1139,39 @@ window.handleNewSale = async function(e) {
                 .eq('client_id', client_id);
         }
 
-        // --- ÉXITO Y ACTUALIZACIÓN DE INTERFAZ (Corrección aquí) ---
-        
+        // --- ÉXITO Y ACTUALIZACIÓN DE INTERFAZ ---
         alert('Venta registrada con éxito');
         closeModal('new-sale-modal');
 
-        // Limpieza de UI del TPV
+        // Limpieza de UI
         currentSaleItems = [];
         if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
-        // RECARGA DE DATOS PARA REPORTES Y TABLAS
-        console.log("🔄 Sincronizando datos tras venta...");
-        
-        // A. Recargar array global de ventas (Vital para Reportes)
+        console.log("🔄 Sincronizando reportes...");
+
+        // RECARGA DE REPORTES (SIN REFRESCAR PAGINA)
+        const ahora = new Date();
+        const mesAct = ahora.getMonth() + 1;
+        const añoAct = ahora.getFullYear();
+
+        // 1. Actualizar Reporte Mensual (La tabla que pediste)
+        if (typeof window.loadMonthlySalesReport === 'function') {
+            await window.loadMonthlySalesReport(mesAct, añoAct);
+        }
+
+        // 2. Actualizar Tabla de Ventas General
         if (typeof window.loadSalesData === 'function') {
             await window.loadSalesData();
-            // Refrescar la tabla de ventas si el usuario está en esa vista
             if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
         }
 
-        // B. Recargar Dashboard (Métricas de ventas diarias)
-        if (typeof window.loadDashboardData === 'function') {
-            await window.loadDashboardData();
-        }
-
-        // C. Recargar Clientes (Si hubo cambio en deuda)
-        if (final_saldo_pendiente > 0 && typeof window.loadClientsTable === 'function') {
-            await window.loadClientsTable('gestion');
-        }
+        // 3. Actualizar Clientes y Dashboard
+        if (typeof window.loadDashboardData === 'function') await window.loadDashboardData();
+        if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
 
     } catch (err) {
-        console.error('Error al procesar venta:', err);
+        console.error('Error:', err);
         alert('Error: ' + err.message);
     } finally {
         if (submitBtn) { 
@@ -4588,10 +4589,7 @@ window.handleDeleteAction = async function(btn, ventaId, month, year) {
 
 window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFromEvent) {
     (async () => {
-        if (!supabase) {
-            console.error("Supabase no está inicializado.");
-            return;
-        }
+        if (!supabase) return;
 
         const reportBody = document.getElementById('monthly-sales-report-body');
         const totalSalesEl = document.getElementById('report-total-sales');
@@ -4600,15 +4598,15 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
         if (!reportBody || !totalSalesEl || !totalDebtEl || !noDataMessage) return;
 
-        // 1. Estado de carga Dark Premium (Icono Naranja Sólido)
+        // Estado de carga
         reportBody.innerHTML = `
             <tr>
                 <td colspan="5" class="px-6 py-24 text-center">
                     <div class="flex flex-col justify-center items-center space-y-4">
-                        <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse">
-                            <i class="fas fa-chart-line text-xl"></i>
+                        <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white animate-pulse">
+                            <i class="fas fa-sync-alt fa-spin"></i>
                         </div>
-                        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30 font-sans">Sincronizando Reportes</span>
+                        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30">Actualizando Datos</span>
                     </div>
                 </td>
             </tr>`;
@@ -4617,21 +4615,32 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             const currentMonthNum = new Date().getMonth() + 1;
             const currentYearNum = new Date().getFullYear();
             
-            let selectedMonth = (selectedMonthFromEvent >= 1 && selectedMonthFromEvent <= 12) ? selectedMonthFromEvent : currentMonthNum;
-            let selectedYear = (selectedYearFromEvent >= 2000) ? selectedYearFromEvent : currentYearNum;
+            let selectedMonth = (parseInt(selectedMonthFromEvent) >= 1) ? parseInt(selectedMonthFromEvent) : currentMonthNum;
+            let selectedYear = (parseInt(selectedYearFromEvent) >= 2000) ? parseInt(selectedYearFromEvent) : currentYearNum;
 
             let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
             let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1));
             
-            const { data: sales, error } = await supabase
+            // 1. Traer Ventas
+            const { data: sales, error: sError } = await supabase
                 .from('ventas')
                 .select(`venta_id, client_id, created_at, total_amount, saldo_pendiente, metodo_pago, clientes(name)`)
                 .gte('created_at', startDate.toISOString())
                 .lt('created_at', nextDate.toISOString()) 
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            
+            if (sError) throw sError;
+
+            // 2. Traer Detalles (Productos) para estas ventas
+            let productosData = [];
+            if (sales && sales.length > 0) {
+                const { data: dData } = await supabase
+                    .from('detalle_ventas')
+                    .select('venta_id, name, quantity')
+                    .in('venta_id', sales.map(s => s.venta_id));
+                productosData = dData || [];
+            }
+
             let totalSales = 0;
             let totalDebtGenerated = 0;
             reportBody.innerHTML = ''; 
@@ -4640,65 +4649,55 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 sales.forEach(sale => {
                     totalSales += sale.total_amount;
                     totalDebtGenerated += sale.saldo_pendiente;
+
+                    // Agrupar productos de esta venta
+                    const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
+                    const listaProds = misProds.map(p => `${p.name} (x${p.quantity})`).join(', ');
         
                     const clientName = sale.clientes?.name || 'Cliente Final';
                     const dateObj = new Date(sale.created_at);
                     const day = dateObj.toLocaleDateString('es-MX', { day: '2-digit' });
-                    const month = dateObj.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase().replace('.', '');
+                    const monthText = dateObj.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase().replace('.', '');
                     const formattedTime = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-                    
                     const tienePendiente = sale.saldo_pendiente > 0.01;
                     
                     const rowHTML = `
-                        <tr class="group hover:bg-white/[0.02] transition-all duration-300 border-b border-white/5">
-                            <td class="px-8 py-5 whitespace-nowrap">
+                        <tr class="group hover:bg-white/[0.02] transition-all border-b border-white/5">
+                            <td class="px-8 py-5">
                                 <div class="flex items-center">
-                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-colors">
-                                        <span class="text-[12px] font-bold text-white leading-none font-sans">${day}</span>
-                                        <span class="text-[9px] font-bold text-orange-500 leading-none mt-1 font-sans">${month}</span>
+                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4">
+                                        <span class="text-[12px] font-bold text-white leading-none">${day}</span>
+                                        <span class="text-[9px] font-bold text-orange-500 leading-none mt-1">${monthText}</span>
                                     </div>
                                     <div>
-                                        <div class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] inline-block mb-1">
-                                            ID #${sale.venta_id}
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px]">ID #${sale.venta_id}</span>
+                                            <span class="text-[10px] text-orange-300/60 font-medium truncate max-w-[150px]">${listaProds}</span>
                                         </div>
-                                        <div class="text-[9px] text-white/20 uppercase tracking-widest font-bold font-sans">${formattedTime} HRS</div>
+                                        <div class="text-[9px] text-white/20 uppercase tracking-widest font-bold">${formattedTime} HRS</div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-8 py-5 whitespace-nowrap">
+                            <td class="px-8 py-5">
                                 <div class="flex items-center gap-3">
-                                    <div class="flex items-center justify-center bg-orange-500 w-7 h-7 rounded shadow-sm shadow-orange-500/20">
-                                        <i class="fas fa-user text-white text-[10px]"></i>
-                                    </div>
-                                    <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${clientName}</div>
+                                    <div class="bg-orange-500 w-6 h-6 rounded flex items-center justify-center"><i class="fas fa-user text-white text-[9px]"></i></div>
+                                    <div class="text-sm font-bold text-white uppercase">${clientName}</div>
                                 </div>
-                                <div class="text-[11px] text-white/30 font-sans mt-1 tracking-[0.1em] uppercase font-bold pl-10">
-                                    Metodo: ${sale.metodo_pago || 'CONTADO'}
-                                </div>
+                                <div class="text-[10px] text-white/30 mt-1 uppercase pl-9">Metodo: ${sale.metodo_pago || 'CONTADO'}</div>
                             </td>
-                            <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Total Venta</div>
-                                <div class="text-sm font-black text-white font-sans italic tracking-tight">${formatCurrency(sale.total_amount)}</div>
+                            <td class="px-8 py-5 text-right">
+                                <div class="text-[10px] text-white/40 uppercase font-bold mb-1">Total</div>
+                                <div class="text-sm font-black text-white italic">${formatCurrency(sale.total_amount)}</div>
                             </td>
-                            <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Saldo</div>
-                                <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center">
-                                    <span class="h-1.5 w-1.5 rounded-full ${tienePendiente ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                                    <span class="font-sans font-bold text-[13px]">${formatCurrency(sale.saldo_pendiente)}</span>
+                            <td class="px-8 py-5 text-right">
+                                <div class="text-[10px] text-white/40 uppercase font-bold mb-1">Saldo</div>
+                                <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center px-2 py-1 rounded">
+                                    <span class="font-bold text-[12px]">${formatCurrency(sale.saldo_pendiente)}</span>
                                 </div>
                             </td>
-                            <td class="px-8 py-5 whitespace-nowrap text-right">
-                                <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
-                                            class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-blue-400 hover:bg-blue-400/10 hover:border-blue-400/20 transition-all backdrop-blur-md" 
-                                            title="Ver Detalles">
-                                        <i class="fas fa-file-invoice-dollar text-xl"></i>
-                                    </button>
-                                    <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                                            class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all backdrop-blur-md" 
-                                            title="Anular Venta">
-                                        <i class="fas fa-trash-alt text-xl"></i>
-                                    </button>
+                            <td class="px-8 py-5 text-right">
+                                <div class="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-all">
+                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" class="h-8 w-8 bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-blue-400"><i class="fas fa-eye"></i></button>
                                 </div>
                             </td>
                         </tr>`;
@@ -4707,16 +4706,15 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 noDataMessage.classList.add('hidden'); 
             } else {
                 noDataMessage.classList.remove('hidden'); 
-                reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Sin actividad comercial</td></tr>`;
+                reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em]">Sin actividad comercial</td></tr>`;
             }
             
-            // Totales con fuente SANS BLACK e itálica
-            totalSalesEl.innerHTML = `<span class="text-white font-black font-sans italic tracking-tighter">${formatCurrency(totalSales)}</span>`;
-            totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0.01 ? 'text-red-500' : 'text-emerald-500/40'} font-black font-sans italic tracking-tighter">${formatCurrency(totalDebtGenerated)}</span>`;
+            totalSalesEl.innerHTML = `<span class="text-white font-black italic">${formatCurrency(totalSales)}</span>`;
+            totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0.01 ? 'text-red-500' : 'text-emerald-500/40'} font-black italic">${formatCurrency(totalDebtGenerated)}</span>`;
 
         } catch (e) {
             console.error('Error:', e);
-            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 font-sans font-bold uppercase text-[10px] tracking-widest">Error de comunicación</td></tr>';
+            reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Error de comunicación</td></tr>';
         }
     })();
 }
