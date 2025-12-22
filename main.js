@@ -1065,80 +1065,96 @@ window.handleNewSale = async function(e) {
     let paid_amount = parseFloat(paid_amount_str);
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
 
-    // 1. VALIDACIÓN CON SWEETALERT (Reemplaza al alert antiguo)
+    // 1. VALIDACIÓN CON SWEETALERT (Sin alerts nativos)
     if (!client_id || currentSaleItems.length === 0) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Atención',
-                text: 'Selecciona un cliente y productos.',
-                icon: 'warning',
-                background: '#1c1c1c',
-                color: '#fff',
-                confirmButtonColor: '#f97316'
-            });
-        } else {
-            alert("Selecciona un cliente y productos.");
-        }
+        Swal.fire({
+            title: 'Atención',
+            text: !client_id ? 'Por favor, selecciona un cliente.' : 'Debes agregar al menos un producto a la venta.',
+            icon: 'warning',
+            background: '#1c1c1c',
+            color: '#fff',
+            confirmButtonColor: '#f97316'
+        });
         return;
     }
 
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
     if (submitBtn) { 
         submitBtn.disabled = true; 
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...'; 
     }
 
     try {
-        // --- PROCESO SUPABASE ---
+        // 2. PROCESO DE GUARDADO EN SUPABASE
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
-                client_id, total_amount, paid_amount: (paid_amount > total_amount ? total_amount : paid_amount),
+                client_id, 
+                total_amount, 
+                paid_amount: (paid_amount > total_amount ? total_amount : paid_amount),
                 saldo_pendiente: Math.max(0, total_amount - paid_amount),
-                metodo_pago: payment_method, description: sale_description
+                metodo_pago: payment_method, 
+                description: sale_description
             }]).select('venta_id'); 
 
         if (saleError) throw saleError;
         const new_id = saleData[0].venta_id;
 
         const details = currentSaleItems.map(item => ({
-            venta_id: new_id, product_id: item.product_id, name: item.name,
-            quantity: item.quantity, price: item.price, subtotal: item.subtotal
+            venta_id: new_id, 
+            product_id: item.product_id, 
+            name: item.name,
+            quantity: item.quantity, 
+            price: item.price, 
+            subtotal: item.subtotal
         }));
-        await supabase.from('detalle_ventas').insert(details);
 
-        // --- 2. ÉXITO (Aquí es donde se muestra la ventana) ---
+        const { error: detailError } = await supabase.from('detalle_ventas').insert(details);
+        if (detailError) throw detailError;
+
+        // --- 3. LIMPIEZA Y CIERRE DE MODAL ---
         closeModal('new-sale-modal');
-
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Venta Registrada',
-                text: `Ticket #${new_id} creado correctamente`,
-                background: '#1c1c1c',
-                color: '#fff',
-                confirmButtonColor: '#f97316',
-                timer: 2000
-            });
-        } else {
-            // Si por alguna razón la librería no carga, usamos un log pero NO un alert
-            console.log("✅ Venta #" + new_id + " registrada con éxito");
-        }
-
-        // --- 3. RECARGA DE TABLAS ---
         currentSaleItems = [];
         if (window.updateSaleTableDisplay) window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
-        // Forzar actualización visual
-        if (window.loadSalesData) await window.loadSalesData();
-        if (window.loadDashboardData) await window.loadDashboardData();
+        // --- 4. ACTUALIZACIÓN CRÍTICA DE DATOS (Reporte Mensual) ---
+        // Cargamos los datos de nuevo desde la DB
+        if (window.loadSalesData) {
+            await window.loadSalesData();
+        }
+        
+        // Forzamos que la tabla de reportes y filtros se refresque con la nueva venta
+        if (window.handleFilterSales) {
+            window.handleFilterSales(); 
+        }
+
+        // --- 5. MENSAJE DE ÉXITO FINAL ---
+        await Swal.fire({
+            icon: 'success',
+            title: 'Venta Registrada',
+            text: `Ticket #${new_id} creado correctamente. Los reportes se han actualizado.`,
+            background: '#1c1c1c',
+            color: '#fff',
+            confirmButtonColor: '#f97316',
+            timer: 2500,
+            timerProgressBar: true
+        });
 
     } catch (err) {
-        console.error(err);
-        Swal.fire({ title: 'Error', text: err.message, icon: 'error', background: '#1c1c1c', color: '#fff' });
+        console.error("Error al registrar venta:", err);
+        Swal.fire({ 
+            title: 'Error Crítico', 
+            text: 'No se pudo guardar la venta: ' + err.message, 
+            icon: 'error', 
+            background: '#1c1c1c', 
+            color: '#fff' 
+        });
     } finally {
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Registrar Venta'; }
+        if (submitBtn) { 
+            submitBtn.disabled = false; 
+            submitBtn.textContent = 'Registrar Venta'; 
+        }
     }
 };
 
