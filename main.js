@@ -2186,7 +2186,17 @@ window.handleViewSaleDetails = async function(venta_id) {
         const pagos = pagosRes.data || [];
         window.currentSaleForPrint = { ...venta, productos, pagos };
 
-        // 2. LLENAR CABECERA (ID, CLIENTE, FECHA, MÉTODO)
+        // --- FUNCIÓN DE UTILIDAD INTERNA PARA FECHAS SEGURAS ---
+        const formatSecureDate = (dateString) => {
+            if (!dateString) return '---';
+            // Tomamos solo la parte de la fecha YYYY-MM-DD para evitar errores de zona horaria y formato
+            const onlyDate = dateString.split('T')[0]; 
+            const parts = onlyDate.split('-');
+            // Creamos la fecha usando componentes (Año, Mes-1, Día) para máxima compatibilidad
+            return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString();
+        };
+
+        // 2. LLENAR CABECERA
         const elId = document.getElementById('detail-sale-id');
         if (elId) elId.textContent = venta.venta_id;
 
@@ -2196,12 +2206,10 @@ window.handleViewSaleDetails = async function(venta_id) {
             elCliente.textContent = c ? c.name : 'Cliente General';
         }
 
-        // FECHA: Corrección para evitar "Invalid Date" y desfase de zona horaria
+        // FECHA DE CABECERA (CORREGIDA)
         const elFecha = document.getElementById('detail-sale-date');
         if (elFecha && venta.created_at) {
-            const datePart = venta.created_at.split('T')[0].replace(/-/g, '/');
-            const fechaFormateada = new Date(datePart).toLocaleDateString();
-
+            const fechaFormateada = formatSecureDate(venta.created_at);
             elFecha.innerHTML = `
                 <div class="flex items-center gap-2">
                     <span>${fechaFormateada}</span>
@@ -2225,29 +2233,25 @@ window.handleViewSaleDetails = async function(venta_id) {
             `;
         }
 
-        // 3. COMENTARIO / DESCRIPCIÓN (DISEÑO INTEGRADO Y COMPACTO)
+        // 3. COMENTARIO / DESCRIPCIÓN
         const elDesc = document.getElementById('detail-sale-description');
         if (elDesc) {
             const descTxt = venta.description || 'Sin notas adicionales';
             const escapedDesc = descTxt.replace(/'/g, "\\'"); 
             
-            // Inyectamos solo el contenido, sin cajas grandes envolventes
-        elDesc.innerHTML = `
-        <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
-            <div class="flex justify-between items-center mb-2 border-b border-white/5 pb-1">
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-comment-alt text-orange-500 text-[10px]"></i>
-                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Notas de la Venta</span>
+            elDesc.innerHTML = `
+            <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
+                <div class="flex justify-between items-center mb-2 border-b border-white/5 pb-1">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-comment-alt text-orange-500 text-[10px]"></i>
+                        <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Notas de la Venta</span>
+                    </div>
+                    <button onclick="window.editSaleDescription(${venta.venta_id}, '${escapedDesc}')" class="text-[10px] text-orange-500 hover:text-white transition-colors font-bold flex items-center gap-1">
+                        <i class="fas fa-pen text-[8px]"></i> EDITAR
+                    </button>
                 </div>
-                <button onclick="window.editSaleDescription(${venta.venta_id}, '${escapedDesc}')" class="text-[10px] text-orange-500 hover:text-white transition-colors font-bold flex items-center gap-1">
-                    <i class="fas fa-pen text-[8px]"></i> EDITAR
-                </button>
-            </div>
-            <p class="text-sm text-gray-300 italic leading-snug">
-                "${descTxt}"
-            </p>
-        </div>
-         `;
+                <p class="text-sm text-gray-300 italic leading-snug">"${descTxt}"</p>
+            </div>`;
         }
 
         // 4. TABLA DE PRODUCTOS
@@ -2270,21 +2274,21 @@ window.handleViewSaleDetails = async function(venta_id) {
         }
 
         // 5. RESUMEN FINANCIERO
-        const elTotal = document.getElementById('detail-grand-total');
-        if (elTotal) elTotal.textContent = formatCurrency(venta.total_amount);
+        if (document.getElementById('detail-grand-total')) 
+            document.getElementById('detail-grand-total').textContent = formatCurrency(venta.total_amount);
 
-        const elPagado = document.getElementById('detail-paid-amount');
-        if (elPagado) elPagado.textContent = formatCurrency(venta.total_amount - (venta.saldo_pendiente || 0));
+        if (document.getElementById('detail-paid-amount')) 
+            document.getElementById('detail-paid-amount').textContent = formatCurrency(venta.total_amount - (venta.saldo_pendiente || 0));
 
-        const elDeuda = document.getElementById('detail-remaining-debt');
-        if (elDeuda) elDeuda.textContent = formatCurrency(venta.saldo_pendiente || 0);
+        if (document.getElementById('detail-remaining-debt')) 
+            document.getElementById('detail-remaining-debt').textContent = formatCurrency(venta.saldo_pendiente || 0);
 
-        // 6. HISTORIAL DE ABONOS
+        // 6. HISTORIAL DE ABONOS (CORREGIDO "Invalid Date")
         const abonosBody = document.getElementById('detail-abonos-body');
         if (abonosBody) {
             abonosBody.innerHTML = pagos.length > 0 ? pagos.map(p => `
                 <tr class="text-xs border-b border-white/5 text-gray-400">
-                    <td class="py-2 px-4">${new Date(p.created_at.replace(/-/g, '/')).toLocaleDateString()}</td>
+                    <td class="py-2 px-4">${formatSecureDate(p.created_at)}</td>
                     <td class="py-2 px-4 font-bold text-green-500">${formatCurrency(p.amount)}</td>
                     <td class="py-2 px-4 uppercase text-gray-500">${p.metodo_pago || 'EFECTIVO'}</td>
                 </tr>
@@ -2295,8 +2299,8 @@ window.handleViewSaleDetails = async function(venta_id) {
         window.openModal('modal-detail-sale');
 
     } catch (err) {
-        console.error("Error crítico en handleViewSaleDetails:", err);
-        alert("No se pudieron cargar los detalles de la venta.");
+        console.error("Error crítico:", err);
+        alert("No se pudieron cargar los detalles.");
     }
 };
 
@@ -2382,7 +2386,7 @@ window.generarPDFVenta = function() {
     const venta = window.currentSaleForPrint;
     if (!venta) return alert("No hay datos para generar el PDF");
 
-    const colorOxido = '#b45309'; // El naranja óxido que definimos
+    const colorOxido = '#b45309'; // Color naranja óxido profesional
     const fecha = new Date(venta.created_at).toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
@@ -2390,20 +2394,26 @@ window.generarPDFVenta = function() {
     // Formateador de moneda interno
     const formatMoney = (amount) => `$${parseFloat(amount || 0).toFixed(2)}`;
 
-    // Generar las filas de productos
-    const filasProductos = venta.productos.map(p => `
-        <tr>
-            <td style="padding: 12px; border-bottom: 1px solid #f0f0f0;">
-                <div style="font-weight: bold; color: #111;">${p.name}</div>
-                <div style="font-size: 10px; color: #777;">Código Ref: #${p.id || 'N/A'}</div>
-            </td>
-            <td style="text-align: center; padding: 12px; border-bottom: 1px solid #f0f0f0;">${p.quantity}</td>
-            <td style="text-align: right; padding: 12px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #111;">
-                ${formatMoney(p.subtotal)}
-            </td>
-        </tr>
-    `).join('');
+    // 1. GENERAR FILAS DE PRODUCTOS (Corregido para evitar #N/A)
+    const filasProductos = venta.productos.map(p => {
+        // Buscamos el ID en product_id o id. Si no hay ninguno, usamos el venta_id como ref.
+        const codigoReferencia = p.product_id || p.id || venta.venta_id;
+        
+        return `
+            <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #f0f0f0;">
+                    <div style="font-weight: bold; color: #111;">${p.name}</div>
+                    <div style="font-size: 10px; color: #777;">Código Ref: #${codigoReferencia}</div>
+                </td>
+                <td style="text-align: center; padding: 12px; border-bottom: 1px solid #f0f0f0;">${p.quantity}</td>
+                <td style="text-align: right; padding: 12px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #111;">
+                    ${formatMoney(p.subtotal)}
+                </td>
+            </tr>
+        `;
+    }).join('');
 
+    // 2. CONTENIDO HTML COMPLETO
     const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -2432,7 +2442,6 @@ window.generarPDFVenta = function() {
                 .receipt-meta .folio { font-size: 24px; font-weight: 900; color: #222; margin: 2px 0; }
                 .receipt-meta .fecha { font-size: 11px; color: #777; }
 
-                /* ESTILO ÓXIDO PARA DATOS DEL CLIENTE */
                 .data-grid { 
                     display: grid; 
                     grid-template-columns: 1.5fr 1fr; 
@@ -2448,7 +2457,7 @@ window.generarPDFVenta = function() {
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
                 th { text-align: left; padding: 12px; font-size: 11px; text-transform: uppercase; color: ${colorOxido}; border-bottom: 2px solid ${colorOxido}; }
                 
-                .totals { width: 320px; margin-left: auto; background: #fafafa; padding: 15px; border-radius: 8px; }
+                .totals { width: 320px; margin-left: auto; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
                 .total-item { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
                 .total-item.final { border-top: 2px solid ${colorOxido}; margin-top: 10px; padding-top: 15px; color: ${colorOxido}; font-weight: 900; font-size: 20px; }
 
@@ -2457,13 +2466,13 @@ window.generarPDFVenta = function() {
                 @media print {
                     .btn-print-container { display: none; }
                     body { background: white; padding: 0; }
-                    .sheet { box-shadow: none; border-radius: 0; width: 100%; margin: 0; }
+                    .sheet { box-shadow: none; border-radius: 0; width: 100%; margin: 0; border-top: none; }
                 }
             </style>
         </head>
         <body>
             <div class="btn-print-container">
-                <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR NOTA</button>
+                <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR NOTA DE VENTA</button>
             </div>
 
             <div class="sheet">
@@ -2490,7 +2499,7 @@ window.generarPDFVenta = function() {
                         <span class="value">${document.getElementById('detail-client-name')?.textContent || 'Público General'}</span>
                     </div>
                     <div class="data-box" style="text-align: right;">
-                        <span class="label">Estado del Pago</span>
+                        <span class="label">Estado de Cuenta</span>
                         <span class="value">${venta.saldo_pendiente > 0 ? '⚠️ PENDIENTE' : '✅ LIQUIDADO'}</span>
                     </div>
                 </div>
@@ -2510,15 +2519,15 @@ window.generarPDFVenta = function() {
 
                 <div class="totals">
                     <div class="total-item">
-                        <span>Importe Total:</span>
+                        <span>Importe Subtotal:</span>
                         <span style="font-weight: bold;">${formatMoney(venta.total_amount)}</span>
                     </div>
                     <div class="total-item">
-                        <span>Monto Abonado:</span>
+                        <span>Total Abonado:</span>
                         <span style="color: #15803d; font-weight: bold;">- ${formatMoney(venta.total_amount - venta.saldo_pendiente)}</span>
                     </div>
                     <div class="total-item final">
-                        <span>SALDO DEUDOR:</span>
+                        <span>SALDO PENDIENTE:</span>
                         <span>${formatMoney(venta.saldo_pendiente)}</span>
                     </div>
                 </div>
@@ -2533,12 +2542,13 @@ window.generarPDFVenta = function() {
         </html>
     `;
 
+    // 3. ABRIR VENTANA DE IMPRESIÓN
     const pWin = window.open('', '_blank');
     if (pWin) {
         pWin.document.write(htmlContent);
         pWin.document.close();
     } else {
-        alert("El navegador bloqueó la ventana emergente.");
+        alert("Por favor, permite las ventanas emergentes para ver el PDF.");
     }
 };
 window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
