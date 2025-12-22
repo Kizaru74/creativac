@@ -1058,146 +1058,87 @@ window.handleAddProductToSale = function(e) {
 window.handleNewSale = async function(e) {
     if (e) e.preventDefault();
     
-    // 1. OBTENCIÓN DE DATOS DEL FORMULARIO
     const client_id = document.getElementById('client-select')?.value;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
-    
-    // Limpiamos el formato de moneda para obtener el número puro
     const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
     let paid_amount = parseFloat(paid_amount_str);
-    
-    // Calcular el total desde el carrito global (currentSaleItems)
     const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
-    
-    // Lógica de saldo y pagos
-    if (payment_method === 'Deuda') paid_amount = 0;
-    let final_paid_amount = (paid_amount > total_amount) ? total_amount : paid_amount;
-    let final_saldo_pendiente = total_amount - final_paid_amount; 
 
-    // 2. VALIDACIÓN (Uso de SweetAlert2 en lugar de alert)
+    // 1. VALIDACIÓN CON SWEETALERT (Reemplaza al alert antiguo)
     if (!client_id || currentSaleItems.length === 0) {
-        Swal.fire({
-            title: 'Formulario Incompleto',
-            text: 'Debes seleccionar un cliente y agregar al menos un producto.',
-            icon: 'warning',
-            background: '#1c1c1c',
-            color: '#fff',
-            confirmButtonColor: '#f97316'
-        });
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Atención',
+                text: 'Selecciona un cliente y productos.',
+                icon: 'warning',
+                background: '#1c1c1c',
+                color: '#fff',
+                confirmButtonColor: '#f97316'
+            });
+        } else {
+            alert("Selecciona un cliente y productos.");
+        }
         return;
     }
 
-    // Bloquear botón para evitar doble click
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
     if (submitBtn) { 
         submitBtn.disabled = true; 
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...'; 
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
     }
 
     try {
-        // 3. INSERTAR VENTA PRINCIPAL
+        // --- PROCESO SUPABASE ---
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
-                client_id: client_id,
-                total_amount: total_amount,
-                paid_amount: final_paid_amount,
-                saldo_pendiente: final_saldo_pendiente,
-                metodo_pago: payment_method,
-                description: sale_description
-            }])
-            .select('venta_id'); 
+                client_id, total_amount, paid_amount: (paid_amount > total_amount ? total_amount : paid_amount),
+                saldo_pendiente: Math.max(0, total_amount - paid_amount),
+                metodo_pago: payment_method, description: sale_description
+            }]).select('venta_id'); 
 
         if (saleError) throw saleError;
-        const new_venta_id = saleData[0].venta_id;
+        const new_id = saleData[0].venta_id;
 
-        // 4. INSERTAR DETALLES DE PRODUCTOS
-        const detailsToInsert = currentSaleItems.map(item => ({
-            venta_id: new_venta_id,
-            product_id: item.product_id,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.subtotal
+        const details = currentSaleItems.map(item => ({
+            venta_id: new_id, product_id: item.product_id, name: item.name,
+            quantity: item.quantity, price: item.price, subtotal: item.subtotal
         }));
+        await supabase.from('detalle_ventas').insert(details);
 
-        const { error: detailsError } = await supabase.from('detalle_ventas').insert(detailsToInsert);
-        if (detailsError) throw detailsError;
-
-        // 5. REGISTRAR PAGO INICIAL (Si existe)
-        if (final_paid_amount > 0) {
-            await supabase.from('pagos').insert([{
-                venta_id: new_venta_id,
-                amount: final_paid_amount,
-                client_id: client_id,
-                metodo_pago: payment_method,
-                type: 'INICIAL'
-            }]);
-        }
-
-        // 6. ACTUALIZAR DEUDA DEL CLIENTE (Si quedó saldo pendiente)
-        if (final_saldo_pendiente > 0) {
-            const { data: cliente } = await supabase
-                .from('clientes')
-                .select('deuda_total')
-                .eq('client_id', client_id)
-                .single();
-            
-            const nuevaDeuda = (cliente?.deuda_total || 0) + final_saldo_pendiente;
-            await supabase.from('clientes').update({ deuda_total: nuevaDeuda }).eq('client_id', client_id);
-        }
-
-        // --- FINALIZACIÓN EXITOSA ---
-        
-        // Cerramos el modal inmediatamente para dar fluidez
+        // --- 2. ÉXITO (Aquí es donde se muestra la ventana) ---
         closeModal('new-sale-modal');
 
-        // Notificación elegante (Toast) que no detiene el código
-        Swal.fire({
-            icon: 'success',
-            title: '¡Venta registrada!',
-            text: `Ticket #${new_venta_id} creado con éxito`,
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-            background: '#1c1c1c',
-            color: '#fff',
-            iconColor: '#f97316'
-        });
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Venta Registrada',
+                text: `Ticket #${new_id} creado correctamente`,
+                background: '#1c1c1c',
+                color: '#fff',
+                confirmButtonColor: '#f97316',
+                timer: 2000
+            });
+        } else {
+            // Si por alguna razón la librería no carga, usamos un log pero NO un alert
+            console.log("✅ Venta #" + new_id + " registrada con éxito");
+        }
 
-        // Limpiar formulario y carrito
+        // --- 3. RECARGA DE TABLAS ---
         currentSaleItems = [];
-        if (typeof window.updateSaleTableDisplay === 'function') window.updateSaleTableDisplay();
+        if (window.updateSaleTableDisplay) window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
-        // 7. RECARGA AUTOMÁTICA DE TABLAS Y REPORTES
-        const hoy = new Date();
-        const mes = hoy.getMonth() + 1;
-        const anio = hoy.getFullYear();
-
-        // Ejecutamos las recargas de datos para que la tabla se actualice sola
-        if (window.loadMonthlySalesReport) await window.loadMonthlySalesReport(mes, anio);
+        // Forzar actualización visual
         if (window.loadSalesData) await window.loadSalesData();
         if (window.loadDashboardData) await window.loadDashboardData();
 
     } catch (err) {
-        console.error('Error en proceso de venta:', err);
-        Swal.fire({
-            title: 'Error en el sistema',
-            text: err.message,
-            icon: 'error',
-            background: '#1c1c1c',
-            color: '#fff'
-        });
+        console.error(err);
+        Swal.fire({ title: 'Error', text: err.message, icon: 'error', background: '#1c1c1c', color: '#fff' });
     } finally {
-        // Reactivar el botón
-        if (submitBtn) { 
-            submitBtn.disabled = false; 
-            submitBtn.textContent = 'Registrar Venta'; 
-        }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Registrar Venta'; }
     }
 };
 
