@@ -5156,7 +5156,7 @@ window.loadAndRenderProducts = async function() {
         const { data, error } = await supabase
             .from('productos')
             .select('*')
-            .order('name', { ascending: true }); // Ordenar por nombre suele ser más útil para el usuario
+            .order('name', { ascending: true });
 
         if (error) throw error;
 
@@ -5174,69 +5174,69 @@ window.loadAndRenderProducts = async function() {
         if (window.allProducts.length === 0) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-6 py-12 text-center text-slate-400">
-                        <i class="fas fa-box-open text-4xl mb-3 block opacity-20"></i>
-                        No hay productos registrados en el inventario.
+                    <td colspan="5" class="px-6 py-20 text-center text-white/20">
+                        <i class="fas fa-box-open text-5xl mb-4 block opacity-10"></i>
+                        <span class="uppercase text-[10px] font-bold tracking-[0.3em]">No hay productos registrados</span>
                     </td>
                 </tr>`;
             return;
         }
 
-        // 2. DIBUJAR LA TABLA CON ESTILO PREMIUM
+        // 2. DIBUJAR LA TABLA CON ESTILO DARK PREMIUM
         window.allProducts.forEach(producto => {
-            // Lógica para detectar si es subproducto y quién es el padre
             let parentBadge = '';
             if (producto.type === 'PACKAGE' && producto.parent_product) {
                 const parent = window.allProductsMap[String(producto.parent_product)];
                 parentBadge = parent 
-                    ? `<div class="flex items-center text-[10px] text-indigo-500 mt-1 font-medium bg-indigo-50 w-fit px-1.5 py-0.5 rounded">
-                         <i class="fas fa-link mr-1 text-[8px]"></i> Vinculado a: ${parent.name}
+                    ? `<div class="flex items-center text-[9px] text-orange-400 mt-1 font-bold bg-orange-500/10 w-fit px-2 py-0.5 rounded border border-orange-500/20 uppercase tracking-tighter">
+                         <i class="fas fa-link mr-1 text-[8px]"></i> Padre: ${parent.name}
                        </div>` 
                     : '';
             }
 
-            // Estilos de Badge por tipo
             const isPackage = producto.type === 'PACKAGE';
+            // Clases de Badge adaptadas a fondo oscuro
             const badgeClass = isPackage 
-                ? 'bg-purple-50 text-purple-700 ring-purple-700/10' 
-                : 'bg-blue-50 text-blue-700 ring-blue-700/10';
+                ? 'bg-purple-500/10 text-purple-400 ring-purple-500/30' 
+                : 'bg-blue-500/10 text-blue-400 ring-blue-500/30';
             const icon = isPackage ? 'fa-boxes' : 'fa-box';
 
             const row = document.createElement('tr');
-            row.className = 'group hover:bg-slate-50/50 border-b border-slate-100 transition-colors';
+            // Cambio de clases: de slate-50 a white/[0.02] para el hover y bordes de white/5
+            row.className = 'group hover:bg-white/[0.02] border-b border-white/5 transition-all duration-300';
             
             row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">ID #${producto.producto_id}</span>
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <span class="text-[10px] font-black text-white/30 bg-white/5 border border-white/10 px-2 py-1 rounded italic uppercase">ID #${producto.producto_id}</span>
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-8 py-5">
                     <div class="flex items-center">
-                        <div class="h-8 w-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center mr-3 border border-slate-200 group-hover:border-indigo-200 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                            <i class="fas ${icon} text-xs"></i>
+                        <div class="h-10 w-10 rounded-xl bg-white/5 text-white/40 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/40 group-hover:bg-orange-500/10 group-hover:text-orange-500 transition-all duration-300 shadow-lg">
+                            <i class="fas ${icon} text-sm"></i>
                         </div>
                         <div>
-                            <div class="text-sm font-bold text-slate-800">${producto.name}</div>
+                            <div class="text-sm font-black text-white tracking-wide uppercase italic">${producto.name}</div>
                             ${parentBadge}
                         </div>
                     </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ring-1 ring-inset ${badgeClass}">
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black ring-1 ring-inset tracking-widest ${badgeClass}">
                         ${isPackage ? 'SUBPRODUCTO' : 'INDIVIDUAL'}
                     </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right">
-                    <div class="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">Precio Unitario</div>
-                    <div class="text-sm font-black text-emerald-600">${formatCurrency(producto.price || 0)}</div>
+                <td class="px-8 py-5 whitespace-nowrap text-right">
+                    <div class="text-[9px] text-white/30 uppercase font-bold tracking-widest mb-1">Precio Unitario</div>
+                    <div class="text-lg font-black text-emerald-400 italic tracking-tight">${formatCurrency(producto.price || 0)}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right">
-                    <div class="flex justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                <td class="px-8 py-5 whitespace-nowrap text-right">
+                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
                         <button onclick="handleEditProductClick(${producto.producto_id})" 
-                                class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Editar">
+                                class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-blue-400 hover:bg-blue-400/10 hover:border-blue-400/30 transition-all" title="Editar">
                             <i class="fas fa-edit text-xs"></i>
                         </button>
                         <button onclick="handleDeleteProductClick(${producto.producto_id})" 
-                                class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Eliminar">
+                                class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/30 transition-all" title="Eliminar">
                             <i class="fas fa-trash-alt text-xs"></i>
                         </button>
                     </div>
@@ -5245,12 +5245,11 @@ window.loadAndRenderProducts = async function() {
             tableBody.appendChild(row);
         });
 
-        // 3. ACTUALIZAR SELECTORES DE "PADRE" (Llamada a la función que creamos antes)
         if (typeof window.populateParentSelectors === 'function') {
             window.populateParentSelectors();
         }
 
-        console.log("✅ Interfaz de productos actualizada.");
+        console.log("✅ Interfaz de productos actualizada con estilo Dark.");
 
     } catch (err) {
         console.error("❌ Error fatal en carga de productos:", err.message);
