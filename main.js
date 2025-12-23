@@ -3403,7 +3403,7 @@ window.loadProductsTable = function() {
                         onclick="window.handleEditProductClick(${product.producto_id})" 
                         class="p-2.5 text-white/40 hover:text-orange-500 transition-colors"
                         title="Editar Producto">
-                        <i class="fas fa-edit text-[15px]"></i>
+                        <i class="fas fa-edit text-xl"></i>
                     </button>
                     
                     <button 
@@ -4632,10 +4632,10 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             </td>
                             <td class="px-8 py-5 text-right">
                                 <div class="text-[10px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Total Venta</div>
-                                <div class="text-sm font-black text-white italic tracking-tight">${formatCurrency(sale.total_amount)}</div>
+                                <div class="text-lg font-black text-white italic tracking-tight">${formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-5 text-right">
-                                <div class="text-[10px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Saldo Pend.</div>
+                                <div class="text-[11px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Saldo Pendiente</div>
                                 <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center px-2 py-1 rounded">
                                     <span class="font-bold text-[12px]">${formatCurrency(sale.saldo_pendiente)}</span>
                                 </div>
