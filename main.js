@@ -3084,18 +3084,23 @@ document.addEventListener('DOMContentLoaded', () => {
 /**
  * Filtra las ventas basándose en un rango de fechas y una cadena de búsqueda, y luego las renderiza.
  */
-window.handleFilterSales = async function() {
+window.handleFilterSales = function() {
+    console.log("🔍 Filtrando y calculando totales...");
+    
     const searchTerm = document.getElementById('filter-search-term')?.value.toLowerCase() || "";
     const startDate = document.getElementById('filter-start-date')?.value;
     const endDate = document.getElementById('filter-end-date')?.value;
 
-    if (!window.allSales || window.allSales.length === 0) return;
+    if (!window.allSales || window.allSales.length === 0) {
+        console.warn("No hay ventas en memoria para filtrar.");
+        return;
+    }
 
     const filteredSales = window.allSales.filter(venta => {
         const cliente = (venta.cliente_nombre || "").toLowerCase();
-        const folio = String(venta.venta_id);
+        const folio = String(venta.venta_id || "");
         
-        // Limpieza de fecha segura
+        // Limpieza de fecha para comparar (YYYY-MM-DD)
         const fechaRaw = venta.fecha_venta || "";
         const fechaVenta = fechaRaw.includes('T') ? fechaRaw.split('T')[0] : fechaRaw;
 
@@ -3106,10 +3111,10 @@ window.handleFilterSales = async function() {
         return matchesSearch && matchesStart && matchesEnd;
     });
 
-    // Renderizar la tabla
+    // 1. Renderizar filas en la tabla
     window.renderSalesTable(filteredSales);
 
-    // Actualizar Totales
+    // 2. Actualizar los contadores superiores de tu HTML
     const totalV = filteredSales.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
     const totalD = filteredSales.reduce((acc, v) => acc + (Number(v.saldo_pendiente) || 0), 0);
 
@@ -3128,14 +3133,12 @@ window.renderSalesTable = function(sales) {
 
     tableBody.innerHTML = '';
 
-    if (!sales || sales.length === 0) {
+    if (sales.length === 0) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="6" class="px-8 py-20 text-center">
                     <i class="fas fa-folder-open text-gray-700 text-4xl mb-4 block"></i>
-                    <span class="text-gray-500 uppercase text-[10px] font-black tracking-[0.2em]">
-                        No se encontraron registros
-                    </span>
+                    <span class="text-gray-500 uppercase text-[10px] font-black tracking-[0.2em]">No se encontraron registros</span>
                 </td>
             </tr>`;
         return;
@@ -3144,29 +3147,19 @@ window.renderSalesTable = function(sales) {
     sales.forEach(sale => {
         const isPaid = (sale.saldo_pendiente || 0) <= 0;
         const statusBg = isPaid ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20';
+        
         const row = document.createElement('tr');
         row.className = 'group border-b border-white/[0.03] hover:bg-white/[0.02] transition-all';
 
-        // CORRECCIÓN 1: Asegurar que la fecha sea válida antes de formatear
-        const fechaObj = sale.fecha_venta ? new Date(sale.fecha_venta) : new Date();
-        const fechaFormateada = isNaN(fechaObj) ? 'Fecha Inválida' : fechaObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-
         row.innerHTML = `
             <td class="px-8 py-5">
-                <span class="text-[10px] font-mono text-gray-500 bg-black/40 px-2 py-1 rounded-md border border-white/5">
-                    #${sale.venta_id}
-                </span>
+                <span class="text-[10px] font-mono text-gray-400 bg-black/40 px-2 py-1 rounded-md border border-white/5">#${sale.venta_id}</span>
             </td>
             <td class="px-8 py-5">
-                <div class="flex flex-col">
-                    <span class="text-sm font-bold text-white uppercase italic tracking-tight">
-                        ${sale.cliente_nombre || 'Consumidor Final'}
-                    </span>
-                    <span class="text-[10px] text-gray-600 font-medium">ID: ${sale.cliente_id || 'N/A'}</span>
-                </div>
+                <span class="text-sm font-bold text-white uppercase italic tracking-tight">${sale.cliente_nombre || 'Consumidor Final'}</span>
             </td>
             <td class="px-8 py-5 text-xs text-gray-400 font-medium">
-                ${fechaFormateada}
+                ${new Date(sale.fecha_venta).toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}
             </td>
             <td class="px-8 py-5">
                 <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${statusBg} uppercase">
@@ -3174,27 +3167,13 @@ window.renderSalesTable = function(sales) {
                 </span>
             </td>
             <td class="px-8 py-5 text-right">
-                <div class="text-sm font-black text-white italic">
-                    ${typeof window.formatCurrency === 'function' ? window.formatCurrency(sale.total) : '$' + (sale.total || 0)}
-                </div>
-                
-                ${!isPaid ? `
-                <div class="text-[9px] text-red-500 font-bold mt-1 tracking-tighter">
-                    Debe: ${typeof window.formatCurrency === 'function' ? window.formatCurrency(sale.saldo_pendiente) : '$' + (sale.saldo_pendiente || 0)}
-                </div>` : ''}
+                <div class="text-sm font-black text-white italic">${window.formatCurrency(sale.total)}</div>
+                ${!isPaid ? `<div class="text-[9px] text-red-500 font-bold mt-1 uppercase">Debe: ${window.formatCurrency(sale.saldo_pendiente)}</div>` : ''}
             </td>
             <td class="px-8 py-5 text-right">
-                <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="window.openSaleDetailModal(${sale.venta_id})" 
-                        class="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all" title="Ver Detalles">
-                        <i class="fas fa-eye text-xs"></i>
-                    </button>
-                    ${!isPaid ? `
-                    <button onclick="window.openPaymentModal(${sale.venta_id}, ${sale.saldo_pendiente}, ${sale.cliente_id})" 
-                        class="p-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white rounded-lg transition-all" title="Abonar">
-                        <i class="fas fa-hand-holding-usd text-xs"></i>
-                    </button>` : ''}
-                </div>
+                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all">
+                    <i class="fas fa-eye"></i>
+                </button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -5464,7 +5443,7 @@ window.openNewProductModal = async function() {
 window.switchView = async function(viewId) {
     console.log(`Cambiando a vista: ${viewId}`);
 
-    // 1. Gestión Visual (Menú y Vistas)
+    // 1. Gestión Visual
     document.querySelectorAll('.menu-item').forEach(link => {
         link.classList.remove('active-menu-item');
     });
@@ -5485,27 +5464,27 @@ window.switchView = async function(viewId) {
         } 
         
         else if (viewId === 'deudas-view') {
-            // 1. Solo llamamos a la función principal. 
-            // Ella internamente ya llama a actualizarMetricasDeudas con datos reales.
-            if (typeof window.loadDebts === 'function') {
-                await window.loadDebts();
-            } else if (typeof window.loadDebtsTable === 'function') {
-                await window.loadDebtsTable();
-            }
-            
-            // ELIMINAMOS la línea de actualizarMetricasDeudas(window.allClients) 
-            // de aquí, porque causaba el conflicto y el "0.00"
+            if (typeof window.loadDebts === 'function') await window.loadDebts();
         }
 
-        if (viewId === 'report-view') {
-    console.log("📊 Refrescando reportes...");
-    if (window.handleFilterSales) {
-        window.handleFilterSales(); 
-    }
-    }
+        // CORRECCIÓN AQUÍ: Usamos 'reports-view' para que coincida con tu HTML
+        else if (viewId === 'reports-view' || viewId === 'report-view') {
+            console.log("📊 Refrescando reportes...");
+            
+            // Si por alguna razón no hay ventas cargadas, intentamos cargarlas
+            if (!window.allSales || window.allSales.length === 0) {
+                if (typeof window.loadSalesData === 'function') {
+                    await window.loadSalesData();
+                }
+            }
+            
+            // Ejecutamos el filtro para que pinte la tabla
+            if (window.handleFilterSales) {
+                window.handleFilterSales(); 
+            }
+        }
 
         else if (viewId === 'sales-view') {
-            // Opcional: Recargar tabla de ventas al entrar
             if (typeof window.loadSalesData === 'function') {
                 await window.loadSalesData();
                 if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
