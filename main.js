@@ -4739,22 +4739,20 @@ function initializeYearSelector() {
     });
 }
 window.initReportView = async function() {
-    // 1. Obtener valores de los selectores de la interfaz
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
 
     if (!monthSelect || !yearSelect) return;
 
-    const month = parseInt(monthSelect.value);
-    const year = parseInt(yearSelect.value);
+    // Aseguramos obtener números válidos
+    const month = parseInt(monthSelect.value) || (new Date().getMonth() + 1);
+    const year = parseInt(yearSelect.value) || new Date().getFullYear();
 
+    // Ahora el log saldrá limpio: "12/2025"
     console.log(`📊 Refrescando vista de reporte para: ${month}/${year}`);
 
-    // 2. Usar la función que ya existe para cargar el reporte
-    if (typeof loadMonthlySalesReport === 'function') {
-        await loadMonthlySalesReport(month, year);
-    } else {
-        console.error("No se encontró la función loadMonthlySalesReport");
+    if (typeof window.loadMonthlySalesReport === 'function') {
+        await window.loadMonthlySalesReport(month, year);
     }
 };
 
