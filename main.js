@@ -614,6 +614,13 @@ window.loadProductsData = async function() {
 };
 window.loadProducts = window.loadProductsData;
 
+window.formatCurrency = function(amount) {
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+    }).format(amount || 0);
+};
+
 window.handleChangeProductForSale = function() {
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
@@ -3116,12 +3123,12 @@ window.handleFilterSales = async function() {
 window.handleFilterSales = window.handleFilterSales; // Exposición global
 
 window.renderSalesTable = function(sales) {
-    const tableBody = document.getElementById('sales-report-table-body'); // Ajustado al ID del nuevo HTML
+    const tableBody = document.getElementById('sales-report-table-body');
     if (!tableBody) return;
 
     tableBody.innerHTML = '';
 
-    if (sales.length === 0) {
+    if (!sales || sales.length === 0) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="6" class="px-8 py-20 text-center">
@@ -3136,11 +3143,13 @@ window.renderSalesTable = function(sales) {
 
     sales.forEach(sale => {
         const isPaid = (sale.saldo_pendiente || 0) <= 0;
-        
-        // Clases dinámicas según el estado
         const statusBg = isPaid ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20';
         const row = document.createElement('tr');
         row.className = 'group border-b border-white/[0.03] hover:bg-white/[0.02] transition-all';
+
+        // CORRECCIÓN 1: Asegurar que la fecha sea válida antes de formatear
+        const fechaObj = sale.fecha_venta ? new Date(sale.fecha_venta) : new Date();
+        const fechaFormateada = isNaN(fechaObj) ? 'Fecha Inválida' : fechaObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
         row.innerHTML = `
             <td class="px-8 py-5">
@@ -3153,11 +3162,11 @@ window.renderSalesTable = function(sales) {
                     <span class="text-sm font-bold text-white uppercase italic tracking-tight">
                         ${sale.cliente_nombre || 'Consumidor Final'}
                     </span>
-                    <span class="text-[10px] text-gray-600 font-medium">Cliente ID: ${sale.cliente_id || 'N/A'}</span>
+                    <span class="text-[10px] text-gray-600 font-medium">ID: ${sale.cliente_id || 'N/A'}</span>
                 </div>
             </td>
             <td class="px-8 py-5 text-xs text-gray-400 font-medium">
-                ${new Date(sale.fecha_venta).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                ${fechaFormateada}
             </td>
             <td class="px-8 py-5">
                 <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${statusBg} uppercase">
@@ -3165,8 +3174,14 @@ window.renderSalesTable = function(sales) {
                 </span>
             </td>
             <td class="px-8 py-5 text-right">
-                <div class="text-sm font-black text-white italic">${window.formatCurrency(sale.total)}</div>
-                ${!isPaid ? `<div class="text-[9px] text-red-500 font-bold mt-1 tracking-tighter">Debe: ${window.formatCurrency(sale.saldo_pendiente)}</div>` : ''}
+                <div class="text-sm font-black text-white italic">
+                    ${typeof window.formatCurrency === 'function' ? window.formatCurrency(sale.total) : '$' + (sale.total || 0)}
+                </div>
+                
+                ${!isPaid ? `
+                <div class="text-[9px] text-red-500 font-bold mt-1 tracking-tighter">
+                    Debe: ${typeof window.formatCurrency === 'function' ? window.formatCurrency(sale.saldo_pendiente) : '$' + (sale.saldo_pendiente || 0)}
+                </div>` : ''}
             </td>
             <td class="px-8 py-5 text-right">
                 <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
