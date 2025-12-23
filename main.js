@@ -4662,7 +4662,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-2 mb-1">
                                             <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] whitespace-nowrap">ID #${sale.venta_id}</span>
-                                            <span class="text-[14px] text-white/40 font-medium truncate italic max-w-[200px]" title="${listaProds}">[ ${listaProds} ]</span>
+                                            <span class="text-[14px] text-white/50 font-bold truncate max-w-[200px]" title="${listaProds}">[ ${listaProds} ]</span>
                                         </div>
                                         <div class="text-[12px] text-white/50 uppercase tracking-widest">${formattedTime} HRS</div>
                                     </div>
