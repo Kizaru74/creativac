@@ -3195,12 +3195,7 @@ window.renderSalesTable = renderSalesTable; // Exposición global
  */
 window.loadSalesData = async function() {
     console.log("Cargando datos de ventas...");
-    
-    if (!supabase) {
-        console.error("Supabase no inicializado en loadSalesData.");
-        window.allSales = [];
-        return;
-    }
+    if (!supabase) return;
     
     try {
         const { data: sales, error } = await supabase
@@ -3211,21 +3206,22 @@ window.loadSalesData = async function() {
                 total_amount,      
                 saldo_pendiente,   
                 client_id,         
-                clientes ( nombre )  
-            `); // Nota: Verificamos si en tu DB es 'name' o 'nombre'
+                clientes ( name )  
+            `); // <--- CAMBIADO: 'nombre' por 'name'
 
         if (error) throw error;
         
         window.allSales = (sales || []).map(sale => ({
             venta_id: sale.venta_id,
-            total: sale.total_amount, // Lo llamamos 'total' para el filtro
+            total: sale.total_amount,
             saldo_pendiente: sale.saldo_pendiente,
             cliente_id: sale.client_id,
-            fecha_venta: sale.created_at, // Mantenemos el formato original para el split
-            cliente_nombre: sale.clientes ? (sale.clientes.nombre || sale.clientes.name) : 'Consumidor Final'
+            fecha_venta: sale.created_at,
+            // Normalizamos para que el resto del código use 'cliente_nombre'
+            cliente_nombre: sale.clientes ? sale.clientes.name : 'Consumidor Final'
         }));
         
-        console.log(`✅ ${window.allSales.length} ventas cargadas y normalizadas.`);
+        console.log(`✅ ${window.allSales.length} ventas cargadas correctamente.`);
         
     } catch (error) {
         console.error('Error al cargar datos de ventas:', error);
@@ -5486,19 +5482,12 @@ window.switchView = async function(viewId) {
             // de aquí, porque causaba el conflicto y el "0.00"
         }
 
-        else if (viewId === 'report-view') {
+        if (viewId === 'report-view') {
     console.log("📊 Refrescando reportes...");
-    
-    // Asegurar que los selectores existan y tengan los años/meses cargados
-    if (typeof window.initReportSelectors === 'function') {
-        window.initReportSelectors();
+    if (window.handleFilterSales) {
+        window.handleFilterSales(); 
     }
-
-    // Cargar los datos de la tabla
-    if (typeof window.initReportView === 'function') {
-        window.initReportView();
     }
-}
 
         else if (viewId === 'sales-view') {
             // Opcional: Recargar tabla de ventas al entrar
