@@ -4804,10 +4804,6 @@ window.initReportView = async function() {
     }
 };
 
-/**
- * Inicializa los selectores de Mes y Año para la vista de Reportes.
- * Configura los valores iniciales y los listeners para actualizar la tabla.
- */
 function initReportSelectors() {
     // 1. PREVENCIÓN DE DUPLICADOS: Si ya se inicializó, no hacer nada más.
     if (window.reportSelectorsInitialized) {
