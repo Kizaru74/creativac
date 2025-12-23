@@ -4714,7 +4714,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                         <div class="text-[12px] font-mono font-bold text-white/50 uppercase">FOLIO #${sale.venta_id}</div>
                                         <div class="text-[12px] text-orange-500/70 font-bold truncate uppercase tracking-tight" title="${listaProds}">
                                         <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 italic mb-1">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
-                                                                                    <i class="fas fa-box-open mr-1 text-[8px]"></i> ${listaProds}
+                                                                                    <i class="fas fa-box-open mr-1 text-base"></i> ${listaProds}
                                         </div>
                                     </div>
                                 </div>
@@ -4734,6 +4734,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="text-lg font-black text-white italic tracking-tighter">${window.formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-6 text-right">
+                            <div class="text-[11px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Saldo Pendiente</div>
                                 <div class="glass-badge ${hasDebt ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex px-3 py-1.5 rounded-xl font-black text-[11px] tracking-tight">
                                     <span class="h-1.5 w-1.5 rounded-full ${hasDebt ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2 self-center"></span>
                                     ${window.formatCurrency(sale.saldo_pendiente)}
