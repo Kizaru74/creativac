@@ -4851,7 +4851,7 @@ window.initReportSelectors = function() {
             const opt = document.createElement('option');
             opt.value = y;
             opt.textContent = y;
-            opt.style.color = "#000000"; // Forzar color negro para el menú desplegable
+            opt.style.color = "#fafafaff"; // Forzar color negro para el menú desplegable
             if (y === currentYear) opt.selected = true;
             yearSelect.appendChild(opt);
         }
