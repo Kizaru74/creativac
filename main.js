@@ -4874,8 +4874,8 @@ function initReportSelectors() {
     };
 
     // 6. ADJUNTAR EVENTOS
-    monthSelect.addEventListener('change', handleReportChange);
-    yearSelect.addEventListener('change', handleReportChange);
+    monthSelect.onchange = handleReportChange;
+yearSelect.onchange = handleReportChange;
 
     // 7. MARCAR COMO INICIALIZADO
     window.reportSelectorsInitialized = true;
