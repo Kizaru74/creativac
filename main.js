@@ -4554,9 +4554,9 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         if (!supabase) return;
 
         const reportBody = document.getElementById('monthly-sales-report-body');
+        const noDataMessage = document.getElementById('monthly-report-no-data');
         const totalSalesEl = document.getElementById('report-total-sales');
         const totalDebtEl = document.getElementById('report-total-debt-generated');
-        const noDataMessage = document.getElementById('monthly-report-no-data');
         
         const mSelect = document.getElementById('report-month-select');
         const ySelect = document.getElementById('report-year-select');
@@ -4564,21 +4564,21 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         if (!reportBody) return;
 
         const ahora = new Date();
+        // Validación ultra-segura contra NaN
         let valYear = parseInt(selectedYearFromEvent) || (ySelect ? parseInt(ySelect.value) : null);
         let valMonth = parseInt(selectedMonthFromEvent) || (mSelect ? parseInt(mSelect.value) : null);
 
         let selectedYear = (isNaN(valYear) || valYear === null) ? ahora.getFullYear() : valYear;
         let selectedMonth = (isNaN(valMonth) || valMonth === null) ? (ahora.getMonth() + 1) : valMonth;
 
-        console.log(`🔍 Consultando DB para: ${selectedMonth}/${selectedYear}`);
-
         reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-orange-500 animate-pulse uppercase text-[10px] tracking-widest font-bold">Actualizando Reporte...</td></tr>`;
         
         try {
+            // Rango de fechas ISO estándar
             let startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01T00:00:00.000Z`;
-            let nextMonth = selectedMonth === 12 ? 1 : selectedMonth + 1;
-            let nextYear = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
-            let nextDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00.000Z`;
+            let nextM = selectedMonth === 12 ? 1 : selectedMonth + 1;
+            let nextY = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
+            let nextDate = `${nextY}-${String(nextM).padStart(2, '0')}-01T00:00:00.000Z`;
             
             const { data: sales, error: sError } = await supabase
                 .from('ventas')
@@ -4592,10 +4592,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             let productosData = [];
             if (sales && sales.length > 0) {
                 const ids = sales.map(s => s.venta_id);
-                const { data: dData } = await supabase
-                    .from('detalle_ventas')
-                    .select('venta_id, name, quantity')
-                    .in('venta_id', ids);
+                const { data: dData } = await supabase.from('detalle_ventas').select('venta_id, name, quantity').in('venta_id', ids);
                 productosData = dData || [];
             }
 
@@ -4611,73 +4608,38 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                     totalDebtGenerated += (sale.saldo_pendiente || 0);
                     
                     const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
-                    const listaProds = misProds.length > 0 
-                        ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
-                        : 'Venta Directa';
-        
+                    const listaProds = misProds.length > 0 ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') : 'Venta';
                     const clientName = sale.clientes?.name || 'Cliente Final';
                     const dateObj = new Date(sale.created_at);
-                    const day = dateObj.toLocaleDateString('es-MX', { day: '2-digit' });
-                    const monthText = dateObj.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase().replace('.', '');
-                    const formattedTime = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-                    const tienePendiente = (sale.saldo_pendiente || 0) > 0.01;
-
-                    // --- HTML RESTAURADO AQUÍ ---
+                    
                     finalHTML += `
                         <tr class="group hover:bg-white/[0.02] transition-all border-b border-white/5">
                             <td class="px-8 py-5">
                                 <div class="flex items-center">
-                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30">
-                                        <span class="text-[12px] font-bold text-white leading-none">${day}</span>
-                                        <span class="text-[9px] font-bold text-orange-500 leading-none mt-1">${monthText}</span>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <span class="font-sans font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px] whitespace-nowrap">ID #${sale.venta_id}</span>
-                                            <span class="text-[14px] text-white/40 font-medium truncate italic max-w-[200px]" title="${listaProds}">[ ${listaProds} ]</span>
-                                        </div>
-                                        <div class="text-[12px] text-white/50 uppercase tracking-widest">${formattedTime} HRS</div>
-                                    </div>
+                                    <div class="text-[12px] font-bold text-white mr-4">${dateObj.getDate()}/${dateObj.getMonth()+1}</div>
+                                    <div class="text-[14px] text-white/40 truncate max-w-[200px] italic">[ ${listaProds} ]</div>
                                 </div>
                             </td>
-                            <td class="px-8 py-5">
-                                <div class="flex items-center gap-3">
-                                    <div class="bg-orange-500 w-6 h-6 rounded flex items-center justify-center shadow-lg shadow-orange-500/20">
-                                        <i class="fas fa-user text-white text-[9px]"></i>
-                                    </div>
-                                    <div class="text-sm font-bold text-white uppercase tracking-wide">${clientName}</div>
-                                </div>
-                                <div class="text-[10px] text-white/50 mt-1 uppercase pl-9 font-medium">MÉTODO: ${sale.metodo_pago || 'CONTADO'}</div>
-                            </td>
+                            <td class="px-8 py-5 text-white font-bold">${clientName}</td>
+                            <td class="px-8 py-5 text-right font-black text-white">${formatCurrency(sale.total_amount)}</td>
+                            <td class="px-8 py-5 text-right text-red-400 font-bold">${formatCurrency(sale.saldo_pendiente)}</td>
                             <td class="px-8 py-5 text-right">
-                                <div class="text-lg font-black text-white italic tracking-tight">${formatCurrency(sale.total_amount)}</div>
-                            </td>
-                            <td class="px-8 py-5 text-right">
-                                <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center px-2 py-1 rounded">
-                                    <span class="font-bold text-[12px]">${formatCurrency(sale.saldo_pendiente)}</span>
-                                </div>
-                            </td>
-                            <td class="px-8 py-5 text-right">
-                                <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all">
-                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-blue-400 hover:bg-blue-400/10 transition-all"><i class="fas fa-eye text-sm"></i></button>
-                                    <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-red-500 hover:bg-red-500/10 transition-all"><i class="fas fa-trash-alt text-sm"></i></button>
-                                </div>
+                                <button onclick="handleDeleteAction(this, '${sale.venta_id}')" class="text-white/20 hover:text-red-500"><i class="fas fa-trash"></i></button>
                             </td>
                         </tr>`;
                 });
-                
                 reportBody.innerHTML = finalHTML;
             } else {
                 if (noDataMessage) noDataMessage.classList.remove('hidden');
-                reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-bold">Sin actividad comercial</td></tr>`;
+                reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] font-bold">Sin actividad</td></tr>`;
             }
             
-            if (totalSalesEl) totalSalesEl.innerHTML = `<span class="text-white font-black italic">${formatCurrency(totalSales)}</span>`;
-            if (totalDebtEl) totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0.01 ? 'text-red-500' : 'text-emerald-500/40'} font-black italic">${formatCurrency(totalDebtGenerated)}</span>`;
+            if (totalSalesEl) totalSalesEl.textContent = formatCurrency(totalSales);
+            if (totalDebtEl) totalDebtEl.textContent = formatCurrency(totalDebtGenerated);
 
         } catch (e) {
-            console.error('Error en loadMonthlySalesReport:', e);
-            if (reportBody) reportBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 font-bold uppercase text-[10px]">Error de comunicación</td></tr>';
+            console.error('Error:', e);
+            reportBody.innerHTML = '<tr><td colspan="5" class="text-center text-red-500">Error de conexión</td></tr>';
         }
     })();
 };
@@ -4792,11 +4754,10 @@ window.initReportView = async function() {
 
     if (!monthSelect || !yearSelect) return;
 
-    // Aseguramos obtener números válidos
+    // CORRECCIÓN: Si el valor es vacío o NaN, usar fecha actual
     const month = parseInt(monthSelect.value) || (new Date().getMonth() + 1);
     const year = parseInt(yearSelect.value) || new Date().getFullYear();
 
-    // Ahora el log saldrá limpio: "12/2025"
     console.log(`📊 Refrescando vista de reporte para: ${month}/${year}`);
 
     if (typeof window.loadMonthlySalesReport === 'function') {
@@ -4804,26 +4765,17 @@ window.initReportView = async function() {
     }
 };
 
-function initReportSelectors() {
-    // 1. PREVENCIÓN DE DUPLICADOS: Si ya se inicializó, no hacer nada más.
-    if (window.reportSelectorsInitialized) {
-        // console.log("Selectores de reporte ya estaban listos.");
-        return;
-    }
-
+window.initReportSelectors = function() {
+    // Eliminamos la bandera de bloqueo estricto para permitir reinicialización si el DOM falló
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
 
-    if (!monthSelect || !yearSelect) {
-        console.error("ERROR CRÍTICO: No se encontraron los selectores de Mes/Año en el DOM.");
-        return;
-    }
+    if (!monthSelect || !yearSelect) return;
 
-    // 2. CONFIGURACIÓN DE DATOS INICIALES
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1; // JS meses son 0-11
-    const startYear = 2024; // Año de inicio de operaciones
+    const currentMonth = currentDate.getMonth() + 1;
+    const startYear = 2024;
 
     const months = [
         { value: 1, name: 'Enero' }, { value: 2, name: 'Febrero' }, { value: 3, name: 'Marzo' },
@@ -4832,55 +4784,43 @@ function initReportSelectors() {
         { value: 10, name: 'Octubre' }, { value: 11, name: 'Noviembre' }, { value: 12, name: 'Diciembre' }
     ];
 
-    // 3. LLENAR SELECTOR DE MESES
-    monthSelect.innerHTML = '';
-    months.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.value;
-        option.textContent = m.name;
-        if (m.value === currentMonth) option.selected = true;
-        monthSelect.appendChild(option);
-    });
-
-    // 4. LLENAR SELECTOR DE AÑOS
-    yearSelect.innerHTML = '';
-    // Generamos desde el año actual + 1 hasta el año de inicio
-    for (let y = currentYear + 1; y >= startYear; y--) {
-        const option = document.createElement('option');
-        option.value = y;
-        option.textContent = y;
-        if (y === currentYear) option.selected = true;
-        yearSelect.appendChild(option);
+    // Llenar Meses
+    if (monthSelect.options.length === 0) {
+        monthSelect.innerHTML = '';
+        months.forEach(m => {
+            const opt = new Option(m.name, m.value);
+            if (m.value === currentMonth) opt.selected = true;
+            monthSelect.appendChild(opt);
+        });
     }
 
-    // 5. DEFINIR LA LÓGICA DE CAMBIO (Refresco de tabla)
+    // Llenar Años (Asegurando visibilidad)
+    if (yearSelect.options.length === 0) {
+        yearSelect.innerHTML = '';
+        for (let y = currentYear + 1; y >= startYear; y--) {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            opt.style.color = "#000000"; // Forzar color negro para el menú desplegable
+            if (y === currentYear) opt.selected = true;
+            yearSelect.appendChild(opt);
+        }
+    }
+
     const handleReportChange = () => {
         const m = parseInt(monthSelect.value);
         const y = parseInt(yearSelect.value);
-        
-        console.log(`📅 Actualizando reporte para: ${m}/${y}`);
-
+        console.log(`📅 Cambio de periodo: ${m}/${y}`);
         if (typeof window.loadMonthlySalesReport === 'function') {
             window.loadMonthlySalesReport(m, y);
-        } else if (typeof loadMonthlySalesReport === 'function') {
-            loadMonthlySalesReport(m, y);
-        } else {
-            console.warn("La función loadMonthlySalesReport no está disponible todavía.");
         }
     };
 
-    // 6. ADJUNTAR EVENTOS
     monthSelect.onchange = handleReportChange;
     yearSelect.onchange = handleReportChange;
-
-    // 7. MARCAR COMO INICIALIZADO
+    
     window.reportSelectorsInitialized = true;
-
-    // 8. EJECUCIÓN INICIAL (Pequeño delay para asegurar que otras funciones carguen)
-    setTimeout(() => {
-        handleReportChange();
-    }, 50);
-}
+};
 
 function generateTextTicket(sale) {
     const TICKET_WIDTH = 32;
@@ -5434,18 +5374,18 @@ window.switchView = async function(viewId) {
         }
 
         else if (viewId === 'report-view') {
-            console.log("📊 Refrescando reportes...");
-            // 1. Forzamos la recarga de ventas para incluir la última venta realizada
-            if (typeof window.loadSalesData === 'function') {
-                await window.loadSalesData();
-            }
-            
-            // 2. Llamamos a la función que procesa los datos y dibuja los Charts
-            // En tu main.js se llama initReportView
-            if (typeof window.initReportView === 'function') {
-                window.initReportView();
-            }
-        }
+    console.log("📊 Refrescando reportes...");
+    
+    // Asegurar que los selectores existan y tengan los años/meses cargados
+    if (typeof window.initReportSelectors === 'function') {
+        window.initReportSelectors();
+    }
+
+    // Cargar los datos de la tabla
+    if (typeof window.initReportView === 'function') {
+        window.initReportView();
+    }
+}
 
         else if (viewId === 'sales-view') {
             // Opcional: Recargar tabla de ventas al entrar
