@@ -357,62 +357,56 @@
             </div>
         </section>
 
-        <section id="report-view" class="dashboard-view hidden">
-    <div class="flex justify-between items-center mb-10">
-        <h2 class="text-4xl font-black text-white italic tracking-tighter">Análisis <span class="text-orange-500">Mensual</span></h2>
-        <div class="flex gap-3">
-            <select id="report-month-select" class="bg-[#1c1c1c] border border-white/10 rounded-xl p-3 text-white font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all"></select>
-            <select id="report-year-select" class="bg-[#1c1c1c] border border-white/10 rounded-xl p-3 text-white font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all"></select>
+        <div id="reports-view" class="hidden animate-fade-in">
+    <div class="bg-white/5 border border-white/5 rounded-[2.5rem] p-6 mb-8 backdrop-blur-md">
+        <div class="flex flex-col lg:flex-row gap-6 items-center">
+            
+            <div class="w-full lg:w-1/3 relative group">
+                <input type="text" id="filter-search-term" 
+                    class="w-full bg-black/40 border border-white/10 rounded-2xl p-4 pl-12 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all placeholder:text-gray-600 shadow-inner"
+                    placeholder="Buscar cliente, folio o producto...">
+                <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors"></i>
+            </div>
+
+            <div class="flex items-center gap-3 bg-black/20 p-2 rounded-2xl border border-white/5">
+                <input type="date" id="filter-start-date" 
+                    class="bg-transparent text-[11px] text-white font-bold outline-none px-2 cursor-pointer uppercase">
+                <span class="text-gray-600 text-[10px] font-black uppercase tracking-tighter">al</span>
+                <input type="date" id="filter-end-date" 
+                    class="bg-transparent text-[11px] text-white font-bold outline-none px-2 cursor-pointer uppercase">
+            </div>
+
+            <div class="flex-1 flex justify-end items-center gap-8">
+                <div class="text-right">
+                    <p class="text-[9px] text-gray-500 uppercase font-black tracking-[0.2em] mb-1">Ventas Totales</p>
+                    <p id="report-total-sales" class="text-2xl font-black text-emerald-400 italic leading-none tracking-tighter">$0.00</p>
+                </div>
+                <div class="h-10 w-[1px] bg-white/10"></div>
+                <div class="text-right">
+                    <p class="text-[9px] text-gray-500 uppercase font-black tracking-[0.2em] mb-1 italic">Deuda Pendiente</p>
+                    <p id="report-total-debt" class="text-2xl font-black text-red-500 italic leading-none tracking-tighter">$0.00</p>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8 items-center bg-white/5 p-4 rounded-[2rem] border border-white/5">
-    
-    <div class="relative group">
-        <input type="text" id="filter-search-term" 
-            class="w-full bg-black/40 border border-white/10 rounded-2xl p-4 pl-12 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all"
-            placeholder="Buscar por cliente o producto...">
-        <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors"></i>
-    </div>
 
-    <div class="flex gap-2 items-center justify-center">
-        <input type="date" id="filter-start-date" class="bg-black/20 border border-white/5 rounded-xl p-2 text-xs text-white outline-none">
-        <span class="text-gray-600 text-xs uppercase font-bold">al</span>
-        <input type="date" id="filter-end-date" class="bg-black/20 border border-white/5 rounded-xl p-2 text-xs text-white outline-none">
-    </div>
-
-    <div class="flex gap-4 justify-end">
-        <div class="text-right">
-            <p class="text-[9px] text-gray-500 uppercase font-black tracking-widest">Total Ventas</p>
-            <p id="report-total-sales" class="text-lg font-black text-emerald-400 leading-none">$0.00</p>
-        </div>
-        <div class="text-right border-l border-white/10 pl-4">
-            <p class="text-[9px] text-gray-500 uppercase font-black tracking-widest">Deuda Total</p>
-            <p id="report-total-debt" class="text-lg font-black text-red-500 leading-none">$0.00</p>
-        </div>
-    </div>
-</div>
-
-    <div class="bg-[#1c1c1c] rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl">
-        <table class="w-full text-left">
-            <thead class="bg-white/5 border-b border-white/5 text-gray-500 uppercase text-[10px] font-bold tracking-[0.2em]">
+    <div class="bg-[#1c1c1c] border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-white/[0.02] border-b border-white/5">
                 <tr>
-                    <th class="px-8 py-5">Fecha</th>
-                    <th class="px-8 py-5">Nombre</th>
-                    <th class="px-8 py-5">Total</th>
-                    <th class="px-8 py-5">Deuda</th>
-                    <th class="px-8 py-5 text-right">Acciones</th>
+                    <th class="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Folio</th>
+                    <th class="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Cliente</th>
+                    <th class="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Fecha</th>
+                    <th class="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Estado</th>
+                    <th class="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] text-right">Total</th>
+                    <th class="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody id="monthly-sales-report-body" class="text-sm text-gray-300 divide-y divide-white/5">
+            <tbody id="sales-report-table-body">
                 </tbody>
         </table>
-
-        <div id="monthly-report-no-data" class="p-20 text-center hidden">
-            <p class="text-gray-600 font-bold uppercase tracking-widest text-xs">Sin movimientos en este periodo</p>
-        </div>
     </div>
-        </section>
+</div>
 
         </main>
 </div>

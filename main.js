@@ -3075,75 +3075,114 @@ document.addEventListener('DOMContentLoaded', () => {
 /**
  * Filtra las ventas basándose en un rango de fechas y una cadena de búsqueda, y luego las renderiza.
  */
-window.handleFilterSales = function() {
+window.handleFilterSales = async function() {
+    // 1. Capturar valores de los inputs
+    const searchTerm = document.getElementById('filter-search-term')?.value.toLowerCase() || "";
     const startDate = document.getElementById('filter-start-date')?.value;
     const endDate = document.getElementById('filter-end-date')?.value;
-    const searchTerm = document.getElementById('filter-search-term')?.value.toLowerCase().trim() || '';
 
-    const allSales = window.allSales || []; 
+    console.log(`🔍 Filtrando ventas por: "${searchTerm}"`);
 
-    let filteredSales = allSales.filter(sale => {
-        // A. FILTRO POR FECHA
-        let dateMatch = true;
-        const saleDate = sale.sale_date; 
+    // 2. Filtrar el array global de ventas (window.allSales)
+    const filteredSales = window.allSales.filter(venta => {
+        const nombreCliente = (venta.cliente_nombre || "").toLowerCase();
+        const folio = String(venta.venta_id);
+        // Buscamos si el término está en el nombre o en el ID (Folio)
+        const matchesSearch = nombreCliente.includes(searchTerm) || folio.includes(searchTerm);
         
-        if (startDate && saleDate < startDate) {
-            dateMatch = false;
-        }
-        if (endDate && saleDate > endDate) {
-            dateMatch = false;
-        }
-        
-        // B. FILTRO POR BÚSQUEDA DE TEXTO (Cliente o ID de Venta)
-        let textMatch = true;
-        if (searchTerm.length > 0) {
-            const clientName = (sale.client_name || '').toLowerCase();
-            const saleId = String(sale.venta_id);
-            
-            if (!clientName.includes(searchTerm) && !saleId.includes(searchTerm)) {
-                textMatch = false;
-            }
-        }
-        
-        return dateMatch && textMatch;
+        // Filtro de fechas
+        const fechaVenta = venta.fecha_venta.split('T')[0];
+        const matchesStart = !startDate || fechaVenta >= startDate;
+        const matchesEnd = !endDate || fechaVenta <= endDate;
+
+        return matchesSearch && matchesStart && matchesEnd;
     });
 
-    // Llama a la función de renderizado
-    window.renderSalesTable(filteredSales);
-    console.log(`Filtro aplicado. Mostrando ${filteredSales.length} ventas.`);
-}
+    // 3. Renderizar la tabla con los resultados filtrados
+    // (Asegúrate de que tu función renderSalesTable acepte un array como argumento)
+    if (typeof window.renderSalesTable === 'function') {
+        window.renderSalesTable(filteredSales);
+    }
+
+    // 4. RECALCULAR MÉTRICAS (Basado solo en lo filtrado)
+    const totalVentasFiltradas = filteredSales.reduce((acc, v) => acc + (v.total || 0), 0);
+    const totalDeudaFiltrada = filteredSales.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
+
+    // Actualizar los textos en la interfaz
+    const totalSalesEl = document.getElementById('report-total-sales');
+    const totalDebtEl = document.getElementById('report-total-debt');
+
+    if (totalSalesEl) totalSalesEl.textContent = formatCurrency(totalVentasFiltradas);
+    if (totalDebtEl) totalDebtEl.textContent = formatCurrency(totalDeudaFiltrada);
+};
+
 window.handleFilterSales = window.handleFilterSales; // Exposición global
 
 window.renderSalesTable = function(sales) {
-    const tableBody = document.getElementById('sales-table-body');
+    const tableBody = document.getElementById('sales-report-table-body'); // Ajustado al ID del nuevo HTML
     if (!tableBody) return;
 
     tableBody.innerHTML = '';
 
     if (sales.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">No se encontraron ventas para estos criterios.</td></tr>';
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-8 py-20 text-center">
+                    <i class="fas fa-folder-open text-gray-700 text-4xl mb-4 block"></i>
+                    <span class="text-gray-500 uppercase text-[10px] font-black tracking-[0.2em]">
+                        No se encontraron registros
+                    </span>
+                </td>
+            </tr>`;
         return;
     }
 
     sales.forEach(sale => {
+        const isPaid = (sale.saldo_pendiente || 0) <= 0;
+        
+        // Clases dinámicas según el estado
+        const statusBg = isPaid ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20';
         const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-
-        // Determinar el estado visual de la deuda
-        const isPaid = sale.saldo_pendiente <= 0;
-        const debtClass = isPaid ? 'text-green-600 font-medium' : 'text-red-600 font-bold';
-        const statusText = isPaid ? 'Liquidada' : 'Pendiente';
+        row.className = 'group border-b border-white/[0.03] hover:bg-white/[0.02] transition-all';
 
         row.innerHTML = `
-            <td class="px-3 py-2 text-sm text-gray-900">${sale.venta_id}</td>
-            <td class="px-3 py-2 text-sm text-gray-500">${sale.sale_date || 'N/A'}</td> 
-            <td class="px-3 py-2 text-sm font-medium">${sale.client_name || 'Consumidor Final'}</td>
-            <td class="px-3 py-2 text-sm text-right">${window.formatCurrency(sale.total_amount)}</td>
-            <td class="px-3 py-2 text-sm text-right ${debtClass}">${window.formatCurrency(sale.saldo_pendiente)}</td>
-            <td class="px-3 py-2 text-sm ${debtClass}">${statusText}</td>
-            <td class="px-3 py-2 text-right">
-                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="text-indigo-600 hover:text-indigo-900">Detalles</button>
-                ${!isPaid ? `<button onclick="window.openPaymentModal(${sale.venta_id}, ${sale.saldo_pendiente}, ${sale.client_id})" class="text-green-600 hover:text-green-800 ml-2">Abonar</button>` : ''}
+            <td class="px-8 py-5">
+                <span class="text-[10px] font-mono text-gray-500 bg-black/40 px-2 py-1 rounded-md border border-white/5">
+                    #${sale.venta_id}
+                </span>
+            </td>
+            <td class="px-8 py-5">
+                <div class="flex flex-col">
+                    <span class="text-sm font-bold text-white uppercase italic tracking-tight">
+                        ${sale.cliente_nombre || 'Consumidor Final'}
+                    </span>
+                    <span class="text-[10px] text-gray-600 font-medium">Cliente ID: ${sale.cliente_id || 'N/A'}</span>
+                </div>
+            </td>
+            <td class="px-8 py-5 text-xs text-gray-400 font-medium">
+                ${new Date(sale.fecha_venta).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </td>
+            <td class="px-8 py-5">
+                <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${statusBg} uppercase">
+                    ${isPaid ? 'Liquidada' : 'Pendiente'}
+                </span>
+            </td>
+            <td class="px-8 py-5 text-right">
+                <div class="text-sm font-black text-white italic">${window.formatCurrency(sale.total)}</div>
+                ${!isPaid ? `<div class="text-[9px] text-red-500 font-bold mt-1 tracking-tighter">Debe: ${window.formatCurrency(sale.saldo_pendiente)}</div>` : ''}
+            </td>
+            <td class="px-8 py-5 text-right">
+                <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="window.openSaleDetailModal(${sale.venta_id})" 
+                        class="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all" title="Ver Detalles">
+                        <i class="fas fa-eye text-xs"></i>
+                    </button>
+                    ${!isPaid ? `
+                    <button onclick="window.openPaymentModal(${sale.venta_id}, ${sale.saldo_pendiente}, ${sale.cliente_id})" 
+                        class="p-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white rounded-lg transition-all" title="Abonar">
+                        <i class="fas fa-hand-holding-usd text-xs"></i>
+                    </button>` : ''}
+                </div>
             </td>
         `;
         tableBody.appendChild(row);
@@ -5999,6 +6038,9 @@ document.addEventListener('submit', async function(e) {
         }
     }
 });
+
+//buscador de clientes
+document.getElementById('filter-search-term')?.addEventListener('input', window.handleFilterSales);
 
 document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
