@@ -4560,28 +4560,36 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
         if (!reportBody) return;
 
+        // 1. OBTENER VALORES DE LOS SELECTORES SI NO VIENEN DEL EVENTO
+        // Esto arregla el problema de que el año parezca no cargar
+        const ahora = new Date();
+        const mSelect = document.getElementById('report-month-select');
+        const ySelect = document.getElementById('report-year-select');
+
+        let selectedMonth = parseInt(selectedMonthFromEvent) || (mSelect ? parseInt(mSelect.value) : (ahora.getMonth() + 1));
+        let selectedYear = parseInt(selectedYearFromEvent) || (ySelect ? parseInt(ySelect.value) : ahora.getFullYear());
+
+        console.log(`🔍 Consultando DB para: ${selectedMonth}/${selectedYear}`);
+
         // Limpieza y estado de carga
         reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-orange-500 animate-pulse uppercase text-[10px] tracking-widest font-bold">Actualizando Reporte...</td></tr>`;
         
         try {
-            const ahora = new Date();
-            let selectedMonth = parseInt(selectedMonthFromEvent) || (ahora.getMonth() + 1);
-            let selectedYear = parseInt(selectedYearFromEvent) || ahora.getFullYear();
-
-            let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
-            let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1));
+            // 2. RANGO DE FECHAS (UTC para evitar desfases de zona horaria)
+            let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toISOString();
+            let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1)).toISOString();
             
-            // 1. Obtener Ventas y Nombres de Clientes
+            // 3. CONSULTA A SUPABASE
             const { data: sales, error: sError } = await supabase
                 .from('ventas')
                 .select(`venta_id, client_id, created_at, total_amount, saldo_pendiente, metodo_pago, clientes(name)`)
-                .gte('created_at', startDate.toISOString())
-                .lt('created_at', nextDate.toISOString()) 
+                .gte('created_at', startDate)
+                .lt('created_at', nextDate) 
                 .order('created_at', { ascending: false });
 
             if (sError) throw sError;
 
-            // 2. Obtener Detalles de Productos para estas ventas
+            // ... (Resto de tu lógica de detalles de productos igual)
             let productosData = [];
             if (sales && sales.length > 0) {
                 const ids = sales.map(s => s.venta_id);
@@ -4594,18 +4602,16 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
             let totalSales = 0;
             let totalDebtGenerated = 0;
-            let finalHTML = ''; // Construimos todo el HTML en una variable para evitar parpadeos
+            let finalHTML = '';
 
             if (sales && sales.length > 0) {
                 sales.forEach(sale => {
                     totalSales += (sale.total_amount || 0);
                     totalDebtGenerated += (sale.saldo_pendiente || 0);
 
+                    // --- TU LÓGICA DE RENDERIZADO (Se mantiene igual) ---
                     const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
-                    const listaProds = misProds.length > 0 
-                        ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
-                        : 'Venta Directa';
-        
+                    const listaProds = misProds.length > 0 ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') : 'Venta Directa';
                     const clientName = sale.clientes?.name || 'Cliente Final';
                     const dateObj = new Date(sale.created_at);
                     const day = dateObj.toLocaleDateString('es-MX', { day: '2-digit' });
@@ -4651,17 +4657,8 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             </td>
                             <td class="px-8 py-5 text-right">
                                 <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
-                                            class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-blue-400 hover:bg-blue-400/10 transition-all" 
-                                            title="Ver Detalles">
-                                        <i class="fas fa-eye text-sm"></i>
-                                    </button>
-                                    
-                                    <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                                            class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-red-500 hover:bg-red-500/10 transition-all" 
-                                            title="Anular Venta">
-                                        <i class="fas fa-trash-alt text-sm"></i>
-                                    </button>
+                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-blue-400 hover:bg-blue-400/10 transition-all" title="Ver Detalles"><i class="fas fa-eye text-sm"></i></button>
+                                    <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Anular Venta"><i class="fas fa-trash-alt text-sm"></i></button>
                                 </div>
                             </td>
                         </tr>`;
@@ -4674,7 +4671,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-bold">Sin actividad comercial</td></tr>`;
             }
             
-            // Actualizar Totales del reporte
+            // Actualizar Totales
             if (totalSalesEl) totalSalesEl.innerHTML = `<span class="text-white font-black italic">${formatCurrency(totalSales)}</span>`;
             if (totalDebtEl) totalDebtEl.innerHTML = `<span class="${totalDebtGenerated > 0.01 ? 'text-red-500' : 'text-emerald-500/40'} font-black italic">${formatCurrency(totalDebtGenerated)}</span>`;
 
