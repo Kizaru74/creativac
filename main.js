@@ -4577,8 +4577,10 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-orange-500 animate-pulse uppercase text-[10px] tracking-widest font-bold">Actualizando Reporte...</td></tr>`;
         
         try {
-            let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toISOString();
-            let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1)).toISOString();
+            let startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01T00:00:00.000Z`;
+let nextMonth = selectedMonth === 12 ? 1 : selectedMonth + 1;
+let nextYear = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
+let nextDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00.000Z`;
             
             const { data: sales, error: sError } = await supabase
                 .from('ventas')
