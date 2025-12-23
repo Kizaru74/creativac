@@ -16,6 +16,8 @@ let allClientsMap = {};
 let allProductsMap = {};
 let reportSelectorsInitialized = false;
 let ventasChartInstance = null;
+let allSales = []; 
+window.allSales = []; // Forzamos que esté en el objeto window
 
 
 // ✅ CORRECCIÓN DE INICIALIZACIÓN
@@ -3080,42 +3082,27 @@ window.handleFilterSales = async function() {
     const startDate = document.getElementById('filter-start-date')?.value;
     const endDate = document.getElementById('filter-end-date')?.value;
 
-    console.log("🔍 Filtrando ventas activado...");
-
-    // Si no hay ventas cargadas aún, salimos para evitar errores
-    if (!window.allSales || window.allSales.length === 0) {
-        console.warn("⚠️ No hay ventas cargadas en window.allSales");
-        return;
-    }
+    if (!window.allSales || window.allSales.length === 0) return;
 
     const filteredSales = window.allSales.filter(venta => {
-        // --- LIMPIEZA DE DATOS (A PRUEBA DE ERRORES) ---
-        const cliente = (venta.cliente_nombre || "Consumidor Final").toLowerCase();
-        const folio = String(venta.venta_id || "");
+        const cliente = (venta.cliente_nombre || "").toLowerCase();
+        const folio = String(venta.venta_id);
         
-        // Manejo de fecha: buscamos en varios campos por si Supabase cambió el nombre
-        const fechaOriginal = venta.fecha_venta || venta.created_at || "";
-        let fechaLimpia = "";
-        
-        if (fechaOriginal) {
-            // Si la fecha tiene formato ISO (contiene 'T'), cortamos para tener YYYY-MM-DD
-            fechaLimpia = fechaOriginal.includes('T') ? fechaOriginal.split('T')[0] : fechaOriginal;
-        }
+        // Limpieza de fecha segura
+        const fechaRaw = venta.fecha_venta || "";
+        const fechaVenta = fechaRaw.includes('T') ? fechaRaw.split('T')[0] : fechaRaw;
 
-        // --- LÓGICA DE FILTRADO ---
         const matchesSearch = cliente.includes(searchTerm) || folio.includes(searchTerm);
-        const matchesStart = !startDate || (fechaLimpia >= startDate);
-        const matchesEnd = !endDate || (fechaLimpia <= endDate);
+        const matchesStart = !startDate || (fechaVenta >= startDate);
+        const matchesEnd = !endDate || (fechaVenta <= endDate);
 
         return matchesSearch && matchesStart && matchesEnd;
     });
 
-    // 2. Renderizar la tabla (Usando el ID correcto de tu nuevo HTML)
-    if (typeof window.renderSalesTable === 'function') {
-        window.renderSalesTable(filteredSales);
-    }
+    // Renderizar la tabla
+    window.renderSalesTable(filteredSales);
 
-    // 3. Actualizar Totales en la barra superior
+    // Actualizar Totales
     const totalV = filteredSales.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
     const totalD = filteredSales.reduce((acc, v) => acc + (Number(v.saldo_pendiente) || 0), 0);
 
@@ -3224,29 +3211,28 @@ window.loadSalesData = async function() {
                 total_amount,      
                 saldo_pendiente,   
                 client_id,         
-                clientes ( name )  
-            `);
+                clientes ( nombre )  
+            `); // Nota: Verificamos si en tu DB es 'name' o 'nombre'
 
         if (error) throw error;
         
-        // Procesamos los datos para aplanar y estandarizar los nombres de las propiedades en JS
         window.allSales = (sales || []).map(sale => ({
-            ...sale,
-            // Mapeamos 'created_at' de la DB al nombre estándar en JS ('sale_date')
-            sale_date: sale.created_at ? sale.created_at.substring(0, 10) : 'N/A', 
-            client_name: sale.clientes ? sale.clientes.name : 'Consumidor Final'
+            venta_id: sale.venta_id,
+            total: sale.total_amount, // Lo llamamos 'total' para el filtro
+            saldo_pendiente: sale.saldo_pendiente,
+            cliente_id: sale.client_id,
+            fecha_venta: sale.created_at, // Mantenemos el formato original para el split
+            cliente_nombre: sale.clientes ? (sale.clientes.nombre || sale.clientes.name) : 'Consumidor Final'
         }));
         
-        console.log(`✅ ${window.allSales.length} ventas cargadas en ámbito global.`);
+        console.log(`✅ ${window.allSales.length} ventas cargadas y normalizadas.`);
         
     } catch (error) {
         console.error('Error al cargar datos de ventas:', error);
         window.allSales = [];
-        alert('Fallo al cargar la lista de ventas.');
     }
     return window.allSales; 
 };
-window.loadSalesData = loadSalesData;
 
 async function openNewProductModal() {
     console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
