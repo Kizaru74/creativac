@@ -3602,8 +3602,15 @@ async function handleNewProduct(e) {
         return;
     }
 
-    // 1. Referencia al botón y elementos de carga
+    // 1. Referencia al botón y elementos de carga (Usando los nuevos IDs y Clases)
     const btn = document.getElementById('btn-register-product');
+    
+    // Validación de seguridad por si el botón no se encuentra
+    if (!btn) {
+        console.error('No se encontró el botón con ID: btn-register-product');
+        return;
+    }
+
     const iconDefault = btn.querySelector('.icon-default');
     const iconLoading = btn.querySelector('.icon-loading');
     const btnText = btn.querySelector('.btn-text');
@@ -3614,11 +3621,16 @@ async function handleNewProduct(e) {
     const priceInput = document.getElementById('new-product-price'); 
     const parentSelect = document.getElementById('new-product-parent-select');
 
-    // 3. Validaciones básicas
+    // 3. Validaciones básicas de los datos
     const name = nameInput.value.trim();
     const type = typeInput.value; 
     const price = parseFloat(priceInput.value);
     let parentProductId = null;
+
+    if (!name) {
+        alert('Por favor, ingresa el nombre del producto.');
+        return;
+    }
 
     if (isNaN(price) || price < 0) {
         alert('Por favor, ingresa un precio válido.');
@@ -3633,15 +3645,15 @@ async function handleNewProduct(e) {
         }
     }
 
-    // --- ACTIVAR ESTADO DE CARGA ---
+    // --- 🚀 ACTIVAR ESTADO DE CARGA (Visual) ---
     btn.disabled = true;
     btn.classList.add('opacity-80', 'cursor-not-allowed');
-    iconDefault.classList.add('hidden');
-    iconLoading.classList.remove('hidden');
-    btnText.textContent = 'Registrando...';
+    if (iconDefault) iconDefault.classList.add('hidden');
+    if (iconLoading) iconLoading.classList.remove('hidden');
+    if (btnText) btnText.textContent = 'Registrando...';
 
     try {
-        // 4. Inserción en Supabase
+        // 4. Inserción en la base de datos Supabase
         const { error } = await supabase
             .from('productos')
             .insert([{ 
@@ -3653,28 +3665,38 @@ async function handleNewProduct(e) {
 
         if (error) throw error;
 
-        // 5. Éxito
-        console.log('Producto registrado con éxito');
+        // 5. ÉXITO: Limpiar y cerrar
+        console.log('✅ Producto registrado con éxito');
         
         const form = document.getElementById('new-product-form');
-        form.reset();
-        window.handleProductTypeChange('new'); 
-        closeModal('new-product-modal'); 
+        if (form) form.reset();
 
-        if (window.loadAndRenderProducts) {
+        // Si tienes funciones para actualizar la interfaz, las llamamos aquí
+        if (typeof window.handleProductTypeChange === 'function') {
+            window.handleProductTypeChange(); // Resetear visibilidad de campos de padre
+        }
+
+        if (typeof window.closeModal === 'function') {
+            window.closeModal('new-product-modal'); 
+        }
+
+        // Recargar la lista de productos en la tabla/vista actual
+        if (typeof window.loadAndRenderProducts === 'function') {
             await window.loadAndRenderProducts();
+        } else if (typeof window.loadProductsData === 'function') {
+            await window.loadProductsData();
         }
 
     } catch (err) {
-        console.error('Error al registrar:', err.message);
+        console.error('❌ Error al registrar:', err.message);
         alert('No se pudo registrar el producto: ' + err.message);
     } finally {
-        // --- RESTAURAR ESTADO DEL BOTÓN ---
+        // --- 🔄 RESTAURAR ESTADO DEL BOTÓN ---
         btn.disabled = false;
         btn.classList.remove('opacity-80', 'cursor-not-allowed');
-        iconDefault.classList.remove('hidden');
-        iconLoading.classList.add('hidden');
-        btnText.textContent = 'Finalizar Registro';
+        if (iconDefault) iconDefault.classList.remove('hidden');
+        if (iconLoading) iconLoading.classList.add('hidden');
+        if (btnText) btnText.textContent = 'Finalizar Registro';
     }
 }
 
