@@ -4711,10 +4711,10 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                         <span class="text-[9px] font-black text-orange-500 uppercase mt-1">${dateObj.toLocaleDateString('es-MX', {month:'short'}).replace('.','')}</span>
                                     </div>
                                     <div class="max-w-[250px]">
-                                        <div class="text-[10px] font-mono font-bold text-white/20 uppercase">FOLIO #${sale.venta_id}</div>
-                                        <div class="text-[11px] text-gray-500 font-bold uppercase mt-0.5 italic mb-1">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
-                                        <div class="text-[10px] text-orange-500/70 font-bold truncate uppercase tracking-tight" title="${listaProds}">
-                                            <i class="fas fa-box-open mr-1 text-[8px]"></i> ${listaProds}
+                                        <div class="text-[12px] font-mono font-bold text-white/50 uppercase">FOLIO #${sale.venta_id}</div>
+                                        <div class="text-[12px] text-orange-500/70 font-bold truncate uppercase tracking-tight" title="${listaProds}">
+                                        <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 italic mb-1">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
+                                                                                    <i class="fas fa-box-open mr-1 text-[8px]"></i> ${listaProds}
                                         </div>
                                     </div>
                                 </div>
@@ -4744,12 +4744,12 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                     
                                     <button onclick="window.openSaleDetailModal(${sale.venta_id})" 
                                         class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-orange-500/20 hover:border-orange-500/40 transition-all">
-                                        <i class="fas fa-file-invoice-dollar text-sm"></i>
+                                        <i class="fas fa-file-invoice-dollar text-xl"></i>
                                     </button>
 
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
                                         class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all">
-                                        <i class="fas fa-trash-alt text-sm"></i>
+                                        <i class="fas fa-trash-alt text-xl"></i>
                                     </button>
                                 </div>
                             </td>
