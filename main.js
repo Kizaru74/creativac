@@ -4672,7 +4672,6 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
             if (sError) throw sError;
 
-            // --- NUEVO: Obtener productos de todas las ventas ---
             let productosData = [];
             if (sales && sales.length > 0) {
                 const ids = sales.map(s => s.venta_id);
@@ -4694,7 +4693,6 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                     totalSales += (sale.total_amount || 0);
                     totalDebt += (sale.saldo_pendiente || 0);
                     
-                    // Filtrar productos para esta venta específica
                     const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
                     const listaProds = misProds.length > 0 
                         ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
@@ -4742,12 +4740,18 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 </div>
                             </td>
                             <td class="px-8 py-6 text-right">
-                                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="h-10 w-10 inline-flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-500 hover:text-white hover:bg-orange-500/20 hover:border-orange-500/40 transition-all opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0">
-                                    <i class="fas fa-file-invoice-dollar text-lg"></i>
-                                </button>
-                                <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" class="h-8 w-8 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-red-500 hover:bg-red-500/10 transition-all">
-                                        <i class="fas fa-trash-alt text-lg"></i>
+                                <div class="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                    
+                                    <button onclick="window.openSaleDetailModal(${sale.venta_id})" 
+                                        class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-orange-500/20 hover:border-orange-500/40 transition-all">
+                                        <i class="fas fa-file-invoice-dollar text-sm"></i>
                                     </button>
+
+                                    <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
+                                        class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all">
+                                        <i class="fas fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>`;
                 });
