@@ -4875,69 +4875,50 @@ function initializeYearSelector() {
         if (window.initReportView) window.initReportView();
     });
 }
-window.initReportView = async function() {
-    const monthSelect = document.getElementById('report-month-select');
-    const yearSelect = document.getElementById('report-year-select');
-
-    if (!monthSelect || !yearSelect) return;
-
-    // CORRECCIÓN: Si el valor es vacío o NaN, usar fecha actual
-    const month = parseInt(monthSelect.value) || (new Date().getMonth() + 1);
-    const year = parseInt(yearSelect.value) || new Date().getFullYear();
-
-    console.log(`📊 Refrescando vista de reporte para: ${month}/${year}`);
-
-    if (typeof window.loadMonthlySalesReport === 'function') {
-        await window.loadMonthlySalesReport(month, year);
-    }
-};
 
 window.initReportSelectors = function() {
-    // Eliminamos la bandera de bloqueo estricto para permitir reinicialización si el DOM falló
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
 
-    if (!monthSelect || !yearSelect) return;
+    // Si no existen los elementos, reintentar en 100ms
+    if (!monthSelect || !yearSelect) {
+        setTimeout(window.initReportSelectors, 100);
+        return;
+    }
+
+    // Si ya tienen datos, no duplicar
+    if (yearSelect.options.length > 0) return;
 
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1;
-    const startYear = 2024;
 
+    // 1. Llenar Meses
     const months = [
-        { value: 1, name: 'Enero' }, { value: 2, name: 'Febrero' }, { value: 3, name: 'Marzo' },
-        { value: 4, name: 'Abril' }, { value: 5, name: 'Mayo' }, { value: 6, name: 'Junio' },
-        { value: 7, name: 'Julio' }, { value: 8, name: 'Agosto' }, { value: 9, name: 'Septiembre' },
-        { value: 10, name: 'Octubre' }, { value: 11, name: 'Noviembre' }, { value: 12, name: 'Diciembre' }
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
     ];
 
-    // Llenar Meses
-    if (monthSelect.options.length === 0) {
-        monthSelect.innerHTML = '';
-        months.forEach(m => {
-            const opt = new Option(m.name, m.value);
-            if (m.value === currentMonth) opt.selected = true;
-            monthSelect.appendChild(opt);
-        });
+    monthSelect.innerHTML = '';
+    months.forEach((name, index) => {
+        const opt = new Option(name.toUpperCase(), index + 1);
+        if (index + 1 === currentMonth) opt.selected = true;
+        monthSelect.appendChild(opt);
+    });
+
+    // 2. Llenar Años (Del año que viene hasta el 2024)
+    yearSelect.innerHTML = '';
+    for (let y = currentYear + 1; y >= 2024; y--) {
+        const opt = new Option(y, y);
+        if (y === currentYear) opt.selected = true;
+        yearSelect.appendChild(opt);
     }
 
-    // Llenar Años (Asegurando visibilidad)
-    if (yearSelect.options.length === 0) {
-        yearSelect.innerHTML = '';
-        for (let y = currentYear + 1; y >= startYear; y--) {
-            const opt = document.createElement('option');
-            opt.value = y;
-            opt.textContent = y;
-            opt.style.color = "#fafafaff"; // Forzar color negro para el menú desplegable
-            if (y === currentYear) opt.selected = true;
-            yearSelect.appendChild(opt);
-        }
-    }
-
+    // 3. Configurar el evento de cambio
     const handleReportChange = () => {
         const m = parseInt(monthSelect.value);
         const y = parseInt(yearSelect.value);
-        console.log(`📅 Cambio de periodo: ${m}/${y}`);
+        console.log(`📅 Cambio de periodo detectado: ${m}/${y}`);
         if (typeof window.loadMonthlySalesReport === 'function') {
             window.loadMonthlySalesReport(m, y);
         }
@@ -4946,7 +4927,8 @@ window.initReportSelectors = function() {
     monthSelect.onchange = handleReportChange;
     yearSelect.onchange = handleReportChange;
     
-    window.reportSelectorsInitialized = true;
+    // Cargar los datos por primera vez
+    handleReportChange();
 };
 
 function generateTextTicket(sale) {
@@ -5439,13 +5421,9 @@ window.openNewProductModal = async function() {
 window.switchView = async function(viewId) {
     console.log(`Cambiando a vista: ${viewId}`);
 
-    // 1. Gestión Visual
-    document.querySelectorAll('.menu-item').forEach(link => {
-        link.classList.remove('active-menu-item');
-    });
-    document.querySelectorAll('.dashboard-view').forEach(view => {
-        view.classList.add('hidden');
-    });
+    // 1. Gestión Visual de Menú y Vistas
+    document.querySelectorAll('.menu-item').forEach(link => link.classList.remove('active-menu-item'));
+    document.querySelectorAll('.dashboard-view').forEach(view => view.classList.add('hidden'));
     
     const targetView = document.getElementById(viewId);
     if (targetView) targetView.classList.remove('hidden');
@@ -5463,17 +5441,32 @@ window.switchView = async function(viewId) {
             if (typeof window.loadDebts === 'function') await window.loadDebts();
         }
 
-        // CORRECCIÓN AQUÍ: Usamos 'reports-view' para que coincida con tu HTML
+        // ============================================================
+        // AJUSTE PARA REPORTES (ANÁLISIS MENSUAL)
+        // ============================================================
         else if (viewId === 'report-view' || viewId === 'reports-view') {
-    console.log("📊 Refrescando vista de reportes...");
-    // Aseguramos que el ID correcto sea visible
-    const reportElem = document.getElementById('report-view') || document.getElementById('reports-view');
-    if (reportElem) reportElem.classList.remove('hidden');
+            console.log("📊 Inicializando Análisis Mensual...");
+            
+            // 1. Forzamos la creación de las opciones del Año y Mes si están vacíos
+            if (typeof window.initReportSelectors === 'function') {
+                window.initReportSelectors();
+            }
 
-    if (window.handleFilterSales) {
-        window.handleFilterSales(); 
-    }
-}
+            // 2. Obtenemos los valores que acabamos de setear
+            const mSelect = document.getElementById('report-month-select');
+            const ySelect = document.getElementById('report-year-select');
+
+            if (mSelect && ySelect) {
+                const currentM = mSelect.value;
+                const currentY = ySelect.value;
+                
+                // 3. Cargamos la tabla con esos valores
+                if (typeof window.loadMonthlySalesReport === 'function') {
+                    await window.loadMonthlySalesReport(currentM, currentY);
+                }
+            }
+        }
+        // ============================================================
 
         else if (viewId === 'sales-view') {
             if (typeof window.loadSalesData === 'function') {
