@@ -5425,19 +5425,13 @@ window.switchView = async function(viewId) {
 
         else if (viewId === 'report-view') {
             console.log("📊 Refrescando reportes...");
-            
-            // 1. Cargamos ventas
+            // 1. Forzamos la recarga de ventas para incluir la última venta realizada
             if (typeof window.loadSalesData === 'function') {
                 await window.loadSalesData();
             }
             
-            // --- CORRECCIÓN AQUÍ ---
-            // 2. Inicializamos los selectores (esto llenará el año si está vacío)
-            if (typeof window.initReportSelectors === 'function') {
-                window.initReportSelectors();
-            }
-
-            // 3. Renderizamos la vista
+            // 2. Llamamos a la función que procesa los datos y dibuja los Charts
+            // En tu main.js se llama initReportView
             if (typeof window.initReportView === 'function') {
                 window.initReportView();
             }
