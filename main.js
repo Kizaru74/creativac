@@ -3076,44 +3076,45 @@ document.addEventListener('DOMContentLoaded', () => {
  * Filtra las ventas basándose en un rango de fechas y una cadena de búsqueda, y luego las renderiza.
  */
 window.handleFilterSales = async function() {
-    // 1. Capturar valores de los inputs
     const searchTerm = document.getElementById('filter-search-term')?.value.toLowerCase() || "";
     const startDate = document.getElementById('filter-start-date')?.value;
     const endDate = document.getElementById('filter-end-date')?.value;
 
     console.log(`🔍 Filtrando ventas por: "${searchTerm}"`);
 
-    // 2. Filtrar el array global de ventas (window.allSales)
     const filteredSales = window.allSales.filter(venta => {
-        const nombreCliente = (venta.cliente_nombre || "").toLowerCase();
-        const folio = String(venta.venta_id);
-        // Buscamos si el término está en el nombre o en el ID (Folio)
+        // 1. Validaciones de seguridad (Evita el error de undefined)
+        const nombreCliente = (venta.cliente_nombre || "Consumidor Final").toLowerCase();
+        const folio = String(venta.venta_id || "");
+        
+        // Si fecha_venta no existe, usamos la fecha de hoy como respaldo para que no rompa
+        const fechaRaw = venta.fecha_venta || venta.created_at || "";
+        const fechaVenta = fechaRaw.includes('T') ? fechaRaw.split('T')[0] : fechaRaw;
+
+        // 2. Lógica de búsqueda
         const matchesSearch = nombreCliente.includes(searchTerm) || folio.includes(searchTerm);
         
-        // Filtro de fechas
-        const fechaVenta = venta.fecha_venta.split('T')[0];
-        const matchesStart = !startDate || fechaVenta >= startDate;
-        const matchesEnd = !endDate || fechaVenta <= endDate;
+        // 3. Lógica de fechas
+        const matchesStart = !startDate || (fechaVenta && fechaVenta >= startDate);
+        const matchesEnd = !endDate || (fechaVenta && fechaVenta <= endDate);
 
         return matchesSearch && matchesStart && matchesEnd;
     });
 
-    // 3. Renderizar la tabla con los resultados filtrados
-    // (Asegúrate de que tu función renderSalesTable acepte un array como argumento)
+    // 4. Renderizar y actualizar totales
     if (typeof window.renderSalesTable === 'function') {
         window.renderSalesTable(filteredSales);
     }
 
-    // 4. RECALCULAR MÉTRICAS (Basado solo en lo filtrado)
-    const totalVentasFiltradas = filteredSales.reduce((acc, v) => acc + (v.total || 0), 0);
-    const totalDeudaFiltrada = filteredSales.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
+    // Recalcular métricas
+    const totalV = filteredSales.reduce((acc, v) => acc + (v.total || 0), 0);
+    const totalD = filteredSales.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
 
-    // Actualizar los textos en la interfaz
-    const totalSalesEl = document.getElementById('report-total-sales');
-    const totalDebtEl = document.getElementById('report-total-debt');
+    const txtTotal = document.getElementById('report-total-sales');
+    const txtDebt = document.getElementById('report-total-debt');
 
-    if (totalSalesEl) totalSalesEl.textContent = formatCurrency(totalVentasFiltradas);
-    if (totalDebtEl) totalDebtEl.textContent = formatCurrency(totalDeudaFiltrada);
+    if (txtTotal) txtTotal.textContent = window.formatCurrency(totalV);
+    if (txtDebt) txtDebt.textContent = window.formatCurrency(totalD);
 };
 
 window.handleFilterSales = window.handleFilterSales; // Exposición global
@@ -6083,12 +6084,11 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
     // 2. Cargar datos de Ventas (necesarios para la tabla)
-    if (window.loadSalesData) {
-        window.loadSalesData().then(() => {
-            // Una vez que las ventas están listas, renderizamos la tabla por primera vez
-            window.handleFilterSales(); 
-        });
-    }
+    if (window.allSales && window.allSales.length > 0) {
+    window.handleFilterSales(); 
+} else {
+    console.warn("⚠️ No hay ventas para filtrar todavía.");
+}
 
     // 3. Cargar otros datos (Clientes)
     if (window.loadClientsData) {
