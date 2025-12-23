@@ -4641,31 +4641,35 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
     (async () => {
         if (!supabase) return;
 
-        const reportBody = document.getElementById('sales-report-table-body');
+        const reportBody = document.getElementById('monthly-sales-report-body');
         const totalSalesEl = document.getElementById('report-total-sales');
-        const totalDebtEl = document.getElementById('report-total-debt');
+        const totalDebtEl = document.getElementById('report-total-debt-generated');
+        const noDataMessage = document.getElementById('monthly-report-no-data');
+        
+        const mSelect = document.getElementById('report-month-select');
+        const ySelect = document.getElementById('report-year-select');
 
         if (!reportBody) return;
 
+        // Detectar fechas de selectores o evento
         const ahora = new Date();
-        let selectedYear = selectedYearFromEvent || ahora.getFullYear();
-        let selectedMonth = selectedMonthFromEvent || (ahora.getMonth() + 1);
+        let selectedYear = parseInt(selectedYearFromEvent) || (ySelect?.value ? parseInt(ySelect.value) : ahora.getFullYear());
+        let selectedMonth = parseInt(selectedMonthFromEvent) || (mSelect?.value ? parseInt(mSelect.value) : (ahora.getMonth() + 1));
 
-        // 1. ESTADO DE CARGA: ICONO NARANJA SÓLIDO (Igual a Clientes)
+        // Loading State: Icono Naranja (Consistencia con Clientes)
         reportBody.innerHTML = `
             <tr>
-                <td colspan="6" class="px-6 py-24 text-center">
+                <td colspan="5" class="px-6 py-32 text-center">
                     <div class="flex flex-col justify-center items-center">
-                        <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse mb-4">
-                            <i class="fas fa-file-invoice text-xl"></i>
+                        <div class="h-14 w-14 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-2xl shadow-orange-500/40 animate-pulse mb-6">
+                            <i class="fas fa-chart-pie text-2xl"></i>
                         </div>
-                        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30 font-sans">Sincronizando Reporte</span>
+                        <span class="text-[11px] font-black uppercase tracking-[0.4em] text-white/20">Procesando Base de Datos</span>
                     </div>
                 </td>
             </tr>`;
-
+        
         try {
-            // Rango de fechas
             let startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01T00:00:00.000Z`;
             let nextM = selectedMonth === 12 ? 1 : selectedMonth + 1;
             let nextY = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
@@ -4680,87 +4684,75 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
             if (sError) throw sError;
 
-            let totalSalesSum = 0;
-            let totalDebtSum = 0;
-            reportBody.innerHTML = '';
+            let totalSales = 0;
+            let totalDebt = 0;
+            let finalHTML = '';
 
             if (sales && sales.length > 0) {
+                if (noDataMessage) noDataMessage.classList.add('hidden');
+
                 sales.forEach(sale => {
-                    totalSalesSum += (sale.total_amount || 0);
-                    totalDebtSum += (sale.saldo_pendiente || 0);
+                    totalSales += (sale.total_amount || 0);
+                    totalDebt += (sale.saldo_pendiente || 0);
                     
-                    const clientName = sale.clientes?.name || 'Consumidor Final';
+                    const clientName = sale.clientes?.name || 'Cliente de Ventanilla';
                     const dateObj = new Date(sale.created_at);
-                    const tieneDeuda = (sale.saldo_pendiente || 0) > 0.01;
+                    const hasDebt = (sale.saldo_pendiente || 0) > 0.01;
 
-                    // Formato de fecha para el cuadrito lateral
-                    const day = dateObj.toLocaleDateString('es-MX', { day: '2-digit' });
-                    const monthText = dateObj.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase().replace('.', '');
-
-                    const row = document.createElement('tr');
-                    row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
-
-                    row.innerHTML = `
-                        <td class="px-8 py-5 whitespace-nowrap">
-                            <div class="flex items-center">
-                                <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-all duration-300">
-                                    <span class="text-[11px] font-black text-white leading-none font-sans uppercase">${day}</span>
-                                    <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">${monthText}</span>
+                    finalHTML += `
+                        <tr class="group hover:bg-white/[0.02] transition-all border-b border-white/5">
+                            <td class="px-8 py-6">
+                                <div class="flex items-center">
+                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-xl h-12 w-12 mr-5 group-hover:border-orange-500/40 transition-all">
+                                        <span class="text-[14px] font-black text-white leading-none">${dateObj.getDate()}</span>
+                                        <span class="text-[9px] font-black text-orange-500 uppercase mt-1">${dateObj.toLocaleDateString('es-MX', {month:'short'}).replace('.','')}</span>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] font-mono font-bold text-white/20">FOLIO #${sale.venta_id}</div>
+                                        <div class="text-[11px] text-gray-600 font-bold uppercase mt-1 italic">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div class="text-[10px] font-mono font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded inline-block">#${sale.venta_id}</div>
-                                    <div class="text-[9px] text-white/30 font-sans mt-1 uppercase tracking-tighter">${dateObj.toLocaleTimeString()} HRS</div>
+                            </td>
+                            <td class="px-8 py-6">
+                                <div class="flex items-center gap-4">
+                                    <div class="h-8 w-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                                        <i class="fas fa-user text-[10px] text-orange-500"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-black text-white uppercase tracking-tight">${clientName}</div>
+                                        <div class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">${sale.metodo_pago || 'EFECTIVO'}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                        <td class="px-8 py-5 whitespace-nowrap">
-                            <div class="flex items-center gap-3">
-                                <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
-                                    <i class="fas fa-user text-white text-xs"></i>
-                                </div>
-                                <div>
-                                    <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${clientName}</div>
-                                    <div class="text-[10px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">${sale.metodo_pago || 'Contado'}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-8 py-5 whitespace-nowrap text-right">
-                            <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Monto Total</div>
-                            <div class="text-sm font-black text-white font-sans italic tracking-tighter">${window.formatCurrency(sale.total_amount)}</div>
-                        </td>
-                        <td class="px-8 py-5 whitespace-nowrap text-right">
-                            <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Balance</div>
-                            <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
-                                <span class="flex items-center font-bold font-sans text-[13px]">
-                                    <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                            </td>
+                            <td class="px-8 py-6 text-right">
+                                <div class="text-lg font-black text-white italic tracking-tighter">${window.formatCurrency(sale.total_amount)}</div>
+                            </td>
+                            <td class="px-8 py-6 text-right">
+                                <div class="glass-badge ${hasDebt ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex px-3 py-1.5 rounded-xl font-black text-[11px] tracking-tight">
+                                    <span class="h-1.5 w-1.5 rounded-full ${hasDebt ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2 self-center"></span>
                                     ${window.formatCurrency(sale.saldo_pendiente)}
-                                </span>
-                            </div>
-                        </td>
-                        <td class="px-8 py-5 whitespace-nowrap text-right">
-                            <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-blue-500 hover:bg-blue-500/10 hover:border-blue-500/20 transition-all backdrop-blur-md">
-                                    <i class="fas fa-eye text-[14px]"></i>
+                                </div>
+                            </td>
+                            <td class="px-8 py-6 text-right">
+                                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="h-10 w-10 inline-flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-500 hover:text-white hover:bg-orange-500/20 hover:border-orange-500/40 transition-all opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0">
+                                    <i class="fas fa-eye text-sm"></i>
                                 </button>
-                                <button onclick="handleDeleteAction(this, '${sale.venta_id}')" class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all backdrop-blur-md">
-                                    <i class="fas fa-trash-alt text-[14px]"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    reportBody.appendChild(row);
+                            </td>
+                        </tr>`;
                 });
+                reportBody.innerHTML = finalHTML;
             } else {
-                reportBody.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Sin actividad comercial este mes</td></tr>`;
+                if (noDataMessage) noDataMessage.classList.remove('hidden');
+                reportBody.innerHTML = '';
             }
-
-            // Actualizar contadores superiores
-            if (totalSalesEl) totalSalesEl.textContent = window.formatCurrency(totalSalesSum);
-            if (totalDebtEl) totalDebtEl.textContent = window.formatCurrency(totalDebtSum);
+            
+            // Totales con animación
+            if (totalSalesEl) totalSalesEl.textContent = window.formatCurrency(totalSales);
+            if (totalDebtEl) totalDebtEl.textContent = window.formatCurrency(totalDebt);
 
         } catch (e) {
             console.error('Error:', e);
-            reportBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización</td></tr>';
+            reportBody.innerHTML = '<tr><td colspan="5" class="py-20 text-center text-red-500 font-black uppercase text-xs tracking-widest">Error al conectar con el servidor</td></tr>';
         }
     })();
 };
