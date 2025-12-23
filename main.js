@@ -3080,35 +3080,44 @@ window.handleFilterSales = async function() {
     const startDate = document.getElementById('filter-start-date')?.value;
     const endDate = document.getElementById('filter-end-date')?.value;
 
-    console.log(`🔍 Filtrando ventas por: "${searchTerm}"`);
+    console.log("🔍 Filtrando ventas activado...");
+
+    // Si no hay ventas cargadas aún, salimos para evitar errores
+    if (!window.allSales || window.allSales.length === 0) {
+        console.warn("⚠️ No hay ventas cargadas en window.allSales");
+        return;
+    }
 
     const filteredSales = window.allSales.filter(venta => {
-        // 1. Validaciones de seguridad (Evita el error de undefined)
-        const nombreCliente = (venta.cliente_nombre || "Consumidor Final").toLowerCase();
+        // --- LIMPIEZA DE DATOS (A PRUEBA DE ERRORES) ---
+        const cliente = (venta.cliente_nombre || "Consumidor Final").toLowerCase();
         const folio = String(venta.venta_id || "");
         
-        // Si fecha_venta no existe, usamos la fecha de hoy como respaldo para que no rompa
-        const fechaRaw = venta.fecha_venta || venta.created_at || "";
-        const fechaVenta = fechaRaw.includes('T') ? fechaRaw.split('T')[0] : fechaRaw;
-
-        // 2. Lógica de búsqueda
-        const matchesSearch = nombreCliente.includes(searchTerm) || folio.includes(searchTerm);
+        // Manejo de fecha: buscamos en varios campos por si Supabase cambió el nombre
+        const fechaOriginal = venta.fecha_venta || venta.created_at || "";
+        let fechaLimpia = "";
         
-        // 3. Lógica de fechas
-        const matchesStart = !startDate || (fechaVenta && fechaVenta >= startDate);
-        const matchesEnd = !endDate || (fechaVenta && fechaVenta <= endDate);
+        if (fechaOriginal) {
+            // Si la fecha tiene formato ISO (contiene 'T'), cortamos para tener YYYY-MM-DD
+            fechaLimpia = fechaOriginal.includes('T') ? fechaOriginal.split('T')[0] : fechaOriginal;
+        }
+
+        // --- LÓGICA DE FILTRADO ---
+        const matchesSearch = cliente.includes(searchTerm) || folio.includes(searchTerm);
+        const matchesStart = !startDate || (fechaLimpia >= startDate);
+        const matchesEnd = !endDate || (fechaLimpia <= endDate);
 
         return matchesSearch && matchesStart && matchesEnd;
     });
 
-    // 4. Renderizar y actualizar totales
+    // 2. Renderizar la tabla (Usando el ID correcto de tu nuevo HTML)
     if (typeof window.renderSalesTable === 'function') {
         window.renderSalesTable(filteredSales);
     }
 
-    // Recalcular métricas
-    const totalV = filteredSales.reduce((acc, v) => acc + (v.total || 0), 0);
-    const totalD = filteredSales.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
+    // 3. Actualizar Totales en la barra superior
+    const totalV = filteredSales.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+    const totalD = filteredSales.reduce((acc, v) => acc + (Number(v.saldo_pendiente) || 0), 0);
 
     const txtTotal = document.getElementById('report-total-sales');
     const txtDebt = document.getElementById('report-total-debt');
