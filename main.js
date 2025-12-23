@@ -614,10 +614,10 @@ window.loadProductsData = async function() {
 };
 window.loadProducts = window.loadProductsData;
 
-window.formatCurrency = function(amount) {
+window.formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-MX', {
         style: 'currency',
-        currency: 'MXN',
+        currency: 'MXN'
     }).format(amount || 0);
 };
 
@@ -5475,21 +5475,16 @@ window.switchView = async function(viewId) {
         }
 
         // CORRECCIÓN AQUÍ: Usamos 'reports-view' para que coincida con tu HTML
-        else if (viewId === 'reports-view' || viewId === 'report-view') {
-            console.log("📊 Refrescando reportes...");
-            
-            // Si por alguna razón no hay ventas cargadas, intentamos cargarlas
-            if (!window.allSales || window.allSales.length === 0) {
-                if (typeof window.loadSalesData === 'function') {
-                    await window.loadSalesData();
-                }
-            }
-            
-            // Ejecutamos el filtro para que pinte la tabla
-            if (window.handleFilterSales) {
-                window.handleFilterSales(); 
-            }
-        }
+        else if (viewId === 'report-view' || viewId === 'reports-view') {
+    console.log("📊 Refrescando vista de reportes...");
+    // Aseguramos que el ID correcto sea visible
+    const reportElem = document.getElementById('report-view') || document.getElementById('reports-view');
+    if (reportElem) reportElem.classList.remove('hidden');
+
+    if (window.handleFilterSales) {
+        window.handleFilterSales(); 
+    }
+}
 
         else if (viewId === 'sales-view') {
             if (typeof window.loadSalesData === 'function') {
