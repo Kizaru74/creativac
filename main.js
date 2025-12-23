@@ -4743,7 +4743,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             <td class="px-8 py-6 text-right">
                                 <div class="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                                     
-                                    <button onclick="window.openSaleDetailModal(${sale.venta_id})" 
+                                    <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
                                         class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-orange-500/20 hover:border-orange-500/40 transition-all">
                                         <i class="fas fa-file-invoice-dollar text-xl"></i>
                                     </button>
