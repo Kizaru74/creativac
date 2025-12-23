@@ -4554,28 +4554,27 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         if (!supabase) return;
 
         const reportBody = document.getElementById('monthly-sales-report-body');
-        const totalSalesEl = document.getElementById('report-total-sales');
-        const totalDebtEl = document.getElementById('report-total-debt-generated');
-        const noDataMessage = document.getElementById('monthly-report-no-data');
-
-        if (!reportBody) return;
-
-        // 1. OBTENER VALORES DE LOS SELECTORES SI NO VIENEN DEL EVENTO
-        // Esto arregla el problema de que el año parezca no cargar
-        const ahora = new Date();
         const mSelect = document.getElementById('report-month-select');
         const ySelect = document.getElementById('report-year-select');
 
-        let selectedMonth = parseInt(selectedMonthFromEvent) || (mSelect ? parseInt(mSelect.value) : (ahora.getMonth() + 1));
-        let selectedYear = parseInt(selectedYearFromEvent) || (ySelect ? parseInt(ySelect.value) : ahora.getFullYear());
+        if (!reportBody) return;
+
+        const ahora = new Date();
+        
+        // --- CORRECCIÓN CRÍTICA AQUÍ ---
+        // Intentamos obtener el año del evento, si no del selector, si no el año actual
+        let valYear = parseInt(selectedYearFromEvent) || (ySelect ? parseInt(ySelect.value) : null);
+        let valMonth = parseInt(selectedMonthFromEvent) || (mSelect ? parseInt(mSelect.value) : null);
+
+        // Si después de intentar todo sigue siendo NaN, usamos la fecha de hoy
+        let selectedYear = (isNaN(valYear) || valYear === null) ? ahora.getFullYear() : valYear;
+        let selectedMonth = (isNaN(valMonth) || valMonth === null) ? (ahora.getMonth() + 1) : valMonth;
 
         console.log(`🔍 Consultando DB para: ${selectedMonth}/${selectedYear}`);
+        // -------------------------------
 
-        // Limpieza y estado de carga
-        reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-orange-500 animate-pulse uppercase text-[10px] tracking-widest font-bold">Actualizando Reporte...</td></tr>`;
-        
         try {
-            // 2. RANGO DE FECHAS (UTC para evitar desfases de zona horaria)
+            // Ahora startDate ya no dará error porque selectedYear siempre será un número
             let startDate = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toISOString();
             let nextDate = new Date(Date.UTC(selectedYear, selectedMonth, 1)).toISOString();
             
