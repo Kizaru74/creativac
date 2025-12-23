@@ -4641,14 +4641,9 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
     (async () => {
         if (!supabase) return;
 
-        // 1. SELECTORES AJUSTADOS A TU HTML
-        const reportBody = document.getElementById('sales-report-table-body'); // ID de tu index.html
-        const totalSalesEl = document.getElementById('report-total-sales');    // ID de tu contador verde
-        const totalDebtEl = document.getElementById('report-total-debt');     // ID de tu contador rojo
-        
-        // Selectores de fecha (si existen en tu HTML para filtrar)
-        const mSelect = document.getElementById('filter-start-date'); 
-        const ySelect = document.getElementById('filter-end-date');
+        const reportBody = document.getElementById('sales-report-table-body');
+        const totalSalesEl = document.getElementById('report-total-sales');
+        const totalDebtEl = document.getElementById('report-total-debt');
 
         if (!reportBody) return;
 
@@ -4656,13 +4651,21 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         let selectedYear = selectedYearFromEvent || ahora.getFullYear();
         let selectedMonth = selectedMonthFromEvent || (ahora.getMonth() + 1);
 
-        console.log(`🔍 Generando reporte para: ${selectedMonth}/${selectedYear}`);
+        // 1. ESTADO DE CARGA: ICONO NARANJA SÓLIDO (Igual a Clientes)
+        reportBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-24 text-center">
+                    <div class="flex flex-col justify-center items-center">
+                        <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse mb-4">
+                            <i class="fas fa-file-invoice text-xl"></i>
+                        </div>
+                        <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30 font-sans">Sincronizando Reporte</span>
+                    </div>
+                </td>
+            </tr>`;
 
-        // Estado de carga visual con tu estilo
-        reportBody.innerHTML = `<tr><td colspan="6" class="px-8 py-20 text-center text-orange-500 animate-pulse uppercase text-[10px] tracking-widest font-black">Actualizando Reporte...</td></tr>`;
-        
         try {
-            // Rango de fechas para la consulta
+            // Rango de fechas
             let startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01T00:00:00.000Z`;
             let nextM = selectedMonth === 12 ? 1 : selectedMonth + 1;
             let nextY = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
@@ -4677,94 +4680,87 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
             if (sError) throw sError;
 
-            // Cargar detalles de productos para mostrar nombres en la tabla
-            let productosData = [];
-            if (sales && sales.length > 0) {
-                const ids = sales.map(s => s.venta_id);
-                const { data: dData } = await supabase
-                    .from('detalle_ventas')
-                    .select('venta_id, name, quantity')
-                    .in('venta_id', ids);
-                productosData = dData || [];
-            }
-
             let totalSalesSum = 0;
             let totalDebtSum = 0;
-            let finalHTML = '';
+            reportBody.innerHTML = '';
 
             if (sales && sales.length > 0) {
                 sales.forEach(sale => {
                     totalSalesSum += (sale.total_amount || 0);
                     totalDebtSum += (sale.saldo_pendiente || 0);
                     
-                    const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
-                    const listaProds = misProds.length > 0 
-                        ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
-                        : 'Venta Directa';
-        
                     const clientName = sale.clientes?.name || 'Consumidor Final';
                     const dateObj = new Date(sale.created_at);
+                    const tieneDeuda = (sale.saldo_pendiente || 0) > 0.01;
+
+                    // Formato de fecha para el cuadrito lateral
                     const day = dateObj.toLocaleDateString('es-MX', { day: '2-digit' });
                     const monthText = dateObj.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase().replace('.', '');
-                    const formattedTime = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-                    const tienePendiente = (sale.saldo_pendiente || 0) > 0.01;
 
-                    // --- TU DISEÑO PREMIUM RESTAURADO ---
-                    finalHTML += `
-                        <tr class="group hover:bg-white/[0.02] transition-all border-b border-white/5">
-                            <td class="px-8 py-5">
-                                <div class="flex items-center">
-                                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30">
-                                        <span class="text-[12px] font-bold text-white leading-none">${day}</span>
-                                        <span class="text-[9px] font-bold text-orange-500 leading-none mt-1">${monthText}</span>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <span class="font-mono font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded text-[10px]">#${sale.venta_id}</span>
-                                            <span class="text-[11px] text-gray-500 font-bold truncate max-w-[150px]">[ ${listaProds} ]</span>
-                                        </div>
-                                        <div class="text-[10px] text-gray-600 uppercase tracking-widest">${formattedTime} HRS</div>
-                                    </div>
+                    const row = document.createElement('tr');
+                    row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
+
+                    row.innerHTML = `
+                        <td class="px-8 py-5 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-all duration-300">
+                                    <span class="text-[11px] font-black text-white leading-none font-sans uppercase">${day}</span>
+                                    <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">${monthText}</span>
                                 </div>
-                            </td>
-                            <td class="px-8 py-5">
-                                <div class="flex items-center gap-3">
-                                    <div class="text-sm font-black text-white uppercase italic">${clientName}</div>
+                                <div>
+                                    <div class="text-[10px] font-mono font-bold text-orange-500 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded inline-block">#${sale.venta_id}</div>
+                                    <div class="text-[9px] text-white/30 font-sans mt-1 uppercase tracking-tighter">${dateObj.toLocaleTimeString()} HRS</div>
                                 </div>
-                                <div class="text-[9px] text-gray-600 uppercase pl-0 font-medium italic">Pago: ${sale.metodo_pago || 'EFECTIVO'}</div>
-                            </td>
-                            <td class="px-8 py-5 text-[11px] text-gray-500 font-bold uppercase">
-                                ${dateObj.toLocaleDateString('es-MX', {day:'2-digit', month:'short', year:'numeric'})}
-                            </td>
-                            <td class="px-8 py-5">
-                                <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${tienePendiente ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'} uppercase">
-                                    ${tienePendiente ? 'Pendiente' : 'Liquidada'}
+                            </div>
+                        </td>
+                        <td class="px-8 py-5 whitespace-nowrap">
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
+                                    <i class="fas fa-user text-white text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${clientName}</div>
+                                    <div class="text-[10px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">${sale.metodo_pago || 'Contado'}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-8 py-5 whitespace-nowrap text-right">
+                            <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Monto Total</div>
+                            <div class="text-sm font-black text-white font-sans italic tracking-tighter">${window.formatCurrency(sale.total_amount)}</div>
+                        </td>
+                        <td class="px-8 py-5 whitespace-nowrap text-right">
+                            <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Balance</div>
+                            <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
+                                <span class="flex items-center font-bold font-sans text-[13px]">
+                                    <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
+                                    ${window.formatCurrency(sale.saldo_pendiente)}
                                 </span>
-                            </td>
-                            <td class="px-8 py-5 text-right">
-                                <div class="text-sm font-black text-white italic">${window.formatCurrency(sale.total_amount)}</div>
-                                ${tienePendiente ? `<div class="text-[9px] text-red-500 font-bold mt-1 uppercase">Debe: ${window.formatCurrency(sale.saldo_pendiente)}</div>` : ''}
-                            </td>
-                            <td class="px-8 py-5 text-right">
-                                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all">
-                                    <i class="fas fa-eye text-xs"></i>
+                            </div>
+                        </td>
+                        <td class="px-8 py-5 whitespace-nowrap text-right">
+                            <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                                <button onclick="window.openSaleDetailModal(${sale.venta_id})" class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-blue-500 hover:bg-blue-500/10 hover:border-blue-500/20 transition-all backdrop-blur-md">
+                                    <i class="fas fa-eye text-[14px]"></i>
                                 </button>
-                            </td>
-                        </tr>`;
+                                <button onclick="handleDeleteAction(this, '${sale.venta_id}')" class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all backdrop-blur-md">
+                                    <i class="fas fa-trash-alt text-[14px]"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    reportBody.appendChild(row);
                 });
-                
-                reportBody.innerHTML = finalHTML;
             } else {
-                reportBody.innerHTML = `<tr><td colspan="6" class="px-8 py-20 text-center text-gray-600 uppercase text-[10px] tracking-[0.3em] font-black italic">Sin actividad en este periodo</td></tr>`;
+                reportBody.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Sin actividad comercial este mes</td></tr>`;
             }
-            
-            // ACTUALIZAR CONTADORES SUPERIORES
+
+            // Actualizar contadores superiores
             if (totalSalesEl) totalSalesEl.textContent = window.formatCurrency(totalSalesSum);
             if (totalDebtEl) totalDebtEl.textContent = window.formatCurrency(totalDebtSum);
 
         } catch (e) {
             console.error('Error:', e);
-            reportBody.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-red-500 uppercase text-[10px] font-black">Error de conexión</td></tr>';
+            reportBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización</td></tr>';
         }
     })();
 };
