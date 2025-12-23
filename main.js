@@ -4659,7 +4659,8 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="text-lg font-black text-white italic tracking-tight">${formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-5 text-right">
-                                <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center px-2 py-1 rounded">
+                              <div class="text-[11px] text-white/50 uppercase font-bold mb-1 font-sans tracking-widest">Saldo</div>  
+                            <div class="glass-badge ${tienePendiente ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex items-center px-2 py-1 rounded">
                                     <span class="font-bold text-[12px]">${formatCurrency(sale.saldo_pendiente)}</span>
                                 </div>
                             </td>
