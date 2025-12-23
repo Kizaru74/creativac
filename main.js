@@ -4804,18 +4804,30 @@ window.initReportView = async function() {
     }
 };
 
+/**
+ * Inicializa los selectores de Mes y Año para la vista de Reportes.
+ * Configura los valores iniciales y los listeners para actualizar la tabla.
+ */
 function initReportSelectors() {
-    if (window.reportSelectorsInitialized) return;
+    // 1. PREVENCIÓN DE DUPLICADOS: Si ya se inicializó, no hacer nada más.
+    if (window.reportSelectorsInitialized) {
+        // console.log("Selectores de reporte ya estaban listos.");
+        return;
+    }
 
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
 
-    if (!monthSelect || !yearSelect) return;
+    if (!monthSelect || !yearSelect) {
+        console.error("ERROR CRÍTICO: No se encontraron los selectores de Mes/Año en el DOM.");
+        return;
+    }
 
+    // 2. CONFIGURACIÓN DE DATOS INICIALES
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1;
-    const startYear = 2024;
+    const currentMonth = currentDate.getMonth() + 1; // JS meses son 0-11
+    const startYear = 2024; // Año de inicio de operaciones
 
     const months = [
         { value: 1, name: 'Enero' }, { value: 2, name: 'Febrero' }, { value: 3, name: 'Marzo' },
@@ -4824,52 +4836,54 @@ function initReportSelectors() {
         { value: 10, name: 'Octubre' }, { value: 11, name: 'Noviembre' }, { value: 12, name: 'Diciembre' }
     ];
 
-    // Llenar Meses
+    // 3. LLENAR SELECTOR DE MESES
     monthSelect.innerHTML = '';
     months.forEach(m => {
-        const option = new Option(m.name, m.value);
+        const option = document.createElement('option');
+        option.value = m.value;
+        option.textContent = m.name;
         if (m.value === currentMonth) option.selected = true;
         monthSelect.appendChild(option);
     });
 
-    // Llenar Años
-    yearSelect.innerHTML = ''; 
-
-for (let y = currentYear + 1; y >= startYear; y--) {
-    const option = document.createElement('option');
-    option.value = y;
-    option.textContent = y; // Esto asegura que el texto se asigne
-    
-    // Forzamos color para que no se pierda en el fondo oscuro
-    option.style.backgroundColor = "#1c1c1c";
-    option.style.color = "#ffffff";
-
-    if (y === currentYear) {
-        option.selected = true;
+    // 4. LLENAR SELECTOR DE AÑOS
+    yearSelect.innerHTML = '';
+    // Generamos desde el año actual + 1 hasta el año de inicio
+    for (let y = currentYear + 1; y >= startYear; y--) {
+        const option = document.createElement('option');
+        option.value = y;
+        option.textContent = y;
+        if (y === currentYear) option.selected = true;
+        yearSelect.appendChild(option);
     }
-    yearSelect.appendChild(option);
-}
 
-    // Lógica de cambio mejorada
+    // 5. DEFINIR LA LÓGICA DE CAMBIO (Refresco de tabla)
     const handleReportChange = () => {
         const m = parseInt(monthSelect.value);
         const y = parseInt(yearSelect.value);
         
-        console.log(`📅 Cambio detectado: Mes ${m} / Año ${y}`);
+        console.log(`📅 Actualizando reporte para: ${m}/${y}`);
 
         if (typeof window.loadMonthlySalesReport === 'function') {
             window.loadMonthlySalesReport(m, y);
+        } else if (typeof loadMonthlySalesReport === 'function') {
+            loadMonthlySalesReport(m, y);
+        } else {
+            console.warn("La función loadMonthlySalesReport no está disponible todavía.");
         }
     };
 
-    // Asignación directa para evitar duplicados
+    // 6. ADJUNTAR EVENTOS
     monthSelect.onchange = handleReportChange;
-    yearSelect.onchange = handleReportChange;
+yearSelect.onchange = handleReportChange;
 
+    // 7. MARCAR COMO INICIALIZADO
     window.reportSelectorsInitialized = true;
 
-    // Ejecución inmediata
-    handleReportChange();
+    // 8. EJECUCIÓN INICIAL (Pequeño delay para asegurar que otras funciones carguen)
+    setTimeout(() => {
+        handleReportChange();
+    }, 50);
 }
 
 function generateTextTicket(sale) {
