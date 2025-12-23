@@ -4833,13 +4833,22 @@ function initReportSelectors() {
     });
 
     // Llenar Años
-    yearSelect.innerHTML = '';
-    // Corregimos el bucle: desde el actual + 1 (futuro) hasta el inicio
-    for (let y = currentYear + 1; y >= startYear; y--) {
-        const option = new Option(y, y);
-        if (y === currentYear) option.selected = true;
-        yearSelect.appendChild(option);
+    yearSelect.innerHTML = ''; 
+
+for (let y = currentYear + 1; y >= startYear; y--) {
+    const option = document.createElement('option');
+    option.value = y;
+    option.textContent = y; // Esto asegura que el texto se asigne
+    
+    // Forzamos color para que no se pierda en el fondo oscuro
+    option.style.backgroundColor = "#1c1c1c";
+    option.style.color = "#ffffff";
+
+    if (y === currentYear) {
+        option.selected = true;
     }
+    yearSelect.appendChild(option);
+}
 
     // Lógica de cambio mejorada
     const handleReportChange = () => {
@@ -5416,13 +5425,19 @@ window.switchView = async function(viewId) {
 
         else if (viewId === 'report-view') {
             console.log("📊 Refrescando reportes...");
-            // 1. Forzamos la recarga de ventas para incluir la última venta realizada
+            
+            // 1. Cargamos ventas
             if (typeof window.loadSalesData === 'function') {
                 await window.loadSalesData();
             }
             
-            // 2. Llamamos a la función que procesa los datos y dibuja los Charts
-            // En tu main.js se llama initReportView
+            // --- CORRECCIÓN AQUÍ ---
+            // 2. Inicializamos los selectores (esto llenará el año si está vacío)
+            if (typeof window.initReportSelectors === 'function') {
+                window.initReportSelectors();
+            }
+
+            // 3. Renderizamos la vista
             if (typeof window.initReportView === 'function') {
                 window.initReportView();
             }
