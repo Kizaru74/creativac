@@ -6047,8 +6047,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainSelect.addEventListener('change', window.handleChangeProductForSale);
         console.log('✅ Listener de Producto Principal (product-main-select) conectado.');
     }
-    // ... (Mantén tus otros listeners de TPV y Clientes aquí) ...
-    
+       
     // ==========================================================
     // 🛑 CONEXIONES PARA EL FILTRADO DE VENTAS
     // ==========================================================
@@ -6067,26 +6066,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================
-    // 🛑 LLAMADA DE CARGA ÚNICA DE DATOS CRÍTICOS
-    // ==========================================================
+// 🛑 LLAMADA DE CARGA ÚNICA DE DATOS CRÍTICOS (CORREGIDO)
+// ==========================================================
 
-    // 1. Cargar datos de Productos (necesarios para el TPV)
-    if (window.loadProductsData) {
-    loadProductsData().then(() => {
-        // Una vez que los productos están listos, cargamos el selector de venta
-        window.loadMainProductsForSaleSelect(); // ✅ DESCOMENTAR
+// 1. Cargar Productos
+if (window.loadProductsData) {
+    window.loadProductsData().then(() => {
+        if (window.loadMainProductsForSaleSelect) {
+            window.loadMainProductsForSaleSelect();
+        }
     });
 }
 
-    // 2. Cargar datos de Ventas (necesarios para la tabla)
-    if (window.allSales && window.allSales.length > 0) {
-    window.handleFilterSales(); 
-} else {
-    console.warn("⚠️ No hay ventas para filtrar todavía.");
+// 2. Cargar Ventas Y LUEGO filtrar/renderizar
+if (window.loadSalesData) {
+    window.loadSalesData().then((sales) => {
+        console.log("📊 Datos recibidos de Supabase, preparando tabla...");
+        
+        // Verificamos que realmente llegaron datos antes de filtrar
+        if (sales && sales.length > 0) {
+            if (window.handleFilterSales) {
+                window.handleFilterSales(); // Esta función ahora sí encontrará datos
+            }
+        } else {
+            console.warn("La base de datos respondió pero no hay registros de ventas.");
+            // Opcional: limpiar tabla para mostrar mensaje de "vacío"
+            const tableBody = document.getElementById('sales-report-table-body');
+            if (tableBody) tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500 uppercase text-[10px] font-black tracking-widest">Sin registros en la base de datos</td></tr>';
+        }
+    }).catch(err => {
+        console.error("Error en la cadena de carga de ventas:", err);
+    });
 }
 
-    // 3. Cargar otros datos (Clientes)
-    if (window.loadClientsData) {
-        window.loadClientsData();
-    }
+// 3. Cargar Clientes
+if (window.loadAndRenderClients) {
+    window.loadAndRenderClients();
+}
+  
 });
