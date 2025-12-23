@@ -3135,8 +3135,6 @@ window.handleFilterSales = function() {
 window.handleFilterSales = window.handleFilterSales; // Exposición global
 
 window.renderSalesTable = function(sales) {
-
-    
     const tableBody = document.getElementById('sales-report-table-body');
     if (!tableBody) return;
 
