@@ -3085,36 +3085,43 @@ document.addEventListener('DOMContentLoaded', () => {
  * Filtra las ventas basándose en un rango de fechas y una cadena de búsqueda, y luego las renderiza.
  */
 window.handleFilterSales = function() {
-    console.log("🔍 Filtrando y calculando totales...");
+    console.log("🔍 Ejecutando filtro...");
     
-    const searchTerm = document.getElementById('filter-search-term')?.value.toLowerCase() || "";
-    const startDate = document.getElementById('filter-start-date')?.value;
-    const endDate = document.getElementById('filter-end-date')?.value;
+    // Capturamos los elementos
+    const searchInput = document.getElementById('filter-search-term');
+    const startInput = document.getElementById('filter-start-date');
+    const endInput = document.getElementById('filter-end-date');
 
-    if (!window.allSales || window.allSales.length === 0) {
-        console.warn("No hay ventas en memoria para filtrar.");
-        return;
-    }
+    const searchTerm = searchInput?.value.toLowerCase().trim() || "";
+    const startDate = startInput?.value || "";
+    const endDate = endInput?.value || "";
+
+    if (!window.allSales || window.allSales.length === 0) return;
 
     const filteredSales = window.allSales.filter(venta => {
-        const cliente = (venta.cliente_nombre || "").toLowerCase();
+        // 1. Validar Folio y Nombre
+        const cliente = (venta.cliente_nombre || "Consumidor Final").toLowerCase();
         const folio = String(venta.venta_id || "");
         
-        // Limpieza de fecha para comparar (YYYY-MM-DD)
+        // 2. Validar Fecha (Solo si hay fechas seleccionadas)
         const fechaRaw = venta.fecha_venta || "";
         const fechaVenta = fechaRaw.includes('T') ? fechaRaw.split('T')[0] : fechaRaw;
 
-        const matchesSearch = cliente.includes(searchTerm) || folio.includes(searchTerm);
-        const matchesStart = !startDate || (fechaVenta >= startDate);
-        const matchesEnd = !endDate || (fechaVenta <= endDate);
+        const matchesSearch = !searchTerm || cliente.includes(searchTerm) || folio.includes(searchTerm);
+        
+        // CORRECCIÓN CRÍTICA: Solo filtrar por fecha si el usuario puso una fecha
+        const matchesStart = !startDate || (fechaVenta && fechaVenta >= startDate);
+        const matchesEnd = !endDate || (fechaVenta && fechaVenta <= endDate);
 
         return matchesSearch && matchesStart && matchesEnd;
     });
 
-    // 1. Renderizar filas en la tabla
+    console.log(`🎯 Resultados tras filtrar: ${filteredSales.length} de ${window.allSales.length}`);
+
+    // Renderizar
     window.renderSalesTable(filteredSales);
 
-    // 2. Actualizar los contadores superiores de tu HTML
+    // Actualizar Totales (Asegúrate que estos IDs existan en tu HTML)
     const totalV = filteredSales.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
     const totalD = filteredSales.reduce((acc, v) => acc + (Number(v.saldo_pendiente) || 0), 0);
 
@@ -3128,6 +3135,8 @@ window.handleFilterSales = function() {
 window.handleFilterSales = window.handleFilterSales; // Exposición global
 
 window.renderSalesTable = function(sales) {
+
+    
     const tableBody = document.getElementById('sales-report-table-body');
     if (!tableBody) return;
 
