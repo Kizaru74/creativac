@@ -366,16 +366,32 @@
         </div>
     </div>
     
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <div class="bg-gradient-to-br from-green-900/30 to-[#1c1c1c] border border-green-500/20 p-8 rounded-[2rem] shadow-xl">
-            <p class="text-xs font-bold text-green-500 uppercase tracking-widest mb-2">Ingresos Totales</p>
-            <p id="report-total-sales" class="text-5xl font-black text-white tracking-tighter">$0.00</p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8 items-center bg-white/5 p-4 rounded-[2rem] border border-white/5">
+    
+    <div class="relative group">
+        <input type="text" id="filter-search-term" 
+            class="w-full bg-black/40 border border-white/10 rounded-2xl p-4 pl-12 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all"
+            placeholder="Buscar por cliente o producto...">
+        <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors"></i>
+    </div>
+
+    <div class="flex gap-2 items-center justify-center">
+        <input type="date" id="filter-start-date" class="bg-black/20 border border-white/5 rounded-xl p-2 text-xs text-white outline-none">
+        <span class="text-gray-600 text-xs uppercase font-bold">al</span>
+        <input type="date" id="filter-end-date" class="bg-black/20 border border-white/5 rounded-xl p-2 text-xs text-white outline-none">
+    </div>
+
+    <div class="flex gap-4 justify-end">
+        <div class="text-right">
+            <p class="text-[9px] text-gray-500 uppercase font-black tracking-widest">Total Ventas</p>
+            <p id="report-total-sales" class="text-lg font-black text-emerald-400 leading-none">$0.00</p>
         </div>
-        <div class="bg-gradient-to-br from-orange-900/30 to-[#1c1c1c] border border-orange-500/20 p-8 rounded-[2rem] shadow-xl">
-            <p class="text-xs font-bold text-orange-500 uppercase tracking-widest mb-2">Deuda Generada</p>
-            <p id="report-total-debt-generated" class="text-5xl font-black text-white tracking-tighter">$0.00</p>
+        <div class="text-right border-l border-white/10 pl-4">
+            <p class="text-[9px] text-gray-500 uppercase font-black tracking-widest">Deuda Total</p>
+            <p id="report-total-debt" class="text-lg font-black text-red-500 leading-none">$0.00</p>
         </div>
     </div>
+</div>
 
     <div class="bg-[#1c1c1c] rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl">
         <table class="w-full text-left">
@@ -396,7 +412,7 @@
             <p class="text-gray-600 font-bold uppercase tracking-widest text-xs">Sin movimientos en este periodo</p>
         </div>
     </div>
-</section>
+        </section>
 
         </main>
 </div>
