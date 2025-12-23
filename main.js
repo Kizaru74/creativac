@@ -4804,30 +4804,18 @@ window.initReportView = async function() {
     }
 };
 
-/**
- * Inicializa los selectores de Mes y Año para la vista de Reportes.
- * Configura los valores iniciales y los listeners para actualizar la tabla.
- */
 function initReportSelectors() {
-    // 1. PREVENCIÓN DE DUPLICADOS: Si ya se inicializó, no hacer nada más.
-    if (window.reportSelectorsInitialized) {
-        // console.log("Selectores de reporte ya estaban listos.");
-        return;
-    }
+    if (window.reportSelectorsInitialized) return;
 
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
 
-    if (!monthSelect || !yearSelect) {
-        console.error("ERROR CRÍTICO: No se encontraron los selectores de Mes/Año en el DOM.");
-        return;
-    }
+    if (!monthSelect || !yearSelect) return;
 
-    // 2. CONFIGURACIÓN DE DATOS INICIALES
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1; // JS meses son 0-11
-    const startYear = 2024; // Año de inicio de operaciones
+    const currentMonth = currentDate.getMonth() + 1;
+    const startYear = 2024;
 
     const months = [
         { value: 1, name: 'Enero' }, { value: 2, name: 'Febrero' }, { value: 3, name: 'Marzo' },
@@ -4836,54 +4824,43 @@ function initReportSelectors() {
         { value: 10, name: 'Octubre' }, { value: 11, name: 'Noviembre' }, { value: 12, name: 'Diciembre' }
     ];
 
-    // 3. LLENAR SELECTOR DE MESES
+    // Llenar Meses
     monthSelect.innerHTML = '';
     months.forEach(m => {
-        const option = document.createElement('option');
-        option.value = m.value;
-        option.textContent = m.name;
+        const option = new Option(m.name, m.value);
         if (m.value === currentMonth) option.selected = true;
         monthSelect.appendChild(option);
     });
 
-    // 4. LLENAR SELECTOR DE AÑOS
+    // Llenar Años
     yearSelect.innerHTML = '';
-    // Generamos desde el año actual + 1 hasta el año de inicio
+    // Corregimos el bucle: desde el actual + 1 (futuro) hasta el inicio
     for (let y = currentYear + 1; y >= startYear; y--) {
-        const option = document.createElement('option');
-        option.value = y;
-        option.textContent = y;
+        const option = new Option(y, y);
         if (y === currentYear) option.selected = true;
         yearSelect.appendChild(option);
     }
 
-    // 5. DEFINIR LA LÓGICA DE CAMBIO (Refresco de tabla)
+    // Lógica de cambio mejorada
     const handleReportChange = () => {
         const m = parseInt(monthSelect.value);
         const y = parseInt(yearSelect.value);
         
-        console.log(`📅 Actualizando reporte para: ${m}/${y}`);
+        console.log(`📅 Cambio detectado: Mes ${m} / Año ${y}`);
 
         if (typeof window.loadMonthlySalesReport === 'function') {
             window.loadMonthlySalesReport(m, y);
-        } else if (typeof loadMonthlySalesReport === 'function') {
-            loadMonthlySalesReport(m, y);
-        } else {
-            console.warn("La función loadMonthlySalesReport no está disponible todavía.");
         }
     };
 
-    // 6. ADJUNTAR EVENTOS
+    // Asignación directa para evitar duplicados
     monthSelect.onchange = handleReportChange;
-yearSelect.onchange = handleReportChange;
+    yearSelect.onchange = handleReportChange;
 
-    // 7. MARCAR COMO INICIALIZADO
     window.reportSelectorsInitialized = true;
 
-    // 8. EJECUCIÓN INICIAL (Pequeño delay para asegurar que otras funciones carguen)
-    setTimeout(() => {
-        handleReportChange();
-    }, 50);
+    // Ejecución inmediata
+    handleReportChange();
 }
 
 function generateTextTicket(sale) {
