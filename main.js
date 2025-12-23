@@ -1571,14 +1571,23 @@ window.handleNewSale = async function(e) {
         document.getElementById('new-sale-form')?.reset();
 
         // 6. 🔄 ACTUALIZACIÓN CRÍTICA DE DATOS
-        // Primero descargamos los datos actualizados de la DB
         if (window.loadSalesData) {
-            await window.loadSalesData(); // Esperamos a que termine la descarga
+            await window.loadSalesData(); // Esperamos la descarga de Supabase
         }
         
-        // Segundo, ejecutamos el filtro para que redibuje la tabla con los nuevos datos
+        // --- AQUÍ VA LA CORRECCIÓN PARA EL REPORTE MENSUAL ---
+        const rMonth = document.getElementById('report-month-select')?.value;
+        const rYear = document.getElementById('report-year-select')?.value;
+
+        if (rMonth && rYear && typeof loadMonthlySalesReport === 'function') {
+            console.log("Actualizando tabla de reportes para:", rMonth, rYear);
+            // Forzamos el redibujado de la tabla de deudas/reportes
+            loadMonthlySalesReport(parseInt(rMonth), parseInt(rYear));
+        }
+        // ----------------------------------------------------
+
         if (window.handleFilterSales) {
-            window.handleFilterSales(); 
+            window.handleFilterSales(); // Actualiza la tabla de ventas general
         }
 
         // 7. MENSAJE DE ÉXITO
@@ -4729,36 +4738,36 @@ window.handleDeleteSale = async function(ventaId, currentMonth, currentYear) {
     } 
 }
 
+
+// ====================================================================
+// Inicializadores de REPORTES
+// ====================================================================
+
 function initializeMonthSelector() {
-    // CRÍTICO: Debe buscar el ID 'report-month-select'
     const selector = document.getElementById('report-month-select'); 
     if (!selector) return;
 
     selector.innerHTML = ''; 
-    const monthNames = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-    ];
-    const currentMonth = new Date().getMonth() + 1; // 1 (Enero) a 12 (Diciembre)
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const currentMonth = new Date().getMonth() + 1;
 
     monthNames.forEach((name, index) => {
         const value = index + 1;
         const option = document.createElement('option');
         option.value = value;
         option.textContent = name;
-        
-        if (value === currentMonth) {
-            option.selected = true;
-        }
+        if (value === currentMonth) option.selected = true;
         selector.appendChild(option);
+    });
+
+    // ✅ NUEVO: Escuchar cambios para refrescar la tabla
+    selector.addEventListener('change', () => {
+        console.log("Mes cambiado, refrescando reporte...");
+        if (window.initReportView) window.initReportView();
     });
 }
 
-// ====================================================================
-// FUNCIÓN AUXILIAR: LLENA EL SELECTOR DE AÑOS (SOLUCIÓN AL PUNTO 1)
-// ====================================================================
 function initializeYearSelector() {
-    // CRÍTICO: Debe buscar el ID 'report-year-select'
     const selector = document.getElementById('report-year-select'); 
     if (!selector) return;
 
@@ -4766,36 +4775,65 @@ function initializeYearSelector() {
     const currentYear = new Date().getFullYear();
     const startYear = currentYear - 2; 
 
-    // Generar años desde el actual (+1) hasta 2 años atrás
     for (let year = currentYear + 1; year >= startYear; year--) {
         const option = document.createElement('option');
         option.value = year;
         option.textContent = year;
-        
-        if (year === currentYear) {
-            option.selected = true;
-        }
+        if (year === currentYear) option.selected = true;
         selector.appendChild(option);
     }
+
+    // ✅ NUEVO: Escuchar cambios para refrescar la tabla
+    selector.addEventListener('change', () => {
+        console.log("Año cambiado, refrescando reporte...");
+        if (window.initReportView) window.initReportView();
+    });
 }
+window.initReportView = async function() {
+    // 1. Obtener valores de los selectores de la interfaz
+    const monthSelect = document.getElementById('report-month-select');
+    const yearSelect = document.getElementById('report-year-select');
 
-// ====================================================================
-// FUNCIÓN PRINCIPAL DE INICIALIZACIÓN Y LISTENERS (SOLUCIÓN AL PUNTO 2)
-// ====================================================================
+    if (!monthSelect || !yearSelect) return;
 
+    const month = parseInt(monthSelect.value);
+    const year = parseInt(yearSelect.value);
+
+    console.log(`📊 Refrescando vista de reporte para: ${month}/${year}`);
+
+    // 2. Usar la función que ya existe para cargar el reporte
+    if (typeof loadMonthlySalesReport === 'function') {
+        await loadMonthlySalesReport(month, year);
+    } else {
+        console.error("No se encontró la función loadMonthlySalesReport");
+    }
+};
+
+/**
+ * Inicializa los selectores de Mes y Año para la vista de Reportes.
+ * Configura los valores iniciales y los listeners para actualizar la tabla.
+ */
 function initReportSelectors() {
+    // 1. PREVENCIÓN DE DUPLICADOS: Si ya se inicializó, no hacer nada más.
+    if (window.reportSelectorsInitialized) {
+        // console.log("Selectores de reporte ya estaban listos.");
+        return;
+    }
+
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
 
     if (!monthSelect || !yearSelect) {
-        console.error("ERROR CRÍTICO: No se encontraron los selectores de Mes/Año del reporte.");
+        console.error("ERROR CRÍTICO: No se encontraron los selectores de Mes/Año en el DOM.");
         return;
     }
 
-    // 1. Datos para Llenar Selectores
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
-    const startYear = 2024;
+    // 2. CONFIGURACIÓN DE DATOS INICIALES
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; // JS meses son 0-11
+    const startYear = 2024; // Año de inicio de operaciones
+
     const months = [
         { value: 1, name: 'Enero' }, { value: 2, name: 'Febrero' }, { value: 3, name: 'Marzo' },
         { value: 4, name: 'Abril' }, { value: 5, name: 'Mayo' }, { value: 6, name: 'Junio' },
@@ -4803,60 +4841,54 @@ function initReportSelectors() {
         { value: 10, name: 'Octubre' }, { value: 11, name: 'Noviembre' }, { value: 12, name: 'Diciembre' }
     ];
 
-    // 2. Llenar Meses
+    // 3. LLENAR SELECTOR DE MESES
     monthSelect.innerHTML = '';
-    months.forEach(month => {
+    months.forEach(m => {
         const option = document.createElement('option');
-        option.value = month.value;
-        option.textContent = month.name;
+        option.value = m.value;
+        option.textContent = m.name;
+        if (m.value === currentMonth) option.selected = true;
         monthSelect.appendChild(option);
     });
 
-    // 3. Llenar Años
+    // 4. LLENAR SELECTOR DE AÑOS
     yearSelect.innerHTML = '';
-    for (let year = currentYear + 1; year >= startYear; year--) {
+    // Generamos desde el año actual + 1 hasta el año de inicio
+    for (let y = currentYear + 1; y >= startYear; y--) {
         const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
+        option.value = y;
+        option.textContent = y;
+        if (y === currentYear) option.selected = true;
         yearSelect.appendChild(option);
     }
-    
-    // 4. Seleccionar el Mes y Año Actual por defecto
-    monthSelect.value = currentMonth;
-    yearSelect.value = currentYear;
 
-   // console.log(`Inicializando selectores de reporte (Mes/Año) por primera vez...`);
+    // 5. DEFINIR LA LÓGICA DE CAMBIO (Refresco de tabla)
+    const handleReportChange = () => {
+        const m = parseInt(monthSelect.value);
+        const y = parseInt(yearSelect.value);
+        
+        console.log(`📅 Actualizando reporte para: ${m}/${y}`);
 
-    const handleChange = () => {
-        const selectedMonth = parseInt(monthSelect.value) || currentMonth;
-        const selectedYear = parseInt(yearSelect.value) || currentYear;
-
-        //console.log(`[INIT SELECTORS] Llamada directa (SÍNCRONA) para Mes: ${selectedMonth}, Año: ${selectedYear}`);
-
-        // 🛑 SOLUCIÓN SÍNCRONA: Eliminamos el setTimeout
-        if (typeof loadMonthlySalesReport === 'function') {
-            loadMonthlySalesReport(selectedMonth, selectedYear); 
+        if (typeof window.loadMonthlySalesReport === 'function') {
+            window.loadMonthlySalesReport(m, y);
+        } else if (typeof loadMonthlySalesReport === 'function') {
+            loadMonthlySalesReport(m, y);
         } else {
-            console.error("ERROR: loadMonthlySalesReport no es una función accesible.");
+            console.warn("La función loadMonthlySalesReport no está disponible todavía.");
         }
     };
-    
-    // 6. Adjuntar Listeners directamente
-    monthSelect.addEventListener('change', handleChange);
-    yearSelect.addEventListener('change', handleChange);
-    
-    // 7. Carga inicial
-    setTimeout(() => {
-        const finalMonth = parseInt(monthSelect.value) || currentMonth;
-        const finalYear = parseInt(yearSelect.value) || currentYear;
 
-        // 🛑 CORRECCIÓN DE ÁMBITO: Llamada directa, sin 'window.'
-        if (typeof loadMonthlySalesReport === 'function') {
-          //  console.log(`[CARGA INICIAL ÉXITO] Reporte programado para Mes: ${finalMonth}, Año: ${finalYear}`);
-            // 🚀 ESTO ES LO QUE ARREGLA LA CARGA INICIAL
-            loadMonthlySalesReport(finalMonth, finalYear); 
-        }
-    }, 10);
+    // 6. ADJUNTAR EVENTOS
+    monthSelect.addEventListener('change', handleReportChange);
+    yearSelect.addEventListener('change', handleReportChange);
+
+    // 7. MARCAR COMO INICIALIZADO
+    window.reportSelectorsInitialized = true;
+
+    // 8. EJECUCIÓN INICIAL (Pequeño delay para asegurar que otras funciones carguen)
+    setTimeout(() => {
+        handleReportChange();
+    }, 50);
 }
 
 function generateTextTicket(sale) {
