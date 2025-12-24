@@ -4650,7 +4650,6 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         const mSelect = document.getElementById('report-month-select');
         const ySelect = document.getElementById('report-year-select');
         
-        // MANTENEMOS TU ID: filter-search-term
         const searchInput = document.getElementById('filter-search-term');
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
@@ -4660,7 +4659,6 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         let selectedYear = parseInt(selectedYearFromEvent) || (ySelect?.value ? parseInt(ySelect.value) : ahora.getFullYear());
         let selectedMonth = parseInt(selectedMonthFromEvent) || (mSelect?.value ? parseInt(mSelect.value) : (ahora.getMonth() + 1));
 
-        // Solo mostramos el "Sincronizando" si no hay búsqueda activa para evitar parpadeos molestos
         if (!searchTerm) {
             reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-24 text-center text-orange-500 animate-pulse uppercase text-[10px] font-black tracking-widest">Sincronizando Detalles...</td></tr>`;
         }
@@ -4680,7 +4678,6 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
             if (sError) throw sError;
 
-            // Obtener detalles de productos para que la búsqueda también encuentre nombres de productos
             let productosData = [];
             if (sales && sales.length > 0) {
                 const ids = sales.map(s => s.venta_id);
@@ -4695,14 +4692,12 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             let totalDebt = 0;
             let finalHTML = '';
 
-            // --- LÓGICA DE FILTRADO APLICADA ---
             const filteredSales = sales ? sales.filter(sale => {
                 const clientName = (sale.clientes?.name || 'Ventanilla').toLowerCase();
                 const folio = sale.venta_id.toString();
                 const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
                 const prodsText = misProds.map(p => p.name.toLowerCase()).join(' ');
                 
-                // Filtra por Cliente, Folio o Producto
                 return !searchTerm || 
                        clientName.includes(searchTerm) || 
                        folio.includes(searchTerm) || 
@@ -4713,8 +4708,6 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 if (noDataMessage) noDataMessage.classList.add('hidden');
 
                 filteredSales.forEach(sale => {
-                    // Calculamos totales solo de lo que se ve (o de todo el mes, según prefieras)
-                    // Aquí lo mantendré para que los totales de arriba reflejen el filtrado
                     totalSales += (sale.total_amount || 0);
                     totalDebt += (sale.saldo_pendiente || 0);
                     
@@ -4727,19 +4720,18 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                     const dateObj = new Date(sale.created_at);
                     const hasDebt = (sale.saldo_pendiente || 0) > 0.01;
 
-                    // Tu mismo diseño de tabla (manteniendo IDs y clases)
                     finalHTML += `
                         <tr class="group hover:bg-white/[0.02] transition-all border-b border-white/5">
                             <td class="px-8 py-6">
                                 <div class="flex items-center">
                                     <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-xl h-12 w-12 mr-5 group-hover:border-orange-500/40 transition-all">
-                                        <span class="text-[14px] font-black text-white leading-none">${dateObj.getDate()}</span>
-                                        <span class="text-[9px] font-black text-orange-500 uppercase mt-1">${dateObj.toLocaleDateString('es-MX', {month:'short'}).replace('.','')}</span>
+                                        <span class="text-[14px] font-black text-white leading-none font-sans uppercase">${dateObj.getDate()}</span>
+                                        <span class="text-[9px] font-black text-orange-500 uppercase mt-1 font-sans">${dateObj.toLocaleDateString('es-MX', {month:'short'}).replace('.','')}</span>
                                     </div>
                                     <div class="max-w-[250px]">
                                         <div class="text-[12px] font-mono font-bold text-white/50 uppercase">FOLIO #${sale.venta_id}</div>
-                                        <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 italic mb-1">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
-                                        <div class="text-[12px] text-orange-500/70 font-bold truncate uppercase tracking-tight" title="${listaProds}">
+                                        <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 italic mb-1 font-sans">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
+                                        <div class="text-[12px] text-orange-500/70 font-bold truncate uppercase tracking-tight font-sans" title="${listaProds}">
                                              <i class="fas fa-box-open mr-1 text-base"></i> ${listaProds}
                                         </div>
                                     </div>
@@ -4747,35 +4739,40 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             </td>
                             <td class="px-8 py-6">
                                 <div class="flex items-center gap-4">
-                                    <div class="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
+                                    <div class="h-9 w-9 rounded-lg bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
                                         <i class="fas fa-user text-xs"></i>
                                     </div>
                                     <div>
-                                        <div class="text-sm font-black text-white uppercase tracking-tight">${clientName}</div>
-                                        <div class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">${sale.metodo_pago || 'EFECTIVO'}</div>
+                                        <div class="text-sm font-black text-white uppercase tracking-tight font-sans">${clientName}</div>
+                                        <div class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 font-sans">${sale.metodo_pago || 'EFECTIVO'}</div>
                                     </div>
                                 </div>
                             </td>
                             <td class="px-8 py-6 text-right">
-                                <div class="text-lg font-black text-white italic tracking-tighter">${window.formatCurrency(sale.total_amount)}</div>
+                                <div class="text-lg font-black text-white italic tracking-tighter font-sans">${window.formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-6 text-right">
-                                <div class="text-[11px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Saldo Pendiente</div>
-                                <div class="glass-badge ${hasDebt ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex px-3 py-1.5 rounded-xl font-black text-base tracking-tight">
+                                <div class="text-[11px] text-white/40 uppercase font-bold mb-1 tracking-tighter font-sans">Saldo Pendiente</div>
+                                <div class="glass-badge ${hasDebt ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex px-3 py-1.5 rounded-lg font-black text-base tracking-tight">
                                     <span class="h-1.5 w-1.5 rounded-full ${hasDebt ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2 self-center"></span>
-                                    ${window.formatCurrency(sale.saldo_pendiente)}
+                                    <span class="font-sans">${window.formatCurrency(sale.saldo_pendiente)}</span>
                                 </div>
                             </td>
                             <td class="px-8 py-6 text-right">
-                                <div class="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                <div class="flex justify-end items-center gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                    
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
-                                        class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-orange-500/20 hover:border-orange-500/40 transition-all">
-                                        <i class="fas fa-file-invoice-dollar text-xl"></i>
+                                        class="group/btn h-9 w-9 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-orange-500 hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+                                        title="Ver Detalles del Folio">
+                                        <i class="fas fa-file-invoice-dollar text-orange-500 group-hover/btn:!text-white transition-colors text-lg !bg-transparent !p-0 !border-none"></i>
                                     </button>
+
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-                                        class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all">
-                                        <i class="fas fa-trash-alt text-xl"></i>
+                                        class="group/btn h-9 w-9 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+                                        title="Anular Venta">
+                                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white transition-colors text-lg !bg-transparent !p-0 !border-none"></i>
                                     </button>
+
                                 </div>
                             </td>
                         </tr>`;
@@ -4783,7 +4780,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 reportBody.innerHTML = finalHTML;
             } else {
                 if (noDataMessage) noDataMessage.classList.remove('hidden');
-                reportBody.innerHTML = '<tr><td colspan="5" class="py-20 text-center text-gray-500 italic">No se encontraron ventas con ese criterio.</td></tr>';
+                reportBody.innerHTML = '<tr><td colspan="5" class="py-20 text-center text-gray-500 italic uppercase text-[10px] tracking-widest font-bold">No se encontraron ventas con ese criterio.</td></tr>';
             }
             
             if (totalSalesEl) totalSalesEl.textContent = window.formatCurrency(totalSales);
@@ -4791,7 +4788,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 
         } catch (e) {
             console.error('Error en Reporte Mensual:', e);
-            if (reportBody) reportBody.innerHTML = '<tr><td colspan="5" class="py-20 text-center text-red-500 font-black uppercase text-xs tracking-widest">Error de conexión</td></tr>';
+            if (reportBody) reportBody.innerHTML = '<tr><td colspan="5" class="py-20 text-center text-red-500 font-black uppercase text-[10px] tracking-widest">Error de sincronización</td></tr>';
         }
     })();
 };
