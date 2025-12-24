@@ -3422,21 +3422,22 @@ window.loadProductsTable = function() {
                 </div>
             </td>
             
-            <td class="px-8 py-5 whitespace-nowrap text-right">
-                <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                    <button 
-                        onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/40 hover:text-orange-500 transition-colors"
-                        title="Editar Producto">
-                        <i class="fas fa-edit text-xl"></i>
-                    </button>
-                    
-                    <button 
-                        onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="p-2.5 text-white/40 hover:text-red-500 transition-colors"
-                        title="Eliminar Producto">
-                        <i class="fas fa-trash-alt text-[15px]"></i>
-                    </button>
+            <td class="px-8 py-6 text-right">
+    <div class="flex justify-end items-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
+        
+        <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
+            class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all duration-300 hover:bg-orange-500/20 hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(249,115,22,0.2)]"
+            title="Ver Detalle / Ticket">
+            <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
+            <i class="fas fa-file-invoice-dollar text-gray-400 group-hover/btn:text-orange-500 group-hover/btn:scale-110 transition-all duration-300"></i>
+        </button>
+
+        <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
+            class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all duration-300 hover:bg-red-500/20 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+            title="Eliminar Registro">
+            <div class="absolute inset-0 bg-gradient-to-tr from-red-500/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
+            <i class="fas fa-trash-alt text-gray-400 group-hover/btn:text-red-500 group-hover/btn:scale-110 transition-all duration-300"></i>
+        </button>
                 </div>
             </td>
         `;
