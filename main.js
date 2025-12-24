@@ -784,67 +784,7 @@ window.updatePriceField = function(productId) { // <-- ¡Añadir window!
 // ====================================================================
 // 6. LÓGICA DE VENTA MULTI-ITEM, Calular Saldo Pendiente y Proteger el Monto Pagado
 // ====================================================================
-window.generateQuotation = function() {
-    if (currentSaleItems.length === 0) {
-        Swal.fire({ title: 'Carrito Vacío', text: 'Agrega productos para cotizar', icon: 'warning', background: '#1c1c1c', color: '#fff', confirmButtonColor: '#f97316' });
-        return;
-    }
 
-    // Corregimos el ID según tu index.html
-    const clientSelect = document.getElementById('client-select');
-    let clientName = "Ventanilla / Público General";
-    
-    if (clientSelect && clientSelect.selectedIndex !== -1) {
-        const selectedText = clientSelect.options[clientSelect.selectedIndex].text;
-        if (selectedText && !selectedText.includes('Selecciona')) {
-            clientName = selectedText;
-        }
-    }
-
-    const total = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
-
-    let itemsHtml = currentSaleItems.map(item => `
-        <div class="flex justify-between items-center py-2 border-b border-white/5">
-            <div class="text-left">
-                <div class="text-white text-[10px] font-bold uppercase font-sans">${item.name}</div>
-                <div class="text-white/40 text-[9px] uppercase font-sans">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
-            </div>
-            <div class="text-white font-bold text-[11px] italic font-sans">${formatCurrency(item.subtotal)}</div>
-        </div>
-    `).join('');
-
-    Swal.fire({
-        title: `<span class="text-blue-500 font-sans font-black uppercase tracking-[0.3em] text-xs">Cotización de Servicio</span>`,
-        background: '#121212',
-        html: `
-            <div class="text-left mt-4 border border-white/10 rounded-xl p-5 bg-white/5 font-sans">
-                <div class="mb-4 text-center">
-                    <div class="text-[9px] text-white/30 uppercase tracking-widest mb-1">Presupuesto para</div>
-                    <div class="text-white font-black uppercase text-xs">${clientName}</div>
-                </div>
-                <div class="max-h-60 overflow-y-auto mb-4 custom-scroll">${itemsHtml}</div>
-                <div class="flex justify-between items-center pt-4 border-t border-blue-500/30">
-                    <div class="text-blue-500 font-black uppercase text-[9px] tracking-[0.2em]">Total Estimado</div>
-                    <div class="text-white font-black text-lg italic">${formatCurrency(total)}</div>
-                </div>
-            </div>
-        `,
-        showCancelButton: true,
-        confirmButtonText: '<i class="fab fa-whatsapp mr-2"></i> Enviar WhatsApp',
-        cancelButtonText: 'Cerrar',
-        confirmButtonColor: '#10b981',
-        cancelButtonColor: '#333',
-        customClass: {
-            confirmButton: 'rounded-lg uppercase text-[10px] font-bold p-3',
-            cancelButton: 'rounded-lg uppercase text-[10px] font-bold p-3'
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const mensaje = `*COTIZACIÓN CREATIVA*%0A*Cliente:* ${clientName}%0A*Total:* ${formatCurrency(total)}%0A%0A_Precios sujetos a cambios._`;
-            window.open(`https://wa.me/?text=${mensaje}`, '_blank');
-        }
-    });
-};
 
 
 function updatePaymentDebtStatus(grandTotalFromArgument) {
@@ -965,13 +905,6 @@ window.updateSaleTableDisplay = function() {
     if (totalEl) totalEl.innerText = formatCurrency(total);
 };
 
-// Función para cambiar precios manualmente
-window.editItemPrice = function(index, newPrice) {
-    const price = parseFloat(newPrice) || 0;
-    currentSaleItems[index].price = price;
-    currentSaleItems[index].subtotal = price * currentSaleItems[index].quantity;
-    window.updateSaleTableDisplay();
-};
 
 function promptEditItemPrice(index, currentPrice) {
     if (index < 0 || index >= currentSaleItems.length) {
@@ -1009,21 +942,71 @@ function promptEditItemPrice(index, currentPrice) {
     alert(`Precio de "${item.name}" actualizado a ${formatCurrency(newPrice)}.`);
 }
 
-window.removeItemFromSale = function(index) {
-    if (index < 0 || index >= currentSaleItems.length) {
-        console.error("Índice de ítem de venta inválido para eliminar.");
+//Funciones para cotizacion
+// --- FUNCIONES DE CONTROL DE CARRITO ---
+
+window.removeFromSale = function(index) {
+    if (typeof currentSaleItems !== 'undefined' && currentSaleItems[index]) {
+        currentSaleItems.splice(index, 1);
+        if (window.updateSaleTableDisplay) window.updateSaleTableDisplay();
+    }
+};
+
+window.editItemPrice = function(index, newPrice) {
+    const price = parseFloat(newPrice) || 0;
+    if (currentSaleItems[index]) {
+        currentSaleItems[index].price = price;
+        currentSaleItems[index].subtotal = price * currentSaleItems[index].quantity;
+        window.updateSaleTableDisplay();
+    }
+};
+
+// --- GENERADOR DE COTIZACIÓN (PDF + WHATSAPP) ---
+
+window.generateQuotation = async function() {
+    if (!currentSaleItems || currentSaleItems.length === 0) {
+        Swal.fire({ title: 'Carrito Vacío', text: 'Agrega productos', icon: 'warning', background: '#121212', color: '#fff' });
         return;
     }
-    // ✅ MEJORA 1: Agregamos la confirmación para evitar errores
-    const confirmation = confirm(`¿Estás seguro de que quieres eliminar "${currentSaleItems[index].name}" de la venta?`);
-    if (confirmation) {
-        currentSaleItems.splice(index, 1); // Elimina 1 elemento
-        // Actualizamos la interfaz
-        updateSaleTableDisplay();          // Recarga la tabla
-        // ✅ MEJORA 2: CRÍTICO - Llamamos al cálculo total
-        calculateGrandTotal();             
+
+    const clientSelect = document.getElementById('client-select');
+    let clientName = "Ventanilla / Público General";
+    if (clientSelect && clientSelect.selectedIndex > 0) {
+        clientName = clientSelect.options[clientSelect.selectedIndex].text;
     }
-}
+
+    const total = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    // 1. Mostrar Preview en Pantalla
+    Swal.fire({
+        title: `<span class="text-blue-500 font-sans font-black uppercase tracking-widest text-xs">Opciones de Cotización</span>`,
+        background: '#121212',
+        color: '#fff',
+        html: `
+            <div class="text-left border border-white/40 rounded-xl p-4 bg-white/5 font-sans mb-4">
+                <p class="text-[12px] text-blue-500 font-bold uppercase mb-2">Resumen para: ${clientName}</p>
+                <p class="text-lg font-black italic">${formatCurrency(total)}</p>
+            </div>
+            <p class="text-[12px] text-gray-500 uppercase">¿Cómo deseas entregar el presupuesto?</p>
+        `,
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: '<i class="fab fa-whatsapp mr-2"></i> WhatsApp',
+        denyButtonText: '<i class="fas fa-file-pdf mr-2"></i> Descargar PDF',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#10b981',
+        denyButtonColor: '#3b82f6',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // WHATSAPP
+            const msg = `*COTIZACIÓN CREATIVA*%0A*Cliente:* ${clientName}%0A*Total:* ${formatCurrency(total)}%0A%0A_Precios sujetos a cambio._`;
+            window.open(`https://wa.me/?text=${msg}`, '_blank');
+        } else if (result.isDenied) {
+            // PDF
+            downloadQuotePDF(clientName, total);
+        }
+    });
+};
 
 // --- FUNCIÓN A: AGREGAR AL CARRITO (Botón +) ---
 window.handleAddProductToSale = function(e) {
@@ -2507,7 +2490,7 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
     }
 };
 
-
+//PDF de la VENTA
 window.generarPDFVenta = function() {
     const venta = window.currentSaleForPrint;
     if (!venta) return alert("No hay datos para generar el PDF");
@@ -2927,6 +2910,115 @@ window.generarPDFEstadoCuenta = function() {
     } else {
         alert("El navegador bloqueó la ventana emergente. Por favor, permite los pop-ups.");
     }
+};
+
+window.generarPDFCotizacion = function() {
+    if (!currentSaleItems || currentSaleItems.length === 0) {
+        return Swal.fire({ title: 'Carrito Vacío', text: 'Agrega productos para cotizar', icon: 'warning', background: '#1c1c1c', color: '#fff' });
+    }
+
+    const colorCotizacion = '#3b82f6'; // Azul profesional para diferenciar de ventas (que son naranja)
+    const fecha = new Date().toLocaleDateString('es-MX', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
+    
+    const clientSelect = document.getElementById('client-select');
+    const nombreCliente = (clientSelect && clientSelect.selectedIndex > 0) 
+        ? clientSelect.options[clientSelect.selectedIndex].text 
+        : 'Público General';
+
+    const formatMoney = (amount) => `$${parseFloat(amount || 0).toFixed(2)}`;
+
+    // Generar filas con los precios que tú estableciste manualmente
+    const filasProductos = currentSaleItems.map(p => `
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #f0f0f0;">
+                <div style="font-weight: bold; color: #111; text-transform: uppercase; font-size: 11px;">${p.name}</div>
+            </td>
+            <td style="text-align: center; padding: 12px; border-bottom: 1px solid #f0f0f0;">${p.quantity}</td>
+            <td style="text-align: right; padding: 12px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #111;">
+                ${formatMoney(p.price)}
+            </td>
+            <td style="text-align: right; padding: 12px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #111;">
+                ${formatMoney(p.subtotal)}
+            </td>
+        </tr>
+    `).join('');
+
+    const totalCotizado = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Cotización - CREATIVA</title>
+            <style>
+                @page { size: letter; margin: 15mm; }
+                body { font-family: 'Segoe UI', sans-serif; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+                .btn-print-container { max-width: 210mm; margin: 0 auto 10px auto; text-align: right; }
+                .btn-print { background: ${colorCotizacion}; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+                .sheet { background: white; width: 210mm; min-height: 250mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-top: 12px solid ${colorCotizacion}; box-sizing: border-box; }
+                .header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+                .brand-info h2 { margin: 0; color: #111; font-size: 22px; font-weight: 900; }
+                .brand-info p { margin: 5px 0 0 0; font-size: 10px; letter-spacing: 3px; color: ${colorCotizacion}; font-weight: bold; }
+                .quote-meta { text-align: right; }
+                .quote-meta h1 { margin: 0; color: ${colorCotizacion}; font-size: 18px; text-transform: uppercase; }
+                .data-grid { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 30px; }
+                table { width: 100%; border-collapse: collapse; }
+                th { text-align: left; padding: 12px; font-size: 11px; text-transform: uppercase; color: ${colorCotizacion}; border-bottom: 2px solid ${colorCotizacion}; }
+                .total-final { margin-top: 20px; text-align: right; font-size: 22px; font-weight: 900; color: ${colorCotizacion}; }
+                .footer { margin-top: 50px; text-align: center; color: #999; font-size: 11px; }
+                @media print { .btn-print-container { display: none; } .sheet { box-shadow: none; margin: 0; width: 100%; } }
+            </style>
+        </head>
+        <body>
+            <div class="btn-print-container">
+                <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR / GUARDAR PDF</button>
+            </div>
+            <div class="sheet">
+                <div class="header">
+                    <div class="brand-info">
+                        <h2>CREATIVA CORTES CNC</h2>
+                        <p>DISEÑO • CORTE • PRECISION</p>
+                    </div>
+                    <div class="quote-meta">
+                        <h1>Presupuesto</h1>
+                        <div style="font-size: 14px; font-weight: bold;">COT-TEMP-${Math.floor(Math.random()*1000)}</div>
+                        <div style="font-size: 11px; color: #777;">${fecha}</div>
+                    </div>
+                </div>
+                <div class="data-grid">
+                    <div style="font-size: 9px; text-transform: uppercase; color: #64748b;">Atención para:</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #1e293b;">${nombreCliente}</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Descripción</th>
+                            <th style="width: 10%; text-align: center;">Cant.</th>
+                            <th style="width: 20%; text-align: right;">Unitario</th>
+                            <th style="width: 20%; text-align: right;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasProductos}</tbody>
+                </table>
+                <div class="total-final">
+                    <span style="font-size: 12px; color: #64748b; text-transform: uppercase; margin-right: 10px;">Total Cotizado:</span>
+                    ${formatMoney(totalCotizado)}
+                </div>
+                <div class="footer">
+                    <strong>Vigencia: 15 días naturales</strong><br>
+                    📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán • 📱 985 100 1141
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    const pWin = window.open('', '_blank');
+    pWin.document.write(htmlContent);
+    pWin.document.close();
 };
 
 
