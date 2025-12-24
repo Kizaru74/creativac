@@ -3391,7 +3391,7 @@ window.loadProductsTable = function() {
 
         row.innerHTML = `
             <td class="px-8 py-5 whitespace-nowrap">
-                <div class="font-sans font-bold bg-white/5 text-orange-500/50 px-2 py-1 rounded border border-white/10 text-[10px] inline-block tracking-wider">
+                <div class="font-sans font-bold bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/10 text-[10px] inline-block tracking-wider">
                     #${product.producto_id}
                 </div>
             </td>
