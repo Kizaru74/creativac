@@ -354,6 +354,7 @@ window.loadDebts = async function() {
 
     if (!tbody) return;
 
+    // 1. Estado de carga con estilo Premium
     tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-16 text-center italic text-white/20 font-sans uppercase text-[10px] tracking-widest">Sincronizando deudas...</td></tr>`;
     if (elTotal) elTotal.innerHTML = '<span class="animate-pulse opacity-50">...</span>';
 
@@ -430,10 +431,10 @@ window.loadDebts = async function() {
                         </td>
                         <td class="px-10 py-6 text-right">
                             <button onclick="window.handleViewClientDebt(${debt.clientId})" 
-                                class="group/btn relative inline-flex items-center gap-3 px-6 py-2.5 rounded-xl backdrop-blur-md transition-all duration-500 !bg-orange-500/10 !border !border-orange-500/30 hover:!bg-orange-500 hover:shadow-[0_0_25px_rgba(249,115,22,0.4)] opacity-0 group-hover:opacity-100 transform translate-x-4 group-hover:translate-x-0"
+                                class="group/btn relative inline-flex items-center gap-3 px-6 py-2.5 rounded-lg backdrop-blur-md transition-all duration-500 !bg-orange-500/10 !border !border-orange-500/30 hover:!bg-orange-500 hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] opacity-0 group-hover:opacity-100 transform translate-x-4 group-hover:translate-x-0"
                                 title="Ver Historial de Deuda">
                                 
-                                <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity rounded-xl"></div>
+                                <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity rounded-lg"></div>
                                 
                                 <i class="fas fa-history text-orange-500 group-hover/btn:!text-white transition-all duration-300 text-lg !bg-transparent !p-0 !border-none relative z-10"></i>
                                 
