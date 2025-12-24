@@ -22,7 +22,10 @@ tbody tr td,
     color: rgba(255, 255, 255, 0.5) !important;
 }
 
-
+tbody tr {
+    transition: background-color 0.2s ease;
+    background-color: transparent !important;
+}
 
 tbody tr:hover {
     background-color: rgba(255, 255, 255, 0.05) !important; 
@@ -134,17 +137,19 @@ tbody tr:hover .saldo-pendiente-highlight {
     color: #f97316 !important;
 }
 
-/* Reset de botones en tablas para evitar el 'cuadro' de fondo */
+/* Permite que los botones tengan su propio color pero quita el estilo por defecto del navegador */
 tbody button {
-    background-color: transparent !important;
-    border: 1px solid transparent !important;
+    border: none !important;
     box-shadow: none !important;
     outline: none !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease !important;
 }
 
-/* Efecto hover suave y moderno */
+/* Evita que se vea gris al pasar el mouse por defecto */
 tbody button:hover {
-    border-color: rgba(255, 255, 255, 0.1) !important;
     transform: translateY(-1px);
 }
 
