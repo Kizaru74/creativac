@@ -347,7 +347,6 @@ window.loadDebts = async function() {
     const tbody = document.getElementById('debts-table-body');
     const noDebtsMessage = document.getElementById('no-debts-message');
     
-    // Elementos de las tarjetas superiores
     const elTotal = document.getElementById('total-deuda-global');
     const elCount = document.getElementById('total-clientes-deuda');
     const elMax = document.getElementById('max-deuda-individual');
@@ -355,12 +354,10 @@ window.loadDebts = async function() {
 
     if (!tbody) return;
 
-    // 1. Estado de carga: Evita que el usuario vea el 0 anterior
     tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-16 text-center italic text-white/20 font-sans uppercase text-[10px] tracking-widest">Sincronizando deudas...</td></tr>`;
     if (elTotal) elTotal.innerHTML = '<span class="animate-pulse opacity-50">...</span>';
 
     try {
-        // 2. Consulta real a la base de datos
         const { data: sales, error } = await supabase
             .from('ventas')
             .select(`venta_id, client_id, created_at, saldo_pendiente, clientes(name)`)
@@ -369,7 +366,6 @@ window.loadDebts = async function() {
 
         if (error) throw error;
         
-        // 3. Procesamiento de datos (Agrupación por cliente)
         const clientDebtsMap = {};
         let sumaTotalGlobal = 0;
 
@@ -389,7 +385,6 @@ window.loadDebts = async function() {
 
         const debtList = Object.values(clientDebtsMap);
 
-        // 4. ACTUALIZACIÓN DE MÉTRICAS (Tarjetas Superiores)
         if (elTotal) elTotal.innerText = formatCurrency(sumaTotalGlobal);
         if (elCount) elCount.innerText = debtList.length;
         if (elMax) {
@@ -397,7 +392,6 @@ window.loadDebts = async function() {
             elMax.innerText = formatCurrency(maxVal);
         }
 
-        // 5. FUNCIÓN DE RENDERIZADO (Tabla)
         const renderTable = (list) => {
             tbody.innerHTML = '';
             if (list.length === 0) {
@@ -412,7 +406,7 @@ window.loadDebts = async function() {
                 const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
 
                 tbody.insertAdjacentHTML('beforeend', `
-                    <tr class="group border-b border-white/5 hover:bg-white/[0.01] transition-all duration-300">
+                    <tr class="group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300">
                         <td class="px-10 py-6">
                             <div class="flex items-center gap-4">
                                 <div class="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
@@ -431,13 +425,21 @@ window.loadDebts = async function() {
                                 </span>
                             </div>
                         </td>
-                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercaseitali c">
+                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercase italic">
                             ${formattedDate}
                         </td>
                         <td class="px-10 py-6 text-right">
                             <button onclick="window.handleViewClientDebt(${debt.clientId})" 
-                                class="opacity-0 group-hover:opacity-100 transition-all bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[14px] font-black text-white/40 hover:text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/20 uppercase tracking-widest backdrop-blur-md">
-                                <i class="fas fa-history mr-2 text-xl"></i> Detalles
+                                class="group/btn relative inline-flex items-center gap-3 px-6 py-2.5 rounded-xl backdrop-blur-md transition-all duration-500 !bg-orange-500/10 !border !border-orange-500/30 hover:!bg-orange-500 hover:shadow-[0_0_25px_rgba(249,115,22,0.4)] opacity-0 group-hover:opacity-100 transform translate-x-4 group-hover:translate-x-0"
+                                title="Ver Historial de Deuda">
+                                
+                                <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity rounded-xl"></div>
+                                
+                                <i class="fas fa-history text-orange-500 group-hover/btn:!text-white transition-all duration-300 text-lg !bg-transparent !p-0 !border-none relative z-10"></i>
+                                
+                                <span class="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500 group-hover/btn:!text-white transition-colors duration-300 relative z-10">
+                                    Detalles
+                                </span>
                             </button>
                         </td>
                     </tr>
@@ -445,10 +447,8 @@ window.loadDebts = async function() {
             });
         };
 
-        // Render inicial
         renderTable(debtList);
 
-        // 6. Buscador integrado
         if (searchInput) {
             searchInput.oninput = (e) => {
                 const term = e.target.value.toLowerCase();
@@ -3424,13 +3424,13 @@ window.loadProductsTable = function() {
                 <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
                     
                     <button onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-2xl backdrop-blur-md transition-all duration-300 hover:!bg-orange-500 hover:shadow-[0_0_20px_rgba(249,115,22,0.5)]"
+                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all duration-300 hover:!bg-orange-500 hover:shadow-[0_0_20px_rgba(249,115,22,0.5)]"
                         title="Editar Producto">
                         <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all duration-300 text-lg !bg-transparent !p-0 !border-none relative z-10"></i>
                     </button>
 
                     <button onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-2xl backdrop-blur-md transition-all duration-300 hover:!bg-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.5)]"
+                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all duration-300 hover:!bg-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.5)]"
                         title="Eliminar Producto">
                         <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all duration-300 text-base !bg-transparent !p-0 !border-none relative z-10"></i>
                     </button>
