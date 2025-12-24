@@ -1854,7 +1854,7 @@ window.handleViewClientDebt = async function(clientId) {
                                 <span class="text-sm font-bold ${esVenta ? 'text-white' : 'text-green-400'}">
                                     ${esVenta ? `VENTA #${mov.venta_id}` : `ABONO RECIBIDO`}
                                 </span>
-                                ${esVenta ? `<span class="text-[11px] text-orange-400 font-medium">| ${mov.textoProductos}</span>` : ''}
+                                ${esVenta ? `<span class="text-base text-orange-400 font-medium">| ${mov.textoProductos}</span>` : ''}
                             </div>
                             ${mov.description ? `<div class="text-[10px] text-gray-500 italic uppercase mt-1">Nota: ${mov.description}</div>` : ''}
                         </td>
