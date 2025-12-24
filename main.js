@@ -4647,6 +4647,9 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         const noDataMessage = document.getElementById('monthly-report-no-data');
         const mSelect = document.getElementById('report-month-select');
         const ySelect = document.getElementById('report-year-select');
+        // NUEVO: Capturar el input de búsqueda
+        const searchInput = document.getElementById('filter-search-term');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
         if (!reportBody) return;
 
@@ -4654,8 +4657,10 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         let selectedYear = parseInt(selectedYearFromEvent) || (ySelect?.value ? parseInt(ySelect.value) : ahora.getFullYear());
         let selectedMonth = parseInt(selectedMonthFromEvent) || (mSelect?.value ? parseInt(mSelect.value) : (ahora.getMonth() + 1));
 
-        // Loading State
-        reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-24 text-center text-orange-500 animate-pulse uppercase text-[10px] font-black tracking-widest">Sincronizando Detalles...</td></tr>`;
+        // Loading State (solo si no hay término de búsqueda para no parpadear tanto)
+        if (!searchTerm) {
+            reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-24 text-center text-orange-500 animate-pulse uppercase text-[10px] font-black tracking-widest">Sincronizando Detalles...</td></tr>`;
+        }
         
         try {
             let startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01T00:00:00.000Z`;
@@ -4686,10 +4691,25 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
             let totalDebt = 0;
             let finalHTML = '';
 
-            if (sales && sales.length > 0) {
+            // --- LÓGICA DE FILTRADO ---
+            const filteredSales = sales ? sales.filter(sale => {
+                const clientName = (sale.clientes?.name || 'Ventanilla').toLowerCase();
+                const folio = sale.venta_id.toString();
+                const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
+                const prodsText = misProds.map(p => p.name.toLowerCase()).join(' ');
+                
+                // Si no hay búsqueda, pasan todos. Si hay, debe coincidir con cliente, folio o productos.
+                return !searchTerm || 
+                       clientName.includes(searchTerm) || 
+                       folio.includes(searchTerm) || 
+                       prodsText.includes(searchTerm);
+            }) : [];
+
+            if (filteredSales.length > 0) {
                 if (noDataMessage) noDataMessage.classList.add('hidden');
 
-                sales.forEach(sale => {
+                filteredSales.forEach(sale => {
+                    // Totales (basados en los datos filtrados)
                     totalSales += (sale.total_amount || 0);
                     totalDebt += (sale.saldo_pendiente || 0);
                     
@@ -4712,9 +4732,9 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                     </div>
                                     <div class="max-w-[250px]">
                                         <div class="text-[12px] font-mono font-bold text-white/50 uppercase">FOLIO #${sale.venta_id}</div>
-                                        <div class="text-[12px] text-orange-500/70 font-bold truncate uppercase tracking-tight" title="${listaProds}">
                                         <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 italic mb-1">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
-                                                                                    <i class="fas fa-box-open mr-1 text-base"></i> ${listaProds}
+                                        <div class="text-[12px] text-orange-500/70 font-bold truncate uppercase tracking-tight" title="${listaProds}">
+                                            <i class="fas fa-box-open mr-1 text-base"></i> ${listaProds}
                                         </div>
                                     </div>
                                 </div>
@@ -4734,7 +4754,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="text-lg font-black text-white italic tracking-tighter">${window.formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-6 text-right">
-                            <div class="text-[11px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Saldo Pendiente</div>
+                                <div class="text-[11px] text-white/40 uppercase font-bold mb-1 tracking-tighter">Saldo Pendiente</div>
                                 <div class="glass-badge ${hasDebt ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex px-3 py-1.5 rounded-xl font-black text-base tracking-tight">
                                     <span class="h-1.5 w-1.5 rounded-full ${hasDebt ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2 self-center"></span>
                                     ${window.formatCurrency(sale.saldo_pendiente)}
@@ -4742,12 +4762,10 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                             </td>
                             <td class="px-8 py-6 text-right">
                                 <div class="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                    
                                     <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
                                         class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-orange-500/20 hover:border-orange-500/40 transition-all">
                                         <i class="fas fa-file-invoice-dollar text-xl"></i>
                                     </button>
-
                                     <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
                                         class="h-9 w-9 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/20 transition-all">
                                         <i class="fas fa-trash-alt text-xl"></i>
@@ -4759,7 +4777,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 reportBody.innerHTML = finalHTML;
             } else {
                 if (noDataMessage) noDataMessage.classList.remove('hidden');
-                reportBody.innerHTML = '';
+                reportBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-gray-500 italic">No se encontraron resultados para esta búsqueda.</td></tr>';
             }
             
             if (totalSalesEl) totalSalesEl.textContent = window.formatCurrency(totalSales);
@@ -4930,6 +4948,15 @@ window.initReportSelectors = function() {
     
     // Cargar los datos por primera vez
     handleReportChange();
+
+const searchInput = document.getElementById('filter-search-term');
+if (searchInput) {
+    searchInput.addEventListener('input', () => {
+        // Volvemos a llamar a la función de carga (ella ya sabe filtrar ahora)
+        window.loadMonthlySalesReport();
+    });
+}
+
 };
 
 function generateTextTicket(sale) {
