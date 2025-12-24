@@ -977,9 +977,9 @@ window.generateQuotation = function() {
         <div class="flex justify-between items-center py-2 border-b border-white/5 font-sans">
             <div class="text-left">
                 <div class="text-white text-base font-bold uppercase">${item.name}</div>
-                <div class="text-white/40 text-base uppercase">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
+                <div class="text-white/40 text-[13px] uppercase">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
             </div>
-            <div class="text-white font-bold text-[12px] italic">${formatCurrency(item.subtotal)}</div>
+            <div class="text-white font-bold text-base italic">${formatCurrency(item.subtotal)}</div>
         </div>
     `).join('');
 
