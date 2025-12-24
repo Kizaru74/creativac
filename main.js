@@ -4729,9 +4729,9 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                         <span class="text-[9px] font-black text-orange-500 uppercase mt-1 font-sans">${dateObj.toLocaleDateString('es-MX', {month:'short'}).replace('.','')}</span>
                                     </div>
                                     <div class="max-w-[250px]">
-                                        <div class="text-[12px] font-mono font-bold text-white/50 uppercase">FOLIO #${sale.venta_id}</div>
-                                        <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 italic mb-1 font-sans">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
-                                        <div class="text-[12px] text-orange-500/70 font-bold truncate uppercase tracking-tight font-sans" title="${listaProds}">
+                                        <div class="text-[12px] font-mono font-bold text-white/60 uppercase">FOLIO #${sale.venta_id}</div>
+                                        <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 mb-1 font-sans">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
+                                        <div class="text-[12px] text-orange-400 font-bold truncate uppercase tracking-tight font-sans" title="${listaProds}">
                                              <i class="fas fa-box-open mr-1 text-base"></i> ${listaProds}
                                         </div>
                                     </div>
@@ -4744,7 +4744,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                     </div>
                                     <div>
                                         <div class="text-base font-bold text-white uppercase tracking-tight font-sans">${clientName}</div>
-                                        <div class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 font-sans">${sale.metodo_pago || 'EFECTIVO'}</div>
+                                        <div class="text-[10px] text-gray-500 uppercase tracking-widest mt-1 font-sans">${sale.metodo_pago || 'EFECTIVO'}</div>
                                     </div>
                                 </div>
                             </td>
@@ -4752,8 +4752,8 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="text-lg font-black text-white italic tracking-tighter font-sans">${window.formatCurrency(sale.total_amount)}</div>
                             </td>
                             <td class="px-8 py-6 text-right">
-                                <div class="text-[11px] text-white/40 uppercase font-bold mb-1 tracking-tighter font-sans">Saldo Pendiente</div>
-                                <div class="glass-badge ${hasDebt ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex px-3 py-1.5 rounded-lg font-black text-base tracking-tight">
+                                <div class="text-[11px] text-white/50 uppercase font-bold mb-1 tracking-tighter font-sans">Saldo Pendiente</div>
+                                <div class="glass-badge ${hasDebt ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex px-3 py-1.5 rounded-lg font-black text-lg tracking-tight">
                                     <span class="h-1.5 w-1.5 rounded-full ${hasDebt ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2 self-center"></span>
                                     <span class="font-sans">${window.formatCurrency(sale.saldo_pendiente)}</span>
                                 </div>
