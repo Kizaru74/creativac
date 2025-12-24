@@ -724,102 +724,91 @@
     </div>
 </div>
     
-<div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm bg-black/40">
-    <div class="bg-[#1c1c1c] rounded-[2.5rem] shadow-2xl w-full max-w-4xl mx-auto flex flex-col max-h-[95vh] border border-white/5 overflow-hidden">
+<div id="new-sale-modal" class="modal-overlay hidden fixed inset-0 z-[70] flex items-center justify-center p-4 backdrop-blur-sm bg-black/60">
+    <div class="bg-[#1c1c1c] rounded-[2rem] shadow-2xl w-full max-w-2xl mx-auto flex flex-col max-h-[90vh] border border-white/10 overflow-hidden">
         
-        <div class="flex justify-between items-center border-b border-white/5 p-8 bg-white/5">
-            <h3 class="text-2xl font-black text-white italic tracking-tighter">
+        <div class="flex justify-between items-center border-b border-white/5 p-5 bg-white/5">
+            <h3 class="text-xl font-black text-white italic tracking-tighter">
                 Registrar Nueva <span class="text-orange-500">Venta</span>
             </h3>
-            <button data-close-modal="new-sale-modal" class="text-gray-500 hover:text-white text-3xl transition-all leading-none">
+            <button data-close-modal="new-sale-modal" class="text-gray-500 hover:text-white text-2xl transition-all">
                 <i class="fas fa-times-circle"></i>
             </button>
         </div>
 
-        <div class="overflow-y-auto flex-grow p-8 custom-scrollbar">
+        <div class="overflow-y-auto flex-grow p-6 custom-scrollbar">
             <form id="new-sale-form" onsubmit="handleNewSale(event)">
                 
-                <div class="grid grid-cols-12 gap-4 mb-8 items-end bg-black/20 p-6 rounded-[2rem] border border-white/5">
+                <div class="grid grid-cols-12 gap-3 mb-6 items-end bg-black/40 p-4 rounded-2xl border border-white/5">
+                    <div class="col-span-12 md:col-span-7">
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Producto / Servicio</label>
+                        <select id="product-main-select" required class="w-full bg-[#141414] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none">
+                        </select>
+                    </div>
+
                     <div class="col-span-12 md:col-span-4">
-                        <label for="product-main-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Producto / Servicio</label>
-                        <select id="product-main-select" required class="w-full bg-[#141414] border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
-                        </select>
-                    </div>
-
-                    <div class="col-span-6 md:col-span-3">
-                        <label for="subproduct-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Paquete</label>
-                        <select id="subproduct-select" class="w-full bg-[#141414] border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Paquete</label>
+                        <select id="subproduct-select" class="w-full bg-[#141414] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:ring-2 focus:ring-orange-500 outline-none">
                         </select>
                     </div>
                     
-                    <div class="col-span-3 md:col-span-2">
-                        <label for="product-quantity" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Cant.</label>
-                        <input type="number" id="product-quantity" value="1" min="1" class="w-full bg-[#141414] border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+                    <div class="col-span-4 md:col-span-3">
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Cant.</label>
+                        <input type="number" id="product-quantity" value="1" min="1" class="w-full bg-[#141414] border border-white/10 rounded-lg p-2.5 text-sm text-white">
                     </div>
                     
-                    <div class="col-span-3 md:col-span-2">
-                        <label for="product-unit-price" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Precio Unit.</label>
-                        <input type="number" id="product-unit-price" placeholder="0.00" min="0" step="0.01" class="w-full bg-[#141414] border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all">
+                    <div class="col-span-5 md:col-span-4">
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Precio Unit.</label>
+                        <input type="number" id="product-unit-price" placeholder="0.00" class="w-full bg-[#141414] border border-white/10 rounded-lg p-2.5 text-sm text-white">
                     </div>
 
-                    <div class="col-span-12 md:col-span-1 flex justify-end">
+                    <div class="col-span-3 md:col-span-1 flex justify-end">
                         <button type="button" id="add-product-btn" 
-                                class="bg-orange-600 hover:bg-orange-700 text-white h-12 w-12 rounded-xl flex items-center justify-center transition-all shadow-lg shadow-orange-900/20 group">
-                            <i class="fas fa-plus group-hover:scale-110 transition-transform"></i>
+                                class="bg-orange-600 hover:bg-orange-700 text-white h-10 w-10 rounded-lg flex items-center justify-center transition-all shadow-lg shadow-orange-900/20 group">
+                            <i class="fas fa-plus group-hover:scale-110 transition-transform text-sm"></i>
                         </button>
                     </div>
                 </div>
 
-                <h4 class="text-sm font-bold text-white uppercase tracking-widest mb-4 flex items-center">
-                    <i class="fas fa-shopping-cart mr-2 text-orange-500"></i> Carrito de Venta
-                </h4>
-                <div class="mb-8 border border-white/5 rounded-[1.5rem] overflow-hidden bg-black/20">
+                <div class="mb-6 border border-white/5 rounded-xl overflow-hidden bg-black/20 text-[11px]">
                     <table class="min-w-full">
                         <thead class="bg-white/5">
                             <tr>
-                                <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Producto</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Cant.</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest">Precio</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-bold text-gray-500 uppercase tracking-widest">Subtotal</th>
-                                <th class="px-6 py-4 text-right"></th>
+                                <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase tracking-widest">Producto</th>
+                                <th class="px-4 py-2.5 text-left font-bold text-gray-500 uppercase tracking-widest">Cant.</th>
+                                <th class="px-4 py-2.5 text-right font-bold text-gray-500 uppercase tracking-widest">Subtotal</th>
+                                <th class="px-4 py-2.5 text-right"></th>
                             </tr>
                         </thead>
-                        <tbody id="sale-items-table-body" class="divide-y divide-white/5 text-sm text-gray-300">
+                        <tbody id="sale-items-table-body" class="divide-y divide-white/5 text-gray-300">
                         </tbody>
                     </table>
                 </div>
 
-                <div class="mb-8">
-                    <label for="sale-details" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Comentarios y Detalles de la Venta (Opcional)</label>
-                    <textarea id="sale-details" rows="2" class="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-gray-300 italic text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="Ej. Entrega urgente, color específico..."></textarea>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 pt-6 border-t border-white/5">
-                    <div class="p-5 bg-white/5 rounded-2xl border border-white/5">
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Venta</label>
-                        <input type="text" id="total-amount" value="0.00" class="w-full bg-transparent text-2xl font-black text-white tracking-tighter outline-none" readonly>
+                <div class="grid grid-cols-3 gap-3 mb-6 pt-4 border-t border-white/5">
+                    <div class="p-3 bg-white/5 rounded-xl border border-white/5">
+                        <label class="block text-[8px] font-bold text-gray-500 uppercase mb-1">Total</label>
+                        <input type="text" id="total-amount" value="0.00" class="w-full bg-transparent text-lg font-black text-white outline-none" readonly>
                     </div>
-
-                    <div class="p-5 bg-green-900/10 rounded-2xl border border-green-500/20">
-                        <label for="paid-amount" class="block text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Monto Pagado</label>
-                        <input type="number" id="paid-amount" value="0.00" min="0" step="0.01" class="w-full bg-transparent text-2xl font-black text-green-500 tracking-tighter outline-none">
+                    <div class="p-3 bg-green-900/10 rounded-xl border border-green-500/20">
+                        <label class="block text-[8px] font-bold text-green-500 uppercase mb-1">Pagado</label>
+                        <input type="number" id="paid-amount" value="0.00" class="w-full bg-transparent text-lg font-black text-green-500 outline-none">
                     </div>
-
-                    <div class="p-5 bg-red-900/10 rounded-2xl border border-red-500/20">
-                        <label class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Saldo Pendiente</label>
-                        <input type="text" id="display-saldo-pendiente" value="0.00" class="w-full bg-transparent text-2xl font-black text-red-500 tracking-tighter outline-none" readonly>
+                    <div class="p-3 bg-red-900/10 rounded-xl border border-red-500/20">
+                        <label class="block text-[8px] font-bold text-red-500 uppercase mb-1">Saldo</label>
+                        <input type="text" id="display-saldo-pendiente" value="0.00" class="w-full bg-transparent text-lg font-black text-red-500 outline-none" readonly>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                    <div class="bg-black/20 p-5 rounded-2xl border border-white/5">
-                        <label for="client-select" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Seleccionar Cliente</label>
-                        <select id="client-select" required class="w-full bg-[#141414] border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-orange-500 outline-none transition-all uppercase text-sm font-bold">
+                <div class="grid grid-cols-2 gap-4 mb-2">
+                    <div class="bg-black/20 p-4 rounded-xl border border-white/5">
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-2">Cliente</label>
+                        <select id="client-select" required class="w-full bg-[#141414] border border-white/10 rounded-lg p-2 text-white text-[12px] font-bold uppercase">
                         </select>
                     </div>
-                    <div class="bg-black/20 p-5 rounded-2xl border border-white/5">
-                        <label for="payment-method" class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Método de Pago inicial</label>
-                        <select id="payment-method" required class="w-full bg-[#141414] border border-white/10 rounded-xl p-3 text-orange-500 focus:ring-2 focus:ring-orange-500 outline-none transition-all uppercase text-sm font-bold">
+                    <div class="bg-black/20 p-4 rounded-xl border border-white/5">
+                        <label class="block text-[9px] font-bold text-gray-500 uppercase mb-2">Método</label>
+                        <select id="payment-method" required class="w-full bg-[#141414] border border-white/10 rounded-lg p-2 text-orange-500 text-[12px] font-bold uppercase">
                             <option value="Efectivo">Efectivo</option>
                             <option value="Tarjeta">Tarjeta</option>
                             <option value="Transferencia">Transferencia</option>
@@ -830,20 +819,18 @@
             </form>
         </div>
 
-        <div class="flex justify-end gap-3 p-8 border-t border-white/5 bg-black/20">
+        <div class="flex justify-end items-center gap-3 p-5 border-t border-white/5 bg-black/40">
             <button type="button" onclick="window.generateQuotation()" 
-        class="group/btn h-12 px-6 flex items-center justify-center gap-3 !bg-blue-500/10 !border !border-blue-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-blue-500 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]">
-        <i class="fas fa-file-invoice text-blue-500 group-hover/btn:!text-white transition-all text-lg !bg-transparent !p-0 !border-none"></i>
-        <span class="text-[11px] font-black uppercase tracking-[0.2em] text-blue-500 group-hover/btn:!text-white transition-colors">
-            Generar Cotización
-        </span>
-    </button>
-            <button data-close-modal="new-sale-modal" type="button" class="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold py-3 px-8 rounded-xl transition-all uppercase text-xs tracking-widest">
+                class="h-10 px-4 flex items-center gap-2 !bg-blue-500/10 !border !border-blue-500/30 rounded-lg text-blue-500 hover:!bg-blue-500 hover:!text-white transition-all">
+                <i class="fas fa-file-invoice text-sm"></i>
+                <span class="text-[10px] font-black uppercase tracking-widest">Cotizar</span>
+            </button>
+            <button data-close-modal="new-sale-modal" class="text-gray-500 hover:text-white text-[10px] font-bold uppercase tracking-widest px-4">
                 Cancelar
             </button>
             <button type="button" onclick="handleNewSale(event)" 
-                    class="bg-orange-600 hover:bg-orange-700 text-white font-black py-3 px-10 rounded-xl transition-all shadow-lg shadow-orange-900/20 uppercase text-xs tracking-widest">
-                Registrar Venta
+                class="bg-orange-600 hover:bg-orange-700 text-white font-black py-2.5 px-8 rounded-xl shadow-lg uppercase text-[10px] tracking-widest transition-all">
+                Registrar
             </button>
         </div>
     </div>
