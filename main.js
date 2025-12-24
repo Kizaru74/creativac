@@ -431,7 +431,7 @@ window.loadDebts = async function() {
                                 </span>
                             </div>
                         </td>
-                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercase">
+                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercaseitali c">
                             ${formattedDate}
                         </td>
                         <td class="px-10 py-6 text-right">
@@ -1822,15 +1822,15 @@ window.handleViewClientDebt = async function(clientId) {
             const esVenta = mov.tipo === 'VENTA';
             return `
                 <tr>
-                    <td style="font-size: 10px;">${mov.fecha.toLocaleDateString('es-MX')}</td>
+                    <td style="font-size: 12px;">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td>
                         <div style="display: flex; align-items: baseline; gap: 5px;">
-                            <strong style="color: ${esVenta ? '#111' : '#16a34a'}; font-size: 11px;">
+                            <strong style="color: ${esVenta ? '#111' : '#780000ff'}; font-size: 11px;">
                                 ${esVenta ? 'VENTA #' + mov.venta_id : 'ABONO RECIBIDO'}
                             </strong>
-                            ${esVenta ? `<span style="font-size: 10px; color: #b45309; font-weight: bold;">[ ${mov.textoProductos} ]</span>` : ''}
+                            ${esVenta ? `<span style="font-size: 12px; color: #b45309; font-weight: bold;">[ ${mov.textoProductos} ]</span>` : ''}
                         </div>
-                        ${mov.description ? `<div style="font-size: 9px; color: #888; font-style: italic; margin-top: 2px;">Nota: ${mov.description}</div>` : ''}
+                        ${mov.description ? `<div style="font-size: 11px; color: #000000ff; font-style: italic; margin-top: 2px;">Nota: ${mov.description}</div>` : ''}
                     </td>
                     <td class="text-right ${esVenta ? 'text-red' : 'text-green'}">
                         ${esVenta ? '+' : '-'} ${formatCurrency(mov.monto)}
