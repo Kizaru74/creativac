@@ -426,12 +426,12 @@ window.loadDebts = async function() {
                         </td>
                         <td class="px-10 py-6 text-center">
                             <div class="glass-badge glass-badge-danger inline-flex">
-                                <span class="text-lg font-black text-red-500 font-sans italic tracking-tighter">
+                                <span class="text-lg font-black text-white font-sans italic tracking-tighter">
                                     ${formatCurrency(debt.totalDebt)}
                                 </span>
                             </div>
                         </td>
-                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercase italic">
+                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercase">
                             ${formattedDate}
                         </td>
                         <td class="px-10 py-6 text-right">
