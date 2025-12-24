@@ -968,11 +968,14 @@ window.generateQuotation = function() {
         return;
     }
 
-    const total = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const subtotal = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const iva = subtotal * 0.16;
+    const totalConIva = subtotal + iva;
+
     const clientSelect = document.getElementById('client-select');
     const cliente = (clientSelect && clientSelect.selectedIndex > 0) ? clientSelect.options[clientSelect.selectedIndex].text : "Público General";
 
-    // 1. GENERAMOS EL HTML DE LA PREVIEW (DENTRO DEL MODAL)
+    // 1. GENERAMOS EL HTML DE LOS ITEMS (Usando tus tamaños: text-base y text-[13px])
     let itemsHtml = currentSaleItems.map(item => `
         <div class="flex justify-between items-center py-2 border-b border-white/5 font-sans">
             <div class="text-left">
@@ -983,7 +986,7 @@ window.generateQuotation = function() {
         </div>
     `).join('');
 
-    // 2. LANZAMOS LA PREVIEW CON SWEETALERT
+    // 2. LANZAMOS LA PREVIEW CON EL DESGLOSE DE IMPUESTOS
     Swal.fire({
         title: `<span class="text-blue-500 font-sans font-black uppercase tracking-[0.3em] text-xs">Vista Previa de Cotización</span>`,
         background: '#121212',
@@ -993,28 +996,45 @@ window.generateQuotation = function() {
                     <div class="text-[12px] text-white/30 uppercase tracking-widest mb-1">Presupuesto para</div>
                     <div class="text-white font-black uppercase text-lg">${cliente}</div>
                 </div>
+                
                 <div class="max-h-60 overflow-y-auto mb-4 custom-scroll">
                     ${itemsHtml}
                 </div>
-                <div class="flex justify-between items-center pt-4 border-t border-blue-500/30">
-                    <div class="text-blue-500 font-black uppercase text-[12px] tracking-widest">Total Estimado</div>
-                    <div class="text-white font-black text-lg italic">${formatCurrency(total)}</div>
+                
+                <div class="space-y-2 pt-4 border-t border-blue-500/30">
+                    <div class="flex justify-between text-[12px] uppercase text-white/50">
+                        <span>Suma Productos:</span>
+                        <span>${formatCurrency(subtotal)}</span>
+                    </div>
+                    <div class="flex justify-between text-[12px] uppercase text-emerald-500 font-bold">
+                        <span>IVA (16%):</span>
+                        <span>${formatCurrency(iva)}</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t border-white/10">
+                        <div class="text-blue-500 font-black uppercase text-[12px] tracking-widest self-center">Total con IVA</div>
+                        <div class="text-white font-black text-xl italic">${formatCurrency(totalConIva)}</div>
+                    </div>
                 </div>
             </div>
+            <p class="text-[10px] text-gray-500 mt-4 uppercase tracking-tight">Selecciona el formato de impresión deseado:</p>
         `,
         showCancelButton: true,
-        confirmButtonText: '<i class="fas fa-print mr-2"></i> Generar PDF',
-        cancelButtonText: 'Seguir Editando',
-        confirmButtonColor: '#3b82f6', // Azul profesional
-        cancelButtonColor: '#333',
+        showDenyButton: true,
+        confirmButtonText: '<i class="fas fa-file-invoice-dollar mr-2"></i> Con IVA',
+        denyButtonText: '<i class="fas fa-file-invoice mr-2"></i> Sin IVA',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#10b981', // Verde para IVA
+        denyButtonColor: '#3b82f6',    // Azul para Sin IVA
         customClass: {
             confirmButton: 'rounded-lg uppercase text-base font-bold p-3',
+            denyButton: 'rounded-lg uppercase text-base font-bold p-3',
             cancelButton: 'rounded-lg uppercase text-base font-bold p-3'
         }
     }).then((result) => {
-        // 3. SI EL USUARIO CONFIRMA, SE EJECUTA LA FUNCIÓN DE IMPRESIÓN
         if (result.isConfirmed) {
-            window.generarPDFCotizacion();
+            window.generarPDFCotizacion(true); // Generar con IVA
+        } else if (result.isDenied) {
+            window.generarPDFCotizacion(false); // Generar solo subtotal
         }
     });
 };
