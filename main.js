@@ -501,9 +501,6 @@ async function loadClientsForSale() {
         select.appendChild(option);
     });
 }
-// 1. EL PUENTE PARA EL BOTÓN DE REFRESCO - Tu HTML usa onclick="loadDebts()", así que definimos esa función:
-
-// 2. FUNCIÓN PRINCIPAL ACTUALIZADA (CON FILTRADO Y CONTADORES)
 
 //Llena el SELECT de Producto Padre en el modal de edición
 window.loadMainProductsForEditSelect = function() {
@@ -787,6 +784,66 @@ window.updatePriceField = function(productId) { // <-- ¡Añadir window!
 // ====================================================================
 // 6. LÓGICA DE VENTA MULTI-ITEM, Calular Saldo Pendiente y Proteger el Monto Pagado
 // ====================================================================
+window.generateQuotation = function() {
+    if (currentSaleItems.length === 0) {
+        Swal.fire('Carrito Vacío', 'Agrega productos para cotizar', 'warning');
+        return;
+    }
+
+    const clientSelect = document.getElementById('sale-client-select');
+    const clientName = clientSelect.options[clientSelect.selectedIndex]?.text || "Ventanilla";
+    
+    let total = 0;
+    let itemsHtml = currentSaleItems.map(item => {
+        const subtotal = item.price * item.quantity;
+        total += subtotal;
+        return `
+            <div class="flex justify-between items-center py-2 border-b border-white/5 font-sans">
+                <div class="text-left">
+                    <div class="text-white text-[11px] font-bold uppercase">${item.name}</div>
+                    <div class="text-white/40 text-[9px] uppercase">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
+                </div>
+                <div class="text-white font-bold text-[12px] italic">${formatCurrency(subtotal)}</div>
+            </div>`;
+    }).join('');
+
+    // Modal de vista previa de Cotización
+    Swal.fire({
+        title: `<span class="text-blue-500 font-sans font-black uppercase tracking-[0.3em] text-sm">Cotización de Servicio</span>`,
+        background: '#121212',
+        html: `
+            <div class="text-left mt-4 border border-white/10 rounded-xl p-4 bg-white/5">
+                <div class="mb-4 text-center">
+                    <div class="text-[10px] text-white/30 uppercase tracking-widest mb-1">Cliente</div>
+                    <div class="text-white font-black uppercase text-sm font-sans">${clientName}</div>
+                </div>
+                <div class="max-h-60 overflow-y-auto mb-4">
+                    ${itemsHtml}
+                </div>
+                <div class="flex justify-between items-center pt-4 border-t border-blue-500/30">
+                    <div class="text-blue-500 font-black uppercase text-[10px] tracking-widest">Total Cotizado</div>
+                    <div class="text-white font-black text-xl italic font-sans">${formatCurrency(total)}</div>
+                </div>
+            </div>
+            <p class="text-[9px] text-white/20 mt-4 uppercase tracking-tighter">Esta cotización no afecta el inventario ni genera deuda.</p>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fab fa-whatsapp mr-2"></i> Enviar a Cliente',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#10b981',
+        customClass: {
+            confirmButton: 'rounded-lg uppercase text-[10px] font-black tracking-widest',
+            cancelButton: 'rounded-lg uppercase text-[10px] font-black tracking-widest'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Lógica opcional para enviar por WhatsApp
+            const text = `*COTIZACIÓN CREATIVA*%0A%0ACliente: ${clientName}%0ATotal: ${formatCurrency(total)}%0A%0AGracias por su preferencia.`;
+            window.open(`https://wa.me/?text=${text}`, '_blank');
+        }
+    });
+};
+
 
 function updatePaymentDebtStatus(grandTotalFromArgument) {
     
@@ -875,49 +932,44 @@ if (currentSaleItems.length > 0) {
 }
 
 window.updateSaleTableDisplay = function() {
-    // 🛑 CRÍTICO: Asegurarse de que el ID es el correcto según tu HTML
-    const container = document.getElementById('sale-items-table-body'); 
-    
-    if (!container) {
-        console.error("Error FATAL: Elemento 'sale-items-table-body' no encontrado en el DOM.");
-        return;
-    }
-    
-    let htmlContent = ''; 
+    const tbody = document.getElementById('sale-items-table-body');
+    const totalEl = document.getElementById('sale-total-amount');
+    if (!tbody) return;
 
-    if (currentSaleItems.length === 0) {
-        htmlContent = '<tr><td colspan="5" class="px-4 py-2 text-center text-gray-500 italic">Agrega productos a la venta.</td></tr>';
-    } else {
-        currentSaleItems.forEach((item, index) => {
-            let nameDisplay = item.name;
-            if (!item.name.includes('(') && item.type && item.type.trim().toUpperCase() !== 'MAIN') {
-                 nameDisplay = `${item.name} (${item.type})`;
-            }
-            
-            htmlContent += `
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-2 text-sm font-medium text-gray-900">${nameDisplay}</td>
-                    <td class="px-4 py-2 text-sm text-gray-500 text-center">${item.quantity}</td> 
-                    <td class="px-4 py-2 text-sm text-gray-500 cursor-pointer hover:bg-yellow-100 transition-colors"
-                        id="price-${index}"
-                        onclick="promptEditItemPrice(${index}, ${item.price})">
-                        ${formatCurrency(item.price)}
-                    </td>
-                    <td class="px-4 py-2 text-sm font-bold">${formatCurrency(item.subtotal)}</td>
-                    <td class="px-4 py-2 text-right text-sm font-medium">
-                        <button type="button" onclick="removeItemFromSale(${index})" 
-                                class="text-red-600 hover:text-red-900">
-                            <i class="fas fa-times-circle"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-    }
+    tbody.innerHTML = '';
+    let total = 0;
 
-    container.innerHTML = htmlContent;
-    calculateGrandTotal(); 
-}
+    currentSaleItems.forEach((item, index) => {
+        total += item.subtotal;
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr class="border-b border-white/5 group">
+                <td class="py-3 px-2 text-white font-bold text-xs uppercase">${item.name}</td>
+                <td class="py-3 px-2">
+                    <input type="number" step="0.01" value="${item.price}" 
+                        onchange="window.editItemPrice(${index}, this.value)"
+                        class="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-orange-500 font-bold text-xs focus:border-orange-500 outline-none">
+                </td>
+                <td class="py-3 px-2 text-white text-xs text-center">${item.quantity}</td>
+                <td class="py-3 px-2 text-right text-white font-bold text-xs italic">${formatCurrency(item.subtotal)}</td>
+                <td class="py-3 px-2 text-right">
+                    <button onclick="window.removeFromSale(${index})" class="text-red-500/50 hover:text-red-500 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+
+    if (totalEl) totalEl.innerText = formatCurrency(total);
+};
+
+// Función de apoyo para que el precio cambie al escribir
+window.editItemPrice = function(index, newPrice) {
+    const price = parseFloat(newPrice) || 0;
+    currentSaleItems[index].price = price;
+    currentSaleItems[index].subtotal = price * currentSaleItems[index].quantity;
+    window.updateSaleTableDisplay();
+};
 
 function promptEditItemPrice(index, currentPrice) {
     if (index < 0 || index >= currentSaleItems.length) {
@@ -4914,169 +4966,6 @@ if (searchInput) {
 }
 
 };
-
-function generateTextTicket(sale) {
-    const TICKET_WIDTH = 32;
-
-    // Helper 1: Alinea la etiqueta a la izquierda y el valor a la derecha (para totales)
-    const alignValueRight = (label, value) => {
-        const valueStr = formatCurrency(value);
-        // Calcula el relleno necesario para empujar el valor al final
-        const padding = TICKET_WIDTH - label.length - valueStr.length;
-        return label + " ".repeat(padding) + valueStr;
-    };
-    
-    // Helper 2: Centra el texto completo
-    const alignCenter = (text) => {
-        const padding = TICKET_WIDTH - text.length;
-        // Divide el espacio restante y redondea hacia abajo para el relleno izquierdo
-        const paddingLeft = Math.floor(padding / 2); 
-        return " ".repeat(paddingLeft) + text;
-    };
-    
-    // --- 1. ENCABEZADO DE LA EMPRESA ---
-    let ticket = alignCenter("Creativa Cortes CNC") + "\n"; // Usamos alignCenter para centrar
-    ticket += "--------------------------------\n";
-    ticket += "\n";
-    
-    // 💡 Usamos alignCenter para los datos de contacto
-    ticket += alignCenter("Tel: 9851001141") + "\n";
-    ticket += alignCenter("Dirección: Calle 33 x 48 y 46") + "\n";
-    ticket += alignCenter("Col. Candelaria") + "\n";
-    // Eliminamos la línea duplicada de Teléfono
-    
-    ticket += "Fecha: " + new Date(sale.created_at).toLocaleDateString('es-MX') + "\n";
-    ticket += "Venta: " + sale.venta_id + "\n";
-    ticket += "--------------------------------\n";
-    
-    // --- 2. CLIENTE ---
-    const clientName = sale.clientes?.name || 'Consumidor Final';
-    ticket += "Cliente: " + clientName + "\n";
-    ticket += "================================\n";
-    ticket += "\n";
-
-    // --- 3. DETALLE DE PRODUCTOS ---
-    // 💡 Usamos espaciado fijo aquí, no espacios literales que pueden fallar
-    ticket += "Producto             Cant.  Total\n";
-    ticket += "--------------------------------\n";
-    
-    sale.detalle_ventas.forEach(item => {
-        const productName = item.productos.name;
-        // Nombre truncado a 18 caracteres y rellenado
-        const prodName = productName.substring(0, 18).padEnd(18, ' ');
-        const quantity = item.quantity.toString().padStart(5, ' ');
-        const subtotal = formatCurrency(item.subtotal).padStart(6, ' ');
-        
-        ticket += `${prodName} ${quantity} ${subtotal}\n`;
-    });
-    
-    ticket += "--------------------------------\n";
-    ticket += "\n";
-    
-    // --- 4. TOTALES ---
-    const totalAmount = sale.total_amount || 0;
-    const saldoPendiente = sale.saldo_pendiente || 0;
-    const anticipo = totalAmount - saldoPendiente;
-
-    // ✅ Usamos la función renombrada alignValueRight
-    ticket += alignValueRight("SALDO PENDIENTE:", saldoPendiente) + "\n"; 
-    ticket += alignValueRight("ANTICIPO:", anticipo) + "\n";
-    ticket += "================================\n";
-    ticket += alignValueRight("TOTAL:", totalAmount) + "\n";
-    ticket += "================================\n";
-
-
-    // --- 5. PIE DE PÁGINA ---
-    ticket += "\n";
-    // ⬇️ USAMOS alignCenter
-    ticket += alignCenter("¡Gracias por su compra!") + "\n";
-    ticket += "\n";
-    ticket += "--------------------------------\n";
-
-    return ticket;
-}
-
-// Variable global para guardar el ID de la venta en vista previa
-let CURRENT_SALE_ID = null; 
-
-async function showTicketPreviewModal(ventaId) {
-    // 1. Obtener datos de Supabase
-    const { data: sale, error } = await supabase
-        .from('ventas')
-        .select(`*, clientes(name), detalle_ventas (quantity, price, subtotal, productos(name))`)
-        .eq('venta_id', ventaId)
-        .single();
-    
-    if (error || !sale) return;
-
-    // 2. Generar el ticket como texto plano formateado
-    const ticketContent = generateTextTicket(sale); 
-    
-    // 3. CRÍTICO: Envolver el contenido en <pre> para asegurar que:
-    //    a) Se respeten los saltos de línea (\n).
-    //    b) Se respete el espaciado fijo de los métodos padStart/padEnd.
-    //    c) Se use la fuente 'monospace' para que todos los caracteres tengan el mismo ancho.
-    const htmlContent = `<pre style="font-family: monospace; font-size: 14px; margin: 0 auto; text-align: left;">${ticketContent}</pre>`;
-
-    // 4. Inyectar y mostrar
-    const ticketPreviewContent = document.getElementById('ticket-preview-content');
-    
-    if (ticketPreviewContent) { 
-        ticketPreviewContent.innerHTML = htmlContent;
-    }
-
-    CURRENT_SALE_ID = ventaId; 
-    openModal('modal-ticket-preview');
-}
-window.showTicketPreviewModal = showTicketPreviewModal;
-
-// La función que se llama al hacer clic en el botón Imprimir
-async function printTicketQZ(ventaId) {
-    // 1. Obtener los datos de la venta (La misma consulta que usas en el modal)
-    const { data: sale, error } = await supabase
-        .from('ventas')
-        .select(`*, clientes(name), detalle_ventas (quantity, price, subtotal, productos(name))`)
-        .eq('venta_id', ventaId)
-        .single();
-    
-    if (error || !sale) {
-        console.error('Error al obtener datos para impresión:', error?.message);
-        return;
-    }
-
-    // 2. Generar el ticket en texto plano
-    // Utilizamos la función que acabamos de crear:
-    const ticketText = generateTextTicket(sale); 
-
-    // 3. Imprimir usando QZ Tray
-    if (!qz.websocket.isActive()) {
-        alert("QZ Tray no está conectado. Por favor, asegúrate de que esté corriendo y recarga la página.");
-        return;
-    }
-
-    try {
-        // Enviar el contenido del ticket
-        const data = [
-            // El formato 'raw' envía el texto directamente a la impresora
-            { type: 'raw', data: ticketText },
-            // Comando para cortar el papel (necesario en la mayoría de las impresoras térmicas)
-            { type: 'raw', data: '\x1D\x56\x41\x00' } // ESC/POS Comando: GS V 0 (Full Cut)
-        ];
-
-        // 💡 CRÍTICO: Modifica 'Mi Impresora de Tickets' con el nombre de tu impresora 
-        const config = qz.configs.create('XP-58 (copy 1)', { 
-             encoding: '858', // Codificación de caracteres para manejar tildes (Latin-1)
-             // Puedes ajustar más settings aquí, como el margen o la densidad
-        });
-
-        await qz.print(config, data);
-        console.log('Ticket enviado a la impresora correctamente.');
-
-    } catch (e) {
-        alert('Error de impresión con QZ Tray. Revisa la consola para más detalles.');
-        console.error(e);
-    }
-}
 
 // ====================================================================
 // UTILIDADES/CARGAS
