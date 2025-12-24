@@ -3070,7 +3070,7 @@ window.generarPDFCotizacion = function(incluirIva = false) {
                         <span style="font-weight: bold;">${formatMoney(subtotal)}</span>
                     </div>
                     ${incluirIva ? `
-                    <div class="total-row" style="color: #10b981;">
+                    <div class="total-row" style="color: #3b0198c0;">
                         <span>IVA (16%):</span>
                         <span>${formatMoney(valorIva)}</span>
                     </div>
