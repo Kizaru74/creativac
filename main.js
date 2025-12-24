@@ -3342,7 +3342,7 @@ window.handlePriceEditSubmit = async function(e) {
 window.loadProductsTable = function() {
     const container = document.getElementById('products-table-body');
     if (!container) return; 
-   
+    
     container.innerHTML = '';
     const products = window.allProducts || []; 
 
@@ -3357,12 +3357,10 @@ window.loadProductsTable = function() {
 
     products.forEach(product => {
         const row = document.createElement('tr');
-        // Estilo Dark Premium: Hover sutil y bordes finos
         row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
         
         const formattedPrice = formatCurrency(product.price);
         
-        // Configuración de iconos y badges
         let badgeClass = '';
         let typeText = '';
         let icon = '';
@@ -3423,21 +3421,22 @@ window.loadProductsTable = function() {
             </td>
             
             <td class="px-8 py-6 text-right">
-    <div class="flex justify-end items-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
-        
-        <button onclick="handleViewAction(this, '${sale.venta_id}', '${sale.client_id}')" 
-            class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all duration-300 hover:bg-orange-500/20 hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(249,115,22,0.2)]"
-            title="Ver Detalle / Ticket">
-            <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-            <i class="fas fa-file-invoice-dollar text-gray-400 group-hover/btn:text-orange-500 group-hover/btn:scale-110 transition-all duration-300"></i>
-        </button>
+                <div class="flex justify-end items-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
+                    
+                    <button onclick="window.handleEditProductClick(${product.producto_id})" 
+                        class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all duration-300 hover:bg-orange-500/20 hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(249,115,22,0.2)]"
+                        title="Editar Producto">
+                        <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
+                        <i class="fas fa-edit text-gray-400 group-hover/btn:text-orange-500 group-hover/btn:scale-110 transition-all duration-300"></i>
+                    </button>
 
-        <button onclick="handleDeleteAction(this, '${sale.venta_id}', ${selectedMonth}, ${selectedYear})" 
-            class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all duration-300 hover:bg-red-500/20 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-            title="Eliminar Registro">
-            <div class="absolute inset-0 bg-gradient-to-tr from-red-500/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-            <i class="fas fa-trash-alt text-gray-400 group-hover/btn:text-red-500 group-hover/btn:scale-110 transition-all duration-300"></i>
-        </button>
+                    <button onclick="window.handleDeleteProductClick(${product.producto_id})" 
+                        class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl overflow-hidden transition-all duration-300 hover:bg-red-500/20 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                        title="Eliminar Producto">
+                        <div class="absolute inset-0 bg-gradient-to-tr from-red-500/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
+                        <i class="fas fa-trash-alt text-gray-400 group-hover/btn:text-red-500 group-hover/btn:scale-110 transition-all duration-300"></i>
+                    </button>
+
                 </div>
             </td>
         `;
