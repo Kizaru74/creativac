@@ -3424,19 +3424,15 @@ window.loadProductsTable = function() {
                 <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
                     
                     <button onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center bg-orange-500/10 border border-orange-500/30 rounded-2xl backdrop-blur-md transition-all duration-300 hover:bg-orange-500 hover:border-orange-500 hover:shadow-[0_0_25px_rgba(249,115,22,0.5)]"
+                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-2xl backdrop-blur-md transition-all duration-300 hover:!bg-orange-500 hover:shadow-[0_0_20px_rgba(249,115,22,0.5)]"
                         title="Editar Producto">
-                        <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-                        
-                        <i class="fas fa-edit text-orange-500 group-hover/btn:text-white group-hover/btn:scale-110 transition-all duration-300 text-lg relative z-10"></i>
+                        <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all duration-300 text-lg !bg-transparent !p-0 !border-none relative z-10"></i>
                     </button>
 
                     <button onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-2xl backdrop-blur-md transition-all duration-300 hover:bg-red-500 hover:border-red-500 hover:shadow-[0_0_25px_rgba(239,68,68,0.5)]"
+                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-2xl backdrop-blur-md transition-all duration-300 hover:!bg-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.5)]"
                         title="Eliminar Producto">
-                        <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-                        
-                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:text-white group-hover/btn:scale-110 transition-all duration-300 text-base relative z-10"></i>
+                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all duration-300 text-base !bg-transparent !p-0 !border-none relative z-10"></i>
                     </button>
 
                 </div>
