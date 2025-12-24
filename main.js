@@ -4743,7 +4743,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                         <i class="fas fa-user text-xs"></i>
                                     </div>
                                     <div>
-                                        <div class="text-sm font-black text-white uppercase tracking-tight font-sans">${clientName}</div>
+                                        <div class="text-base font-bold text-white uppercase tracking-tight font-sans">${clientName}</div>
                                         <div class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1 font-sans">${sale.metodo_pago || 'EFECTIVO'}</div>
                                     </div>
                                 </div>
