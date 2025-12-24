@@ -786,60 +786,62 @@ window.updatePriceField = function(productId) { // <-- ¡Añadir window!
 // ====================================================================
 window.generateQuotation = function() {
     if (currentSaleItems.length === 0) {
-        Swal.fire('Carrito Vacío', 'Agrega productos para cotizar', 'warning');
+        Swal.fire({ title: 'Carrito Vacío', text: 'Agrega productos para cotizar', icon: 'warning', background: '#1c1c1c', color: '#fff', confirmButtonColor: '#f97316' });
         return;
     }
 
-    const clientSelect = document.getElementById('sale-client-select');
-    const clientName = clientSelect.options[clientSelect.selectedIndex]?.text || "Ventanilla";
+    // Corregimos el ID según tu index.html
+    const clientSelect = document.getElementById('client-select');
+    let clientName = "Ventanilla / Público General";
     
-    let total = 0;
-    let itemsHtml = currentSaleItems.map(item => {
-        const subtotal = item.price * item.quantity;
-        total += subtotal;
-        return `
-            <div class="flex justify-between items-center py-2 border-b border-white/5 font-sans">
-                <div class="text-left">
-                    <div class="text-white text-[11px] font-bold uppercase">${item.name}</div>
-                    <div class="text-white/40 text-[9px] uppercase">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
-                </div>
-                <div class="text-white font-bold text-[12px] italic">${formatCurrency(subtotal)}</div>
-            </div>`;
-    }).join('');
+    if (clientSelect && clientSelect.selectedIndex !== -1) {
+        const selectedText = clientSelect.options[clientSelect.selectedIndex].text;
+        if (selectedText && !selectedText.includes('Selecciona')) {
+            clientName = selectedText;
+        }
+    }
 
-    // Modal de vista previa de Cotización
+    const total = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    let itemsHtml = currentSaleItems.map(item => `
+        <div class="flex justify-between items-center py-2 border-b border-white/5">
+            <div class="text-left">
+                <div class="text-white text-[10px] font-bold uppercase font-sans">${item.name}</div>
+                <div class="text-white/40 text-[9px] uppercase font-sans">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
+            </div>
+            <div class="text-white font-bold text-[11px] italic font-sans">${formatCurrency(item.subtotal)}</div>
+        </div>
+    `).join('');
+
     Swal.fire({
-        title: `<span class="text-blue-500 font-sans font-black uppercase tracking-[0.3em] text-sm">Cotización de Servicio</span>`,
+        title: `<span class="text-blue-500 font-sans font-black uppercase tracking-[0.3em] text-xs">Cotización de Servicio</span>`,
         background: '#121212',
         html: `
-            <div class="text-left mt-4 border border-white/10 rounded-xl p-4 bg-white/5">
+            <div class="text-left mt-4 border border-white/10 rounded-xl p-5 bg-white/5 font-sans">
                 <div class="mb-4 text-center">
-                    <div class="text-[10px] text-white/30 uppercase tracking-widest mb-1">Cliente</div>
-                    <div class="text-white font-black uppercase text-sm font-sans">${clientName}</div>
+                    <div class="text-[9px] text-white/30 uppercase tracking-widest mb-1">Presupuesto para</div>
+                    <div class="text-white font-black uppercase text-xs">${clientName}</div>
                 </div>
-                <div class="max-h-60 overflow-y-auto mb-4">
-                    ${itemsHtml}
-                </div>
+                <div class="max-h-60 overflow-y-auto mb-4 custom-scroll">${itemsHtml}</div>
                 <div class="flex justify-between items-center pt-4 border-t border-blue-500/30">
-                    <div class="text-blue-500 font-black uppercase text-[10px] tracking-widest">Total Cotizado</div>
-                    <div class="text-white font-black text-xl italic font-sans">${formatCurrency(total)}</div>
+                    <div class="text-blue-500 font-black uppercase text-[9px] tracking-[0.2em]">Total Estimado</div>
+                    <div class="text-white font-black text-lg italic">${formatCurrency(total)}</div>
                 </div>
             </div>
-            <p class="text-[9px] text-white/20 mt-4 uppercase tracking-tighter">Esta cotización no afecta el inventario ni genera deuda.</p>
         `,
         showCancelButton: true,
-        confirmButtonText: '<i class="fab fa-whatsapp mr-2"></i> Enviar a Cliente',
+        confirmButtonText: '<i class="fab fa-whatsapp mr-2"></i> Enviar WhatsApp',
         cancelButtonText: 'Cerrar',
         confirmButtonColor: '#10b981',
+        cancelButtonColor: '#333',
         customClass: {
-            confirmButton: 'rounded-lg uppercase text-[10px] font-black tracking-widest',
-            cancelButton: 'rounded-lg uppercase text-[10px] font-black tracking-widest'
+            confirmButton: 'rounded-lg uppercase text-[10px] font-bold p-3',
+            cancelButton: 'rounded-lg uppercase text-[10px] font-bold p-3'
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            // Lógica opcional para enviar por WhatsApp
-            const text = `*COTIZACIÓN CREATIVA*%0A%0ACliente: ${clientName}%0ATotal: ${formatCurrency(total)}%0A%0AGracias por su preferencia.`;
-            window.open(`https://wa.me/?text=${text}`, '_blank');
+            const mensaje = `*COTIZACIÓN CREATIVA*%0A*Cliente:* ${clientName}%0A*Total:* ${formatCurrency(total)}%0A%0A_Precios sujetos a cambios._`;
+            window.open(`https://wa.me/?text=${mensaje}`, '_blank');
         }
     });
 };
@@ -943,17 +945,17 @@ window.updateSaleTableDisplay = function() {
         total += item.subtotal;
         tbody.insertAdjacentHTML('beforeend', `
             <tr class="border-b border-white/5 group">
-                <td class="py-3 px-2 text-white font-bold text-xs uppercase">${item.name}</td>
+                <td class="py-3 px-2 text-white font-bold text-[10px] uppercase font-sans">${item.name}</td>
                 <td class="py-3 px-2">
-                    <input type="number" step="0.01" value="${item.price}" 
+                    <input type="number" step="0.1" value="${item.price}" 
                         onchange="window.editItemPrice(${index}, this.value)"
-                        class="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-orange-500 font-bold text-xs focus:border-orange-500 outline-none">
+                        class="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-orange-500 font-bold text-[11px] outline-none focus:border-orange-500/50 transition-all font-sans">
                 </td>
-                <td class="py-3 px-2 text-white text-xs text-center">${item.quantity}</td>
-                <td class="py-3 px-2 text-right text-white font-bold text-xs italic">${formatCurrency(item.subtotal)}</td>
+                <td class="py-3 px-2 text-white text-[11px] text-center font-sans">${item.quantity}</td>
+                <td class="py-3 px-2 text-right text-white font-bold text-[11px] italic font-sans">${formatCurrency(item.subtotal)}</td>
                 <td class="py-3 px-2 text-right">
-                    <button onclick="window.removeFromSale(${index})" class="text-red-500/50 hover:text-red-500 transition-colors">
-                        <i class="fas fa-times"></i>
+                    <button type="button" onclick="window.removeFromSale(${index})" class="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500/40 hover:text-red-500 transition-all">
+                        <i class="fas fa-times text-xs"></i>
                     </button>
                 </td>
             </tr>
@@ -963,7 +965,7 @@ window.updateSaleTableDisplay = function() {
     if (totalEl) totalEl.innerText = formatCurrency(total);
 };
 
-// Función de apoyo para que el precio cambie al escribir
+// Función para cambiar precios manualmente
 window.editItemPrice = function(index, newPrice) {
     const price = parseFloat(newPrice) || 0;
     currentSaleItems[index].price = price;
