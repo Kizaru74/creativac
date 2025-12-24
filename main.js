@@ -5501,9 +5501,6 @@ document.querySelectorAll('[data-view]').forEach(link => {
     await loadAllClientsMap();
     checkUserSession();
 
-    // 3. Inicializar el selector con los meses (esto selecciona el mes actual)
-    initializeMonthSelector(); 
-
     // 4. (Tu código) Establecer el Listener en el selector
     const selector = document.getElementById('report-month-selector');
     if (selector) {
