@@ -976,10 +976,10 @@ window.generateQuotation = function() {
     let itemsHtml = currentSaleItems.map(item => `
         <div class="flex justify-between items-center py-2 border-b border-white/5 font-sans">
             <div class="text-left">
-                <div class="text-white text-[10px] font-bold uppercase">${item.name}</div>
-                <div class="text-white/40 text-[9px] uppercase">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
+                <div class="text-white text-base font-bold uppercase">${item.name}</div>
+                <div class="text-white/40 text-base uppercase">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
             </div>
-            <div class="text-white font-bold text-[11px] italic">${formatCurrency(item.subtotal)}</div>
+            <div class="text-white font-bold text-[12px] italic">${formatCurrency(item.subtotal)}</div>
         </div>
     `).join('');
 
@@ -1008,8 +1008,8 @@ window.generateQuotation = function() {
         confirmButtonColor: '#3b82f6', // Azul profesional
         cancelButtonColor: '#333',
         customClass: {
-            confirmButton: 'rounded-lg uppercase text-[10px] font-bold p-3',
-            cancelButton: 'rounded-lg uppercase text-[10px] font-bold p-3'
+            confirmButton: 'rounded-lg uppercase text-base font-bold p-3',
+            cancelButton: 'rounded-lg uppercase text-base font-bold p-3'
         }
     }).then((result) => {
         // 3. SI EL USUARIO CONFIRMA, SE EJECUTA LA FUNCIÓN DE IMPRESIÓN
