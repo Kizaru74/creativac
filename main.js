@@ -962,48 +962,59 @@ window.editItemPrice = function(index, newPrice) {
 };
 
 // --- GENERADOR DE COTIZACIÓN (PDF + WHATSAPP) ---
-
-window.generateQuotation = async function() {
+window.generateQuotation = function() {
     if (!currentSaleItems || currentSaleItems.length === 0) {
-        Swal.fire({ title: 'Carrito Vacío', text: 'Agrega productos', icon: 'warning', background: '#121212', color: '#fff' });
+        Swal.fire({ title: 'Atención', text: 'El carrito está vacío', icon: 'warning', background: '#1c1c1c', color: '#fff' });
         return;
     }
 
-    const clientSelect = document.getElementById('client-select');
-    let clientName = "Ventanilla / Público General";
-    if (clientSelect && clientSelect.selectedIndex > 0) {
-        clientName = clientSelect.options[clientSelect.selectedIndex].text;
-    }
-
     const total = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const clientSelect = document.getElementById('client-select');
+    const cliente = (clientSelect && clientSelect.selectedIndex > 0) ? clientSelect.options[clientSelect.selectedIndex].text : "Público General";
 
-    // 1. Mostrar Preview en Pantalla
-    Swal.fire({
-        title: `<span class="text-blue-500 font-sans font-black uppercase tracking-widest text-xs">Opciones de Cotización</span>`,
-        background: '#121212',
-        color: '#fff',
-        html: `
-            <div class="text-left border border-white/40 rounded-xl p-4 bg-white/5 font-sans mb-4">
-                <p class="text-[12px] text-blue-500 font-bold uppercase mb-2">Resumen para: ${clientName}</p>
-                <p class="text-lg font-black italic">${formatCurrency(total)}</p>
+    // 1. GENERAMOS EL HTML DE LA PREVIEW (DENTRO DEL MODAL)
+    let itemsHtml = currentSaleItems.map(item => `
+        <div class="flex justify-between items-center py-2 border-b border-white/5 font-sans">
+            <div class="text-left">
+                <div class="text-white text-[10px] font-bold uppercase">${item.name}</div>
+                <div class="text-white/40 text-[9px] uppercase">Cant: ${item.quantity} x ${formatCurrency(item.price)}</div>
             </div>
-            <p class="text-[12px] text-gray-500 uppercase">¿Cómo deseas entregar el presupuesto?</p>
+            <div class="text-white font-bold text-[11px] italic">${formatCurrency(item.subtotal)}</div>
+        </div>
+    `).join('');
+
+    // 2. LANZAMOS LA PREVIEW CON SWEETALERT
+    Swal.fire({
+        title: `<span class="text-blue-500 font-sans font-black uppercase tracking-[0.3em] text-xs">Vista Previa de Cotización</span>`,
+        background: '#121212',
+        html: `
+            <div class="text-left mt-4 border border-white/10 rounded-xl p-5 bg-white/5 font-sans">
+                <div class="mb-4 text-center">
+                    <div class="text-[12px] text-white/30 uppercase tracking-widest mb-1">Presupuesto para</div>
+                    <div class="text-white font-black uppercase text-lg">${cliente}</div>
+                </div>
+                <div class="max-h-60 overflow-y-auto mb-4 custom-scroll">
+                    ${itemsHtml}
+                </div>
+                <div class="flex justify-between items-center pt-4 border-t border-blue-500/30">
+                    <div class="text-blue-500 font-black uppercase text-[12px] tracking-widest">Total Estimado</div>
+                    <div class="text-white font-black text-lg italic">${formatCurrency(total)}</div>
+                </div>
+            </div>
         `,
         showCancelButton: true,
-        showDenyButton: true,
-        confirmButtonText: '<i class="fab fa-whatsapp mr-2"></i> WhatsApp',
-        denyButtonText: '<i class="fas fa-file-pdf mr-2"></i> Descargar PDF',
-        cancelButtonText: 'Cerrar',
-        confirmButtonColor: '#10b981',
-        denyButtonColor: '#3b82f6',
+        confirmButtonText: '<i class="fas fa-print mr-2"></i> Generar PDF',
+        cancelButtonText: 'Seguir Editando',
+        confirmButtonColor: '#3b82f6', // Azul profesional
+        cancelButtonColor: '#333',
+        customClass: {
+            confirmButton: 'rounded-lg uppercase text-[10px] font-bold p-3',
+            cancelButton: 'rounded-lg uppercase text-[10px] font-bold p-3'
+        }
     }).then((result) => {
+        // 3. SI EL USUARIO CONFIRMA, SE EJECUTA LA FUNCIÓN DE IMPRESIÓN
         if (result.isConfirmed) {
-            // WHATSAPP
-            const msg = `*COTIZACIÓN CREATIVA*%0A*Cliente:* ${clientName}%0A*Total:* ${formatCurrency(total)}%0A%0A_Precios sujetos a cambio._`;
-            window.open(`https://wa.me/?text=${msg}`, '_blank');
-        } else if (result.isDenied) {
-            // PDF
-            downloadQuotePDF(clientName, total);
+            window.generarPDFCotizacion();
         }
     });
 };
