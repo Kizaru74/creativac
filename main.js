@@ -2943,12 +2943,15 @@ window.generarPDFEstadoCuenta = function() {
     }
 };
 
-window.generarPDFCotizacion = function() {
-    if (!currentSaleItems || currentSaleItems.length === 0) {
-        return Swal.fire({ title: 'Carrito Vacío', text: 'Agrega productos para cotizar', icon: 'warning', background: '#1c1c1c', color: '#fff' });
-    }
+window.generarPDFCotizacion = function(incluirIva = false) {
+    if (!currentSaleItems || currentSaleItems.length === 0) return;
 
-    const colorCotizacion = '#3b82f6'; // Azul profesional para diferenciar de ventas (que son naranja)
+    // 1. CÁLCULOS
+    const subtotal = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const valorIva = incluirIva ? (subtotal * 0.16) : 0;
+    const totalFinal = subtotal + valorIva;
+
+    // 2. DATOS DE CABECERA
     const fecha = new Date().toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
@@ -2956,100 +2959,146 @@ window.generarPDFCotizacion = function() {
     const clientSelect = document.getElementById('client-select');
     const nombreCliente = (clientSelect && clientSelect.selectedIndex > 0) 
         ? clientSelect.options[clientSelect.selectedIndex].text 
-        : 'Público General';
+        : 'PÚBLICO GENERAL';
 
+    const colorTema = '#3b82f6'; // Azul para Cotizaciones
     const formatMoney = (amount) => `$${parseFloat(amount || 0).toFixed(2)}`;
 
-    // Generar filas con los precios que tú estableciste manualmente
+    // 3. GENERAR FILAS DE PRODUCTOS
     const filasProductos = currentSaleItems.map(p => `
         <tr>
             <td style="padding: 12px; border-bottom: 1px solid #f0f0f0;">
                 <div style="font-weight: bold; color: #111; text-transform: uppercase; font-size: 11px;">${p.name}</div>
             </td>
-            <td style="text-align: center; padding: 12px; border-bottom: 1px solid #f0f0f0;">${p.quantity}</td>
-            <td style="text-align: right; padding: 12px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #111;">
-                ${formatMoney(p.price)}
-            </td>
+            <td style="text-align: center; padding: 12px; border-bottom: 1px solid #f0f0f0; color: #444;">${p.quantity}</td>
+            <td style="text-align: right; padding: 12px; border-bottom: 1px solid #f0f0f0; color: #444;">${formatMoney(p.price)}</td>
             <td style="text-align: right; padding: 12px; border-bottom: 1px solid #f0f0f0; font-weight: bold; color: #111;">
                 ${formatMoney(p.subtotal)}
             </td>
         </tr>
     `).join('');
 
-    const totalCotizado = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
-
+    // 4. CONTENIDO HTML PARA IMPRESIÓN
     const htmlContent = `
         <!DOCTYPE html>
-        <html>
+        <html lang="es">
         <head>
             <meta charset="UTF-8">
             <title>Cotización - CREATIVA</title>
             <style>
                 @page { size: letter; margin: 15mm; }
-                body { font-family: 'Segoe UI', sans-serif; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
                 .btn-print-container { max-width: 210mm; margin: 0 auto 10px auto; text-align: right; }
-                .btn-print { background: ${colorCotizacion}; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-                .sheet { background: white; width: 210mm; min-height: 250mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-top: 12px solid ${colorCotizacion}; box-sizing: border-box; }
-                .header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+                .btn-print { background: ${colorTema}; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .sheet { background: white; width: 210mm; min-height: 250mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-top: 12px solid ${colorTema}; box-sizing: border-box; position: relative; }
+                
+                .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+                .logo-container { width: 80px; height: 80px; margin-right: 20px; }
+                .logo-container img { max-width: 100%; object-fit: contain; }
+                
                 .brand-info h2 { margin: 0; color: #111; font-size: 22px; font-weight: 900; }
-                .brand-info p { margin: 5px 0 0 0; font-size: 10px; letter-spacing: 3px; color: ${colorCotizacion}; font-weight: bold; }
-                .quote-meta { text-align: right; }
-                .quote-meta h1 { margin: 0; color: ${colorCotizacion}; font-size: 18px; text-transform: uppercase; }
-                .data-grid { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 30px; }
-                table { width: 100%; border-collapse: collapse; }
-                th { text-align: left; padding: 12px; font-size: 11px; text-transform: uppercase; color: ${colorCotizacion}; border-bottom: 2px solid ${colorCotizacion}; }
-                .total-final { margin-top: 20px; text-align: right; font-size: 22px; font-weight: 900; color: ${colorCotizacion}; }
-                .footer { margin-top: 50px; text-align: center; color: #999; font-size: 11px; }
-                @media print { .btn-print-container { display: none; } .sheet { box-shadow: none; margin: 0; width: 100%; } }
+                .brand-info p { margin: 5px 0 0 0; font-size: 10px; letter-spacing: 3px; color: ${colorTema}; font-weight: bold; }
+
+                .receipt-meta { text-align: right; }
+                .receipt-meta h1 { margin: 0; color: ${colorTema}; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
+                .receipt-meta .fecha { font-size: 11px; color: #777; margin-top: 5px; }
+
+                .client-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 30px; }
+                .client-box .label { font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: bold; margin-bottom: 5px; display: block; }
+                .client-box .value { font-size: 16px; font-weight: bold; color: #1e293b; text-transform: uppercase; }
+
+                table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                th { text-align: left; padding: 12px; font-size: 11px; text-transform: uppercase; color: ${colorTema}; border-bottom: 2px solid ${colorTema}; }
+                
+                .totals-container { width: 300px; margin-left: auto; }
+                .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+                .total-row.final { border-top: 2px solid ${colorTema}; margin-top: 10px; padding-top: 10px; color: ${colorTema}; font-weight: 900; font-size: 20px; }
+
+                .footer { margin-top: 60px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; color: #999; font-size: 11px; line-height: 1.6; }
+
+                @media print {
+                    .btn-print-container { display: none; }
+                    body { background: white; padding: 0; }
+                    .sheet { box-shadow: none; border-radius: 0; width: 100%; margin: 0; border-top: none; }
+                }
             </style>
         </head>
         <body>
             <div class="btn-print-container">
                 <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR / GUARDAR PDF</button>
             </div>
+
             <div class="sheet">
                 <div class="header">
-                    <div class="brand-info">
-                        <h2>CREATIVA CORTES CNC</h2>
-                        <p>DISEÑO • CORTE • PRECISION</p>
+                    <div style="display: flex; align-items: center;">
+                        <div class="logo-container">
+                            <img src="https://raw.githubusercontent.com/Kizaru74/creativac/main/LogoCreativa.jpg" alt="Logo">
+                        </div>
+                        <div class="brand-info">
+                            <h2>CREATIVA CORTES CNC</h2>
+                            <p>DISEÑO • CORTE • PRECISION</p>
+                        </div>
                     </div>
-                    <div class="quote-meta">
+                    <div class="receipt-meta">
                         <h1>Presupuesto</h1>
-                        <div style="font-size: 14px; font-weight: bold;">COT-TEMP-${Math.floor(Math.random()*1000)}</div>
-                        <div style="font-size: 11px; color: #777;">${fecha}</div>
+                        <div class="fecha">${fecha}</div>
                     </div>
                 </div>
-                <div class="data-grid">
-                    <div style="font-size: 9px; text-transform: uppercase; color: #64748b;">Atención para:</div>
-                    <div style="font-size: 16px; font-weight: bold; color: #1e293b;">${nombreCliente}</div>
+
+                <div class="client-box">
+                    <span class="label">Atención para:</span>
+                    <span class="value">${nombreCliente}</span>
                 </div>
+
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 50%;">Descripción</th>
+                            <th style="width: 55%;">Descripción del Servicio</th>
                             <th style="width: 10%; text-align: center;">Cant.</th>
-                            <th style="width: 20%; text-align: right;">Unitario</th>
+                            <th style="width: 15%; text-align: right;">Unitario</th>
                             <th style="width: 20%; text-align: right;">Subtotal</th>
                         </tr>
                     </thead>
-                    <tbody>${filasProductos}</tbody>
+                    <tbody>
+                        ${filasProductos}
+                    </tbody>
                 </table>
-                <div class="total-final">
-                    <span style="font-size: 12px; color: #64748b; text-transform: uppercase; margin-right: 10px;">Total Cotizado:</span>
-                    ${formatMoney(totalCotizado)}
+
+                <div class="totals-container">
+                    <div class="total-row">
+                        <span>Suma de Productos:</span>
+                        <span style="font-weight: bold;">${formatMoney(subtotal)}</span>
+                    </div>
+                    ${incluirIva ? `
+                    <div class="total-row" style="color: #10b981;">
+                        <span>IVA (16%):</span>
+                        <span>${formatMoney(valorIva)}</span>
+                    </div>
+                    ` : ''}
+                    <div class="total-row final">
+                        <span>TOTAL:</span>
+                        <span>${formatMoney(totalFinal)}</span>
+                    </div>
                 </div>
+
                 <div class="footer">
-                    <strong>Vigencia: 15 días naturales</strong><br>
-                    📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán • 📱 985 100 1141
+                    <strong>Vigencia del presupuesto: 15 días naturales</strong><br>
+                    📍 Calle 33 x 48 y 46 Candelaria, Valladolid, Yucatán<br>
+                    📱 WhatsApp: 985 100 1141 • Creativa Cortes CNC
                 </div>
             </div>
         </body>
         </html>
     `;
 
+    // 5. ABRIR VENTANA DE IMPRESIÓN
     const pWin = window.open('', '_blank');
-    pWin.document.write(htmlContent);
-    pWin.document.close();
+    if (pWin) {
+        pWin.document.write(htmlContent);
+        pWin.document.close();
+    } else {
+        Swal.fire('Error', 'Por favor permite las ventanas emergentes.', 'error');
+    }
 };
 
 
