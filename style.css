@@ -31,16 +31,7 @@ tbody tr:hover {
     background-color: rgba(255, 255, 255, 0.05) !important; 
 }
 
-/* --- 3. BADGES DE IDENTIFICACIÓN (ID #00) --- */
-#clients-list-body .bg-slate-100,
-#products-list-body .bg-slate-100,
-#monthly-sales-report-body .bg-slate-100,
-.font-mono.bg-orange-500\/10 {
-    background-color: rgba(249, 115, 22, 0.1) !important;
-    color: #f97316 !important;
-    border: 1px solid rgba(249, 115, 22, 0.3) !important;
-    border-radius: 4px !important;
-}
+
 
 /* --- 5. BOTONES Y SPINNERS (CORREGIDO) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
@@ -176,4 +167,22 @@ tr.group:hover {
 #products-table-body .group\/btn i {
     padding: 0 !important;
     margin: 0 !important;
+}
+
+/* Limpieza para los inputs de resumen en el modal */
+#new-sale-modal input {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none; /* Quita estilos de iOS/Safari */
+    margin: 0;
+}
+
+/* Evitar que el autocompletado del navegador cambie el color de fondo */
+#new-sale-modal input:-webkit-autofill,
+#new-sale-modal input:-webkit-autofill:hover, 
+#new-sale-modal input:-webkit-autofill:focus {
+    -webkit-text-fill-color: inherit !important;
+    -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+    transition: background-color 5000s ease-in-out 0s;
 }
