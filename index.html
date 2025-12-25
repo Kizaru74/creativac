@@ -794,21 +794,24 @@
                     <textarea id="sale-details" rows="2" class="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-gray-300 italic text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="Ej. Entrega urgente, color específico..."></textarea>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 pt-6 border-t border-white/5">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 pt-6 border-t border-white/5">
                     <div class="p-5 bg-white/5 rounded-2xl border border-white/5">
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Venta</label>
-                        <input type="text" id="total-amount" value="0.00" class="w-full bg-transparent text-2xl font-black text-white tracking-tighter outline-none" readonly>
+                        <label class="block text-sm font-bold text-gray-500 uppercase mb-2">Total de Venta</label>
+                        <input type="text" id="total-amount" value="$0.00" 
+                            class="w-full !bg-transparent !border-none text-3xl font-black text-white outline-none shadow-none" readonly>
                     </div>
-
+    
                     <div class="p-5 bg-green-900/10 rounded-2xl border border-green-500/20">
-                        <label for="paid-amount" class="block text-[10px] font-bold text-green-500 uppercase tracking-widest mb-1">Monto Pagado</label>
-                        <input type="number" id="paid-amount" value="0.00" min="0" step="0.01" class="w-full bg-transparent text-2xl font-black text-green-500 tracking-tighter outline-none">
+                        <label class="block text-sm font-bold text-green-500 uppercase mb-2">Monto Abonado</label>
+                        <input type="number" id="paid-amount" value="0.00" 
+                            class="w-full !bg-transparent !border-none text-3xl font-black text-green-500 outline-none shadow-none">
                     </div>
-
-                    <div class="p-5 bg-red-900/10 rounded-2xl border border-red-500/20">
-                        <label class="block text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Saldo Pendiente</label>
-                        <input type="text" id="display-saldo-pendiente" value="0.00" class="w-full bg-transparent text-2xl font-black text-red-500 tracking-tighter outline-none" readonly>
-                    </div>
+    
+                  <div class="p-5 bg-red-900/10 rounded-2xl border border-red-500/20">
+                        <label class="block text-sm font-bold text-red-500 uppercase mb-2">Saldo Restante</label>
+                        <input type="text" id="display-saldo-pendiente" value="$0.00" 
+                            class="w-full !bg-transparent !border-none text-3xl font-black text-red-500 outline-none shadow-none" readonly>
+                  </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
