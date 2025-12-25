@@ -3627,8 +3627,8 @@ window.loadProductsTable = function() {
                         <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
-                        <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
-                        <div class="text-[10px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha de Producto</div>
+                        <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
+                        <div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha de Producto</div>
                     </div>
                 </div>
             </td>
