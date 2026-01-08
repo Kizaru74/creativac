@@ -3821,54 +3821,27 @@ window.populateParentSelect = function(selectId, currentProductId = null) {
         select.appendChild(option);
     });
 };
-// La función DEBE estar expuesta globalmente si el formulario no tiene un listener en JS.
-window.handleUpdateProduct = async function(e) {
-    e.preventDefault();
 
-    const productId = document.getElementById('edit-product-id').value;
-    const name = document.getElementById('edit-product-name').value;
-    const price = parseFloat(document.getElementById('edit-product-price').value);
-    const category = document.getElementById('edit-product-category').value;
-    
-    // Lógica de conversión de categorías
-    let dbType = 'PRODUCT';
-    if (category === 'Servicio') dbType = 'SERVICE';
-    if (category === 'Paquete') dbType = 'PACKAGE';
+window.fillParentProductSelect = function() {
+    const parentSelect = document.getElementById('edit-product-parent');
+    if (!parentSelect) return;
 
-    let parentId = null;
-    if (dbType === 'PACKAGE') {
-        parentId = document.getElementById('edit-product-parent').value || null;
-    }
+    // Limpiar opciones actuales
+    parentSelect.innerHTML = '<option value="">-- Seleccionar Producto Principal --</option>';
 
-    try {
-        const { error } = await supabase
-            .from('productos')
-            .update({
-                name: name,
-                price: price,
-                type: dbType,
-                parent_product: parentId
-            })
-            .eq('producto_id', productId);
+    // Usamos el mapa global que ya tienes (allProductsMap) o el array (allProducts)
+    // Filtramos para que solo aparezcan PRODUCTOS o SERVICIOS (no paquetes)
+    const availableParents = Object.values(window.allProductsMap || {}).filter(p => p.type !== 'PACKAGE');
 
-        if (error) throw error;
-
-        // CAMBIO: Toast de éxito arriba a la derecha
-        window.showToast('Producto actualizado correctamente', 'success');
-        
-        closeModal('edit-product-modal');
-        
-        // Recargar la tabla
-        if (typeof loadAndRenderProducts === 'function') {
-            await loadAndRenderProducts();
-        }
-    } catch (err) {
-        console.error('Error:', err);
-        
-        // CAMBIO: Toast de error arriba a la derecha
-        window.showToast('Error: ' + err.message, 'error');
-    }
+    availableParents.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.producto_id;
+        option.textContent = product.name;
+        parentSelect.appendChild(option);
+    });
 };
+
+// La función DEBE estar expuesta globalmente si el formulario no tiene un listener en JS.
 // ⚠️ NECESITAS ESTA FUNCIÓN DE MAPEO:
 function mapCategoryToSupabaseType(category) {
     if (category === 'Producto') return 'MAIN';
@@ -4022,7 +3995,7 @@ let deletingProductId = null;
 window.handleEditProductClick = function(productId) {
     console.log("🛠️ Iniciando edición para ID:", productId);
     
-    // 1. Aseguramos que el ID sea string para el mapa y buscamos
+    // 1. Aseguramos que el ID sea string para el mapa y buscamos el objeto
     const pid = String(productId);
     const productToEdit = window.allProductsMap[pid];
     
@@ -4030,16 +4003,22 @@ window.handleEditProductClick = function(productId) {
         // Guardamos el ID en la variable global para usarlo en el "Save"
         window.editingProductId = productId; 
 
-        // 2. Limpiar estilos previos del formulario
+        // 2. Cargamos la lista de "Padres" disponibles en el select
+        // Esto asegura que si es un Paquete, el dropdown tenga nombres de productos
+        if (typeof window.fillParentProductSelect === 'function') {
+            window.fillParentProductSelect();
+        }
+
+        // 3. Limpiar estilos y datos previos del formulario
         const form = document.getElementById('edit-product-form');
         if (form) form.reset();
 
-        // 3. PASAMOS EL OBJETO COMPLETO
+        // 4. Llenamos los campos del modal con la info del producto
         if (typeof loadProductDataToForm === 'function') {
             loadProductDataToForm(productToEdit); 
         }
 
-        // 4. Abrir Modal con efecto
+        // 5. Abrimos el modal
         if (typeof openModal === 'function') {
             openModal('edit-product-modal'); 
         }
@@ -4048,10 +4027,11 @@ window.handleEditProductClick = function(productId) {
     } else {
         console.error("❌ Error: Producto no localizado en el mapa global. ID:", pid);
         
-        // CAMBIO: Toast de error en lugar de alert
-        window.showToast("Error: No se pudieron localizar los datos del producto", "error");
+        // Feedback visual con tu nuevo Toast
+        window.showToast("No se encontraron los datos del producto", "error");
     }
 }
+
 // Variable global para guardar la ID del producto a eliminar
 window.handleDeleteProductClick = function(productId) {
     // 1. Guardar el ID para la confirmación
@@ -4092,23 +4072,28 @@ window.handleDeleteProductClick = function(productId) {
     // 5. Abrir el modal con desenfoque de fondo
     openModal('delete-product-modal');
 };
-async function handleUpdateProduct(e) {
-    e.preventDefault();
+window.handleUpdateProduct = async function(e) {
+    if (e) e.preventDefault(); // Detiene el refresco de página
 
+    // 1. Capturar elementos
+    const btn = e.target.querySelector('button[type="submit"]');
     const productId = document.getElementById('edit-product-id').value;
     const name = document.getElementById('edit-product-name').value.trim();
     const price = parseFloat(document.getElementById('edit-product-price').value);
     const category = document.getElementById('edit-product-category').value;
     const parentId = document.getElementById('edit-product-parent').value || null;
 
-    // Convertimos lo que dice el HTML a lo que entiende tu base de datos
+    // 2. Validaciones rápidas con tu nuevo Toast
+    if (!name) return window.showToast("El nombre es obligatorio", "error");
+    if (isNaN(price)) return window.showToast("El precio debe ser un número", "error");
+
+    // 3. Traducir categoría para Supabase
     let typeDB = "PRODUCT";
     if (category === "Paquete") typeDB = "PACKAGE";
     else if (category === "Servicio") typeDB = "SERVICE";
 
-    const btn = e.target.querySelector('button[type="submit"]');
+    // 4. Estado de carga en el botón
     const originalHTML = btn.innerHTML;
-
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
@@ -4119,30 +4104,30 @@ async function handleUpdateProduct(e) {
                 name: name, 
                 price: price, 
                 type: typeDB, 
-                parent_product: category === "Paquete" ? parentId : null 
+                parent_product: typeDB === "PACKAGE" ? parentId : null 
             })
             .eq('producto_id', productId);
 
         if (error) throw error;
 
-        // Éxito: cerrar y refrescar
-        if (typeof window.closeModal === 'function') {
-            window.closeModal('edit-product-modal');
-        }
-
-        // Refrescar la tabla con el nuevo estilo dark que hicimos
-        if (window.loadAndRenderProducts) {
+        // 5. ÉXITO
+        window.showToast("Producto actualizado correctamente", "success");
+        window.closeModal('edit-product-modal');
+        
+        // Refrescar la tabla automáticamente
+        if (typeof window.loadAndRenderProducts === 'function') {
             await window.loadAndRenderProducts();
         }
 
     } catch (err) {
-        console.error("Error al actualizar:", err.message);
-        alert("Error: " + err.message);
+        console.error("Error:", err);
+        window.showToast("No se pudo actualizar: " + err.message, "error");
     } finally {
+        // Restaurar botón
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     }
-}
+};
 
 // ====================================================================
 // 11. LÓGICA CRUD PARA CLIENTES
@@ -6180,3 +6165,12 @@ window.showToast = function(mensaje, tipo = 'success') {
         setTimeout(() => toast.remove(), 600);
     }, 3500);
 };
+
+document.getElementById('edit-product-category').addEventListener('change', (e) => {
+    const container = document.getElementById('edit-product-parent-container');
+    if (e.target.value === 'Package') {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
+});
