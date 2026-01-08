@@ -5234,17 +5234,29 @@ window.loadAndRenderProducts = async function() {
         if (error) throw error;
 
         window.allProducts = data || [];
+        
+        // 1. Mapa de referencia para nombres de padres
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
         );
 
-        // ORDENAMIENTO: Agrupar PACKAGE debajo de su PRODUCT padre
+        // 2. ORDENAMIENTO JERÁRQUICO (Corrección de lógica)
         const sortedProducts = [...window.allProducts].sort((a, b) => {
-            const getParentA = a.type === 'PRODUCT' ? a.producto_id : a.parent_product;
-            const getParentB = b.type === 'PRODUCT' ? b.producto_id : b.parent_product;
-            if (getParentA !== getParentB) return getParentA - getParentB;
-            // Si son del mismo grupo, el PRODUCT va primero
-            return a.type === 'PRODUCT' ? -1 : 1;
+            // Obtenemos el ID del "Ancla" (el ID del padre o su propio ID si es Main)
+            const rootA = a.type === 'PRODUCT' ? a.producto_id : a.parent_product;
+            const rootB = b.type === 'PRODUCT' ? b.producto_id : b.parent_product;
+
+            // Si pertenecen a grupos diferentes, ordenamos por el ID del grupo (raíz)
+            if (rootA !== rootB) {
+                return rootA - rootB;
+            }
+
+            // Si son del mismo grupo, el PRODUCT (Main) va obligatoriamente primero
+            if (a.type === 'PRODUCT') return -1;
+            if (b.type === 'PRODUCT') return 1;
+
+            // Si ambos son subproductos del mismo padre, ordenamos por nombre
+            return a.name.localeCompare(b.name);
         });
 
         const tableBody = document.getElementById('products-table-body');
@@ -5255,15 +5267,15 @@ window.loadAndRenderProducts = async function() {
             const isMain = producto.type === 'PRODUCT';
             const isSub = producto.type === 'PACKAGE';
             
-            let parentName = "";
+            let parentName = "N/A";
             if (isSub && producto.parent_product) {
                 const parentObj = window.allProductsMap[String(producto.parent_product)];
-                parentName = parentObj ? parentObj.name : "N/A";
+                parentName = parentObj ? parentObj.name : "No asignado";
             }
 
             const row = document.createElement('tr');
             
-            // ✅ USAMOS TU CLASE: 'is-subproducto' (definida en tu línea 31 de style.css)
+            // ✅ Sincronizado con tu style.css
             row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'is-subproducto' : ''}`;
             
             row.innerHTML = `
@@ -5311,7 +5323,9 @@ window.loadAndRenderProducts = async function() {
             tableBody.appendChild(row);
         });
 
-        if (typeof window.fillParentProductSelect === 'function') window.fillParentProductSelect();
+        if (typeof window.fillParentProductSelect === 'function') {
+            window.fillParentProductSelect();
+        }
 
     } catch (err) {
         console.error("Error en inventario:", err.message);
