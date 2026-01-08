@@ -11,16 +11,26 @@ body, #main-content, .modal-overlay {
     
 }
 
-/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
-
-
-.text-slate-400, .text-gray-400, .text-white\/60 {
-    color: rgba(255, 255, 255, 0.5) !important;
+/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL MEJORADO --- */
+/* Quitamos el !important del color general para permitir badges de colores */
+tbody tr td {
+    color: #ffffff; 
 }
 
-tbody tr {
-    transition: background-color 0.2s ease;
-    background-color: transparent !important;
+/* Regla para permitir el indentado de subproductos */
+.subproducto-indent {
+    padding-left: 3rem !important; /* Esto crea el espacio a la derecha */
+    border-left: 2px solid rgba(249, 115, 22, 0.3); /* Línea naranja sutil */
+}
+
+/* Aseguramos que los textos de categorías (badges) no sean aplastados por el blanco global */
+.text-orange-500 { color: #f97316 !important; }
+.text-emerald-500 { color: #10b981 !important; }
+.text-blue-500 { color: #3b82f6 !important; }
+
+/* Evitar que el fondo transparente bloquee el resaltado de subproductos */
+tr.is-subproducto {
+    background-color: rgba(255, 255, 255, 0.02) !important;
 }
 
 tbody tr:hover {
@@ -115,7 +125,12 @@ tbody tr:hover .saldo-pendiente-highlight {
 }
 
 /* --- 8. ESPECÍFICOS DE PRODUCTOS --- */
-
+#products-list-body .bg-indigo-50, 
+#products-list-body .bg-amber-50 {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #f97316 !important;
+}
 
 /* Permite que los botones tengan su propio color pero quita el estilo por defecto del navegador */
 tbody button {
