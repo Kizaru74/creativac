@@ -3822,18 +3822,17 @@ window.populateParentSelect = function(selectId, currentProductId = null) {
     });
 };
 
+// Asegúrate de que esta función exista en tu main.js
 window.fillParentProductSelect = function() {
     const parentSelect = document.getElementById('edit-product-parent');
     if (!parentSelect) return;
 
-    // Limpiar opciones actuales
     parentSelect.innerHTML = '<option value="">-- Seleccionar Producto Principal --</option>';
 
-    // Usamos el mapa global que ya tienes (allProductsMap) o el array (allProducts)
-    // Filtramos para que solo aparezcan PRODUCTOS o SERVICIOS (no paquetes)
-    const availableParents = Object.values(window.allProductsMap || {}).filter(p => p.type !== 'PACKAGE');
+    // FILTRO CLAVE: Solo mostramos los que son tipo PRODUCT (Main)
+    const mainProducts = window.allProducts.filter(p => p.type === 'PRODUCT');
 
-    availableParents.forEach(product => {
+    mainProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product.producto_id;
         option.textContent = product.name;
@@ -3993,44 +3992,31 @@ window.handleProductTypeChange = function(mode = 'new') {
 };
 let deletingProductId = null; 
 window.handleEditProductClick = function(productId) {
-    console.log("🛠️ Iniciando edición para ID:", productId);
-    
-    // 1. Aseguramos que el ID sea string para el mapa y buscamos el objeto
-    const pid = String(productId);
-    const productToEdit = window.allProductsMap[pid];
-    
-    if (productToEdit) {
-        // Guardamos el ID en la variable global para usarlo en el "Save"
-        window.editingProductId = productId; 
+    const product = window.allProductsMap[String(productId)];
+    if (!product) return;
 
-        // 2. Cargamos la lista de "Padres" disponibles en el select
-        // Esto asegura que si es un Paquete, el dropdown tenga nombres de productos
-        if (typeof window.fillParentProductSelect === 'function') {
-            window.fillParentProductSelect();
-        }
+    // 1. Llenamos el selector de padres con los productos actuales
+    window.fillParentProductSelect();
 
-        // 3. Limpiar estilos y datos previos del formulario
-        const form = document.getElementById('edit-product-form');
-        if (form) form.reset();
+    // 2. Cargamos los datos en el formulario
+    document.getElementById('edit-product-id').value = product.producto_id;
+    document.getElementById('edit-product-name').value = product.name;
+    document.getElementById('edit-product-price').value = product.price;
+    document.getElementById('edit-product-category').value = 
+        product.type === 'PACKAGE' ? 'Paquete' : 
+        product.type === 'MAIN' ? 'Servicio' : 'Producto';
 
-        // 4. Llenamos los campos del modal con la info del producto
-        if (typeof loadProductDataToForm === 'function') {
-            loadProductDataToForm(productToEdit); 
-        }
-
-        // 5. Abrimos el modal
-        if (typeof openModal === 'function') {
-            openModal('edit-product-modal'); 
-        }
-
-        console.log("✅ Datos cargados al modal de edición:", productToEdit.name);
+    // 3. Si es paquete, mostramos el selector de padre y ponemos el valor
+    const parentContainer = document.getElementById('edit-product-parent-container');
+    if (product.type === 'PACKAGE') {
+        parentContainer.classList.remove('hidden');
+        document.getElementById('edit-product-parent').value = product.parent_product || '';
     } else {
-        console.error("❌ Error: Producto no localizado en el mapa global. ID:", pid);
-        
-        // Feedback visual con tu nuevo Toast
-        window.showToast("No se encontraron los datos del producto", "error");
+        parentContainer.classList.add('hidden');
     }
-}
+
+    window.openModal('edit-product-modal');
+};
 
 // Variable global para guardar la ID del producto a eliminar
 window.handleDeleteProductClick = function(productId) {
@@ -4081,13 +4067,15 @@ window.handleUpdateProduct = async function(e) {
     const name = document.getElementById('edit-product-name').value.trim();
     const price = parseFloat(document.getElementById('edit-product-price').value);
     const category = document.getElementById('edit-product-category').value;
-    const parentId = document.getElementById('edit-product-parent').value || null;
+    
+    // Si la categoría es Paquete, tomamos el parentId; si no, es null
+    const parentId = category === "Paquete" ? document.getElementById('edit-product-parent').value : null;
 
-    // 2. Validaciones rápidas con tu nuevo Toast
+    // 2. Validaciones rápidas con tu Toast
     if (!name) return window.showToast("El nombre es obligatorio", "error");
     if (isNaN(price)) return window.showToast("El precio debe ser un número", "error");
 
-    // 3. Traducir categoría para Supabase
+    // 3. Traducir categoría para tu BD (PRODUCT = Main, PACKAGE = Subproducto)
     let typeDB = "PRODUCT";
     if (category === "Paquete") typeDB = "PACKAGE";
     else if (category === "Servicio") typeDB = "SERVICE";
@@ -4098,30 +4086,37 @@ window.handleUpdateProduct = async function(e) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
     try {
+        // Objeto de actualización limpio
+        const updateData = { 
+            name: name, 
+            price: price, 
+            type: typeDB, 
+            parent_product: typeDB === "PACKAGE" ? (parentId || null) : null 
+        };
+
         const { error } = await supabase
             .from('productos')
-            .update({ 
-                name: name, 
-                price: price, 
-                type: typeDB, 
-                parent_product: typeDB === "PACKAGE" ? parentId : null 
-            })
+            .update(updateData)
             .eq('producto_id', productId);
 
         if (error) throw error;
 
         // 5. ÉXITO
-        window.showToast("Producto actualizado correctamente", "success");
-        window.closeModal('edit-product-modal');
+        window.showToast("Producto actualizado con éxito", "success");
         
-        // Refrescar la tabla automáticamente
+        if (typeof window.closeModal === 'function') {
+            window.closeModal('edit-product-modal');
+        }
+        
+        // 6. Refrescar la tabla y los selectores
         if (typeof window.loadAndRenderProducts === 'function') {
+            // Esta función ya incluye fillParentProductSelect() en su interior
             await window.loadAndRenderProducts();
         }
 
     } catch (err) {
-        console.error("Error:", err);
-        window.showToast("No se pudo actualizar: " + err.message, "error");
+        console.error("Error en Update:", err);
+        window.showToast("Error: " + err.message, "error");
     } finally {
         // Restaurar botón
         btn.disabled = false;
@@ -5234,8 +5229,6 @@ async function loadAndRenderClients() {
 }
 
 window.loadAndRenderProducts = async function() {
-    console.log("🔄 Sincronizando inventario con diseño corregido...");
-    
     try {
         const { data, error } = await supabase
             .from('productos')
@@ -5244,8 +5237,9 @@ window.loadAndRenderProducts = async function() {
 
         if (error) throw error;
 
-        // Actualizamos datos globales
         window.allProducts = data || [];
+        
+        // Actualizamos el mapa para que el editor encuentre los nombres
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
         );
@@ -5253,71 +5247,59 @@ window.loadAndRenderProducts = async function() {
         const tableBody = document.getElementById('products-table-body');
         if (!tableBody) return;
 
-        // Limpiamos SOLO las filas
+        // LIMPIEZA: Solo borramos el contenido de las filas, NO la tabla
         tableBody.innerHTML = ''; 
 
-        if (window.allProducts.length === 0) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="px-6 py-20 text-center text-white/20 uppercase text-[10px] font-bold tracking-widest italic">
-                        No hay productos registrados
-                    </td>
-                </tr>`;
-            return;
-        }
-
-        window.allProducts.forEach(producto => {
-            const isPackage = producto.type === 'PACKAGE';
-            const icon = isPackage ? 'fa-boxes' : 'fa-box';
-            
-            const row = document.createElement('tr');
-            // Mantenemos las clases group y border de tu diseño
-            row.className = 'group border-b border-white/5 hover:bg-white/[0.01] transition-all duration-300';
-            
-            row.innerHTML = `
-                <td class="px-8 py-5 text-left">
-                    <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
-                </td>
-                <td class="px-8 py-5 text-left">
-                    <div class="flex items-center">
-                        <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 group-hover:bg-orange-500/5 transition-all">
-                            <i class="fas ${icon} text-xs text-orange-500"></i>
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
-                            ${isPackage ? '<span class="text-[9px] text-orange-500/70 font-bold uppercase tracking-tighter">Subproducto</span>' : ''}
-                        </div>
-                    </div>
-                </td>
-                <td class="px-8 py-5 text-left">
-                    <span class="px-2 py-1 rounded-md text-[8px] font-black tracking-widest border ${isPackage ? 'border-purple-500/30 text-purple-400 bg-purple-500/5' : 'border-blue-500/30 text-blue-400 bg-blue-500/5'}">
-                        ${producto.type}
+       // Dentro de window.loadAndRenderProducts, busca el bucle .forEach:
+window.allProducts.forEach(producto => {
+    // Definimos lógica clara según tu BD
+    const isMain = producto.type === 'PRODUCT'; 
+    const isSub = producto.type === 'PACKAGE';
+    const icon = isMain ? 'fa-box' : 'fa-boxes'; // Caja sola para Main, cajas juntas para Sub
+    
+    const row = document.createElement('tr');
+    row.className = 'group border-b border-white/5 hover:bg-white/[0.01] transition-all duration-300';
+    
+    row.innerHTML = `
+        <td class="px-8 py-5 text-left">
+            <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
+        </td>
+        <td class="px-8 py-5 text-left">
+            <div class="flex items-center">
+                <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
+                    <i class="fas ${icon} text-xs text-orange-500"></i>
+                </div>
+                <div>
+                    <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
+                    <span class="text-[9px] ${isMain ? 'text-emerald-500' : 'text-orange-500/70'} font-bold uppercase tracking-tighter">
+                        ${isMain ? 'Producto Principal' : 'Subproducto / Paquete'}
                     </span>
-                </td>
-                <td class="px-8 py-5 text-left font-mono text-emerald-400 font-bold italic text-lg">
-                    ${formatCurrency(producto.price || 0)}
-                </td>
-                <td class="px-8 py-5 text-right">
-                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                        <button onclick="handleEditProductClick(${producto.producto_id})" class="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center">
-                            <i class="fas fa-edit text-[10px]"></i>
-                        </button>
-                        <button onclick="handleDeleteProductClick(${producto.producto_id})" class="h-8 w-8 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
-                            <i class="fas fa-trash-alt text-[10px]"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
+                </div>
+            </div>
+        </td>
+        <td class="px-8 py-5 text-left">
+            <span class="px-2 py-1 rounded-md text-[8px] font-black tracking-widest border ${isMain ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' : 'border-purple-500/30 text-purple-400 bg-purple-500/5'}">
+                ${producto.type}
+            </span>
+        </td>
+        <td class="px-8 py-5 text-left font-mono text-emerald-400 font-bold italic text-lg">
+            ${formatCurrency(producto.price || 0)}
+        </td>
+        <td class="px-8 py-5 text-right">
+            <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all">
+                <button onclick="handleEditProductClick(${producto.producto_id})" class="text-white/20 hover:text-blue-400 p-2"><i class="fas fa-edit"></i></button>
+                <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-white/20 hover:text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        </td>
+    `;
+    tableBody.appendChild(row);
+});
 
-        // Actualizamos los selectores para la vinculación de padres
-        if (typeof window.fillParentProductSelect === 'function') {
-            window.fillParentProductSelect();
-        }
+        // RELLENAR SELECTOR: Importante hacerlo después de cargar los productos
+        window.fillParentProductSelect();
 
     } catch (err) {
-        console.error("Error al renderizar productos:", err.message);
+        console.error("Error:", err.message);
     }
 };
 
