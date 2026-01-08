@@ -5750,6 +5750,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Lógica dinámica para el selector de "Padre"
     const editCategorySelect = document.getElementById('edit-product-category');
+if (editCategorySelect) {
+    editCategorySelect.addEventListener('change', (e) => {
+        const parentContainer = document.getElementById('edit-product-parent-container');
+        if (e.target.value === 'Paquete') {
+            parentContainer.classList.remove('hidden');
+        } else {
+            parentContainer.classList.add('hidden');
+        }
+    });
+}
     const editParentContainer = document.getElementById('edit-product-parent-container');
     const editParentSelect = document.getElementById('edit-product-parent');
     const editIdInput = document.getElementById('edit-product-id');
@@ -6165,12 +6175,3 @@ window.showToast = function(mensaje, tipo = 'success') {
         setTimeout(() => toast.remove(), 600);
     }, 3500);
 };
-
-document.getElementById('edit-product-category').addEventListener('change', (e) => {
-    const container = document.getElementById('edit-product-parent-container');
-    if (e.target.value === 'Package') {
-        container.classList.remove('hidden');
-    } else {
-        container.classList.add('hidden');
-    }
-});
