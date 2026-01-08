@@ -2347,17 +2347,29 @@ window.handleViewSaleDetails = async function(venta_id) {
         }
 
         // FECHA DE CABECERA (CORREGIDA)
+        // FECHA DE CABECERA (CON CALENDARIO NATIVO)
         const elFecha = document.getElementById('detail-sale-date');
+        const inputInvisible = document.getElementById('input-fecha-invisible');
+
         if (elFecha && venta.created_at) {
+            const fechaISO = venta.created_at.split('T')[0]; // Formato YYYY-MM-DD
             const fechaFormateada = formatSecureDate(venta.created_at);
+
+            // 1. Llenamos el texto visual
             elFecha.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span>${fechaFormateada}</span>
-                    <button onclick="window.editSaleDate(${venta.venta_id}, '${venta.created_at}')" class="text-orange-500 hover:text-white transition-colors">
-                        <i class="fas fa-calendar-alt" style="font-size: 12px;"></i>
-                    </button>
-                </div>
+            <div class="flex items-center gap-2">
+                <span>${fechaFormateada}</span>
+                <button onclick="document.getElementById('input-fecha-invisible').showPicker()" class="text-orange-500 hover:text-white transition-colors">
+                    <i class="fas fa-calendar-alt" style="font-size: 12px;"></i>
+                </button>
+            </div>
             `;
+
+            // 2. Sincronizamos el input invisible (El motor del cambio)
+            if (inputInvisible) {
+                inputInvisible.value = fechaISO;
+                inputInvisible.dataset.ventaId = venta.venta_id; // Guardamos el ID aquí
+            }
         }
 
         const elMetodo = document.getElementById('detail-payment-method');
@@ -2469,31 +2481,27 @@ window.editSaleDescription = async function(venta_id, descActual) {
 window.actualizarFechaVenta = async function(nuevaFecha) {
     if (!nuevaFecha) return;
 
-    // Obtenemos el ID de la venta desde el atributo de datos del input
     const input = document.getElementById('input-fecha-invisible');
     const ventaId = input.dataset.ventaId;
+
+    if (!ventaId) return;
 
     try {
         const { error } = await supabase
             .from('ventas')
             .update({ created_at: `${nuevaFecha}T12:00:00` }) 
-            .eq('venta_id', ventaId);
+            .eq('venta_id', parseInt(ventaId));
 
         if (error) throw error;
 
-        showToast("✅ Fecha actualizada correctamente", "success");
+        showToast("✅ Fecha actualizada", "success");
         
-        // Actualizamos el texto en el modal inmediatamente
-        document.getElementById('detail-sale-date').innerText = nuevaFecha;
-        
-        // Opcional: Recargamos los detalles para asegurar sincronía
-        if (typeof window.handleViewSaleDetails === 'function') {
-            window.handleViewSaleDetails(ventaId);
-        }
+        // Recargamos los detalles para que la UI se actualice sola
+        window.handleViewSaleDetails(ventaId);
 
     } catch (err) {
         console.error("Error al editar fecha:", err);
-        showToast("❌ Error: " + err.message, "error");
+        showToast("❌ Error al cambiar fecha", "error");
     }
 };
 
