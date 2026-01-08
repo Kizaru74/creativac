@@ -5238,7 +5238,7 @@ window.loadAndRenderProducts = async function() {
             window.allProducts.map(p => [String(p.producto_id), p])
         );
 
-        // ORDENAMIENTO: Agrupar PACKAGE debajo de su PRODUCT padre
+        // 1. ORDENAMIENTO JERÁRQUICO
         const sortedProducts = [...window.allProducts].sort((a, b) => {
             const getParentA = a.type === 'PRODUCT' ? a.producto_id : a.parent_product;
             const getParentB = b.type === 'PRODUCT' ? b.producto_id : b.parent_product;
@@ -5248,14 +5248,12 @@ window.loadAndRenderProducts = async function() {
 
         const tableBody = document.getElementById('products-table-body');
         if (!tableBody) return;
-        
         tableBody.innerHTML = ''; 
 
         sortedProducts.forEach(producto => {
             const isMain = producto.type === 'PRODUCT';
             const isSub = producto.type === 'PACKAGE';
             
-            // Obtener nombre del padre para el subproducto
             let parentName = "Principal";
             if (isSub && producto.parent_product) {
                 const parentObj = window.allProductsMap[String(producto.parent_product)];
@@ -5263,15 +5261,19 @@ window.loadAndRenderProducts = async function() {
             }
 
             const row = document.createElement('tr');
-            // Usamos !bg-opacity para forzar visualmente el cambio a pesar del CSS
-            row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? '!bg-white/[0.03]' : ''}`;
+            row.className = 'group border-b border-white/5 transition-all duration-300';
             
+            // PROTECCIÓN: Si es subproducto, forzamos un fondo un poco más claro para diferenciarlo
+            if (isSub) {
+                row.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+            }
+
             row.innerHTML = `
                 <td class="px-8 py-5">
                     <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
                 </td>
                 <td class="px-8 py-5">
-                    <div class="flex items-center ${isSub ? '!ml-8 border-l-2 border-orange-500/30 !pl-4' : ''}">
+                    <div class="flex items-center" style="${isSub ? 'margin-left: 40px; border-left: 2px solid rgba(249, 115, 22, 0.4); padding-left: 15px;' : ''}">
                         <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
                             <i class="fas ${isMain ? 'fa-box' : 'fa-boxes'} text-xs text-orange-500"></i>
                         </div>
@@ -5279,12 +5281,12 @@ window.loadAndRenderProducts = async function() {
                             <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
                             
                             <div class="flex items-center gap-2 mt-1">
-                                <span class="text-[8px] font-black uppercase tracking-tighter ${isMain ? 'text-emerald-500' : 'text-orange-500'}">
+                                <span style="font-size: 8px; font-weight: 900; text-transform: uppercase; color: ${isMain ? '#10b981' : '#f97316'};">
                                     ${isMain ? 'PRODUCTO MAIN' : 'SUBPRODUCTO'}
                                 </span>
                                 ${isSub ? `
-                                    <span class="text-[7px] text-white/30 uppercase tracking-widest font-medium border-l border-white/10 pl-2">
-                                        Padre: <span class="text-white/60">${parentName}</span>
+                                    <span style="font-size: 7px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 8px;">
+                                        Padre: ${parentName}
                                     </span>
                                 ` : ''}
                             </div>
@@ -5296,7 +5298,7 @@ window.loadAndRenderProducts = async function() {
                         ${producto.type}
                     </span>
                 </td>
-                <td class="px-8 py-5 font-mono text-emerald-400 font-bold italic text-lg">
+                <td class="px-8 py-5 font-mono text-emerald-400 font-bold italic text-lg" style="color: #34d399 !important;">
                     ${formatCurrency(producto.price || 0)}
                 </td>
                 <td class="px-8 py-5 text-right">
