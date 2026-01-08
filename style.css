@@ -12,11 +12,7 @@ body, #main-content, .modal-overlay {
 }
 
 /* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
-tbody tr td, 
-.text-slate-800, .text-slate-700, .text-gray-800, .text-gray-900,
-.text-slate-500, .text-gray-500, .text-gray-400 {
-    color: #ffffff !important;
-}
+
 
 .text-slate-400, .text-gray-400, .text-white\/60 {
     color: rgba(255, 255, 255, 0.5) !important;
