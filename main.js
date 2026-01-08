@@ -3830,7 +3830,7 @@ window.handleUpdateProduct = async function(e) {
     const price = parseFloat(document.getElementById('edit-product-price').value);
     const category = document.getElementById('edit-product-category').value;
     
-    // Convertir de nuevo al formato de base de datos si es necesario
+    // Lógica de conversión de categorías
     let dbType = 'PRODUCT';
     if (category === 'Servicio') dbType = 'SERVICE';
     if (category === 'Paquete') dbType = 'PACKAGE';
@@ -3853,7 +3853,9 @@ window.handleUpdateProduct = async function(e) {
 
         if (error) throw error;
 
-        alert('✅ Producto actualizado correctamente');
+        // CAMBIO: Toast de éxito arriba a la derecha
+        window.showToast('Producto actualizado correctamente', 'success');
+        
         closeModal('edit-product-modal');
         
         // Recargar la tabla
@@ -3862,7 +3864,9 @@ window.handleUpdateProduct = async function(e) {
         }
     } catch (err) {
         console.error('Error:', err);
-        alert('No se pudo actualizar: ' + err.message);
+        
+        // CAMBIO: Toast de error arriba a la derecha
+        window.showToast('Error: ' + err.message, 'error');
     }
 };
 // ⚠️ NECESITAS ESTA FUNCIÓN DE MAPEO:
@@ -3880,50 +3884,43 @@ async function handleNewProduct(e) {
         return;
     }
 
-    // 1. Referencia al botón y elementos de carga (Usando los nuevos IDs y Clases)
     const btn = document.getElementById('btn-register-product');
-    
-    // Validación de seguridad por si el botón no se encuentra
-    if (!btn) {
-        console.error('No se encontró el botón con ID: btn-register-product');
-        return;
-    }
+    if (!btn) return;
 
     const iconDefault = btn.querySelector('.icon-default');
     const iconLoading = btn.querySelector('.icon-loading');
     const btnText = btn.querySelector('.btn-text');
 
-    // 2. Obtener elementos del formulario
     const nameInput = document.getElementById('new-product-name');
     const typeInput = document.getElementById('new-product-type'); 
     const priceInput = document.getElementById('new-product-price'); 
     const parentSelect = document.getElementById('new-product-parent-select');
 
-    // 3. Validaciones básicas de los datos
     const name = nameInput.value.trim();
     const type = typeInput.value; 
     const price = parseFloat(priceInput.value);
     let parentProductId = null;
 
+    // --- 🛑 VALIDACIONES CON TOAST (ERROR) ---
     if (!name) {
-        alert('Por favor, ingresa el nombre del producto.');
+        window.showToast('Ingresa el nombre del producto', 'error');
         return;
     }
 
     if (isNaN(price) || price < 0) {
-        alert('Por favor, ingresa un precio válido.');
+        window.showToast('Ingresa un precio válido', 'error');
         return;
     }
 
     if (type === 'PACKAGE') {
         parentProductId = parentSelect?.value || null; 
         if (!parentProductId) { 
-            alert('Los subproductos requieren un Producto Principal.');
+            window.showToast('Los subproductos requieren un Producto Principal', 'error');
             return;
         }
     }
 
-    // --- 🚀 ACTIVAR ESTADO DE CARGA (Visual) ---
+    // --- 🚀 ESTADO DE CARGA ---
     btn.disabled = true;
     btn.classList.add('opacity-80', 'cursor-not-allowed');
     if (iconDefault) iconDefault.classList.add('hidden');
@@ -3931,7 +3928,6 @@ async function handleNewProduct(e) {
     if (btnText) btnText.textContent = 'Registrando...';
 
     try {
-        // 4. Inserción en la base de datos Supabase
         const { error } = await supabase
             .from('productos')
             .insert([{ 
@@ -3943,22 +3939,20 @@ async function handleNewProduct(e) {
 
         if (error) throw error;
 
-        // 5. ÉXITO: Limpiar y cerrar
-        console.log('✅ Producto registrado con éxito');
+        // --- ✅ ÉXITO CON TOAST ---
+        window.showToast('Producto registrado con éxito', 'success');
         
         const form = document.getElementById('new-product-form');
         if (form) form.reset();
 
-        // Si tienes funciones para actualizar la interfaz, las llamamos aquí
         if (typeof window.handleProductTypeChange === 'function') {
-            window.handleProductTypeChange(); // Resetear visibilidad de campos de padre
+            window.handleProductTypeChange();
         }
 
         if (typeof window.closeModal === 'function') {
             window.closeModal('new-product-modal'); 
         }
 
-        // Recargar la lista de productos en la tabla/vista actual
         if (typeof window.loadAndRenderProducts === 'function') {
             await window.loadAndRenderProducts();
         } else if (typeof window.loadProductsData === 'function') {
@@ -3967,9 +3961,9 @@ async function handleNewProduct(e) {
 
     } catch (err) {
         console.error('❌ Error al registrar:', err.message);
-        alert('No se pudo registrar el producto: ' + err.message);
+        // --- ❌ ERROR CON TOAST ---
+        window.showToast('No se pudo registrar: ' + err.message, 'error');
     } finally {
-        // --- 🔄 RESTAURAR ESTADO DEL BOTÓN ---
         btn.disabled = false;
         btn.classList.remove('opacity-80', 'cursor-not-allowed');
         if (iconDefault) iconDefault.classList.remove('hidden');
@@ -4036,13 +4030,11 @@ window.handleEditProductClick = function(productId) {
         // Guardamos el ID en la variable global para usarlo en el "Save"
         window.editingProductId = productId; 
 
-        // 2. Limpiar estilos previos del formulario (por si estaba en rojo o algo)
+        // 2. Limpiar estilos previos del formulario
         const form = document.getElementById('edit-product-form');
         if (form) form.reset();
 
         // 3. PASAMOS EL OBJETO COMPLETO
-        // Importante: Asegúrate de que loadProductDataToForm gestione 
-        // la visibilidad de los campos de 'PADRE' si es un PACKAGE
         if (typeof loadProductDataToForm === 'function') {
             loadProductDataToForm(productToEdit); 
         }
@@ -4055,8 +4047,9 @@ window.handleEditProductClick = function(productId) {
         console.log("✅ Datos cargados al modal de edición:", productToEdit.name);
     } else {
         console.error("❌ Error: Producto no localizado en el mapa global. ID:", pid);
-        // Opcional: Intentar recargar si no se encuentra
-        alert("No se pudieron cargar los datos. Por favor, intenta de nuevo.");
+        
+        // CAMBIO: Toast de error en lugar de alert
+        window.showToast("Error: No se pudieron localizar los datos del producto", "error");
     }
 }
 // Variable global para guardar la ID del producto a eliminar
@@ -6149,27 +6142,41 @@ window.showToast = function(mensaje, tipo = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     
-    const bgColor = tipo === 'success' ? 'bg-orange-600' : 'bg-red-600';
-    const icon = tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    // Colores de fondo y de icono
+    // Usamos un gris ligeramente más claro que el fondo (zinc-800) y un borde que brille
+    const bgColor = tipo === 'success' ? 'bg-zinc-800' : 'bg-red-900';
+    const iconColor = tipo === 'success' ? 'text-orange-500' : 'text-white';
+    const borderColor = tipo === 'success' ? 'border-orange-500/30' : 'border-red-500/50';
 
-    // CAMBIO: 'translate-x-20' para que entre desde la derecha
-    toast.className = `${bgColor}/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-x-20 opacity-0 transition-all duration-500 pointer-events-auto`;
+    toast.className = `
+        ${bgColor}/90 ${borderColor} border backdrop-blur-xl text-white 
+        px-6 py-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] 
+        flex items-center gap-4 transform translate-x-20 opacity-0 
+        transition-all duration-500 pointer-events-auto min-w-[280px]
+    `;
     
     toast.innerHTML = `
-        <i class="fas ${icon} text-lg"></i>
-        <span class="text-[10px] font-black uppercase tracking-widest">${mensaje}</span>
+        <div class="flex-shrink-0 w-10 h-10 ${tipo === 'success' ? 'bg-orange-500/10' : 'bg-red-500/20'} rounded-full flex items-center justify-center">
+            <i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} ${iconColor} text-xl"></i>
+        </div>
+        <div class="flex flex-col">
+            <span class="text-[8px] opacity-50 font-bold uppercase tracking-[0.2em] mb-0.5">
+                ${tipo === 'success' ? 'Sistema' : 'Atención'}
+            </span>
+            <span class="text-[11px] font-black uppercase tracking-widest leading-tight">
+                ${mensaje}
+            </span>
+        </div>
     `;
 
     container.appendChild(toast);
 
-    // Animación de entrada: quitamos el desplazamiento lateral
     setTimeout(() => {
         toast.classList.remove('translate-x-20', 'opacity-0');
     }, 10);
 
-    // Auto-eliminar
     setTimeout(() => {
-        toast.classList.add('translate-x-20', 'opacity-0');
+        toast.classList.add('translate-x-40', 'opacity-0');
         setTimeout(() => toast.remove(), 600);
-    }, 3000);
+    }, 3500);
 };
