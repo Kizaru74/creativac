@@ -2494,14 +2494,17 @@ window.actualizarFechaVenta = async function(nuevaFecha) {
 
         if (error) throw error;
 
-        showToast("✅ Fecha actualizada", "success");
+        // AHORA SÍ: Usamos tu función personalizada
+        window.showToast("Fecha actualizada correctamente", "success");
         
-        // Recargamos los detalles para que la UI se actualice sola
-        window.handleViewSaleDetails(ventaId);
+        // Refrescamos el modal de detalles
+        if (typeof window.handleViewSaleDetails === 'function') {
+            window.handleViewSaleDetails(ventaId);
+        }
 
     } catch (err) {
         console.error("Error al editar fecha:", err);
-        showToast("❌ Error al cambiar fecha", "error");
+        window.showToast("Error al cambiar fecha", "error");
     }
 };
 
@@ -6141,3 +6144,31 @@ if (window.loadAndRenderClients) {
 }
   
 });
+
+window.showToast = function(mensaje, tipo = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    
+    // Colores según el tipo
+    const bgColor = tipo === 'success' ? 'bg-orange-600' : 'bg-red-600';
+    const icon = tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+
+    toast.className = `${bgColor}/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-500 pointer-events-auto`;
+    toast.innerHTML = `
+        <i class="fas ${icon} text-lg"></i>
+        <span class="text-[10px] font-black uppercase tracking-widest">${mensaje}</span>
+    `;
+
+    container.appendChild(toast);
+
+    // Animación de entrada
+    setTimeout(() => {
+        toast.classList.remove('translate-y-20', 'opacity-0');
+    }, 10);
+
+    // Auto-eliminar después de 3 segundos
+    setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        setTimeout(() => toast.remove(), 600);
+    }, 3000);
+};
