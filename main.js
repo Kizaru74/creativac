@@ -5234,7 +5234,7 @@ async function loadAndRenderClients() {
 }
 
 window.loadAndRenderProducts = async function() {
-    console.log("🔄 Sincronizando inventario con diseño Dark...");
+    console.log("🔄 Sincronizando inventario con diseño corregido...");
     
     try {
         const { data, error } = await supabase
@@ -5244,6 +5244,7 @@ window.loadAndRenderProducts = async function() {
 
         if (error) throw error;
 
+        // Actualizamos datos globales
         window.allProducts = data || [];
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
@@ -5252,10 +5253,16 @@ window.loadAndRenderProducts = async function() {
         const tableBody = document.getElementById('products-table-body');
         if (!tableBody) return;
 
+        // Limpiamos SOLO las filas
         tableBody.innerHTML = ''; 
 
         if (window.allProducts.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/20 uppercase text-[10px] font-bold tracking-widest">Inventario Vacío</td></tr>`;
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-20 text-center text-white/20 uppercase text-[10px] font-bold tracking-widest italic">
+                        No hay productos registrados
+                    </td>
+                </tr>`;
             return;
         }
 
@@ -5263,53 +5270,54 @@ window.loadAndRenderProducts = async function() {
             const isPackage = producto.type === 'PACKAGE';
             const icon = isPackage ? 'fa-boxes' : 'fa-box';
             
-            // Determinamos el color del precio según tu paleta
-            const precioColor = "#34d399"; // Emerald 400
-
             const row = document.createElement('tr');
-            // Usamos clases que tu CSS ya acepta para el hover
-            row.className = 'group border-b border-white/5 transition-all';
+            // Mantenemos las clases group y border de tu diseño
+            row.className = 'group border-b border-white/5 hover:bg-white/[0.01] transition-all duration-300';
             
             row.innerHTML = `
-                <td class="px-8 py-5">
-                    <span class="text-[10px] font-mono opacity-40 bg-white/5 px-2 py-1 rounded">ID #${producto.producto_id}</span>
+                <td class="px-8 py-5 text-left">
+                    <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
                 </td>
-                <td class="px-8 py-5">
+                <td class="px-8 py-5 text-left">
                     <div class="flex items-center">
-                        <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
+                        <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 group-hover:bg-orange-500/5 transition-all">
                             <i class="fas ${icon} text-xs text-orange-500"></i>
                         </div>
                         <div>
                             <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
-                            ${producto.type === 'PACKAGE' ? '<span class="text-[9px] text-orange-500/70 font-bold uppercase tracking-tighter">Subproducto</span>' : ''}
+                            ${isPackage ? '<span class="text-[9px] text-orange-500/70 font-bold uppercase tracking-tighter">Subproducto</span>' : ''}
                         </div>
                     </div>
                 </td>
-                <td class="px-8 py-5">
-                    <span class="px-2 py-1 rounded-md text-[9px] font-black tracking-widest border ${isPackage ? 'border-purple-500/30 text-purple-400' : 'border-blue-500/30 text-blue-400'}">
-                        ${isPackage ? 'PACKAGE' : 'PRODUCT'}
+                <td class="px-8 py-5 text-left">
+                    <span class="px-2 py-1 rounded-md text-[8px] font-black tracking-widest border ${isPackage ? 'border-purple-500/30 text-purple-400 bg-purple-500/5' : 'border-blue-500/30 text-blue-400 bg-blue-500/5'}">
+                        ${producto.type}
                     </span>
                 </td>
-                <td class="px-8 py-5 text-right">
-                    <div class="text-[9px] opacity-30 uppercase font-bold mb-1">Costo Unitario</div>
-                    <div class="text-lg font-black italic" style="color: ${precioColor} !important;">${formatCurrency(producto.price || 0)}</div>
+                <td class="px-8 py-5 text-left font-mono text-emerald-400 font-bold italic text-lg">
+                    ${formatCurrency(producto.price || 0)}
                 </td>
                 <td class="px-8 py-5 text-right">
-                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onclick="handleEditProductClick(${producto.producto_id})" class="text-white/20 hover:text-blue-400"><i class="fas fa-edit"></i></button>
-                        <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-white/20 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
+                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        <button onclick="handleEditProductClick(${producto.producto_id})" class="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center">
+                            <i class="fas fa-edit text-[10px]"></i>
+                        </button>
+                        <button onclick="handleDeleteProductClick(${producto.producto_id})" class="h-8 w-8 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
+                            <i class="fas fa-trash-alt text-[10px]"></i>
+                        </button>
                     </div>
                 </td>
             `;
             tableBody.appendChild(row);
         });
 
-        if (typeof window.populateParentSelectors === 'function') {
-            window.populateParentSelectors();
+        // Actualizamos los selectores para la vinculación de padres
+        if (typeof window.fillParentProductSelect === 'function') {
+            window.fillParentProductSelect();
         }
 
     } catch (err) {
-        console.error("Error:", err.message);
+        console.error("Error al renderizar productos:", err.message);
     }
 };
 
