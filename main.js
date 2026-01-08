@@ -2402,7 +2402,7 @@ window.handleViewSaleDetails = async function(venta_id) {
                         <i class="fas fa-pen text-[8px]"></i> EDITAR
                     </button>
                 </div>
-                <p class="text-sm text-gray-300 italic leading-snug">"${descTxt}"</p>
+                <p class="text-sm text-gray-200 italic leading-snug">"${descTxt}"</p>
             </div>`;
         }
 
@@ -6149,11 +6149,12 @@ window.showToast = function(mensaje, tipo = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     
-    // Colores según el tipo
     const bgColor = tipo === 'success' ? 'bg-orange-600' : 'bg-red-600';
     const icon = tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
 
-    toast.className = `${bgColor}/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-500 pointer-events-auto`;
+    // CAMBIO: 'translate-x-20' para que entre desde la derecha
+    toast.className = `${bgColor}/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-x-20 opacity-0 transition-all duration-500 pointer-events-auto`;
+    
     toast.innerHTML = `
         <i class="fas ${icon} text-lg"></i>
         <span class="text-[10px] font-black uppercase tracking-widest">${mensaje}</span>
@@ -6161,14 +6162,14 @@ window.showToast = function(mensaje, tipo = 'success') {
 
     container.appendChild(toast);
 
-    // Animación de entrada
+    // Animación de entrada: quitamos el desplazamiento lateral
     setTimeout(() => {
-        toast.classList.remove('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-x-20', 'opacity-0');
     }, 10);
 
-    // Auto-eliminar después de 3 segundos
+    // Auto-eliminar
     setTimeout(() => {
-        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.add('translate-x-20', 'opacity-0');
         setTimeout(() => toast.remove(), 600);
     }, 3000);
 };
