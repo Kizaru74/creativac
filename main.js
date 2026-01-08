@@ -5238,58 +5238,65 @@ window.loadAndRenderProducts = async function() {
             window.allProducts.map(p => [String(p.producto_id), p])
         );
 
-        // --- LÓGICA DE ORDENAMIENTO COMPATIBLE CON TU BD ---
+        // ORDENAMIENTO: Agrupar PACKAGE debajo de su PRODUCT padre
         const sortedProducts = [...window.allProducts].sort((a, b) => {
-            const getParentId = (p) => p.type === 'PRODUCT' ? p.producto_id : p.parent_product;
-            const parentA = getParentId(a);
-            const parentB = getParentId(b);
-
-            if (parentA !== parentB) return parentA - parentB; 
+            const getParentA = a.type === 'PRODUCT' ? a.producto_id : a.parent_product;
+            const getParentB = b.type === 'PRODUCT' ? b.producto_id : b.parent_product;
+            if (getParentA !== getParentB) return getParentA - getParentB;
             return a.type === 'PRODUCT' ? -1 : 1;
         });
 
         const tableBody = document.getElementById('products-table-body');
         if (!tableBody) return;
         
-        // PROTECCIÓN: Solo tocamos el contenido, no la estructura
         tableBody.innerHTML = ''; 
 
         sortedProducts.forEach(producto => {
             const isMain = producto.type === 'PRODUCT';
             const isSub = producto.type === 'PACKAGE';
             
-            // Buscar nombre del Main para el subproducto
-            let mainOwnerName = "";
+            // Obtener nombre del padre para el subproducto
+            let parentName = "Principal";
             if (isSub && producto.parent_product) {
-                const parent = window.allProductsMap[String(producto.parent_product)];
-                mainOwnerName = parent ? parent.name : "Desconocido";
+                const parentObj = window.allProductsMap[String(producto.parent_product)];
+                parentName = parentObj ? parentObj.name : "N/A";
             }
 
             const row = document.createElement('tr');
-            // Usamos 'group' para activar tus reglas de style.css
-            row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'bg-white/[0.02]' : ''}`;
+            // Usamos !bg-opacity para forzar visualmente el cambio a pesar del CSS
+            row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? '!bg-white/[0.03]' : ''}`;
             
             row.innerHTML = `
-                <td class="px-8 py-5 text-left">
+                <td class="px-8 py-5">
                     <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
                 </td>
-                <td class="px-8 py-5 text-left">
-                    <div class="flex items-center ${isSub ? 'ml-8 border-l-2 border-orange-500/20 pl-4' : ''}">
-                        <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500 transition-all">
+                <td class="px-8 py-5">
+                    <div class="flex items-center ${isSub ? '!ml-8 border-l-2 border-orange-500/30 !pl-4' : ''}">
+                        <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
                             <i class="fas ${isMain ? 'fa-box' : 'fa-boxes'} text-xs text-orange-500"></i>
                         </div>
-                        <div>
+                        <div class="flex flex-col">
                             <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
-                            ${isSub ? `
-                                <div class="flex flex-col">
-                                    <span class="text-[8px] text-orange-500 font-black uppercase mt-1 tracking-tighter">Subproducto</span>
-                                    <span class="text-[7px] text-gray-500 uppercase font-bold tracking-widest">Vinculado a: ${mainOwnerName}</span>
-                                </div>
-                            ` : '<span class="text-[8px] text-emerald-500 font-black uppercase mt-1 tracking-tighter">Producto Principal</span>'}
+                            
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[8px] font-black uppercase tracking-tighter ${isMain ? 'text-emerald-500' : 'text-orange-500'}">
+                                    ${isMain ? 'PRODUCTO MAIN' : 'SUBPRODUCTO'}
+                                </span>
+                                ${isSub ? `
+                                    <span class="text-[7px] text-white/30 uppercase tracking-widest font-medium border-l border-white/10 pl-2">
+                                        Padre: <span class="text-white/60">${parentName}</span>
+                                    </span>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 </td>
-                <td class="px-8 py-5 text-left font-mono text-emerald-400 font-bold italic text-lg">
+                <td class="px-8 py-5">
+                    <span class="px-2 py-1 rounded-md text-[8px] font-black tracking-widest border ${isMain ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' : 'border-blue-500/30 text-blue-400 bg-blue-500/5'}">
+                        ${producto.type}
+                    </span>
+                </td>
+                <td class="px-8 py-5 font-mono text-emerald-400 font-bold italic text-lg">
                     ${formatCurrency(producto.price || 0)}
                 </td>
                 <td class="px-8 py-5 text-right">
@@ -5309,7 +5316,7 @@ window.loadAndRenderProducts = async function() {
         if (typeof window.fillParentProductSelect === 'function') window.fillParentProductSelect();
 
     } catch (err) {
-        console.error("Error crítico en tabla:", err);
+        console.error("Error:", err.message);
     }
 };
 
