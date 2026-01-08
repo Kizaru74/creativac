@@ -4,30 +4,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- 1. CONFIGURACIÓN BASE DARK --- */
-body, #main-content, .modal-overlay {
-    color: #ffffff; /* QUITAMOS EL !IMPORTANT AQUÍ */
+/* --- 1. CONFIGURACIÓN BASE --- */
+body {
     background-color: #121212 !important;
+    color: #ffffff; /* Sin !important para que el JS pueda poner colores */
 }
 
-/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
-/* Esta es la regla que bloqueaba todo. La hacemos menos agresiva. */
+/* --- 2. TABLAS Y JERARQUÍA --- */
 tbody tr td {
     color: #ffffff; 
-    vertical-align: middle;
 }
 
-/* CLASES DE JERARQUÍA (Asegúrate que estén tal cual) */
+/* Esta clase es la que hace la magia del espacio a la izquierda */
 .subproducto-indent {
     padding-left: 3.5rem !important; 
     border-left: 3px solid rgba(249, 115, 22, 0.4) !important;
 }
 
+/* Fondo sutil para subproductos */
 tr.is-subproducto {
-    background-color: rgba(255, 255, 255, 0.03) !important;
+    background-color: rgba(255, 255, 255, 0.02) !important;
 }
 
-/* Forzamos colores de badges para que no se vuelvan blancos */
+/* Forzar colores de badges */
 .text-orange-500 { color: #f97316 !important; }
 .text-emerald-500 { color: #10b981 !important; }
 
