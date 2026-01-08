@@ -66,19 +66,7 @@ nav a.bg-orange-500\/10 i {
 }
 
 /* --- 6. ESTILO VIDRIO PREMIUM (GLASSMORPHISM) --- */
-.glass-badge {
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 9999px !important;
-    padding: 6px 16px !important;
-    display: inline-flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 130px;
-    transition: all 0.3s ease;
-}
+
 
 .glass-badge-success {
     background: rgba(16, 185, 129, 0.1) !important;
