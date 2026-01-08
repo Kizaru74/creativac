@@ -5232,71 +5232,95 @@ window.loadAndRenderProducts = async function() {
     try {
         const { data, error } = await supabase
             .from('productos')
-            .select('*')
-            .order('name', { ascending: true });
+            .select('*');
 
         if (error) throw error;
 
+        // 1. Guardamos y creamos el mapa para referencias rápidas
         window.allProducts = data || [];
-        
-        // Actualizamos el mapa para que el editor encuentre los nombres
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
         );
 
+        // 2. ORDENAMIENTO PERSONALIZADO
+        // Primero agrupamos por el ID del padre (o su propio ID si es Main) y luego por tipo
+        const sortedProducts = [...window.allProducts].sort((a, b) => {
+            const getParentId = (p) => p.type === 'PRODUCT' ? p.producto_id : p.parent_product;
+            const parentA = getParentId(a);
+            const parentB = getParentId(b);
+
+            if (parentA !== parentB) {
+                return parentA - parentB; // Agrupa hijos con sus padres
+            }
+            // Si son del mismo grupo, el PRODUCT va primero que el PACKAGE
+            return a.type === 'PRODUCT' ? -1 : 1;
+        });
+
         const tableBody = document.getElementById('products-table-body');
         if (!tableBody) return;
-
-        // LIMPIEZA: Solo borramos el contenido de las filas, NO la tabla
         tableBody.innerHTML = ''; 
 
-       // Dentro de window.loadAndRenderProducts, busca el bucle .forEach:
-window.allProducts.forEach(producto => {
-    // Definimos lógica clara según tu BD
-    const isMain = producto.type === 'PRODUCT'; 
-    const isSub = producto.type === 'PACKAGE';
-    const icon = isMain ? 'fa-box' : 'fa-boxes'; // Caja sola para Main, cajas juntas para Sub
-    
-    const row = document.createElement('tr');
-    row.className = 'group border-b border-white/5 hover:bg-white/[0.01] transition-all duration-300';
-    
-    row.innerHTML = `
-        <td class="px-8 py-5 text-left">
-            <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
-        </td>
-        <td class="px-8 py-5 text-left">
-            <div class="flex items-center">
-                <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
-                    <i class="fas ${icon} text-xs text-orange-500"></i>
-                </div>
-                <div>
-                    <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
-                    <span class="text-[9px] ${isMain ? 'text-emerald-500' : 'text-orange-500/70'} font-bold uppercase tracking-tighter">
-                        ${isMain ? 'Producto Principal' : 'Subproducto / Paquete'}
-                    </span>
-                </div>
-            </div>
-        </td>
-        <td class="px-8 py-5 text-left">
-            <span class="px-2 py-1 rounded-md text-[8px] font-black tracking-widest border ${isMain ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' : 'border-purple-500/30 text-purple-400 bg-purple-500/5'}">
-                ${producto.type}
-            </span>
-        </td>
-        <td class="px-8 py-5 text-left font-mono text-emerald-400 font-bold italic text-lg">
-            ${formatCurrency(producto.price || 0)}
-        </td>
-        <td class="px-8 py-5 text-right">
-            <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all">
-                <button onclick="handleEditProductClick(${producto.producto_id})" class="text-white/20 hover:text-blue-400 p-2"><i class="fas fa-edit"></i></button>
-                <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-white/20 hover:text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
-            </div>
-        </td>
-    `;
-    tableBody.appendChild(row);
-});
+        sortedProducts.forEach(producto => {
+            const isMain = producto.type === 'PRODUCT';
+            const isSub = producto.type === 'PACKAGE';
+            const icon = isMain ? 'fa-box' : 'fa-boxes';
+            
+            // BUSCAR NOMBRE DEL PADRE (Solo si es subproducto)
+            let parentName = "";
+            if (isSub && producto.parent_product) {
+                const parentObj = window.allProductsMap[String(producto.parent_product)];
+                parentName = parentObj ? parentObj.name : "Padre no encontrado";
+            }
 
-        // RELLENAR SELECTOR: Importante hacerlo después de cargar los productos
-        window.fillParentProductSelect();
+            const row = document.createElement('tr');
+            // Si es subproducto, le damos un ligero indentado o estilo diferente
+            row.className = `group border-b border-white/5 hover:bg-white/[0.01] transition-all ${isSub ? 'bg-white/[0.01]' : ''}`;
+            
+            row.innerHTML = `
+                <td class="px-8 py-5">
+                    <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
+                </td>
+                <td class="px-8 py-5">
+                    <div class="flex items-center ${isSub ? 'ml-6' : ''}">
+                        <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
+                            <i class="fas ${icon} text-xs text-orange-500"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
+                            ${isSub ? `
+                                <div class="flex flex-col mt-1">
+                                    <span class="text-[9px] text-orange-500/70 font-bold uppercase tracking-tighter italic">Subproducto</span>
+                                    <span class="text-[8px] text-gray-500 font-medium uppercase tracking-widest mt-0.5">
+                                        Pertenece a: <span class="text-gray-300">${parentName}</span>
+                                    </span>
+                                </div>
+                            ` : `
+                                <span class="text-[9px] text-emerald-500 font-bold uppercase tracking-tighter italic">Producto Principal</span>
+                            `}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-8 py-5">
+                    <span class="px-2 py-1 rounded-md text-[8px] font-black tracking-widest border ${isMain ? 'border-emerald-500/30 text-emerald-400' : 'border-purple-500/30 text-purple-400'}">
+                        ${producto.type}
+                    </span>
+                </td>
+                <td class="px-8 py-5 font-mono text-emerald-400 font-bold italic text-lg">
+                    ${formatCurrency(producto.price || 0)}
+                </td>
+                <td class="px-8 py-5 text-right">
+                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onclick="handleEditProductClick(${producto.producto_id})" class="text-white/20 hover:text-blue-400 p-2"><i class="fas fa-edit"></i></button>
+                        <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-white/20 hover:text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+        if (typeof window.fillParentProductSelect === 'function') {
+            window.fillParentProductSelect();
+        }
 
     } catch (err) {
         console.error("Error:", err.message);
