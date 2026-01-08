@@ -1,54 +1,35 @@
-/* style.css - Creativa Cortes CNC (OPTIMIZADO PARA JERARQUÍA) */
+/* style.css - Creativa Cortes CNC (CORRECCIÓN DE CARGA INICIAL) */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* --- 1. CONFIGURACIÓN BASE DARK --- */
-/* Quitamos !important de aquí para permitir que modales y otros elementos cambien de color */
 body, #main-content, .modal-overlay {
-    color: #ffffff;
-    background-color: #121212;
+    color: #ffffff; /* QUITAMOS EL !IMPORTANT AQUÍ */
+    background-color: #121212 !important;
 }
 
-/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL (REFACTOREADO) --- */
-/* Quitamos el !important global que blanqueaba todo */
+/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL --- */
+/* Esta es la regla que bloqueaba todo. La hacemos menos agresiva. */
 tbody tr td {
     color: #ffffff; 
     vertical-align: middle;
 }
 
-/* Forzamos colores de badges solo donde se necesitan */
-.text-orange-500 { color: #f97316 !important; }
-.text-emerald-500 { color: #10b981 !important; }
-.text-blue-500 { color: #3b82f6 !important; }
-
-/* REGLAS ESPECÍFICAS PARA PRODUCTOS (JERARQUÍA) */
-
-/* El indentado ahora es sagrado */
+/* CLASES DE JERARQUÍA (Asegúrate que estén tal cual) */
 .subproducto-indent {
     padding-left: 3.5rem !important; 
     border-left: 3px solid rgba(249, 115, 22, 0.4) !important;
 }
 
-/* Fondo para identificar subproductos sin pisar el hover */
 tr.is-subproducto {
-    background-color: rgba(255, 255, 255, 0.02) !important;
+    background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
-/* Aseguramos que el hover premium siga funcionando */
-tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Estilo para el texto "Padre: Name" */
-.parent-reference {
-    color: rgba(255, 255, 255, 0.3) !important;
-    font-size: 10px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
+/* Forzamos colores de badges para que no se vuelvan blancos */
+.text-orange-500 { color: #f97316 !important; }
+.text-emerald-500 { color: #10b981 !important; }
 
 /* --- 4. BOTONES Y SPINNERS (CORREGIDO) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
