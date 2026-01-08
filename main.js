@@ -2466,23 +2466,34 @@ window.editSaleDescription = async function(venta_id, descActual) {
 };
 
 // Función para procesar el cambio de fecha
-window.editSaleDate = async function(venta_id, fechaActual) {
-    const fechaBase = fechaActual.split('T')[0];
-    const nuevaFecha = prompt("Nueva fecha (AAAA-MM-DD):", fechaBase);
-    
-    if (nuevaFecha && nuevaFecha !== fechaBase) {
-        try {
-            const { error } = await supabase
-                .from('ventas')
-                .update({ created_at: `${nuevaFecha}T12:00:00` }) // Mediodía para evitar errores de zona horaria
-                .eq('venta_id', venta_id);
+window.actualizarFechaVenta = async function(nuevaFecha) {
+    if (!nuevaFecha) return;
 
-            if (error) throw error;
-            alert("✅ Fecha cambiada.");
-            window.handleViewSaleDetails(venta_id); // Recarga el modal
-        } catch (err) {
-            alert("Error: " + err.message);
+    // Obtenemos el ID de la venta desde el atributo de datos del input
+    const input = document.getElementById('input-fecha-invisible');
+    const ventaId = input.dataset.ventaId;
+
+    try {
+        const { error } = await supabase
+            .from('ventas')
+            .update({ created_at: `${nuevaFecha}T12:00:00` }) 
+            .eq('venta_id', ventaId);
+
+        if (error) throw error;
+
+        showToast("✅ Fecha actualizada correctamente", "success");
+        
+        // Actualizamos el texto en el modal inmediatamente
+        document.getElementById('detail-sale-date').innerText = nuevaFecha;
+        
+        // Opcional: Recargamos los detalles para asegurar sincronía
+        if (typeof window.handleViewSaleDetails === 'function') {
+            window.handleViewSaleDetails(ventaId);
         }
+
+    } catch (err) {
+        console.error("Error al editar fecha:", err);
+        showToast("❌ Error: " + err.message, "error");
     }
 };
 

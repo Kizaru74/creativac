@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creativa POS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -871,10 +873,20 @@
                     <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Cliente</span>
                     <span id="detail-client-name" class="text-lg font-bold text-white uppercase"></span>
                 </div>
-                <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
-                    <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Fecha de Registro</span>
-                    <span id="detail-sale-date" class="text-lg font-bold text-white"></span>
-                </div>
+                
+                <div class="bg-black/20 p-4 rounded-2xl border border-white/5 hover:border-orange-500/50 transition-all cursor-pointer group relative" 
+     onclick="document.getElementById('input-fecha-invisible').showPicker()">
+    
+    <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 group-hover:text-orange-500 transition-colors">
+        Fecha de Registro <i class="fas fa-edit ml-1 opacity-0 group-hover:opacity-100"></i>
+    </span>
+    
+    <span id="detail-sale-date" class="text-lg font-bold text-white"></span>
+
+    <input type="date" id="input-fecha-invisible" class="absolute inset-0 opacity-0 cursor-pointer" 
+           onchange="actualizarFechaVenta(this.value)">
+</div>
+
                 <div class="bg-black/20 p-4 rounded-2xl border border-white/5">
                     <span class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Método de Pago</span>
                     <span id="detail-payment-method" class="text-lg font-bold text-orange-500 uppercase"></span>
@@ -1137,6 +1149,8 @@
         </div>
     </div>
 </div>
+
+<div id="toast-container" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[1000] flex flex-col gap-3 pointer-events-none"></div>
 
 <script type="module" src="main.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
