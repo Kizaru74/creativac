@@ -1,45 +1,56 @@
-/* style.css - Creativa Cortes CNC (VERSIÓN FINAL COMPLETA) */
+/* style.css - Creativa Cortes CNC (OPTIMIZADO PARA JERARQUÍA) */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* --- 1. CONFIGURACIÓN BASE DARK --- */
+/* Quitamos !important de aquí para permitir que modales y otros elementos cambien de color */
 body, #main-content, .modal-overlay {
-    color: #ffffff !important;
-    background-color: #121212 !important;
-    
+    color: #ffffff;
+    background-color: #121212;
 }
 
-/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL MEJORADO --- */
-/* Quitamos el !important del color general para permitir badges de colores */
+/* --- 2. TABLAS: COMPORTAMIENTO UNIVERSAL (REFACTOREADO) --- */
+/* Quitamos el !important global que blanqueaba todo */
 tbody tr td {
     color: #ffffff; 
+    vertical-align: middle;
 }
 
-/* Regla para permitir el indentado de subproductos */
-.subproducto-indent {
-    padding-left: 3rem !important; /* Esto crea el espacio a la derecha */
-    border-left: 2px solid rgba(249, 115, 22, 0.3); /* Línea naranja sutil */
-}
-
-/* Aseguramos que los textos de categorías (badges) no sean aplastados por el blanco global */
+/* Forzamos colores de badges solo donde se necesitan */
 .text-orange-500 { color: #f97316 !important; }
 .text-emerald-500 { color: #10b981 !important; }
 .text-blue-500 { color: #3b82f6 !important; }
 
-/* Evitar que el fondo transparente bloquee el resaltado de subproductos */
+/* REGLAS ESPECÍFICAS PARA PRODUCTOS (JERARQUÍA) */
+
+/* El indentado ahora es sagrado */
+.subproducto-indent {
+    padding-left: 3.5rem !important; 
+    border-left: 3px solid rgba(249, 115, 22, 0.4) !important;
+}
+
+/* Fondo para identificar subproductos sin pisar el hover */
 tr.is-subproducto {
     background-color: rgba(255, 255, 255, 0.02) !important;
 }
 
+/* Aseguramos que el hover premium siga funcionando */
 tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important; 
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Estilo para el texto "Padre: Name" */
+.parent-reference {
+    color: rgba(255, 255, 255, 0.3) !important;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 
-
-/* --- 5. BOTONES Y SPINNERS (CORREGIDO) --- */
+/* --- 4. BOTONES Y SPINNERS (CORREGIDO) --- */
 .btn-action-report, .edit-client-btn, .delete-client-btn, .abono-btn, .view-debt-btn {
     width: 32px;
     height: 32px;
@@ -75,7 +86,7 @@ nav a.bg-orange-500\/10 i {
     color: #f97316 !important;
 }
 
-/* --- 6. ESTILO VIDRIO PREMIUM (GLASSMORPHISM) --- */
+/* --- 5. ESTILO VIDRIO PREMIUM (GLASSMORPHISM) --- */
 .glass-badge {
     backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px) !important;
