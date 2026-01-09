@@ -1898,7 +1898,7 @@ window.handleViewClientDebt = async function(clientId) {
                     <td class="px-6 py-4 text-right font-mono text-lg ${mov.esVenta ? 'text-red-400' : 'text-green-400'}">
                         ${mov.esVenta ? '+' : '-'}${formatCurrency(mov.monto)}
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-base text-white font-bold">
+                    <td class="px-6 py-4 text-right font-mono text-lg text-white font-bold">
                         ${formatCurrency(mov.saldoAcumulado)}
                     </td>
                 </tr>`).join('');
