@@ -1875,6 +1875,7 @@ window.handleViewClientDebt = async function(clientId) {
             </tr>`).join('');
 
         window.currentClientDataForPrint = {
+            clientId: clientId,
             nombre: clientName,
             totalDeuda: saldoCorriente,
             transaccionesHTML: transaccionesHTMLParaPDF
@@ -1916,16 +1917,26 @@ window.handleViewClientDebt = async function(clientId) {
 };
 
 window.prepararAbonoDesdeReporte = function(clientId, clientName, currentDebt) {
-    if (!clientId) {
+    // 1. INTELIGENCIA: Si los parámetros vienen vacíos (desde el botón), 
+    // los buscamos en la variable global que llenamos al abrir el reporte.
+    const idFinal = clientId || window.currentClientDataForPrint?.clientId;
+    
+    if (!idFinal) {
         window.showToast("Error al recuperar datos del cliente", "error");
         return;
     }
 
-    console.log("🔄 Pasando datos al modal de abono:", { clientId, clientName, currentDebt });
+    // 2. LOG (Opcional)
+    console.log("🔄 Pasando datos al modal de abono para ID:", idFinal);
 
+    // 3. CERRAR EL MODAL DEL REPORTE (Importante para que no se encimen)
+    if (typeof closeModal === 'function') {
+        closeModal('modal-client-debt-report');
+    }
+
+    // 4. EJECUTAR EL ABONO
     if (window.handleAbonoClick) {
-        // Usamos handleAbonoClick que ya sabe abrir el modal y llenar los campos
-        window.handleAbonoClick(clientId);
+        window.handleAbonoClick(idFinal);
     } else {
         window.showToast("Error: La función de abono no está disponible", "error");
     }
