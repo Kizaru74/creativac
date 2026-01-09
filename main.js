@@ -5130,14 +5130,30 @@ window.loadAndRenderProducts = async function() {
         if (error) throw error;
 
         window.allProducts = data || [];
-        window.allProductsMap = Object.fromEntries(window.allProducts.map(p => [String(p.producto_id), p]));
+        
+        // 1. Mapa de referencia para nombres y búsqueda rápida
+        window.allProductsMap = Object.fromEntries(
+            window.allProducts.map(p => [String(p.producto_id), p])
+        );
 
-        // ORDENAMIENTO JERÁRQUICO
+        // 2. ORDENAMIENTO JERÁRQUICO ESTRICTO
         const sortedProducts = [...window.allProducts].sort((a, b) => {
-            const rootA = a.type === 'PRODUCT' || a.type === 'MAIN' ? a.producto_id : a.parent_product;
-            const rootB = b.type === 'PRODUCT' || b.type === 'MAIN' ? b.producto_id : b.parent_product;
-            if (rootA !== rootB) return rootA - rootB;
-            return (a.type === 'PRODUCT' || a.type === 'MAIN') ? -1 : 1;
+            // Determinamos quién es el "Jefe de Familia" (Root ID)
+            // Si es PACKAGE, su raíz es parent_product. Si es MAIN, es su propio ID.
+            const rootA = (a.type === 'PACKAGE') ? Number(a.parent_product) : Number(a.producto_id);
+            const rootB = (b.type === 'PACKAGE') ? Number(b.parent_product) : Number(b.producto_id);
+
+            // REGLA 1: Si son de familias diferentes, ordenar por el ID de la familia
+            if (rootA !== rootB) {
+                return rootA - rootB;
+            }
+
+            // REGLA 2: Si son de la misma familia, el que NO es PACKAGE (el padre) va primero
+            if (a.type !== 'PACKAGE' && b.type === 'PACKAGE') return -1;
+            if (a.type === 'PACKAGE' && b.type !== 'PACKAGE') return 1;
+
+            // REGLA 3: Si ambos son subproductos del mismo padre, ordenar alfabéticamente
+            return a.name.localeCompare(b.name);
         });
 
         const container = document.getElementById('products-table-body');
@@ -5146,79 +5162,63 @@ window.loadAndRenderProducts = async function() {
 
         sortedProducts.forEach(product => {
             const isSub = product.type === 'PACKAGE';
-            const row = document.createElement('tr');
             
-            // ✅ ESTILO ORIGINAL: Recuperamos las clases de hover y transición
-            row.className = `group transition-all duration-300 border-b border-white/5 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.03]'}`;
-            
-            // Lógica de Badges Original
-            let badgeClass = '';
-            let typeText = '';
-            let icon = '';
-
-            switch(product.type) {
-                case 'MAIN':
-                case 'PRODUCT':
-                    badgeClass = 'glass-badge-success';
-                    typeText = 'Principal';
-                    icon = 'fa-star';
-                    break;
-                case 'PACKAGE':
-                    badgeClass = 'glass-badge-danger';
-                    typeText = 'Subproducto';
-                    icon = 'fa-box-open';
-                    break;
-                default:
-                    badgeClass = 'glass-badge-info';
-                    typeText = 'Servicio';
-                    icon = 'fa-tools';
+            // Buscamos el nombre del padre real para mostrarlo en la etiqueta pequeña
+            let realParentName = "";
+            if (isSub && product.parent_product) {
+                const parentInfo = window.allProductsMap[String(product.parent_product)];
+                realParentName = parentInfo ? parentInfo.name : "Principal";
             }
 
+            const row = document.createElement('tr');
+            row.className = `group transition-all duration-300 border-b border-white/5 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.03]'}`;
+            
+            // Lógica de iconos y estilos visuales
+            const isMain = product.type === 'PRODUCT' || product.type === 'MAIN';
+            const icon = isMain ? 'fa-star' : 'fa-box-open';
+            const badgeClass = isMain ? 'glass-badge-success' : 'glass-badge-danger';
+            const typeLabel = isMain ? 'Principal' : 'Subproducto';
+
             row.innerHTML = `
-                <td class="px-8 py-5 whitespace-nowrap">
-                    <div class="font-sans font-bold bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/10 text-[10px] inline-block tracking-wider">
+                <td class="px-8 py-5">
+                    <div class="font-sans font-bold bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/10 text-[10px] inline-block">
                         #${product.producto_id}
                     </div>
                 </td>
                 
-                <td class="px-8 py-5 whitespace-nowrap ${isSub ? 'subproducto-indent' : ''}">
+                <td class="px-8 py-5 ${isSub ? 'subproducto-indent' : ''}">
                     <div class="flex items-center gap-3">
                         <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
                             <i class="fas ${icon} text-white text-xs"></i>
                         </div>
                         <div>
                             <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
-                            <div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">
-                                ${isSub ? 'Subproducto de Inventario' : 'Ficha de Producto'}
+                            <div class="text-[10px] text-white/30 uppercase font-bold mt-0.5 tracking-widest">
+                                ${isSub ? `Pertenece a: ${realParentName}` : 'Producto Base'}
                             </div>
                         </div>
                     </div>
                 </td>
                 
-                <td class="px-8 py-5 whitespace-nowrap">
-                    <div class="text-lg font-black text-emerald-500 tracking-tighter font-sans italic">
-                        ${formatCurrency(product.price)}
-                    </div>
+                <td class="px-8 py-5 font-black text-emerald-500 italic text-lg">
+                    ${formatCurrency(product.price || 0)}
                 </td>
                 
-                <td class="px-8 py-5 whitespace-nowrap">
+                <td class="px-8 py-5">
                     <div class="glass-badge ${badgeClass} inline-flex">
-                        <span class="text-[10px] font-black uppercase tracking-widest font-sans flex items-center">
-                            <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
+                        <span class="text-[10px] font-black uppercase tracking-widest flex items-center">
+                            ${typeLabel}
                         </span>
                     </div>
                 </td>
                 
                 <td class="px-8 py-6 text-right">
                     <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
-                        <button onclick="window.handleEditProductClick(${product.producto_id})" 
-                            class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-orange-500">
-                            <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-lg relative z-10"></i>
+                        <button onclick="handleEditProductClick(${product.producto_id})" class="h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-orange-500 transition-all">
+                            <i class="fas fa-edit text-orange-500 hover:text-white"></i>
                         </button>
-
-                        <button onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                            class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500">
-                            <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-base relative z-10"></i>
+                        <button onclick="handleDeleteProductClick(${product.producto_id})" class="h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-red-500 transition-all">
+                            <i class="fas fa-trash-alt text-red-500 hover:text-white"></i>
                         </button>
                     </div>
                 </td>
@@ -6073,10 +6073,10 @@ window.showToast = function(mensaje, tipo = 'success') {
             <i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} ${iconColor} text-xl"></i>
         </div>
         <div class="flex flex-col">
-            <span class="text-[8px] opacity-50 font-bold uppercase tracking-[0.2em] mb-0.5">
+            <span class="text-[10px] opacity-50 font-bold uppercase tracking-[0.2em] mb-0.5">
                 ${tipo === 'success' ? 'Sistema' : 'Atención'}
             </span>
-            <span class="text-[11px] font-black uppercase tracking-widest leading-tight">
+            <span class="text-[13px] font-black uppercase tracking-widest leading-tight">
                 ${mensaje}
             </span>
         </div>
