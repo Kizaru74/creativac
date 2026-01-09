@@ -5126,109 +5126,108 @@ async function loadAndRenderClients() {
 
 window.loadAndRenderProducts = async function() {
     try {
-        // 1. OBTENER DATOS DE SUPABASE
         const { data, error } = await supabase.from('productos').select('*');
         if (error) throw error;
 
         window.allProducts = data || [];
-        
-        // 2. CREAR MAPA DE REFERENCIA (Para obtener nombres de padres rápidamente)
-        window.allProductsMap = Object.fromEntries(
-            window.allProducts.map(p => [String(p.producto_id), p])
-        );
+        window.allProductsMap = Object.fromEntries(window.allProducts.map(p => [String(p.producto_id), p]));
 
-        // 3. ORDENAMIENTO JERÁRQUICO (Lógica de Ancla)
+        // ORDENAMIENTO JERÁRQUICO
         const sortedProducts = [...window.allProducts].sort((a, b) => {
-            // Definimos el ID raíz (si es subproducto usamos el ID del padre, si no, el suyo propio)
-            const rootA = (a.type === 'PACKAGE') ? a.parent_product : a.producto_id;
-            const rootB = (b.type === 'PACKAGE') ? b.parent_product : b.producto_id;
-
-            // Si pertenecen a familias diferentes, ordenar por el ID de la familia
+            const rootA = a.type === 'PRODUCT' || a.type === 'MAIN' ? a.producto_id : a.parent_product;
+            const rootB = b.type === 'PRODUCT' || b.type === 'MAIN' ? b.producto_id : b.parent_product;
             if (rootA !== rootB) return rootA - rootB;
-
-            // Si son de la misma familia, el principal (PRODUCT) va primero
-            if (a.type !== 'PACKAGE' && b.type === 'PACKAGE') return -1;
-            if (a.type === 'PACKAGE' && b.type !== 'PACKAGE') return 1;
-
-            // Si ambos son subproductos del mismo padre, ordenar por nombre
-            return a.name.localeCompare(b.name);
+            return (a.type === 'PRODUCT' || a.type === 'MAIN') ? -1 : 1;
         });
 
-        const tableBody = document.getElementById('products-table-body');
-        if (!tableBody) return;
-        tableBody.innerHTML = ''; 
+        const container = document.getElementById('products-table-body');
+        if (!container) return;
+        container.innerHTML = '';
 
-        // 4. GENERAR EL HTML FILA POR FILA
-        sortedProducts.forEach(producto => {
-            const isSub = producto.type === 'PACKAGE';
-            const isMain = producto.type === 'PRODUCT' || producto.type === 'MAIN';
-            
-            let parentName = "N/A";
-            if (isSub && producto.parent_product) {
-                const parentObj = window.allProductsMap[String(producto.parent_product)];
-                parentName = parentObj ? parentObj.name : "Principal";
-            }
-
+        sortedProducts.forEach(product => {
+            const isSub = product.type === 'PACKAGE';
             const row = document.createElement('tr');
             
-            // ✅ CORRECCIÓN: Aplicamos la clase 'is-subproducto' para el fondo del CSS
-            row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.02]'}`;
+            // ✅ ESTILO ORIGINAL: Recuperamos las clases de hover y transición
+            row.className = `group transition-all duration-300 border-b border-white/5 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.03]'}`;
             
+            // Lógica de Badges Original
+            let badgeClass = '';
+            let typeText = '';
+            let icon = '';
+
+            switch(product.type) {
+                case 'MAIN':
+                case 'PRODUCT':
+                    badgeClass = 'glass-badge-success';
+                    typeText = 'Principal';
+                    icon = 'fa-star';
+                    break;
+                case 'PACKAGE':
+                    badgeClass = 'glass-badge-danger';
+                    typeText = 'Subproducto';
+                    icon = 'fa-box-open';
+                    break;
+                default:
+                    badgeClass = 'glass-badge-info';
+                    typeText = 'Servicio';
+                    icon = 'fa-tools';
+            }
+
             row.innerHTML = `
-                <td class="px-8 py-5">
-                    <span class="text-[9px] font-mono opacity-30 bg-white/5 px-2 py-1 rounded">#${producto.producto_id}</span>
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <div class="font-sans font-bold bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/10 text-[10px] inline-block tracking-wider">
+                        #${product.producto_id}
+                    </div>
                 </td>
                 
-                <td class="px-8 py-5 ${isSub ? 'subproducto-indent' : ''}">
-                    <div class="flex items-center">
-                        <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
-                            <i class="fas ${isSub ? 'fa-boxes' : 'fa-box'} text-xs text-orange-500"></i>
+                <td class="px-8 py-5 whitespace-nowrap ${isSub ? 'subproducto-indent' : ''}">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                            <i class="fas ${icon} text-white text-xs"></i>
                         </div>
-                        <div class="flex flex-col">
-                            <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
-                            
-                            <div class="flex items-center gap-2 mt-1">
-                                <span class="text-[8px] font-black uppercase tracking-tighter ${isMain ? 'text-emerald-500' : 'text-orange-500'}">
-                                    ${isMain ? 'PRODUCTO MAIN' : 'SUBPRODUCTO'}
-                                </span>
-                                ${isSub ? `
-                                    <span class="text-[7px] text-white/30 uppercase tracking-widest font-medium border-l border-white/10 pl-2">
-                                        Padre: <span class="text-white/60">${parentName}</span>
-                                    </span>
-                                ` : ''}
+                        <div>
+                            <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
+                            <div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">
+                                ${isSub ? 'Subproducto de Inventario' : 'Ficha de Producto'}
                             </div>
                         </div>
                     </div>
                 </td>
                 
-                <td class="px-8 py-5 font-mono text-emerald-400 font-bold italic text-lg">
-                    ${formatCurrency(producto.price || 0)}
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <div class="text-lg font-black text-emerald-500 tracking-tighter font-sans italic">
+                        ${formatCurrency(product.price)}
+                    </div>
                 </td>
                 
-                <td class="px-8 py-5 text-right">
-                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
-                        <button onclick="handleEditProductClick(${producto.producto_id})" 
-                            class="h-9 w-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-orange-500 hover:border-orange-500/50 transition-all">
-                            <i class="fas fa-edit"></i>
+                <td class="px-8 py-5 whitespace-nowrap">
+                    <div class="glass-badge ${badgeClass} inline-flex">
+                        <span class="text-[10px] font-black uppercase tracking-widest font-sans flex items-center">
+                            <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
+                        </span>
+                    </div>
+                </td>
+                
+                <td class="px-8 py-6 text-right">
+                    <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
+                        <button onclick="window.handleEditProductClick(${product.producto_id})" 
+                            class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-orange-500">
+                            <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-lg relative z-10"></i>
                         </button>
-                        <button onclick="handleDeleteProductClick(${producto.producto_id})" 
-                            class="h-9 w-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-red-500 hover:border-red-500/50 transition-all">
-                            <i class="fas fa-trash-alt"></i>
+
+                        <button onclick="window.handleDeleteProductClick(${product.producto_id})" 
+                            class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500">
+                            <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-base relative z-10"></i>
                         </button>
                     </div>
                 </td>
             `;
-            tableBody.appendChild(row);
+            container.appendChild(row);
         });
 
-        // 5. ACTUALIZAR SELECTORES DE MODALES (Si existen)
-        if (typeof window.fillParentProductSelect === 'function') {
-            window.fillParentProductSelect();
-        }
-
     } catch (err) {
-        console.error("❌ Error en el renderizado:", err.message);
-        if (typeof window.showToast === 'function') window.showToast('Error al cargar tabla', 'error');
+        console.error("Error:", err);
     }
 };
 
