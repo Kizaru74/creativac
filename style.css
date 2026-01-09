@@ -4,29 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- 1. CONFIGURACIÓN BASE --- */
-body {
-    background-color: #121212 !important;
-    color: #ffffff; /* Sin !important para que el JS pueda poner colores */
+/* 1. La fila del subproducto con fondo sutil */
+tr.is-subproducto {
+    background-color: rgba(255, 255, 255, 0.02) !important;
 }
 
-/* --- 2. TABLAS Y JERARQUÍA --- */
-tbody tr td {
-    color: #ffffff; 
-}
-
-/* Esta clase es la que hace la magia del espacio a la izquierda */
+/* 2. El espacio a la izquierda para el nombre del subproducto */
 .subproducto-indent {
     padding-left: 3.5rem !important; 
     border-left: 3px solid rgba(249, 115, 22, 0.4) !important;
 }
 
-/* Fondo sutil para subproductos */
-tr.is-subproducto {
-    background-color: rgba(255, 255, 255, 0.02) !important;
-}
-
-/* Forzar colores de badges */
+/* 3. Evitar que Tailwind pise los colores de los textos */
 .text-orange-500 { color: #f97316 !important; }
 .text-emerald-500 { color: #10b981 !important; }
 

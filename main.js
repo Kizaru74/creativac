@@ -3595,35 +3595,26 @@ window.loadProductsTable = function() {
     container.innerHTML = '';
     const rawProducts = window.allProducts || []; 
 
-    // 1. ORDENAR PARA QUE NO SE MEZCLEN (Padre arriba, sus hijos abajo)
+    // 1. IMPORTANTE: Ordenar para que el hijo no flote lejos del padre
     const products = [...rawProducts].sort((a, b) => {
         const rootA = (a.type === 'MAIN' || a.type === 'PRODUCT') ? a.producto_id : a.parent_product;
         const rootB = (b.type === 'MAIN' || b.type === 'PRODUCT') ? b.producto_id : b.parent_product;
-        
-        if (rootA !== rootB) return rootA - rootB; // Ordenar por grupo familiar
-        return (a.type === 'MAIN' || a.type === 'PRODUCT') ? -1 : 1; // El padre siempre primero en su grupo
+        if (rootA !== rootB) return rootA - rootB;
+        return (a.type === 'MAIN' || a.type === 'PRODUCT') ? -1 : 1;
     });
 
-    if (products.length === 0) {
-        container.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-bold">No hay productos registrados</td></tr>`;
-        return;
-    }
-    
-    // Mapa rápido para buscar nombres de padres
     const productsMap = Object.fromEntries(products.map(p => [String(p.producto_id), p]));
 
     products.forEach(product => {
         const isSub = product.type === 'PACKAGE';
-        const isMain = product.type === 'MAIN' || product.type === 'PRODUCT';
-        
         const row = document.createElement('tr');
         
-        // ✅ AQUÍ ESTÁ EL DETALLE: Aplicamos 'is-subproducto' a la fila
+        // 2. MANTENER LAS CLASES DEL CSS (Esto es lo que se perdía en el refresco)
         row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.02]'}`;
         
-        let badgeClass = isMain ? 'glass-badge-success' : (isSub ? 'glass-badge-danger' : 'glass-badge-info');
-        let typeText = isMain ? 'Principal' : (isSub ? 'Subproducto' : 'Servicio');
-        let icon = isMain ? 'fa-star' : (isSub ? 'fa-box-open' : 'fa-tools');
+        // Configuración de iconos y badges
+        let icon = product.type === 'PACKAGE' ? 'fa-box-open' : 'fa-box';
+        let badgeClass = product.type === 'PACKAGE' ? 'glass-badge-danger' : 'glass-badge-success';
 
         row.innerHTML = `
             <td class="px-8 py-5">
@@ -3638,33 +3629,32 @@ window.loadProductsTable = function() {
                         <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
-                        <div class="text-base font-bold text-white uppercase tracking-wide">${product.name}</div>
-                        ${isSub && product.parent_product ? 
-                            `<div class="text-[9px] text-white/30 uppercase font-bold mt-0.5 tracking-widest">Depende de: ${productsMap[product.parent_product]?.name || 'Principal'}</div>` 
-                            : `<div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold mt-0.5">Ficha de Producto</div>`
-                        }
+                        <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
+                        ${isSub ? `<div class="text-[9px] text-white/40 uppercase font-bold mt-0.5">Padre: ${productsMap[product.parent_product]?.name || '---'}</div>` : ''}
                     </div>
                 </div>
             </td>
             
-            <td class="px-8 py-5 font-black text-emerald-500 italic text-lg">
-                ${formatCurrency(product.price)}
+            <td class="px-8 py-5 whitespace-nowrap">
+                <div class="text-lg font-black text-emerald-500 tracking-tighter font-sans italic">
+                    ${formatCurrency(product.price)}
+                </div>
             </td>
             
-            <td class="px-8 py-5">
+            <td class="px-8 py-5 whitespace-nowrap">
                 <div class="glass-badge ${badgeClass} inline-flex">
-                    <span class="text-[10px] font-black uppercase tracking-widest flex items-center">
-                        <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
+                    <span class="text-[10px] font-black uppercase tracking-widest font-sans flex items-center">
+                        ${product.type === 'PACKAGE' ? 'Subproducto' : 'Principal'}
                     </span>
                 </div>
             </td>
             
             <td class="px-8 py-6 text-right">
                 <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500">
-                    <button onclick="window.handleEditProductClick(${product.producto_id})" class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-orange-500 transition-all">
+                    <button onclick="window.handleEditProductClick(${product.producto_id})" class="h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-orange-500 transition-all group/btn">
                         <i class="fas fa-edit text-orange-500 group-hover/btn:text-white transition-colors"></i>
                     </button>
-                    <button onclick="window.handleDeleteProductClick(${product.producto_id})" class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-red-500 transition-all">
+                    <button onclick="window.handleDeleteProductClick(${product.producto_id})" class="h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-red-500 transition-all group/btn">
                         <i class="fas fa-trash-alt text-red-500 group-hover/btn:text-white transition-colors"></i>
                     </button>
                 </div>
