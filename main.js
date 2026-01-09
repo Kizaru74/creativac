@@ -1279,10 +1279,10 @@ window.refreshAllProductSelects = function() {
 // ====================================================================
 async function registrarAbonoCascada(clientId, montoAbonar, metodoPago) {
     try {
-        // 1. Obtener todas las ventas con deuda de ese cliente (ordenadas por la más antigua)
+        // 1. Obtener todas las ventas con deuda
         const { data: ventasPendientes, error } = await supabase
             .from('ventas')
-            .select('venta_id, saldo_pendiente')
+            .select('venta_id, saldo_pendiente, paid_amount')
             .eq('client_id', clientId)
             .gt('saldo_pendiente', 0)
             .order('created_at', { ascending: true });
@@ -1291,39 +1291,64 @@ async function registrarAbonoCascada(clientId, montoAbonar, metodoPago) {
 
         let saldoRestante = montoAbonar;
 
-        for (let venta of ventasPendientes) {
-            if (saldoRestante <= 0) break;
+        // 2. Proceso de Cascada (Saldar deudas existentes)
+        if (ventasPendientes && ventasPendientes.length > 0) {
+            for (let venta of ventasPendientes) {
+                if (saldoRestante <= 0) break;
 
-            let pagoParaEstaVenta = Math.min(saldoRestante, venta.saldo_pendiente);
-            let nuevoSaldoVenta = venta.saldo_pendiente - pagoParaEstaVenta;
+                let pagoParaEstaVenta = Math.min(saldoRestante, venta.saldo_pendiente);
+                let nuevoSaldoVenta = venta.saldo_pendiente - pagoParaEstaVenta;
 
-            // 2. Actualizar la venta individual
-            await supabase
-                .from('ventas')
-                .update({ 
-                    saldo_pendiente: nuevoSaldoVenta,
-                    paid_amount: (venta.paid_amount || 0) + pagoParaEstaVenta 
-                })
-                .eq('venta_id', venta.venta_id);
+                // Actualizar la venta individual
+                await supabase
+                    .from('ventas')
+                    .update({ 
+                        saldo_pendiente: nuevoSaldoVenta,
+                        paid_amount: (venta.paid_amount || 0) + pagoParaEstaVenta 
+                    })
+                    .eq('venta_id', venta.venta_id);
 
-            // 3. Registrar el abono en la tabla de abonos/pagos
-            await supabase
-                .from('abonos') // O tu tabla de transacciones
-                .insert({
-                    client_id: clientId,
-                    venta_id: venta.venta_id,
-                    monto_abono: pagoParaEstaVenta,
-                    metodo_pago: metodoPago,
-                    fecha_abono: new Date().toISOString()
-                });
+                // Registrar el detalle del pago
+                await supabase
+                    .from('pagos') // Usa tu tabla de pagos
+                    .insert({
+                        client_id: clientId,
+                        venta_id: venta.venta_id,
+                        amount: pagoParaEstaVenta,
+                        metodo_pago: metodoPago,
+                        type: 'ABONO_FIFO'
+                    });
 
-            saldoRestante -= pagoParaEstaVenta;
+                saldoRestante -= pagoParaEstaVenta;
+            }
         }
 
-        alert('Abono procesado en cascada correctamente.');
-        loadDebts(); // Recargar la tabla principal
+        // 3. 🛑 TRATAMIENTO DEL SOBRANTE (Saldo a favor)
+        // Si después de recorrer las ventas aún queda dinero, o si no había deudas:
+        if (saldoRestante > 0) {
+            await supabase
+                .from('pagos')
+                .insert({
+                    client_id: clientId,
+                    venta_id: null, // No está asociado a ninguna venta todavía
+                    amount: saldoRestante,
+                    metodo_pago: metodoPago,
+                    type: 'SALDO_A_FAVOR', // Identificador clave
+                    description: 'Abono anticipado / Excedente'
+                });
+            
+            window.showToast(`Registrado: ${montoAbonar - saldoRestante} a deudas y ${saldoRestante} como saldo a favor`, 'success');
+        } else {
+            window.showToast('Abono procesado en cascada correctamente', 'success');
+        }
+
+        // 4. Actualizar interfaz
+        if (window.loadAndRenderClients) await window.loadAndRenderClients();
+        if (window.loadDashboardMetrics) window.loadDashboardMetrics();
+
     } catch (err) {
         console.error("Error en abono FIFO:", err);
+        window.showToast("Error al procesar abono", "error");
     }
 }
 
@@ -4329,13 +4354,13 @@ window.handleNewClient = async function(e) {
     
     if (typeof supabase === 'undefined' || !supabase) { 
         console.error('ERROR CRÍTICO: La variable "supabase" no está definida o accesible globalmente.');
-        alert('Error: La conexión a la base de datos no está disponible.');
+        window.showToast('Error: La conexión a la base de datos no está disponible.');
         return;
     }
     
     if (!name || name.length < 3) {
         console.warn('Registro cancelado: Nombre inválido.');
-        alert('Por favor, ingresa un nombre válido para el cliente.');
+        window.showToast('Por favor, ingresa un nombre válido para el cliente.');
         
         // Opcional: enfocar el campo para mejor UX
         document.getElementById('new-client-name')?.focus(); 
@@ -4359,10 +4384,10 @@ window.handleNewClient = async function(e) {
         // 🛑 LOG 4: RESULTADO DE SUPABASE
         if (error) {
             console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
-            alert('Error al registrar cliente: ' + error.message);
+            window.showToast('Error al guardar: ' + error.message, 'error');
         } else {
         //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
-            alert('Cliente registrado exitosamente.');
+            window.showToast('Cliente registrado exitosamente.');
             
             // --- Cierre y Limpieza ---
             
@@ -4389,7 +4414,7 @@ window.handleNewClient = async function(e) {
         }
     } catch (e) {
         console.error('5. ERROR DE RED o EXCEPCIÓN AL REGISTRAR:', e);
-        alert('Error desconocido al registrar cliente. Verifique la conexión a Supabase.');
+        window.showToast('Error desconocido al registrar cliente. Verifique la conexión a Supabase.');
     }
 }
 
@@ -5856,43 +5881,37 @@ document.getElementById('open-abono-from-report-btn')?.addEventListener('click',
         // 2. Cerrar el reporte anterior
         closeModal('modal-client-debt-report');
     } else {
-        alert("El cliente no tiene deuda pendiente.");
+        window.showToast("El cliente no tiene deuda pendiente.");
     }
 });
 
 // ESCUCHADOR GLOBAL DE ENVÍO DE FORMULARIO - ABONO
 document.addEventListener('submit', async function(e) {
-    // Verificamos que sea el formulario de abonos
     if (e.target && e.target.id === 'abono-client-form') {
-        e.preventDefault(); // 🛑 BLOQUEA EL REFRESCO DE LA PÁGINA
+        e.preventDefault(); 
         e.stopPropagation();
-
-        console.log("🚀 Procesando abono sin recargar página...");
 
         const form = e.target;
         const submitBtn = form.querySelector('button[type="submit"]');
         
-        // 1. Obtener datos del formulario que llenó handleAbonoClick
         const clientId = document.getElementById('abono-client-id')?.value;
         const amount = parseFloat(document.getElementById('abono-amount')?.value);
         const method = document.getElementById('payment-method-abono')?.value;
 
-        // 2. Validación rápida
+        // 1. Validación rápida con Toast de Error
         if (!clientId || isNaN(amount) || amount <= 0 || !method) {
-            alert("⚠️ Por favor complete todos los campos correctamente.");
+            window.showToast("⚠️ Completa los campos correctamente", "error");
             return;
         }
 
-        // 3. Bloquear botón
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Guardando...';
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando...';
         }
 
         try {
-            // 4. INSERTAR EN SUPABASE (Solo tabla pagos, la deuda se calcula sola)
             const { error } = await supabase.from('pagos').insert([{
-                client_id: clientId, // El ID que puso handleAbonoClick
+                client_id: clientId,
                 amount: amount,
                 metodo_pago: method,
                 type: 'ABONO_GENERAL',
@@ -5901,20 +5920,20 @@ document.addEventListener('submit', async function(e) {
 
             if (error) throw error;
 
-            // --- ÉXITO ---
-            alert(`✅ Abono de ${amount} registrado correctamente.`);
+            // 2. ÉXITO con Toast Teal (Pasando 'success')
+            // Si tienes formatCurrency úsala aquí: formatCurrency(amount)
+            window.showToast(`Abono de $${amount.toLocaleString()} registrado`, "success");
             
-            // 5. Limpieza y Cierre
             if (typeof closeModal === 'function') closeModal('abono-client-modal');
             form.reset();
 
-            // 6. Actualizar tablas de la web (sin recargar)
-            if (typeof window.loadClientsTable === 'function') await window.loadClientsTable('gestion');
+            // 3. Actualización silenciosa de la interfaz
+            if (typeof window.loadAndRenderClients === 'function') await window.loadAndRenderClients();
             if (typeof window.loadDashboardMetrics === 'function') await window.loadDashboardMetrics();
 
         } catch (err) {
             console.error("❌ Error en Supabase:", err);
-            alert("Error al registrar el abono: " + err.message);
+            window.showToast("No se pudo registrar: " + err.message, "error");
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
@@ -6042,5 +6061,5 @@ window.showToast = function(mensaje, tipo = 'success') {
     setTimeout(() => {
         toast.classList.add('translate-x-10', 'opacity-0');
         setTimeout(() => toast.remove(), 600);
-    }, 4000);
+    }, 5000);
 };
