@@ -5948,7 +5948,7 @@ window.showToast = function(mensaje, tipo = 'success') {
     const barColor = isSuccess ? 'bg-teal-500' : 'bg-red-500';
 
     toast.className = `
-        relative bg-[#121212] backdrop-blur-2xl border border-white/10 
+        relative bg-[#134e4a] backdrop-blur-2xl border border-white/10 
         ring-1 ${ringColor} text-white px-6 py-4 rounded-2xl shadow-2xl
         flex items-center gap-4 transform translate-x-10 opacity-0 
         transition-all duration-500 min-w-[320px] z-[9999]
