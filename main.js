@@ -3148,90 +3148,53 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
 
 window.handleAbonoClientSubmit = async function(e) {
     e.preventDefault();
-
-    if (!supabase) {
-        window.showToast("Error: Supabase no inicializado", "error");
-        return;
-    }
-
     const form = e.target;
-    
-    // 1. CAPTURA DE DATOS (Mismos IDs que usas en tu HTML)
-    const clientId = document.getElementById('abono-client-id')?.value;
-    const abonoAmount = parseFloat(form.elements['abono-amount'].value);
-    const paymentMethod = form.elements['payment-method-abono'].value;
-    
-    // Intentamos obtener ventaId si el abono es para una factura específica
-    const ventaIdInput = document.getElementById('debt-to-pay-id')?.value;
-    const ventaId = (ventaIdInput && ventaIdInput !== "") ? parseInt(ventaIdInput) : null;
 
-    // 2. VALIDACIONES
-    if (!clientId) {
-        window.showToast("ID de cliente no encontrado", "error");
-        return;
-    }
-    if (isNaN(abonoAmount) || abonoAmount <= 0) {
-        window.showToast("Monto inválido", "error");
-        return;
-    }
-    if (!paymentMethod) {
-        window.showToast("Seleccione método de pago", "error");
-        return;
-    }
+    // 1. OBTENER DATOS (Asegúrate de que estos IDs existan en tu HTML)
+    const clientId = document.getElementById('abono-client-id')?.value;
+    const monto = parseFloat(form.elements['abono-amount'].value);
+    const metodo = form.elements['payment-method-abono'].value;
+    
+    // Capturamos la nota o descripción si existe
+    const nota = form.elements['abono-notes']?.value || "Abono a cuenta general";
 
     try {
-        // 3. INSERTAR EN TABLA 'PAGOS' (Usando 'note' en lugar de 'description')
-        const { error: paymentError } = await supabase
+        console.log("🚀 Intentando guardar abono...", { clientId, monto, metodo });
+
+        // 2. INSERTAR EN TABLA 'PAGOS'
+        // Forzamos el insert para que no dependa de una venta
+        const { data, error } = await supabase
             .from('pagos')
             .insert([{
                 client_id: parseInt(clientId),
-                amount: abonoAmount,
-                metodo_pago: paymentMethod,
-                venta_id: ventaId, // null si es abono general
-                type: ventaId ? 'PAGO_VENTA' : 'ABONO_GENERAL',
-                note: ventaId ? `Pago a Venta #${ventaId}` : 'Abono a cuenta general'
-            }]);
+                amount: monto,
+                metodo_pago: metodo,
+                type: 'ABONO_GENERAL',
+                note: nota,
+                created_at: new Date().toISOString() // Aseguramos la fecha
+            }])
+            .select();
 
-        if (paymentError) throw paymentError;
-
-        // 4. SI HAY VENTA_ID, ACTUALIZAR SALDO EN TABLA 'VENTAS'
-        if (ventaId) {
-            const { data: sale } = await supabase
-                .from('ventas')
-                .select('paid_amount, saldo_pendiente')
-                .eq('venta_id', ventaId)
-                .single();
-
-            if (sale) {
-                const newPaid = parseFloat(sale.paid_amount || 0) + abonoAmount;
-                const newDebt = parseFloat(sale.saldo_pendiente || 0) - abonoAmount;
-
-                await supabase.from('ventas')
-                    .update({ 
-                        paid_amount: newPaid, 
-                        saldo_pendiente: newDebt 
-                    })
-                    .eq('venta_id', ventaId);
-            }
+        if (error) {
+            console.error("❌ Error de Supabase:", error);
+            throw error;
         }
 
-        // 5. ÉXITO Y ACTUALIZACIÓN DE PANTALLA
-        window.showToast?.("Abono registrado con éxito", "success");
-        
+        console.log("✅ Abono guardado con éxito en DB:", data);
+
+        // 3. CERRAR Y LIMPIAR
+        window.showToast?.("Abono guardado correctamente", "success");
         form.reset();
         closeModal('abono-client-modal');
 
-        // RECARGAR EL REPORTE AUTOMÁTICAMENTE
-        // Esto hace que el abono aparezca en la lista sin recargar la página
+        // 4. RECARGAR EL REPORTE
         if (window.handleViewClientDebt) {
-            setTimeout(() => {
-                window.handleViewClientDebt(clientId);
-            }, 300); // Un pequeño delay para que Supabase procese la vista
+            await window.handleViewClientDebt(clientId);
         }
 
-    } catch (error) {
-        console.error('❌ Error al registrar abono:', error);
-        window.showToast("Error: " + error.message, "error");
+    } catch (err) {
+        console.error("❌ Error crítico al guardar:", err);
+        alert("No se pudo guardar el abono: " + err.message);
     }
 };
 
