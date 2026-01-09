@@ -2421,10 +2421,10 @@ window.editSaleDescription = async function(venta_id, descActual) {
                 .eq('venta_id', venta_id);
 
             if (error) throw error;
-            alert("✅ Nota actualizada.");
+            window.showToast("✅ Descripción actualizada.");
             window.handleViewSaleDetails(venta_id); // Recarga el modal
         } catch (err) {
-            alert("Error: " + err.message);
+            window.showToast("Error: " + err.message);
         }
     }
 };
@@ -2487,18 +2487,18 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
             .update({ total_amount: nuevoTotalVenta, saldo_pendiente: nuevoSaldo })
             .eq('venta_id', ventaId);
 
-        alert("✅ Producto eliminado y totales actualizados.");
+        window.showToast("✅ Producto eliminado y totales actualizados.");
         window.handleViewSaleDetails(ventaId);
     } catch (err) {
         console.error(err);
-        alert("Error al eliminar el producto.");
+        window.showToast("Error al eliminar el producto.");
     }
 };
 
 //PDF de la VENTA
 window.generarPDFVenta = function() {
     const venta = window.currentSaleForPrint;
-    if (!venta) return alert("No hay datos para generar el PDF");
+    if (!venta) return window.showToast("No hay datos para generar el PDF");
 
     const colorOxido = '#b45309'; // Color naranja óxido profesional
     const fecha = new Date(venta.created_at).toLocaleDateString('es-MX', {
@@ -2662,7 +2662,7 @@ window.generarPDFVenta = function() {
         pWin.document.write(htmlContent);
         pWin.document.close();
     } else {
-        alert("Por favor, permite las ventanas emergentes para ver el PDF.");
+        window.showToast("Por favor, permite las ventanas emergentes para ver el PDF.");
     }
 };
 window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
@@ -2712,7 +2712,7 @@ window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
 
     } catch (error) {
         console.error("Error al cargar estado de cuenta:", error);
-        alert("No se pudo cargar la información del cliente.");
+        window.showToast("No se pudo cargar la información del cliente.");
     }
 };
 window.registrarAbonoGeneral = async function() {
