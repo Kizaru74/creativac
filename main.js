@@ -4052,10 +4052,6 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
                 <i class="fas fa-trash-alt text-xs"></i>
             </button>
                     </div>
-                    <button type="button" class="delete-client-btn group/btn h-9 w-9 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
-                                    data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
-                                <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white transition-colors text-[14px] !bg-transparent !p-0 !border-none"></i>
-                            </button>
                 </td>
             `;
             container.appendChild(row);
