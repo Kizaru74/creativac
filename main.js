@@ -5736,6 +5736,57 @@ if (btnEliminarConfirmar) {
 }
 });
 
+// Función para confirmar y ejecutar la eliminación total
+document.getElementById('confirm-delete-client-btn')?.addEventListener('click', async () => {
+    const clientId = window.clientIdToDelete;
+    if (!clientId) return;
+
+    const btn = document.getElementById('confirm-delete-client-btn');
+    const originalText = btn.innerHTML;
+    
+    try {
+        // Bloquear botón y mostrar carga
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>ELIMINANDO...';
+
+        // 1. Obtener IDs de ventas del cliente para borrar sus detalles
+        const { data: ventas } = await supabase
+            .from('ventas')
+            .select('id')
+            .eq('client_id', clientId);
+
+        if (ventas && ventas.length > 0) {
+            const ventaIds = ventas.map(v => v.id);
+            // Borrar detalles de esas ventas
+            await supabase.from('detalle_ventas').delete().in('venta_id', ventaIds);
+            // Borrar las ventas
+            await supabase.from('ventas').delete().in('id', ventaIds);
+        }
+
+        // 2. Borrar transacciones de deuda (Abonos y Cargos)
+        await supabase.from('transacciones_deuda').delete().eq('client_id', clientId);
+
+        // 3. Finalmente borrar al cliente
+        const { error } = await supabase.from('clientes').delete().eq('client_id', clientId);
+
+        if (error) throw error;
+
+        showToast("Cliente y todo su historial eliminados correctamente", "success");
+        closeModal('delete-client-modal');
+        
+        // 4. Refrescar la tabla de clientes
+        if (typeof loadClientsTable === 'function') await loadClientsTable();
+
+    } catch (err) {
+        console.error("Error al eliminar cliente:", err);
+        showToast("No se pudo eliminar al cliente por completo", "error");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        window.clientIdToDelete = null;
+    }
+});
+
 // ✅ DEJA ESTO (Pero ajustado):
 document.getElementById('open-abono-from-report-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
