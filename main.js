@@ -1766,7 +1766,7 @@ window.handleViewClientDebt = async function(clientId) {
     if (!supabase) return;
 
     try {
-        // 1. OBTENEMOS DATOS DEL CLIENTE Y SUS MOVIMIENTOS DESDE LA VISTA
+        // 1. OBTENEMOS DATOS DEL CLIENTE Y SUS MOVIMIENTOS
         const [clientRes, transactionsRes] = await Promise.all([
             supabase.from('clientes').select('name').eq('client_id', clientId).single(),
             supabase.from('transacciones_deuda')
@@ -1780,8 +1780,7 @@ window.handleViewClientDebt = async function(clientId) {
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
         const movimientosRaw = transactionsRes.data || [];
 
-        // 2. OBTENEMOS DETALLES DE PRODUCTOS PARA LAS VENTAS
-        // Filtramos solo los IDs que vienen de 'cargo_venta'
+        // 2. OBTENEMOS DETALLES DE PRODUCTOS
         const ventaIds = movimientosRaw
             .filter(m => m.type === 'cargo_venta')
             .map(m => m.venta_id);
@@ -1795,17 +1794,16 @@ window.handleViewClientDebt = async function(clientId) {
             if (detailsData) productosPorVenta = detailsData;
         }
 
-        // 3. PROCESAR SALDOS Y TEXTOS
+        // 3. PROCESAR SALDOS
         let saldoCorriente = 0;
         const filasProcesadas = movimientosRaw.map(mov => {
             const esVenta = mov.type === 'cargo_venta';
-            const monto = parseFloat(mov.amount);
+            // CORRECCIÓN: Aseguramos que el monto sea positivo antes de procesar
+            const monto = Math.abs(parseFloat(mov.amount));
             
-            // Si es venta suma al saldo, si es abono resta
             if (esVenta) saldoCorriente += monto;
             else saldoCorriente -= monto;
 
-            // Buscar productos si es venta
             let textoProductos = "";
             if (esVenta) {
                 const misProds = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
@@ -1824,8 +1822,11 @@ window.handleViewClientDebt = async function(clientId) {
             };
         });
 
-        // 4. GENERAR HTML PARA EL PDF (Guardar en variable global)
-        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => `
+        // 4. GENERAR HTML PARA EL PDF (CORREGIDO)
+        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => {
+            // CORRECCIÓN AQUÍ: Definimos el signo manualmente
+            const signo = mov.esVenta ? '+' : '-';
+            return `
             <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; font-size: 11px;">
                     ${mov.fecha.toLocaleDateString('es-MX')}
@@ -1837,12 +1838,13 @@ window.handleViewClientDebt = async function(clientId) {
                     ${mov.textoProductos ? `<div style="font-size: 10px; color: #d45c01ff;">[ ${mov.textoProductos} ]</div>` : ''}
                 </td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: ${mov.esVenta ? '#dc2626' : '#034f8eff'}; font-weight: bold;">
-                    ${mov.esVenta ? '+' : '-'} ${formatCurrency(mov.monto)}
+                    ${signo}${formatCurrency(mov.monto)} 
                 </td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; background-color: #f9fafb;">
                     ${formatCurrency(mov.saldoAcumulado)}
                 </td>
-            </tr>`).join('');
+            </tr>`;
+        }).join('');
 
         window.currentClientDataForPrint = {
             clientId: clientId,
@@ -1851,27 +1853,31 @@ window.handleViewClientDebt = async function(clientId) {
             transaccionesHTML: transaccionesHTMLParaPDF
         };
 
-        // 5. RENDERIZAR EN EL MODAL (PANTALLA)
+        // 5. RENDERIZAR EN EL MODAL (CORREGIDO)
         const tbody = document.getElementById('client-transactions-body');
         if (tbody) {
-            tbody.innerHTML = filasProcesadas.map(mov => `
+            tbody.innerHTML = filasProcesadas.map(mov => {
+                // CORRECCIÓN AQUÍ: Quitamos el guion manual y usamos la lógica de signo
+                const signo = mov.esVenta ? '+' : '-';
+                return `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
                     <td class="px-6 py-4 text-white/60 text-xs">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-green-400'}">
+                            <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-emerald-400'}">
                                 ${mov.description}
                             </span>
-                            ${mov.textoProductos ? `<span class="text-base text-teal-400 font-medium">${mov.textoProductos}</span>` : ''}
+                            ${mov.textoProductos ? `<span class="text-[10px] text-teal-400 font-medium mt-1 leading-tight italic">${mov.textoProductos}</span>` : ''}
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-lg ${mov.esVenta ? 'text-red-400' : 'text-green-400'}">
-                        ${mov.esVenta ? '+' : '-'}${formatCurrency(mov.monto)}
+                    <td class="px-6 py-4 text-right font-mono text-sm ${mov.esVenta ? 'text-red-400' : 'text-emerald-400'} font-bold">
+                        ${signo}${formatCurrency(mov.monto)}
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-lg text-white font-bold">
+                    <td class="px-6 py-4 text-right font-mono text-sm text-white font-bold">
                         ${formatCurrency(mov.saldoAcumulado)}
                     </td>
-                </tr>`).join('');
+                </tr>`;
+            }).join('');
         }
 
         // ACTUALIZAR CABECERAS
@@ -1882,7 +1888,6 @@ window.handleViewClientDebt = async function(clientId) {
 
     } catch (err) {
         console.error("❌ Error cargando estado de cuenta:", err);
-        if (typeof showToast === 'function') showToast("Error al obtener movimientos", "error");
     }
 };
 
@@ -4011,72 +4016,55 @@ async function loadClientDebtsTable() {
 }
 window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
     if (!supabase) return;
-
     const container = document.getElementById('clients-list-body');
     if (!container) return;
 
     const showActions = mode === 'gestion';
 
-    // 1. Estado de carga visual
+    // 1. Estado de carga Premium
     container.innerHTML = `
         <tr>
-            <td colspan="6" class="px-6 py-20 text-center">
-                <div class="flex flex-col items-center">
-                    <div class="h-10 w-10 border-4 border-t-orange-500 border-white/10 rounded-full animate-spin mb-4"></div>
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-white/30">Cargando Clientes (${filterType})...</span>
+            <td colspan="6" class="px-6 py-24 text-center">
+                <div class="flex flex-col justify-center items-center">
+                    <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse mb-4">
+                        <i class="fas fa-users text-xl"></i>
+                    </div>
+                    <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30 font-sans">Sincronizando ${filterType}...</span>
                 </div>
             </td>
         </tr>`;
 
     try {
-        // Traemos todos los clientes
-        const { data: clients, error: clientsError } = await supabase
-            .from('clientes')
-            .select('client_id, name, telefono') 
-            .order('name', { ascending: true });
+        const { data: clients, error } = await supabase.from('clientes').select('*').order('name', { ascending: true });
+        if (error) throw error;
 
-        if (clientsError) throw clientsError;
-
-        // Calculamos los balances de todos en paralelo para mayor velocidad
         const summaries = await Promise.all(clients.map(c => getClientSalesSummary(c.client_id)));
+        
+        let dataFull = clients.map((c, i) => ({ ...c, summary: summaries[i] }));
 
-        // Unimos los datos
-        let dataFull = clients.map((c, i) => ({
-            ...c,
-            balance: summaries[i].deudaNeta,
-            consumo: summaries[i].totalVentas
-        }));
-
-        // 2. APLICACIÓN DE FILTRO DINÁMICO
-        if (filterType === 'deudores') {
-            dataFull = dataFull.filter(d => d.balance > 0.01);
-        } else if (filterType === 'a_favor') {
-            dataFull = dataFull.filter(d => d.balance < -0.01);
-        }
+        // Filtros
+        if (filterType === 'deudores') dataFull = dataFull.filter(d => d.summary.deudaNeta > 0.01);
+        else if (filterType === 'a_favor') dataFull = dataFull.filter(d => d.summary.deudaNeta < -0.01);
 
         container.innerHTML = '';
-
         if (dataFull.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-widest">No hay clientes que coincidan</td></tr>`;
+            container.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Sin coincidencias</td></tr>`;
             return;
         }
 
         dataFull.forEach(client => {
-            const tieneDeuda = client.balance > 0.01;
-            const tieneFavor = client.balance < -0.01;
+            const balance = client.summary.deudaNeta;
+            const tieneDeuda = balance > 0.01;
+            const tieneFavor = balance < -0.01;
 
-            // Lógica de colores dinámica
-            let badgeStyle = 'glass-badge-success'; // Por defecto: al día
-            let dotColor = 'bg-emerald-500';
-            let labelExtra = '';
-
+            let badgeClass = 'glass-badge-success';
+            let dotClass = 'bg-emerald-500';
             if (tieneDeuda) {
-                badgeStyle = 'glass-badge-danger';
-                dotColor = 'bg-red-500 animate-pulse';
+                badgeClass = 'glass-badge-danger';
+                dotClass = 'bg-red-500 animate-pulse';
             } else if (tieneFavor) {
-                badgeStyle = 'bg-blue-500/10 border border-blue-500/30 text-blue-400';
-                dotColor = 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]';
-                labelExtra = '<span class="ml-1 text-[8px] font-black uppercase opacity-60">A Favor</span>';
+                badgeClass = 'bg-blue-500/10 border-blue-500/30 text-blue-400';
+                dotClass = 'bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]';
             }
 
             const row = document.createElement('tr');
@@ -4084,51 +4072,48 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
             
             row.innerHTML = `
                 <td class="px-8 py-5">
-                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10">
-                        <span class="text-xs font-black text-white">${client.name.charAt(0)}</span>
-                        <span class="text-[8px] font-bold text-orange-500 mt-0.5">#${client.client_id}</span>
+                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 group-hover:border-orange-500/30 transition-all">
+                        <span class="text-[11px] font-black text-white uppercase">${client.name.charAt(0)}</span>
+                        <span class="text-[8px] font-bold text-orange-500 mt-1">#${client.client_id}</span>
                     </div>
                 </td>
                 <td class="px-8 py-5">
-                    <div class="text-sm font-bold text-white uppercase font-sans">${client.name}</div>
-                    <div class="text-[10px] text-white/30 font-sans font-bold">
-                        <i class="fas fa-phone-alt mr-1 opacity-50"></i> ${client.telefono || 'Sin registro'}
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-all">
+                            <i class="fas fa-user text-white text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-white uppercase font-sans">${client.name}</div>
+                            <div class="text-[10px] text-white/30 font-bold uppercase tracking-tight"><i class="fas fa-phone-alt mr-1"></i> ${client.telefono || 'Sin registro'}</div>
+                        </div>
                     </div>
                 </td>
-                <td class="px-8 py-5 text-right">
-                    <div class="text-[9px] text-white/30 uppercase font-bold tracking-widest mb-1">Consumo</div>
-                    <div class="text-sm font-black text-white italic">${formatCurrency(client.consumo)}</div>
+                <td class="px-8 py-5 text-right font-sans">
+                    <div class="text-[11px] text-white/40 uppercase font-bold mb-1">Consumo Total</div>
+                    <div class="text-sm font-black text-white italic">${formatCurrency(client.summary.totalVentas)}</div>
                 </td>
-                <td class="px-8 py-5 text-right">
-                    <div class="text-[9px] text-white/30 uppercase font-bold tracking-widest mb-1">Balance</div>
-                    <div class="glass-badge ${badgeStyle} inline-flex p-1 px-3 rounded-full">
-                        <span class="flex items-center font-bold font-sans text-[13px]">
-                            <span class="h-1.5 w-1.5 rounded-full ${dotColor} mr-2"></span>
-                            ${formatCurrency(Math.abs(client.balance))}
-                            ${labelExtra}
+                <td class="px-8 py-5 text-right font-sans">
+                    <div class="text-[11px] text-white/40 uppercase font-bold mb-1">Balance</div>
+                    <div class="glass-badge ${badgeClass} inline-flex ml-auto p-1 px-3 rounded-full border border-white/5">
+                        <span class="flex items-center font-bold text-[13px]">
+                            <span class="h-1.5 w-1.5 rounded-full ${dotClass} mr-2"></span>
+                            ${formatCurrency(Math.abs(balance))}
+                            ${tieneFavor ? '<span class="ml-1 text-[8px] opacity-60">FAVOR</span>' : ''}
                         </span>
                     </div>
                 </td>
                 <td class="px-8 py-5 text-right">
-                    <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="window.handleEditClientClick(${client.client_id})" class="h-8 w-8 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-500 hover:bg-orange-500 hover:text-white transition-all">
-                            <i class="fas fa-edit text-xs"></i>
-                        </button>
-                        <button onclick="window.handleAbonoClick(${client.client_id})" class="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all">
-                            <i class="fas fa-hand-holding-usd text-xs"></i>
-                        </button>
-                        <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
-                            <i class="fas fa-file-invoice-dollar text-xs"></i>
-                        </button>
+                    <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                        <button onclick="window.handleEditClientClick(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-orange-500/10 border border-orange-500/30 rounded-lg text-orange-500 hover:bg-orange-500 hover:text-white transition-all"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.handleAbonoClick(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"><i class="fas fa-hand-holding-usd"></i></button>
+                        <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><i class="fas fa-file-invoice-dollar"></i></button>
                     </div>
                 </td>
             `;
             container.appendChild(row);
         });
 
-    } catch (e) {
-        console.error('Error loadClientsTable:', e);
-    }
+    } catch (e) { console.error(e); }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
 let clientToDeleteId = null; 
@@ -5957,3 +5942,20 @@ window.showToast = function(mensaje, tipo = 'success') {
         setTimeout(() => toast.remove(), 600);
     }, 5000);
 };
+
+// Buscador para la tabla de clientes
+document.getElementById('search-clients-input')?.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#clients-list-body tr');
+
+    rows.forEach(row => {
+        const name = row.querySelector('.text-sm.font-bold')?.textContent.toLowerCase() || '';
+        const id = row.querySelector('.text-\\[8px\\]')?.textContent.toLowerCase() || '';
+        
+        if (name.includes(term) || id.includes(term)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
