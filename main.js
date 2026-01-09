@@ -4108,6 +4108,10 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
                         <button onclick="window.handleAbonoClick(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"><i class="fas fa-hand-holding-usd"></i></button>
                         <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><i class="fas fa-file-invoice-dollar"></i></button>
                     </div>
+                    <button type="button" class="delete-client-btn group/btn h-9 w-9 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
+                                    data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
+                                <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white transition-colors text-[14px] !bg-transparent !p-0 !border-none"></i>
+                            </button>
                 </td>
             `;
             container.appendChild(row);
