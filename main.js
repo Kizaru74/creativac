@@ -3148,53 +3148,58 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
 
 window.handleAbonoClientSubmit = async function(e) {
     e.preventDefault();
-    const form = e.target;
+    console.log("--- INICIANDO GUARDADO DE ABONO ---");
 
-    // 1. OBTENER DATOS (Asegúrate de que estos IDs existan en tu HTML)
-    const clientId = document.getElementById('abono-client-id')?.value;
+    const form = e.target;
+    
+    // IMPORTANTE: Si abrimos desde el reporte, el ID está en window.currentClientDataForPrint
+    const clientId = document.getElementById('abono-client-id')?.value || window.currentClientDataForPrint?.clientId;
     const monto = parseFloat(form.elements['abono-amount'].value);
     const metodo = form.elements['payment-method-abono'].value;
-    
-    // Capturamos la nota o descripción si existe
     const nota = form.elements['abono-notes']?.value || "Abono a cuenta general";
 
-    try {
-        console.log("🚀 Intentando guardar abono...", { clientId, monto, metodo });
+    console.log("Datos capturados:", { clientId, monto, metodo, nota });
 
-        // 2. INSERTAR EN TABLA 'PAGOS'
-        // Forzamos el insert para que no dependa de una venta
+    if (!clientId || isNaN(monto)) {
+        window.showToast("Faltan datos críticos (ID o Monto)", "error");
+        console.error("Falta clientId o monto es NaN");
+        return;
+    }
+
+    try {
+        // INSERT DIRECTO
         const { data, error } = await supabase
             .from('pagos')
             .insert([{
                 client_id: parseInt(clientId),
                 amount: monto,
                 metodo_pago: metodo,
-                type: 'ABONO_GENERAL',
                 note: nota,
-                created_at: new Date().toISOString() // Aseguramos la fecha
+                type: 'ABONO_GENERAL'
             }])
             .select();
 
         if (error) {
-            console.error("❌ Error de Supabase:", error);
-            throw error;
+            console.error("❌ ERROR DE SUPABASE AL INSERTAR:", error);
+            alert("Error de base de datos: " + error.message);
+            return;
         }
 
-        console.log("✅ Abono guardado con éxito en DB:", data);
+        console.log("✅ INSERCIÓN EXITOSA. Datos devueltos:", data);
+        window.showToast("Abono guardado en base de datos", "success");
 
-        // 3. CERRAR Y LIMPIAR
-        window.showToast?.("Abono guardado correctamente", "success");
+        // Limpiar y cerrar
         form.reset();
         closeModal('abono-client-modal');
 
-        // 4. RECARGAR EL REPORTE
+        // Refrescar el reporte
         if (window.handleViewClientDebt) {
             await window.handleViewClientDebt(clientId);
         }
 
     } catch (err) {
-        console.error("❌ Error crítico al guardar:", err);
-        alert("No se pudo guardar el abono: " + err.message);
+        console.error("❌ ERROR CRÍTICO EN EL PROCESO:", err);
+        alert("Ocurrió un error inesperado.");
     }
 };
 
