@@ -1772,7 +1772,6 @@ window.handleViewClientDebt = async function(clientId) {
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
         const movimientosRaw = transactionsRes.data || [];
 
-        // 1. Obtener productos
         const ventaIds = movimientosRaw.filter(m => m.type === 'cargo_venta').map(m => m.venta_id);
         let productosPorVenta = [];
         if (ventaIds.length > 0) {
@@ -1782,7 +1781,6 @@ window.handleViewClientDebt = async function(clientId) {
 
         let saldoCorriente = 0;
 
-        // 2. Procesar filas (esta lógica sirve para el PDF y para el Modal)
         const filasProcesadas = movimientosRaw.map(mov => {
             const esVenta = mov.type === 'cargo_venta';
             const montoAbs = Math.abs(parseFloat(mov.amount));
@@ -1796,15 +1794,19 @@ window.handleViewClientDebt = async function(clientId) {
             return {
                 ...mov,
                 montoAbs,
-                saldoAcumulado: saldoCorriente,
+                saldoAcumulado: saldoCorriente, // Aquí puede ser negativo
                 textoProds,
                 esVenta,
                 signo: esVenta ? '+' : '-'
             };
         });
 
-        // 3. GENERAR HTML PARA EL PDF (IMPORTANTE: Corregido aquí también)
-        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => `
+        // 3. GENERAR HTML PARA EL PDF (CORREGIDO PARA IMPRESIÓN)
+        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => {
+            const esFavor = mov.saldoAcumulado < 0;
+            const saldoFormateado = window.formatCurrency(Math.abs(mov.saldoAcumulado));
+            
+            return `
             <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; font-size: 11px;">
                     ${new Date(mov.created_at).toLocaleDateString('es-MX')}
@@ -1817,9 +1819,10 @@ window.handleViewClientDebt = async function(clientId) {
                     ${mov.signo}${window.formatCurrency(mov.montoAbs)}
                 </td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; background-color: #f9fafb;">
-                    ${window.formatCurrency(mov.saldoAcumulado)}
+                    ${saldoFormateado}${esFavor ? ' <span style="font-size:8px; color:#034f8eff;">(FAVOR)</span>' : ''}
                 </td>
-            </tr>`).join('');
+            </tr>`;
+        }).join('');
 
         window.currentClientDataForPrint = {
             clientId: clientId,
@@ -1828,13 +1831,17 @@ window.handleViewClientDebt = async function(clientId) {
             transaccionesHTML: transaccionesHTMLParaPDF
         };
 
-        // 4. RENDERIZAR EN EL MODAL (Pantalla)
+        // 4. RENDERIZAR EN EL MODAL (PANTALLA)
         const tbody = document.getElementById('client-transactions-body');
         if (tbody) {
-            tbody.innerHTML = filasProcesadas.map(mov => `
+            tbody.innerHTML = filasProcesadas.map(mov => {
+                const esFavor = mov.saldoAcumulado < 0;
+                const saldoFormateado = window.formatCurrency(Math.abs(mov.saldoAcumulado));
+
+                return `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
                     <td class="px-6 py-4">
-                        <div class="text-white/30 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+                        <div class="text-white/30 text-[10px] font-black uppercase mb-1">
                             ${new Date(mov.created_at).toLocaleDateString('es-MX')}
                         </div>
                     </td>
@@ -1843,24 +1850,26 @@ window.handleViewClientDebt = async function(clientId) {
                             <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-emerald-400'} uppercase">
                                 ${mov.description}
                             </span>
-                            ${mov.textoProds ? `
-                                <span class="text-[10px] text-orange-500 font-medium italic mt-1 leading-tight">
-                                    <i class="fas fa-box-open mr-1"></i>${mov.textoProds}
-                                </span>` : ''}
+                            ${mov.textoProds ? `<span class="text-[10px] text-orange-500 font-medium italic mt-1 leading-tight tracking-wide"><i class="fas fa-box-open mr-1"></i>${mov.textoProds}</span>` : ''}
                         </div>
                     </td>
                     <td class="px-6 py-4 text-right font-mono text-sm ${mov.esVenta ? 'text-red-400' : 'text-emerald-400'} font-bold">
                         ${mov.signo}${window.formatCurrency(mov.montoAbs)}
                     </td>
                     <td class="px-6 py-4 text-right font-mono text-sm text-white font-black">
-                        ${window.formatCurrency(mov.saldoAcumulado)}
+                        ${saldoFormateado}
+                        ${esFavor ? '<span class="text-[9px] text-blue-400 block font-sans tracking-tighter">A FAVOR</span>' : ''}
                     </td>
-                </tr>`).join('');
+                </tr>`;
+            }).join('');
         }
 
+        // Actualizar Cabeceras
+        const esFavorTotal = saldoCorriente < 0;
         document.getElementById('client-report-name').textContent = clientName;
-        document.getElementById('client-report-total-debt').textContent = window.formatCurrency(saldoCorriente);
-        
+        document.getElementById('client-report-total-debt').textContent = 
+            window.formatCurrency(Math.abs(saldoCorriente)) + (esFavorTotal ? " (A FAVOR)" : "");
+
         openModal('modal-client-debt-report');
 
     } catch (err) {
