@@ -1885,7 +1885,7 @@ window.handleViewClientDebt = async function(clientId) {
         if (tbody) {
             tbody.innerHTML = filasProcesadas.map(mov => `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-white/40 text-xs">${mov.fecha.toLocaleDateString('es-MX')}</td>
+                    <td class="px-6 py-4 text-white/60 text-xs">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
                             <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-green-400'}">
