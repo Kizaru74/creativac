@@ -4045,14 +4045,18 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
                     </div>
                 </td>
                 <td class="px-8 py-5 text-right">
-                    <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                        <button onclick="window.handleEditClientClick(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-orange-500/10 border border-orange-500/30 rounded-lg text-orange-500 hover:bg-orange-500 hover:text-white transition-all"><i class="fas fa-edit"></i></button>
-                        <button onclick="window.handleAbonoClick(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"><i class="fas fa-hand-holding-usd"></i></button>
-                        <button onclick="window.handleDeleteClient(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all" title="Eliminar Cliente">
+        <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+            <button onclick="window.handleEditClientClick(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-orange-500/10 border border-orange-500/30 rounded-lg text-orange-500 hover:bg-orange-500 hover:text-white transition-all"><i class="fas fa-edit text-xs"></i></button>
+            
+            <button onclick="window.handleAbonoClick(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"><i class="fas fa-hand-holding-usd text-xs"></i></button>
+            
+            <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><i class="fas fa-file-invoice-dollar text-xs"></i></button>
+
+            <button onclick="window.handleDeleteClient(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all" title="Eliminar Cliente">
                 <i class="fas fa-trash-alt text-xs"></i>
             </button>
-                    </div>
-                </td>
+        </div>
+    </td>
             `;
             container.appendChild(row);
         });
