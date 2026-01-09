@@ -4052,9 +4052,12 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
             
             <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><i class="fas fa-file-invoice-dollar text-xs"></i></button>
 
-            <button onclick="window.handleDeleteClientClick(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all" title="Eliminar Cliente">
-                <i class="fas fa-trash-alt text-xs"></i>
-            </button>
+            <button type="button" 
+    onclick="window.handleDeleteClientClick(${client.client_id}, '${client.name.replace(/'/g, "\\'")}')"
+    class="delete-client-btn group/btn h-9 w-9 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
+    title="Eliminar Cliente">
+    <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white transition-colors text-[14px]"></i>
+</button>
         </div>
     </td>
             `;
@@ -4067,23 +4070,17 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
 let clientToDeleteId = null; 
 // Asumimos que también tienes el array global 'allClients'
 
-window.handleDeleteClientClick = function(clientId) {
-    // 1. Guardar el ID asegurándonos de que sea un String para comparar
+window.handleDeleteClientClick = function(clientId, clientName) {
+    // 1. Guardamos el ID como String (como ya lo hacías)
     window.clientIdToDelete = String(clientId);
     
-    // 2. Buscar en el mapa usando el ID convertido a String
-    const cliente = window.allClientsMap[window.clientIdToDelete];
-    
+    // 2. Usamos el nombre que viene directamente del botón (más seguro)
     const placeholder = document.getElementById('delete-client-name-placeholder');
-    if (placeholder && cliente) {
-        placeholder.textContent = cliente.name;
-    } else {
-        console.error("Error: Cliente no encontrado en el mapa global.", clientId);
-        // Si no está en el mapa, intentamos buscarlo en el array
-        const clienteArray = window.allClients.find(c => String(c.client_id) === String(clientId));
-        if (clienteArray && placeholder) placeholder.textContent = clienteArray.name;
+    if (placeholder) {
+        placeholder.textContent = clientName || "este cliente";
     }
 
+    // 3. Abrimos TU modal (asegúrate de que el ID sea 'delete-client-modal')
     openModal('delete-client-modal');
 };
 
