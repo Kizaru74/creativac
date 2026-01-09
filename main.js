@@ -5943,19 +5943,30 @@ window.showToast = function(mensaje, tipo = 'success') {
     }, 5000);
 };
 
-// Buscador para la tabla de clientes
+// Buscador Dinámico para la Tabla de Clientes
 document.getElementById('search-clients-input')?.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase();
+    const term = e.target.value.toLowerCase().trim();
     const rows = document.querySelectorAll('#clients-list-body tr');
 
     rows.forEach(row => {
+        // Obtenemos el nombre y el ID de las celdas específicas
         const name = row.querySelector('.text-sm.font-bold')?.textContent.toLowerCase() || '';
         const id = row.querySelector('.text-\\[8px\\]')?.textContent.toLowerCase() || '';
         
+        // Si el término coincide con nombre o ID, mostramos la fila, si no, la ocultamos
         if (name.includes(term) || id.includes(term)) {
             row.style.display = '';
+            // Animación sutil de entrada
+            row.style.opacity = '1';
         } else {
             row.style.display = 'none';
+            row.style.opacity = '0';
         }
     });
+
+    // Si no hay resultados, podrías mostrar un mensaje (opcional)
+    const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
+    if (visibleRows.length === 0 && term !== "") {
+        console.log("No se encontraron coincidencias");
+    }
 });
