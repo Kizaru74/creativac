@@ -3593,103 +3593,79 @@ window.loadProductsTable = function() {
     if (!container) return; 
     
     container.innerHTML = '';
-    
-    // 1. ORDENAMIENTO JERÁRQUICO: Mantenemos al hijo pegado al padre
     const rawProducts = window.allProducts || []; 
+
+    // 1. ORDENAR PARA QUE NO SE MEZCLEN (Padre arriba, sus hijos abajo)
     const products = [...rawProducts].sort((a, b) => {
-        const rootA = a.type === 'PRODUCT' || a.type === 'MAIN' ? a.producto_id : a.parent_product;
-        const rootB = b.type === 'PRODUCT' || b.type === 'MAIN' ? b.producto_id : b.parent_product;
-        if (rootA !== rootB) return rootA - rootB;
-        return (a.type === 'PRODUCT' || a.type === 'MAIN') ? -1 : 1;
+        const rootA = (a.type === 'MAIN' || a.type === 'PRODUCT') ? a.producto_id : a.parent_product;
+        const rootB = (b.type === 'MAIN' || b.type === 'PRODUCT') ? b.producto_id : b.parent_product;
+        
+        if (rootA !== rootB) return rootA - rootB; // Ordenar por grupo familiar
+        return (a.type === 'MAIN' || a.type === 'PRODUCT') ? -1 : 1; // El padre siempre primero en su grupo
     });
 
     if (products.length === 0) {
-        document.getElementById('no-products-message')?.classList.remove('hidden');
-        container.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">No hay productos registrados</td></tr>`;
+        container.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-bold">No hay productos registrados</td></tr>`;
         return;
     }
     
-    document.getElementById('no-products-message')?.classList.add('hidden');
-
-    // Mapa para nombres de padres
+    // Mapa rápido para buscar nombres de padres
     const productsMap = Object.fromEntries(products.map(p => [String(p.producto_id), p]));
 
     products.forEach(product => {
-        const isMain = product.type === 'MAIN' || product.type === 'PRODUCT';
         const isSub = product.type === 'PACKAGE';
+        const isMain = product.type === 'MAIN' || product.type === 'PRODUCT';
         
         const row = document.createElement('tr');
-        // ✅ APLICAMOS CLASE DE FILA (Fondo sutil si es subproducto)
-        row.className = `group transition-all duration-300 border-b border-white/5 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.03]'}`;
         
-        const formattedPrice = formatCurrency(product.price);
+        // ✅ AQUÍ ESTÁ EL DETALLE: Aplicamos 'is-subproducto' a la fila
+        row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.02]'}`;
         
-        // Configuración de Badges y Colores
-        let badgeClass = '';
-        let typeText = '';
-        let icon = '';
-
-        if (isMain) {
-            badgeClass = 'glass-badge-success';
-            typeText = 'Principal';
-            icon = 'fa-star';
-        } else if (isSub) {
-            badgeClass = 'glass-badge-danger';
-            typeText = 'Subproducto';
-            icon = 'fa-boxes';
-        } else {
-            badgeClass = 'glass-badge-info';
-            typeText = 'Servicio';
-            icon = 'fa-tools';
-        }
-
-        const parentObj = isSub && product.parent_product ? productsMap[String(product.parent_product)] : null;
+        let badgeClass = isMain ? 'glass-badge-success' : (isSub ? 'glass-badge-danger' : 'glass-badge-info');
+        let typeText = isMain ? 'Principal' : (isSub ? 'Subproducto' : 'Servicio');
+        let icon = isMain ? 'fa-star' : (isSub ? 'fa-box-open' : 'fa-tools');
 
         row.innerHTML = `
-            <td class="px-8 py-5 whitespace-nowrap">
-                <div class="font-sans font-bold bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/10 text-[10px] inline-block tracking-wider">
+            <td class="px-8 py-5">
+                <div class="font-sans font-bold bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/10 text-[10px] inline-block">
                     #${product.producto_id}
                 </div>
             </td>
             
-            <td class="px-8 py-5 whitespace-nowrap ${isSub ? 'subproducto-indent' : ''}">
+            <td class="px-8 py-5 ${isSub ? 'subproducto-indent' : ''}">
                 <div class="flex items-center gap-3">
                     <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
                         <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
-                        <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
-                        ${isSub && parentObj ? 
-                            `<div class="text-[9px] text-white/30 uppercase font-bold mt-0.5 tracking-widest">Depende de: ${parentObj.name}</div>` 
-                            : `<div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha de Producto</div>`
+                        <div class="text-base font-bold text-white uppercase tracking-wide">${product.name}</div>
+                        ${isSub && product.parent_product ? 
+                            `<div class="text-[9px] text-white/30 uppercase font-bold mt-0.5 tracking-widest">Depende de: ${productsMap[product.parent_product]?.name || 'Principal'}</div>` 
+                            : `<div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold mt-0.5">Ficha de Producto</div>`
                         }
                     </div>
                 </div>
             </td>
             
-            <td class="px-8 py-5 whitespace-nowrap">
-                <div class="text-lg font-black text-emerald-500 tracking-tighter font-sans italic">
-                    ${formattedPrice}
-                </div>
+            <td class="px-8 py-5 font-black text-emerald-500 italic text-lg">
+                ${formatCurrency(product.price)}
             </td>
             
-            <td class="px-8 py-5 whitespace-nowrap">
+            <td class="px-8 py-5">
                 <div class="glass-badge ${badgeClass} inline-flex">
-                    <span class="text-[10px] font-black uppercase tracking-widest font-sans flex items-center">
+                    <span class="text-[10px] font-black uppercase tracking-widest flex items-center">
                         <i class="fas ${icon} mr-1.5 opacity-70"></i>${typeText}
                     </span>
                 </div>
             </td>
             
             <td class="px-8 py-6 text-right">
-                <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
-                    <button onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all">
-                        <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-lg !bg-transparent !p-0 !border-none"></i>
+                <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500">
+                    <button onclick="window.handleEditProductClick(${product.producto_id})" class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-orange-500 transition-all">
+                        <i class="fas fa-edit text-orange-500 group-hover/btn:text-white transition-colors"></i>
                     </button>
-                    <button onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all">
-                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-base !bg-transparent !p-0 !border-none"></i>
+                    <button onclick="window.handleDeleteProductClick(${product.producto_id})" class="group/btn relative h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-red-500 transition-all">
+                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:text-white transition-colors"></i>
                     </button>
                 </div>
             </td>
@@ -3697,7 +3673,6 @@ window.loadProductsTable = function() {
         container.appendChild(row);
     });
 }
-window.loadProductsTable = loadProductsTable;
 
 function loadProductDataToForm(product) {
     if (!product) return;
