@@ -1793,54 +1793,49 @@ window.repararSaldoCliente = async function(clientId) {
 
 // 2. FUNCIÓN PRINCIPAL: Reporte con Auditoría Automática
 window.handleViewClientDebt = async function(clientId) {
-    // 1. Guardamos el ID en una variable global para que el botón "Abonar" sepa a quién pagar
-    window.viewingClientId = clientId; 
     if (!supabase) return;
 
     try {
-        // OBTENEMOS VENTAS, PAGOS Y DATOS DEL CLIENTE
-        const [salesRes, paymentsRes, clientRes] = await Promise.all([
-            supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
-            supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true }),
-            supabase.from('clientes').select('name').eq('client_id', clientId).single()
+        // 1. OBTENEMOS DATOS DEL CLIENTE Y SUS MOVIMIENTOS DESDE LA VISTA
+        const [clientRes, transactionsRes] = await Promise.all([
+            supabase.from('clientes').select('name').eq('client_id', clientId).single(),
+            supabase.from('transacciones_deuda')
+                .select('*')
+                .eq('client_id', clientId)
+                .order('created_at', { ascending: true })
         ]);
 
-        if (salesRes.error || paymentsRes.error) throw new Error("Error al obtener movimientos");
+        if (transactionsRes.error) throw transactionsRes.error;
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
-        const ventasData = salesRes.data || [];
+        const movimientosRaw = transactionsRes.data || [];
 
-        // OBTENEMOS LOS DETALLES DE PRODUCTOS
-        const ventaIds = ventasData.map(v => v.venta_id);
+        // 2. OBTENEMOS DETALLES DE PRODUCTOS PARA LAS VENTAS
+        // Filtramos solo los IDs que vienen de 'cargo_venta'
+        const ventaIds = movimientosRaw
+            .filter(m => m.type === 'cargo_venta')
+            .map(m => m.venta_id);
+
         let productosPorVenta = [];
         if (ventaIds.length > 0) {
             const { data: detailsData } = await supabase
                 .from('detalle_ventas')
-                .select('*')
+                .select('venta_id, name, quantity')
                 .in('venta_id', ventaIds);
             if (detailsData) productosPorVenta = detailsData;
         }
-        
-        // PROCESAR MOVIMIENTOS (Mezclamos ventas y abonos)
-        const movimientos = [
-            ...ventasData.map(v => ({ ...v, tipo: 'VENTA', fecha: new Date(v.created_at), prioridad: 1 })),
-            ...paymentsRes.data.map(p => ({ ...p, tipo: 'ABONO', fecha: new Date(p.created_at), prioridad: 2 }))
-        ].sort((a, b) => {
-            if (a.fecha.getTime() !== b.fecha.getTime()) return a.fecha - b.fecha;
-            return a.prioridad - b.prioridad;
-        });
 
+        // 3. PROCESAR SALDOS Y TEXTOS
         let saldoCorriente = 0;
-
-        // CONSTRUCCIÓN DE FILAS
-        const filasProcesadas = movimientos.map(mov => {
-            const esVenta = mov.tipo === 'VENTA';
-            const monto = esVenta ? parseFloat(mov.total_amount || 0) : parseFloat(mov.amount || 0);
+        const filasProcesadas = movimientosRaw.map(mov => {
+            const esVenta = mov.type === 'cargo_venta';
+            const monto = parseFloat(mov.amount);
             
-            // Si es venta suma a la deuda, si es abono resta
+            // Si es venta suma al saldo, si es abono resta
             if (esVenta) saldoCorriente += monto;
             else saldoCorriente -= monto;
 
+            // Buscar productos si es venta
             let textoProductos = "";
             if (esVenta) {
                 const misProds = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
@@ -1851,64 +1846,72 @@ window.handleViewClientDebt = async function(clientId) {
 
             return {
                 ...mov,
+                fecha: new Date(mov.created_at),
                 monto,
-                saldoAcumulado: saldoCorriente,
-                textoProductos
+                saldoAcumulado: parseFloat(saldoCorriente.toFixed(2)),
+                textoProductos,
+                esVenta
             };
         });
 
-        // RENDERIZAR EN EL MODAL
+        // 4. GENERAR HTML PARA EL PDF (Guardar en variable global)
+        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; font-size: 11px;">
+                    ${mov.fecha.toLocaleDateString('es-MX')}
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                    <div style="font-weight: bold; color: #333; font-size: 11px;">
+                        ${mov.description}
+                    </div>
+                    ${mov.textoProductos ? `<div style="font-size: 10px; color: #b45309;">[ ${mov.textoProductos} ]</div>` : ''}
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: ${mov.esVenta ? '#dc2626' : '#16a34a'}; font-weight: bold;">
+                    ${mov.esVenta ? '+' : '-'} ${formatCurrency(mov.monto)}
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; background-color: #f9fafb;">
+                    ${formatCurrency(mov.saldoAcumulado)}
+                </td>
+            </tr>`).join('');
+
+        window.currentClientDataForPrint = {
+            nombre: clientName,
+            totalDeuda: saldoCorriente,
+            transaccionesHTML: transaccionesHTMLParaPDF
+        };
+
+        // 5. RENDERIZAR EN EL MODAL (PANTALLA)
         const tbody = document.getElementById('client-transactions-body');
         if (tbody) {
-            tbody.innerHTML = filasProcesadas.map(mov => {
-                const esVenta = mov.tipo === 'VENTA';
-                return `
-                    <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td class="px-6 py-4 text-white/40 text-xs">${mov.fecha.toLocaleDateString('es-MX')}</td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-bold ${esVenta ? 'text-white' : 'text-teal-400'}">
-                                    ${esVenta ? `VENTA #${mov.venta_id}` : `ABONO RECIBIDO`}
-                                </span>
-                                ${esVenta ? `<span class="text-xs text-orange-400/80 font-medium">| ${mov.textoProductos}</span>` : ''}
-                            </div>
-                            ${mov.description ? `<div class="text-[10px] text-gray-500 italic uppercase mt-1">Nota: ${mov.description}</div>` : ''}
-                        </td>
-                        <td class="px-6 py-4 text-right font-mono text-sm">
-                            ${esVenta ? `<span class="text-red-400">+${formatCurrency(mov.monto)}</span>` : ''}
-                        </td>
-                        <td class="px-6 py-4 text-right font-mono text-sm">
-                            ${!esVenta ? `<span class="text-teal-500">-${formatCurrency(mov.monto)}</span>` : ''}
-                        </td>
-                        <td class="px-6 py-4 text-right font-mono text-sm font-bold ${mov.saldoAcumulado < 0 ? 'text-teal-500' : 'text-white/70'}">
-                            ${formatCurrency(mov.saldoAcumulado)}
-                        </td>
-                    </tr>`;
-            }).join('');
+            tbody.innerHTML = filasProcesadas.map(mov => `
+                <tr class="border-b border-white/5 hover:bg-white/[0.02]">
+                    <td class="px-6 py-4 text-white/40 text-xs">${mov.fecha.toLocaleDateString('es-MX')}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-green-400'}">
+                                ${mov.description}
+                            </span>
+                            ${mov.textoProductos ? `<span class="text-[11px] text-orange-400 font-medium">${mov.textoProductos}</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right font-mono text-sm ${mov.esVenta ? 'text-red-400' : 'text-green-400'}">
+                        ${mov.esVenta ? '+' : '-'}${formatCurrency(mov.monto)}
+                    </td>
+                    <td class="px-6 py-4 text-right font-mono text-sm text-white font-bold">
+                        ${formatCurrency(mov.saldoAcumulado)}
+                    </td>
+                </tr>`).join('');
         }
 
-        // ACTUALIZAR CABECERA DEL REPORTE
-        const nameElement = document.getElementById('client-report-name');
-        const debtElement = document.getElementById('client-report-total-debt');
-
-        if (nameElement) nameElement.textContent = clientName;
-        if (debtElement) {
-            debtElement.textContent = formatCurrency(saldoCorriente);
-            // Si el saldo es a favor (negativo), usamos color Teal
-            if (saldoCorriente < 0) {
-                debtElement.classList.replace('text-white', 'text-teal-500');
-                debtElement.classList.replace('text-red-400', 'text-teal-500');
-            } else {
-                debtElement.classList.add('text-white');
-                debtElement.classList.remove('text-teal-500');
-            }
-        }
+        // ACTUALIZAR CABECERAS
+        document.getElementById('client-report-name').textContent = clientName;
+        document.getElementById('client-report-total-debt').textContent = formatCurrency(saldoCorriente);
 
         openModal('modal-client-debt-report');
 
     } catch (err) {
-        console.error("❌ Error:", err);
-        window.showToast("Error al cargar movimientos", "error");
+        console.error("❌ Error cargando estado de cuenta:", err);
+        if (typeof showToast === 'function') showToast("Error al obtener movimientos", "error");
     }
 };
 
