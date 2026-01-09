@@ -1864,9 +1864,9 @@ window.handleViewClientDebt = async function(clientId) {
                     <div style="font-weight: bold; color: #333; font-size: 11px;">
                         ${mov.description}
                     </div>
-                    ${mov.textoProductos ? `<div style="font-size: 10px; color: #b45309;">[ ${mov.textoProductos} ]</div>` : ''}
+                    ${mov.textoProductos ? `<div style="font-size: 10px; color: #d45c01ff;">[ ${mov.textoProductos} ]</div>` : ''}
                 </td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: ${mov.esVenta ? '#dc2626' : '#16a34a'}; font-weight: bold;">
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: ${mov.esVenta ? '#dc2626' : '#034f8eff'}; font-weight: bold;">
                     ${mov.esVenta ? '+' : '-'} ${formatCurrency(mov.monto)}
                 </td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; background-color: #f9fafb;">
@@ -1891,13 +1891,13 @@ window.handleViewClientDebt = async function(clientId) {
                             <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-green-400'}">
                                 ${mov.description}
                             </span>
-                            ${mov.textoProductos ? `<span class="text-[11px] text-orange-400 font-medium">${mov.textoProductos}</span>` : ''}
+                            ${mov.textoProductos ? `<span class="text-base text-teal-400 font-medium">${mov.textoProductos}</span>` : ''}
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-sm ${mov.esVenta ? 'text-red-400' : 'text-green-400'}">
+                    <td class="px-6 py-4 text-right font-mono text-lg ${mov.esVenta ? 'text-red-400' : 'text-green-400'}">
                         ${mov.esVenta ? '+' : '-'}${formatCurrency(mov.monto)}
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-sm text-white font-bold">
+                    <td class="px-6 py-4 text-right font-mono text-base text-white font-bold">
                         ${formatCurrency(mov.saldoAcumulado)}
                     </td>
                 </tr>`).join('');
