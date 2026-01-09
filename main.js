@@ -3520,7 +3520,7 @@ window.handlePriceEditSubmit = async function(e) {
 
         if (err2) throw err2;
 
-        alert(`✅ Éxito. Nuevo Total: ${formatCurrency(nuevoTotalVenta)}. Saldo actual: ${formatCurrency(nuevoSaldo)}`);
+         window.showToast(`✅ Éxito. Nuevo Total: ${formatCurrency(nuevoTotalVenta)}. Saldo actual: ${formatCurrency(nuevoSaldo)}`);
 
         // 5. Refrescar UI sin recargar página
         document.getElementById('price-edit-section').classList.add('hidden');
@@ -3533,7 +3533,7 @@ window.handlePriceEditSubmit = async function(e) {
 
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al actualizar: ' + error.message);
+         window.showToast('Error al actualizar: ' + error.message);
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Actualizar Precio y Saldo';
@@ -5143,7 +5143,7 @@ window.loadAndRenderProducts = async function() {
                         </div>
                         <div>
                             <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
-                            <div class="text-[10px] text-white/30 uppercase font-bold mt-0.5 tracking-widest">
+                            <div class="text-[10px] text-white/60 uppercase font-bold mt-0.5">
                                 ${isSub ? `Pertenece a: ${realParentName}` : 'Producto Base'}
                             </div>
                         </div>
@@ -5987,43 +5987,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.showToast = function(mensaje, tipo = 'success') {
     const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    
-    // Colores de fondo y de icono
-    // Usamos un gris ligeramente más claro que el fondo (zinc-800) y un borde que brille
-    const bgColor = tipo === 'success' ? 'bg-zinc-800' : 'bg-red-900';
-    const iconColor = tipo === 'success' ? 'text-orange-500' : 'text-white';
-    const borderColor = tipo === 'success' ? 'border-orange-500/30' : 'border-red-500/50';
+    if (!container) return;
 
+    // --- 🔊 AGREGAR SONIDO ---
+    try {
+        // Puedes usar una URL de un sonido corto y elegante
+        // Éxito: un "pop" o "ping" agudo | Error: un tono un poco más grave
+        const soundUrl = tipo === 'success' 
+            ? 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3' 
+            : 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3';
+        
+        const audio = new Audio(soundUrl);
+        audio.volume = 0.4; // Volumen moderado
+        audio.play().catch(e => console.log("El navegador bloqueó el audio inicial"));
+    } catch (err) {
+        console.error("Error con el audio:", err);
+    }
+
+    // --- RESTO DE TU LÓGICA DE DISEÑO ---
+    const toast = document.createElement('div');
+    const isSuccess = tipo === 'success';
+    const accentColor = isSuccess ? 'orange-500' : 'red-500';
+    
     toast.className = `
-        ${bgColor}/90 ${borderColor} border backdrop-blur-xl text-white 
-        px-6 py-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] 
-        flex items-center gap-4 transform translate-x-20 opacity-0 
-        transition-all duration-500 pointer-events-auto min-w-[280px]
+        relative bg-[#1a1a1a]/95 backdrop-blur-2xl border border-white/10 
+        ring-1 ${isSuccess ? 'ring-orange-500/30' : 'ring-red-500/30'}
+        text-white px-6 py-4 rounded-2xl shadow-2xl
+        flex items-center gap-4 transform translate-x-10 opacity-0 
+        transition-all duration-500 min-w-[300px] z-[9999]
     `;
     
     toast.innerHTML = `
-        <div class="flex-shrink-0 w-10 h-10 ${tipo === 'success' ? 'bg-orange-500/10' : 'bg-red-500/20'} rounded-full flex items-center justify-center">
-            <i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} ${iconColor} text-xl"></i>
+        <div class="absolute left-0 top-1/4 bottom-1/4 w-1 ${isSuccess ? 'bg-orange-500' : 'bg-red-500'} rounded-r-full shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+        <div class="flex-shrink-0 w-10 h-10 ${isSuccess ? 'bg-orange-500/20' : 'bg-red-500/20'} rounded-full flex items-center justify-center border border-${accentColor}/30">
+            <i class="fas ${isSuccess ? 'fa-check' : 'fa-exclamation-triangle'} text-${accentColor} text-lg"></i>
         </div>
         <div class="flex flex-col">
-            <span class="text-[10px] opacity-50 font-bold uppercase tracking-[0.2em] mb-0.5">
-                ${tipo === 'success' ? 'Sistema' : 'Atención'}
-            </span>
-            <span class="text-[13px] font-black uppercase tracking-widest leading-tight">
-                ${mensaje}
-            </span>
+            <span class="text-[9px] text-${accentColor} font-black uppercase tracking-[0.3em]">${isSuccess ? 'Sistema' : 'Atención'}</span>
+            <span class="text-[13px] font-bold text-white/90 uppercase">${mensaje}</span>
         </div>
     `;
 
     container.appendChild(toast);
 
-    setTimeout(() => {
-        toast.classList.remove('translate-x-20', 'opacity-0');
-    }, 10);
+    requestAnimationFrame(() => {
+        toast.classList.remove('translate-x-10', 'opacity-0');
+    });
 
     setTimeout(() => {
-        toast.classList.add('translate-x-40', 'opacity-0');
+        toast.classList.add('translate-x-10', 'opacity-0');
         setTimeout(() => toast.remove(), 600);
-    }, 3500);
+    }, 4000);
 };
