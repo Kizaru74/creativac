@@ -4115,16 +4115,24 @@ let clientToDeleteId = null;
 // Asumimos que también tienes el array global 'allClients'
 
 window.handleDeleteClientClick = function(clientId, clientName) {
-    // 1. Guardamos el ID como String (como ya lo hacías)
-    window.clientIdToDelete = String(clientId);
+    console.log("Preparando para eliminar ID:", clientId, "Nombre:", clientName);
+
+    // 1. Validamos que el ID exista
+    if (!clientId || clientId === 'null' || clientId === 'undefined') {
+        console.error("Error: ID de cliente inválido.");
+        return;
+    }
+
+    // 2. Guardamos el ID en la variable global que usará el botón de confirmar
+    window.clientIdToDelete = clientId;
     
-    // 2. Usamos el nombre que viene directamente del botón (más seguro)
+    // 3. Ponemos el nombre en el modal
     const placeholder = document.getElementById('delete-client-name-placeholder');
     if (placeholder) {
         placeholder.textContent = clientName || "este cliente";
     }
 
-    // 3. Abrimos TU modal (asegúrate de que el ID sea 'delete-client-modal')
+    // 4. Abrimos el modal
     openModal('delete-client-modal');
 };
 
@@ -5546,57 +5554,6 @@ if (editCategorySelect) {
     });
 });
 
-// Listener para confirmar la eliminación
-   document.addEventListener('click', async function(e) {
-    // Detectamos si el clic fue en el botón de confirmar eliminación
-    if (e.target && e.target.id === 'confirm-delete-client-btn') {
-        const btn = e.target;
-        
-        if (!window.clientIdToDelete) {
-            console.error("No hay un ID de cliente seleccionado para eliminar.");
-            return;
-        }
-
-        console.log("Intentando eliminar cliente ID:", window.clientIdToDelete);
-
-        // Estado visual de carga
-        const originalText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Eliminando...';
-
-        try {
-            const { error } = await supabase
-                .from('clientes')
-                .delete()
-                .eq('client_id', window.clientIdToDelete);
-
-            if (error) {
-                // Manejo de error de integridad (si tiene ventas)
-                if (error.code === '23503') {
-                    alert('No se puede eliminar: El cliente tiene ventas o deudas registradas.');
-                } else {
-                    throw error;
-                }
-            } else {
-                console.log("✅ Cliente eliminado de la base de datos.");
-                alert('Cliente eliminado correctamente.');
-                closeModal('delete-client-modal');
-                
-                // Refrescar la tabla automáticamente
-                if (typeof window.loadClientsTable === 'function') {
-                    await window.loadClientsTable();
-                }
-            }
-        } catch (err) {
-            console.error('Error crítico al borrar:', err);
-            alert('Error al intentar eliminar: ' + err.message);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = originalText;
-            window.clientIdToDelete = null; // Limpiamos la variable
-        }
-    }
-});
 
     // ====================================================================
     // DELEGACIÓN DE EVENTOS PARA BOTONES DE LA TABLA DE CLIENTES
@@ -5737,55 +5694,111 @@ if (btnEliminarConfirmar) {
 });
 
 // Función para confirmar y ejecutar la eliminación total
-document.getElementById('confirm-delete-client-btn')?.addEventListener('click', async () => {
-    const clientId = window.clientIdToDelete;
-    if (!clientId) return;
+// ==========================================================
+// FUNCIÓN ÚNICA DE ELIMINACIÓN DE CLIENTE (CON CASCADA)
+// ==========================================================
+const inicializarEliminacionCliente = () => {
+    const btnConfirmar = document.getElementById('confirm-delete-client-btn');
+    if (!btnConfirmar) return;
 
-    const btn = document.getElementById('confirm-delete-client-btn');
-    const originalText = btn.innerHTML;
-    
-    try {
-        // Bloquear botón y mostrar carga
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>ELIMINANDO...';
+    // Clonamos el botón para eliminar cualquier event listener previo que cause conflictos
+    const btnNuevo = btnConfirmar.cloneNode(true);
+    btnConfirmar.parentNode.replaceChild(btnNuevo, btnConfirmar);
 
-        // 1. Obtener IDs de ventas del cliente para borrar sus detalles
-        const { data: ventas } = await supabase
-            .from('ventas')
-            .select('id')
-            .eq('client_id', clientId);
+    btnNuevo.addEventListener('click', async () => {
+        const clientId = window.clientIdToDelete;
 
-        if (ventas && ventas.length > 0) {
-            const ventaIds = ventas.map(v => v.id);
-            // Borrar detalles de esas ventas
-            await supabase.from('detalle_ventas').delete().in('venta_id', ventaIds);
-            // Borrar las ventas
-            await supabase.from('ventas').delete().in('id', ventaIds);
+        // 1. Verificación de seguridad
+        if (!clientId || clientId === 'null' || clientId === 'undefined') {
+            console.error("ID de cliente no válido:", clientId);
+            alert("Error: No se ha seleccionado un cliente válido para eliminar.");
+            return;
         }
 
-        // 2. Borrar transacciones de deuda (Abonos y Cargos)
-        await supabase.from('transacciones_deuda').delete().eq('client_id', clientId);
+        console.log("Iniciando eliminación total del cliente ID:", clientId);
 
-        // 3. Finalmente borrar al cliente
-        const { error } = await supabase.from('clientes').delete().eq('client_id', clientId);
+        // 2. Estado visual de carga
+        const originalHTML = btnNuevo.innerHTML;
+        btnNuevo.disabled = true;
+        btnNuevo.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>ELIMINANDO TODO...';
 
-        if (error) throw error;
+        try {
+            // --- PASO A: Borrar Detalles de Ventas y Ventas ---
+            // Primero buscamos las ventas para saber qué detalles borrar
+            const { data: ventas, error: errorVentas } = await supabase
+                .from('ventas')
+                .select('id')
+                .eq('client_id', clientId);
 
-        showToast("Cliente y todo su historial eliminados correctamente", "success");
-        closeModal('delete-client-modal');
-        
-        // 4. Refrescar la tabla de clientes
-        if (typeof loadClientsTable === 'function') await loadClientsTable();
+            if (errorVentas) throw errorVentas;
 
-    } catch (err) {
-        console.error("Error al eliminar cliente:", err);
-        showToast("No se pudo eliminar al cliente por completo", "error");
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        window.clientIdToDelete = null;
-    }
-});
+            if (ventas && ventas.length > 0) {
+                const ventaIds = ventas.map(v => v.id);
+                
+                // Borrar detalles de productos de esas ventas
+                const { error: errorDetalles } = await supabase
+                    .from('detalle_ventas')
+                    .delete()
+                    .in('venta_id', ventaIds);
+                if (errorDetalles) throw errorDetalles;
+
+                // Borrar las ventas principales
+                const { error: errorDelVentas } = await supabase
+                    .from('ventas')
+                    .delete()
+                    .in('id', ventaIds);
+                if (errorDelVentas) throw errorDelVentas;
+                
+                console.log(`Ventas (${ventas.length}) y detalles eliminados.`);
+            }
+
+            // --- PASO B: Borrar historial de Deudas (Abonos y Cargos) ---
+            const { error: errorDeuda } = await supabase
+                .from('transacciones_deuda')
+                .delete()
+                .eq('client_id', clientId);
+            
+            if (errorDeuda) throw errorDeuda;
+            console.log("Historial de transacciones eliminado.");
+
+            // --- PASO C: Borrar al Cliente ---
+            const { error: errorCliente } = await supabase
+                .from('clientes')
+                .delete()
+                .eq('client_id', clientId);
+
+            if (errorCliente) throw errorCliente;
+
+            // 3. Éxito y Limpieza
+            console.log("✅ Cliente eliminado por completo.");
+            
+            if (typeof showToast === 'function') {
+                showToast("Cliente y todo su historial borrados", "success");
+            } else {
+                alert("Cliente eliminado correctamente.");
+            }
+
+            closeModal('delete-client-modal');
+            
+            // Refrescar tabla
+            if (typeof window.loadClientsTable === 'function') {
+                await window.loadClientsTable();
+            }
+
+        } catch (err) {
+            console.error('Error crítico en el proceso de borrado:', err);
+            alert('Error al intentar eliminar: ' + (err.message || 'Error desconocido'));
+        } finally {
+            // Restaurar botón y limpiar variable
+            btnNuevo.disabled = false;
+            btnNuevo.innerHTML = originalHTML;
+            window.clientIdToDelete = null;
+        }
+    });
+};
+
+// Ejecutar la inicialización
+inicializarEliminacionCliente();
 
 // ✅ DEJA ESTO (Pero ajustado):
 document.getElementById('open-abono-from-report-btn')?.addEventListener('click', (e) => {
@@ -5948,7 +5961,7 @@ window.showToast = function(mensaje, tipo = 'success') {
     const barColor = isSuccess ? 'bg-teal-500' : 'bg-red-500';
 
     toast.className = `
-        relative bg-[#134e4a] backdrop-blur-2xl border border-white/10 
+        relative bg-[#042f2e] backdrop-blur-2xl border border-white/10 
         ring-1 ${ringColor} text-white px-6 py-4 rounded-2xl shadow-2xl
         flex items-center gap-4 transform translate-x-10 opacity-0 
         transition-all duration-500 min-w-[320px] z-[9999]
