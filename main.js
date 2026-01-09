@@ -4052,7 +4052,7 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
             
             <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><i class="fas fa-file-invoice-dollar text-xs"></i></button>
 
-            <button onclick="window.handleDeleteClient(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all" title="Eliminar Cliente">
+            <button onclick="window.handleDeleteClientClick(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all" title="Eliminar Cliente">
                 <i class="fas fa-trash-alt text-xs"></i>
             </button>
         </div>
