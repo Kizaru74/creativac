@@ -5989,42 +5989,47 @@ window.showToast = function(mensaje, tipo = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
-    // --- 🔊 AGREGAR SONIDO ---
+    // --- 🔊 AUDIO ---
     try {
-        // Puedes usar una URL de un sonido corto y elegante
-        // Éxito: un "pop" o "ping" agudo | Error: un tono un poco más grave
         const soundUrl = tipo === 'success' 
             ? 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3' 
             : 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3';
-        
         const audio = new Audio(soundUrl);
-        audio.volume = 0.4; // Volumen moderado
-        audio.play().catch(e => console.log("El navegador bloqueó el audio inicial"));
-    } catch (err) {
-        console.error("Error con el audio:", err);
-    }
+        audio.volume = 0.3; 
+        audio.play().catch(() => {}); 
+    } catch (err) {}
 
-    // --- RESTO DE TU LÓGICA DE DISEÑO ---
     const toast = document.createElement('div');
     const isSuccess = tipo === 'success';
-    const accentColor = isSuccess ? 'teal-700' : 'red-500';
-    
+
+    // 🛑 CORRECCIÓN DE COLORES: Definimos la clase completa
+    const accentClass = isSuccess ? 'text-teal-500' : 'text-red-500';
+    const bgAccentClass = isSuccess ? 'bg-teal-500/20' : 'bg-red-500/20';
+    const borderAccentClass = isSuccess ? 'border-teal-500/30' : 'border-red-500/30';
+    const ringColor = isSuccess ? 'ring-teal-500/40' : 'ring-red-500/40';
+    const barColor = isSuccess ? 'bg-teal-500' : 'bg-red-500';
+
     toast.className = `
-        relative bg-[#1a1a1a]/95 backdrop-blur-2xl border border-white/10 
-        ring-1 ${isSuccess ? 'teal-700/30' : 'ring-red-500/30'}
-        text-white px-6 py-4 rounded-2xl shadow-2xl
+        relative bg-[#121212] backdrop-blur-2xl border border-white/10 
+        ring-1 ${ringColor} text-white px-6 py-4 rounded-2xl shadow-2xl
         flex items-center gap-4 transform translate-x-10 opacity-0 
-        transition-all duration-500 min-w-[300px] z-[9999]
+        transition-all duration-500 min-w-[320px] z-[9999]
     `;
     
     toast.innerHTML = `
-        <div class="absolute left-0 top-1/4 bottom-1/4 w-1 ${isSuccess ? 'teal-700' : 'bg-red-500'} rounded-r-full shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
-        <div class="flex-shrink-0 w-10 h-10 ${isSuccess ? 'teal-700/20' : 'bg-red-500/20'} rounded-full flex items-center justify-center border border-${accentColor}/30">
-            <i class="fas ${isSuccess ? 'fa-check' : 'fa-exclamation-triangle'} text-${accentColor} text-lg"></i>
+        <div class="absolute left-0 top-1/4 bottom-1/4 w-1 ${barColor} rounded-r-full"></div>
+        
+        <div class="flex-shrink-0 w-10 h-10 ${bgAccentClass} rounded-full flex items-center justify-center border ${borderAccentClass}">
+            <i class="fas ${isSuccess ? 'fa-check-circle' : 'fa-exclamation-circle'} ${accentClass} text-xl"></i>
         </div>
+        
         <div class="flex flex-col">
-            <span class="text-[9px] text-${accentColor} font-black uppercase tracking-[0.3em]">${isSuccess ? 'Sistema' : 'Atención'}</span>
-            <span class="text-[13px] font-bold text-white/90 uppercase">${mensaje}</span>
+            <span class="text-[9px] ${accentClass} font-black uppercase tracking-[0.3em] mb-0.5">
+                ${isSuccess ? 'Notificación' : 'Alerta'}
+            </span>
+            <span class="text-[13px] font-bold text-white/90 uppercase tracking-wide">
+                ${mensaje}
+            </span>
         </div>
     `;
 
