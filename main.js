@@ -1766,129 +1766,71 @@ window.handleViewClientDebt = async function(clientId) {
     if (!supabase) return;
 
     try {
-        // 1. OBTENEMOS DATOS DEL CLIENTE Y SUS MOVIMIENTOS
         const [clientRes, transactionsRes] = await Promise.all([
             supabase.from('clientes').select('name').eq('client_id', clientId).single(),
-            supabase.from('transacciones_deuda')
-                .select('*')
-                .eq('client_id', clientId)
-                .order('created_at', { ascending: true })
+            supabase.from('transacciones_deuda').select('*').eq('client_id', clientId).order('created_at', { ascending: true })
         ]);
-
-        if (transactionsRes.error) throw transactionsRes.error;
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
         const movimientosRaw = transactionsRes.data || [];
 
-        // 2. OBTENEMOS DETALLES DE PRODUCTOS
-        const ventaIds = movimientosRaw
-            .filter(m => m.type === 'cargo_venta')
-            .map(m => m.venta_id);
-
+        // ... (Lógica de productos se mantiene igual) ...
+        const ventaIds = movimientosRaw.filter(m => m.type === 'cargo_venta').map(m => m.venta_id);
         let productosPorVenta = [];
         if (ventaIds.length > 0) {
-            const { data: detailsData } = await supabase
-                .from('detalle_ventas')
-                .select('venta_id, name, quantity')
-                .in('venta_id', ventaIds);
-            if (detailsData) productosPorVenta = detailsData;
+            const { data } = await supabase.from('detalle_ventas').select('venta_id, name, quantity').in('venta_id', ventaIds);
+            if (data) productosPorVenta = data;
         }
 
-        // 3. PROCESAR SALDOS
         let saldoCorriente = 0;
-        const filasProcesadas = movimientosRaw.map(mov => {
-            const esVenta = mov.type === 'cargo_venta';
-            // CORRECCIÓN: Aseguramos que el monto sea positivo antes de procesar
-            const monto = Math.abs(parseFloat(mov.amount));
-            
-            if (esVenta) saldoCorriente += monto;
-            else saldoCorriente -= monto;
-
-            let textoProductos = "";
-            if (esVenta) {
-                const misProds = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
-                textoProductos = misProds.length > 0 
-                    ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
-                    : 'Sin detalles';
-            }
-
-            return {
-                ...mov,
-                fecha: new Date(mov.created_at),
-                monto,
-                saldoAcumulado: parseFloat(saldoCorriente.toFixed(2)),
-                textoProductos,
-                esVenta
-            };
-        });
-
-        // 4. GENERAR HTML PARA EL PDF (CORREGIDO)
-        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => {
-            // CORRECCIÓN AQUÍ: Definimos el signo manualmente
-            const signo = mov.esVenta ? '+' : '-';
-            return `
-            <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; font-size: 11px;">
-                    ${mov.fecha.toLocaleDateString('es-MX')}
-                </td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">
-                    <div style="font-weight: bold; color: #333; font-size: 11px;">
-                        ${mov.description}
-                    </div>
-                    ${mov.textoProductos ? `<div style="font-size: 10px; color: #d45c01ff;">[ ${mov.textoProductos} ]</div>` : ''}
-                </td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: ${mov.esVenta ? '#dc2626' : '#034f8eff'}; font-weight: bold;">
-                    ${signo}${formatCurrency(mov.monto)} 
-                </td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; background-color: #f9fafb;">
-                    ${formatCurrency(mov.saldoAcumulado)}
-                </td>
-            </tr>`;
-        }).join('');
-
-        window.currentClientDataForPrint = {
-            clientId: clientId,
-            nombre: clientName,
-            totalDeuda: saldoCorriente,
-            transaccionesHTML: transaccionesHTMLParaPDF
-        };
-
-        // 5. RENDERIZAR EN EL MODAL (CORREGIDO)
         const tbody = document.getElementById('client-transactions-body');
-        if (tbody) {
-            tbody.innerHTML = filasProcesadas.map(mov => {
-                // CORRECCIÓN AQUÍ: Quitamos el guion manual y usamos la lógica de signo
-                const signo = mov.esVenta ? '+' : '-';
-                return `
+        if (!tbody) return;
+
+        tbody.innerHTML = movimientosRaw.map(mov => {
+            const esVenta = mov.type === 'cargo_venta';
+            const montoAbsoluto = Math.abs(parseFloat(mov.amount)); // LIMPIEZA TOTAL DEL NÚMERO
+            
+            if (esVenta) saldoCorriente += montoAbsoluto;
+            else saldoCorriente -= montoAbsoluto;
+
+            const misProds = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
+            const textoProds = misProds.map(p => `${p.name} (x${p.quantity})`).join(', ');
+
+            // DECISIÓN DE SIGNO: Solo mostramos el signo que nosotros definamos
+            const signoString = esVenta ? '+' : '-';
+            const colorClase = esVenta ? 'text-red-400' : 'text-emerald-400';
+
+            return `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td class="px-6 py-4 text-white/60 text-xs">${mov.fecha.toLocaleDateString('es-MX')}</td>
                     <td class="px-6 py-4">
-                        <div class="flex flex-col">
-                            <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-emerald-400'}">
-                                ${mov.description}
-                            </span>
-                            ${mov.textoProductos ? `<span class="text-[10px] text-teal-400 font-medium mt-1 leading-tight italic">${mov.textoProductos}</span>` : ''}
+                        <div class="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">
+                            ${new Date(mov.created_at).toLocaleDateString('es-MX')}
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-sm ${mov.esVenta ? 'text-red-400' : 'text-emerald-400'} font-bold">
-                        ${signo}${formatCurrency(mov.monto)}
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold ${esVenta ? 'text-white' : 'text-emerald-400'} uppercase">
+                                ${mov.description}
+                            </span>
+                            ${textoProds ? `<span class="text-[10px] text-orange-500/80 italic mt-1 font-medium tracking-wide">
+                                <i class="fas fa-box-open mr-1"></i>${textoProds}
+                            </span>` : ''}
+                        </div>
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-sm text-white font-bold">
-                        ${formatCurrency(mov.saldoAcumulado)}
+                    <td class="px-6 py-4 text-right font-mono text-sm ${colorClase} font-bold">
+                        ${signoString}${window.formatCurrency(montoAbsoluto)}
+                    </td>
+                    <td class="px-6 py-4 text-right font-mono text-sm text-white font-black">
+                        ${window.formatCurrency(saldoCorriente)}
                     </td>
                 </tr>`;
-            }).join('');
-        }
+        }).join('');
 
-        // ACTUALIZAR CABECERAS
         document.getElementById('client-report-name').textContent = clientName;
-        document.getElementById('client-report-total-debt').textContent = formatCurrency(saldoCorriente);
-
+        document.getElementById('client-report-total-debt').textContent = window.formatCurrency(saldoCorriente);
         openModal('modal-client-debt-report');
 
-    } catch (err) {
-        console.error("❌ Error cargando estado de cuenta:", err);
-    }
+    } catch (err) { console.error(err); }
 };
 
 window.prepararAbonoDesdeReporte = function(clientId, clientName, currentDebt) {
@@ -4106,7 +4048,9 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
                     <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
                         <button onclick="window.handleEditClientClick(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-orange-500/10 border border-orange-500/30 rounded-lg text-orange-500 hover:bg-orange-500 hover:text-white transition-all"><i class="fas fa-edit"></i></button>
                         <button onclick="window.handleAbonoClick(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"><i class="fas fa-hand-holding-usd"></i></button>
-                        <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-9 w-9 flex items-center justify-center bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><i class="fas fa-file-invoice-dollar"></i></button>
+                        <button onclick="window.handleDeleteClient(${client.client_id})" class="h-8 w-8 flex items-center justify-center bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all" title="Eliminar Cliente">
+                <i class="fas fa-trash-alt text-xs"></i>
+            </button>
                     </div>
                     <button type="button" class="delete-client-btn group/btn h-9 w-9 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
                                     data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
