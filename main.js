@@ -3593,48 +3593,57 @@ window.loadProductsTable = function() {
     if (!container) return; 
     
     container.innerHTML = '';
-    const products = window.allProducts || []; 
+    
+    // 1. ORDENAMIENTO JERÁRQUICO: Mantenemos al hijo pegado al padre
+    const rawProducts = window.allProducts || []; 
+    const products = [...rawProducts].sort((a, b) => {
+        const rootA = a.type === 'PRODUCT' || a.type === 'MAIN' ? a.producto_id : a.parent_product;
+        const rootB = b.type === 'PRODUCT' || b.type === 'MAIN' ? b.producto_id : b.parent_product;
+        if (rootA !== rootB) return rootA - rootB;
+        return (a.type === 'PRODUCT' || a.type === 'MAIN') ? -1 : 1;
+    });
 
     if (products.length === 0) {
-        const noDataMsg = document.getElementById('no-products-message');
-        if (noDataMsg) noDataMsg.classList.remove('hidden');
+        document.getElementById('no-products-message')?.classList.remove('hidden');
         container.innerHTML = `<tr><td colspan="5" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">No hay productos registrados</td></tr>`;
         return;
     }
     
     document.getElementById('no-products-message')?.classList.add('hidden');
 
+    // Mapa para nombres de padres
+    const productsMap = Object.fromEntries(products.map(p => [String(p.producto_id), p]));
+
     products.forEach(product => {
+        const isMain = product.type === 'MAIN' || product.type === 'PRODUCT';
+        const isSub = product.type === 'PACKAGE';
+        
         const row = document.createElement('tr');
-        row.className = 'group hover:bg-white/[0.03] transition-all duration-300 border-b border-white/5';
+        // ✅ APLICAMOS CLASE DE FILA (Fondo sutil si es subproducto)
+        row.className = `group transition-all duration-300 border-b border-white/5 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.03]'}`;
         
         const formattedPrice = formatCurrency(product.price);
         
+        // Configuración de Badges y Colores
         let badgeClass = '';
         let typeText = '';
         let icon = '';
 
-        switch(product.type) {
-            case 'MAIN':
-                badgeClass = 'glass-badge-success';
-                typeText = 'Principal';
-                icon = 'fa-star';
-                break;
-            case 'PACKAGE':
-                badgeClass = 'glass-badge-danger';
-                typeText = 'Subproducto';
-                icon = 'fa-box-open';
-                break;
-            case 'SERVICE':
-                badgeClass = 'glass-badge-info';
-                typeText = 'Servicio';
-                icon = 'fa-tools';
-                break;
-            default:
-                badgeClass = 'glass-badge-secondary';
-                typeText = product.type || 'General';
-                icon = 'fa-tag';
+        if (isMain) {
+            badgeClass = 'glass-badge-success';
+            typeText = 'Principal';
+            icon = 'fa-star';
+        } else if (isSub) {
+            badgeClass = 'glass-badge-danger';
+            typeText = 'Subproducto';
+            icon = 'fa-boxes';
+        } else {
+            badgeClass = 'glass-badge-info';
+            typeText = 'Servicio';
+            icon = 'fa-tools';
         }
+
+        const parentObj = isSub && product.parent_product ? productsMap[String(product.parent_product)] : null;
 
         row.innerHTML = `
             <td class="px-8 py-5 whitespace-nowrap">
@@ -3643,14 +3652,17 @@ window.loadProductsTable = function() {
                 </div>
             </td>
             
-            <td class="px-8 py-5 whitespace-nowrap">
+            <td class="px-8 py-5 whitespace-nowrap ${isSub ? 'subproducto-indent' : ''}">
                 <div class="flex items-center gap-3">
                     <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
                         <i class="fas ${icon} text-white text-xs"></i>
                     </div>
                     <div>
                         <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
-                        <div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha de Producto</div>
+                        ${isSub && parentObj ? 
+                            `<div class="text-[9px] text-white/30 uppercase font-bold mt-0.5 tracking-widest">Depende de: ${parentObj.name}</div>` 
+                            : `<div class="text-[11px] text-white/30 uppercase tracking-[0.2em] font-bold font-sans mt-0.5">Ficha de Producto</div>`
+                        }
                     </div>
                 </div>
             </td>
@@ -3671,19 +3683,14 @@ window.loadProductsTable = function() {
             
             <td class="px-8 py-6 text-right">
                 <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
-                    
                     <button onclick="window.handleEditProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all duration-300 hover:!bg-orange-500 hover:shadow-[0_0_20px_rgba(249,115,22,0.5)]"
-                        title="Editar Producto">
-                        <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all duration-300 text-lg !bg-transparent !p-0 !border-none relative z-10"></i>
+                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all">
+                        <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-lg !bg-transparent !p-0 !border-none"></i>
                     </button>
-
                     <button onclick="window.handleDeleteProductClick(${product.producto_id})" 
-                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all duration-300 hover:!bg-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.5)]"
-                        title="Eliminar Producto">
-                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all duration-300 text-base !bg-transparent !p-0 !border-none relative z-10"></i>
+                        class="group/btn relative h-11 w-11 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all">
+                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white group-hover/btn:scale-110 transition-all text-base !bg-transparent !p-0 !border-none"></i>
                     </button>
-
                 </div>
             </td>
         `;
