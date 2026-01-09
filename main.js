@@ -176,7 +176,7 @@ async function loadDashboardData() {
     await loadDebts();
     await loadRecentSales();
     await loadClientsTable('gestion');
-    await loadProductsTable(); 
+    await window.loadAndRenderProducts();
     await loadClientsForSale();
     await loadClientDebtsTable();
 }
