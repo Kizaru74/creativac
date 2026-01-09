@@ -6007,19 +6007,19 @@ window.showToast = function(mensaje, tipo = 'success') {
     // --- RESTO DE TU LÓGICA DE DISEÑO ---
     const toast = document.createElement('div');
     const isSuccess = tipo === 'success';
-    const accentColor = isSuccess ? 'orange-500' : 'red-500';
+    const accentColor = isSuccess ? 'teal-700' : 'red-500';
     
     toast.className = `
         relative bg-[#1a1a1a]/95 backdrop-blur-2xl border border-white/10 
-        ring-1 ${isSuccess ? 'ring-orange-500/30' : 'ring-red-500/30'}
+        ring-1 ${isSuccess ? 'teal-700/30' : 'ring-red-500/30'}
         text-white px-6 py-4 rounded-2xl shadow-2xl
         flex items-center gap-4 transform translate-x-10 opacity-0 
         transition-all duration-500 min-w-[300px] z-[9999]
     `;
     
     toast.innerHTML = `
-        <div class="absolute left-0 top-1/4 bottom-1/4 w-1 ${isSuccess ? 'bg-orange-500' : 'bg-red-500'} rounded-r-full shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
-        <div class="flex-shrink-0 w-10 h-10 ${isSuccess ? 'bg-orange-500/20' : 'bg-red-500/20'} rounded-full flex items-center justify-center border border-${accentColor}/30">
+        <div class="absolute left-0 top-1/4 bottom-1/4 w-1 ${isSuccess ? 'teal-700' : 'bg-red-500'} rounded-r-full shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
+        <div class="flex-shrink-0 w-10 h-10 ${isSuccess ? 'teal-700/20' : 'bg-red-500/20'} rounded-full flex items-center justify-center border border-${accentColor}/30">
             <i class="fas ${isSuccess ? 'fa-check' : 'fa-exclamation-triangle'} text-${accentColor} text-lg"></i>
         </div>
         <div class="flex flex-col">
