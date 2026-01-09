@@ -1382,43 +1382,36 @@ function cleanCurrencyString(str) {
 }
 //Ventas a credito
 window.getClientSalesSummary = async function(clientId) {
-    if (!supabase) return { totalVentas: 0, deudaNeta: 0 };
-    
+    if (!supabase) return { totalVentas: 0, totalAbonos: 0, deudaNeta: 0 };
+
     try {
-        // 1. Obtener transacciones desde tu vista consolidada
-        const { data: transactions, error } = await supabase
-            .from('transacciones_deuda') 
-            .select('type, amount')
+        const { data: trans, error } = await supabase
+            .from('transacciones_deuda')
+            .select('amount, type')
             .eq('client_id', clientId);
 
         if (error) throw error;
 
-        let totalVentas = 0; 
-        let deudaNeta = 0;   
+        let ventas = 0;
+        let abonos = 0;
 
-        (transactions || []).forEach(t => {
-            // Convertimos a número por si la base de datos devuelve texto
-            const monto = parseFloat(t.amount || 0);
-            const isCharge = String(t.type).toLowerCase().includes('cargo');
-            
-            if (isCharge) {
-                totalVentas += monto;
-                deudaNeta += monto;
+        trans.forEach(t => {
+            const amt = Math.abs(parseFloat(t.amount || 0)); // Limpiamos el número
+            if (t.type === 'cargo_venta') {
+                ventas += amt;
             } else {
-                // Se resta abono_posterior, pago_inicial, etc.
-                deudaNeta -= monto;
+                abonos += amt;
             }
         });
 
-        // Limpieza de decimales (evita el error de 0.000000001 en JS)
-        return { 
-            totalVentas: Math.max(0, totalVentas), 
-            deudaNeta: Math.max(0, deudaNeta) 
+        return {
+            totalVentas: ventas,
+            totalAbonos: abonos,
+            deudaNeta: ventas - abonos // Si abonos > ventas, dará negativo (Saldo a favor)
         };
-
-    } catch (e) {
-        console.error(`❌ Error en resumen del cliente ${clientId}:`, e);
-        return { totalVentas: 0, deudaNeta: 0 };
+    } catch (err) {
+        console.error("Error en summary:", err);
+        return { totalVentas: 0, totalAbonos: 0, deudaNeta: 0 };
     }
 };
 
