@@ -3150,97 +3150,90 @@ window.handleAbonoClientSubmit = async function(e) {
     e.preventDefault();
 
     if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        alert("Error de configuración.");
+        window.showToast("Error: Supabase no inicializado", "error");
         return;
     }
 
     const form = e.target;
-    // Asumiendo que 'debt-to-pay-id' contiene el ID de la venta (venta_id)
+    
+    // 1. CAPTURA DE DATOS (Mismos IDs que usas en tu HTML)
     const clientId = document.getElementById('abono-client-id')?.value;
     const abonoAmount = parseFloat(form.elements['abono-amount'].value);
+    const paymentMethod = form.elements['payment-method-abono'].value;
     
-    // 💡 CORRECCIÓN: Capturar y limpiar el método de pago
-    const paymentMethod = form.elements['payment-method-abono'].value.trim();
+    // Intentamos obtener ventaId si el abono es para una factura específica
+    const ventaIdInput = document.getElementById('debt-to-pay-id')?.value;
+    const ventaId = (ventaIdInput && ventaIdInput !== "") ? parseInt(ventaIdInput) : null;
 
-    if (isNaN(abonoAmount) || abonoAmount <= 0) {
-        alert("Ingrese un monto de abono válido y mayor a cero.");
+    // 2. VALIDACIONES
+    if (!clientId) {
+        window.showToast("ID de cliente no encontrado", "error");
         return;
     }
-
-    // 🛑 VALIDACIÓN AGREGADA
-    if (!paymentMethod || paymentMethod === '') {
-        alert("¡Debe seleccionar un método de pago!");
-        // Opcional: enfocar el campo para mejor UX
-        document.getElementById('payment-method-abono')?.focus();
+    if (isNaN(abonoAmount) || abonoAmount <= 0) {
+        window.showToast("Monto inválido", "error");
+        return;
+    }
+    if (!paymentMethod) {
+        window.showToast("Seleccione método de pago", "error");
         return;
     }
 
     try {
-        // 1. Obtener la venta actual para verificar el saldo
-        const { data: sale, error: saleFetchError } = await supabase
-            .from('ventas')
-            .select(`total_amount, paid_amount, saldo_pendiente, client_id`) 
-            .eq('venta_id', ventaId)
-            .single();
-
-        if (saleFetchError || !sale) throw new Error("Venta no encontrada.");
-
-        const currentDebt = sale.saldo_pendiente;
-
-        if (abonoAmount > currentDebt) {
-            alert(`El abono (${formatCurrency(abonoAmount)}) es mayor que la deuda pendiente (${formatCurrency(currentDebt)}). Ajuste el monto.`);
-            return;
-        }
-
-        // 2. Calcular nuevos saldos
-        const newPaidAmount = sale.paid_amount + abonoAmount;
-        const newDebt = currentDebt - abonoAmount;
-        const clientId = sale.client_id;
-
-        // 3. Registrar el pago/abono en la tabla 'pagos'
-        // NOTA: 'type' debe existir en Supabase (ya lo confirmamos)
+        // 3. INSERTAR EN TABLA 'PAGOS' (Usando 'note' en lugar de 'description')
         const { error: paymentError } = await supabase
             .from('pagos')
             .insert([{
-                venta_id: ventaId,
-                client_id: clientId, 
+                client_id: parseInt(clientId),
                 amount: abonoAmount,
-                metodo_pago: paymentMethod, // Usa el valor validado
-                type: 'abono' 
+                metodo_pago: paymentMethod,
+                venta_id: ventaId, // null si es abono general
+                type: ventaId ? 'PAGO_VENTA' : 'ABONO_GENERAL',
+                note: ventaId ? `Pago a Venta #${ventaId}` : 'Abono a cuenta general'
             }]);
 
-        if (paymentError) throw new Error("Error al registrar el pago: " + paymentError.message);
+        if (paymentError) throw paymentError;
 
-        // 4. Actualizar la tabla 'ventas' (saldo_pendiente y paid_amount)
-        const { error: updateSaleError } = await supabase
-            .from('ventas')
-            .update({
-                paid_amount: newPaidAmount,
-                saldo_pendiente: newDebt,
-            })
-            .eq('venta_id', ventaId);
+        // 4. SI HAY VENTA_ID, ACTUALIZAR SALDO EN TABLA 'VENTAS'
+        if (ventaId) {
+            const { data: sale } = await supabase
+                .from('ventas')
+                .select('paid_amount, saldo_pendiente')
+                .eq('venta_id', ventaId)
+                .single();
 
-        if (updateSaleError) throw new Error("Error al actualizar la venta: " + updateSaleError.message);
+            if (sale) {
+                const newPaid = parseFloat(sale.paid_amount || 0) + abonoAmount;
+                const newDebt = parseFloat(sale.saldo_pendiente || 0) - abonoAmount;
 
-        // Éxito
-        alert(`Abono de ${formatCurrency(abonoAmount)} registrado con éxito. Deuda restante: ${formatCurrency(newDebt)}.`);
+                await supabase.from('ventas')
+                    .update({ 
+                        paid_amount: newPaid, 
+                        saldo_pendiente: newDebt 
+                    })
+                    .eq('venta_id', ventaId);
+            }
+        }
+
+        // 5. ÉXITO Y ACTUALIZACIÓN DE PANTALLA
+        window.showToast?.("Abono registrado con éxito", "success");
         
-        // Limpiar y cerrar modales
         form.reset();
         closeModal('abono-client-modal');
-        
-        // Recargar datos y volver a abrir el modal de detalles de venta con la información actualizada
-        await loadDashboardData();
-        
-        // Reabrir el modal de detalles con los nuevos saldos
-        handleViewSaleDetails(ventaId, clientId); 
+
+        // RECARGAR EL REPORTE AUTOMÁTICAMENTE
+        // Esto hace que el abono aparezca en la lista sin recargar la página
+        if (window.handleViewClientDebt) {
+            setTimeout(() => {
+                window.handleViewClientDebt(clientId);
+            }, 300); // Un pequeño delay para que Supabase procese la vista
+        }
 
     } catch (error) {
-        console.error('Error al registrar abono:', error);
-        alert('Fallo al registrar el abono: ' + error.message);
+        console.error('❌ Error al registrar abono:', error);
+        window.showToast("Error: " + error.message, "error");
     }
-}
+};
 
 async function procesarAbonoCascada(clientId, montoAbono, metodo) {
     // 1. Obtener todas las ventas con saldo pendiente, de la más vieja a la más nueva
