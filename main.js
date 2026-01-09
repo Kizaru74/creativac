@@ -2130,7 +2130,6 @@ window.generarComprobanteAbono = function(datos) {
         return;
     }
 
-    // Preparación de datos
     const montoTotal = parseFloat(datos.montoTotal || 0).toFixed(2);
     const deudaRestante = parseFloat(datos.deudaRestante || 0).toFixed(2);
     const nombreCliente = (datos.cliente || "Cliente").toUpperCase();
@@ -2144,53 +2143,30 @@ window.generarComprobanteAbono = function(datos) {
             <style>
                 @page { size: letter; margin: 15mm; }
                 body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; padding: 20px; background-color: #f4f4f4; }
-                
                 .btn-print-container { max-width: 210mm; margin: 0 auto 10px auto; text-align: right; }
                 .btn-print { background: ${colorOxido}; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-                
                 .sheet { background: white; width: 210mm; min-height: 140mm; margin: 0 auto; padding: 15mm; box-shadow: 0 0 15px rgba(0,0,0,0.1); border-radius: 4px; border-top: 12px solid ${colorOxido}; box-sizing: border-box; }
-                
                 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
                 .brand { display: flex; align-items: center; }
                 .logo-container { width: 90px; height: 90px; margin-right: 20px; display: flex; align-items: center; justify-content: center; }
                 .logo-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
-                
                 .brand-info h2 { margin: 0; color: #111; font-size: 22px; font-weight: 900; line-height: 1; }
                 .brand-info p { margin: 5px 0 0 0; font-size: 10px; letter-spacing: 3px; color: ${colorOxido}; font-weight: bold; }
-
                 .receipt-meta { text-align: right; }
                 .receipt-meta h1 { margin: 0; color: ${colorOxido}; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
                 .receipt-meta .folio { font-size: 24px; font-weight: 900; color: #222; margin: 2px 0; }
                 .receipt-meta .fecha { font-size: 11px; color: #777; }
-
-                /* DATA GRID CON TONO ÓXIDO */
-                .data-grid { 
-                    display: grid; 
-                    grid-template-columns: 1fr 1fr; 
-                    background-color: ${colorOxido}; 
-                    color: white; 
-                    padding: 20px; 
-                    border-radius: 6px; 
-                    margin-bottom: 30px; 
-                }
+                .data-grid { display: grid; grid-template-columns: 1fr 1fr; background-color: ${colorOxido}; color: white; padding: 20px; border-radius: 6px; margin-bottom: 30px; }
                 .data-box .label { font-size: 9px; text-transform: uppercase; font-weight: bold; opacity: 0.8; margin-bottom: 5px; display: block; letter-spacing: 1px; }
                 .data-box .value { font-size: 16px; font-weight: bold; letter-spacing: 0.5px; }
-
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
                 th { text-align: left; padding: 12px; font-size: 11px; text-transform: uppercase; color: ${colorOxido}; border-bottom: 2px solid ${colorOxido}; }
                 td { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #444; }
-
                 .totals { width: 320px; margin-left: auto; }
                 .total-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
                 .total-item.final { border-top: 2px solid ${colorOxido}; margin-top: 10px; padding-top: 15px; color: ${colorOxido}; font-weight: 900; font-size: 20px; }
-
                 .footer { margin-top: 60px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; color: #999; font-size: 11px; line-height: 1.6; }
-
-                @media print {
-                    .btn-print-container { display: none; }
-                    body { background: white; padding: 0; }
-                    .sheet { box-shadow: none; border-radius: 0; width: 100%; margin: 0; }
-                }
+                @media print { .btn-print-container { display: none; } body { background: white; padding: 0; } .sheet { box-shadow: none; border-radius: 0; width: 100%; margin: 0; } }
             </style>
         </head>
         <body>
@@ -2202,9 +2178,7 @@ window.generarComprobanteAbono = function(datos) {
                 <div class="header">
                     <div class="brand">
                         <div class="logo-container">
-                            <img src="./assets/logo-creativa.png" 
-                                 onerror="this.src='https://raw.githubusercontent.com/Kizaru74/creativac/main/LogoCreativa.jpg'" 
-                                 alt="Logo">
+                            <img src="https://raw.githubusercontent.com/Kizaru74/creativac/main/LogoCreativa.jpg" alt="Logo">
                         </div>
                         <div class="brand-info">
                             <h2>CREATIVA CORTES CNC</h2>
@@ -2237,12 +2211,20 @@ window.generarComprobanteAbono = function(datos) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${(datos.distribucion || []).map(item => `
-                            <tr>
-                                <td>Abono parcial aplicado a Venta Folio <b>#${item.venta_id || item.id}</b></td>
-                                <td style="text-align: right; font-weight: bold;">$${parseFloat(item.amount || item.monto).toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
+                        ${(datos.distribucion || []).map(item => {
+                            // MEJORA: Detectar si es abono general o a venta
+                            const esGeneral = item.venta_id === 'GENERAL' || item.venta_id === 'GENERAL/A FAVOR';
+                            const descripcion = esGeneral 
+                                ? "Abono a Cuenta General (Saldo a Favor)" 
+                                : `Abono parcial aplicado a Venta Folio <b>#${item.venta_id}</b>`;
+                            
+                            return `
+                                <tr>
+                                    <td>${descripcion}</td>
+                                    <td style="text-align: right; font-weight: bold;">$${parseFloat(item.amount).toFixed(2)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
 
@@ -4444,8 +4426,9 @@ window.handleRegisterPayment = async function(e) {
     }
     
     const btn = document.getElementById('btn-confirm-abono');
-    if (btn.disabled) return; // 🛑 Evita que se presione dos veces mientras procesa
+    if (btn && btn.disabled) return; 
 
+    // 1. CAPTURA DE DATOS
     const clientId = document.getElementById('abono-client-id')?.value;
     const amountStr = document.getElementById('abono-amount')?.value;
     const metodo = document.getElementById('payment-method-abono')?.value;
@@ -4453,15 +4436,17 @@ window.handleRegisterPayment = async function(e) {
     const nombreCliente = document.getElementById('abono-client-name-display')?.textContent || "Cliente";
 
     if (!clientId || isNaN(paymentAmount) || paymentAmount <= 0) {
-        alert("⚠️ Monto no válido");
+        window.showToast?.("⚠️ Ingrese un monto válido", "error");
         return;
     }
 
     try {
-        btn.disabled = true;
-        btn.innerText = "⏳ PROCESANDO...";
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "⏳ PROCESANDO...";
+        }
 
-        // 1. Obtener ventas con deuda
+        // 2. BUSCAR VENTAS CON DEUDA (Lógica FIFO)
         const { data: ventas, error: vErr } = await supabase
             .from('ventas')
             .select('venta_id, saldo_pendiente, paid_amount')
@@ -4474,61 +4459,95 @@ window.handleRegisterPayment = async function(e) {
         let restante = paymentAmount;
         let historialDistribucion = [];
 
-        // 2. Proceso de cobro
-        for (let v of ventas) {
-            if (restante <= 0.01) break;
-            let pagoAAplicar = Math.min(restante, v.saldo_pendiente);
-            pagoAAplicar = parseFloat(pagoAAplicar.toFixed(2));
+        // 3. PROCESO DE DISTRIBUCIÓN EN CASCADA
+        if (ventas && ventas.length > 0) {
+            for (let v of ventas) {
+                if (restante <= 0.009) break;
+                
+                let pagoAAplicar = Math.min(restante, v.saldo_pendiente);
+                pagoAAplicar = parseFloat(pagoAAplicar.toFixed(2));
 
-            // Registro en tabla pagos
+                // Registro ligado a la venta
+                await supabase.from('pagos').insert([{ 
+                    client_id: parseInt(clientId), 
+                    venta_id: v.venta_id, 
+                    amount: pagoAAplicar, 
+                    metodo_pago: metodo,
+                    note: `Abono aplicado a Venta #${v.venta_id}`,
+                    type: 'abono'
+                }]);
+
+                // Actualizar la venta
+                await supabase.from('ventas').update({ 
+                    saldo_pendiente: parseFloat((v.saldo_pendiente - pagoAAplicar).toFixed(2)), 
+                    paid_amount: parseFloat(((v.paid_amount || 0) + pagoAAplicar).toFixed(2)) 
+                }).eq('venta_id', v.venta_id);
+
+                historialDistribucion.push({ venta_id: v.venta_id, amount: pagoAAplicar });
+                restante -= pagoAAplicar;
+            }
+        }
+
+        // 4. MANEJO DE SALDO SOBRANTE O CUENTA SIN DEUDA (Caso Joana)
+        if (restante > 0.009) {
+            const montoGenerico = parseFloat(restante.toFixed(2));
             await supabase.from('pagos').insert([{ 
                 client_id: parseInt(clientId), 
-                venta_id: v.venta_id, 
-                amount: pagoAAplicar, 
+                venta_id: null, 
+                amount: montoGenerico, 
                 metodo_pago: metodo,
-                note: 'Abono en cascada',
-                type: 'abono'
+                note: 'Abono a cuenta general / Saldo a favor',
+                type: 'ABONO_GENERAL'
             }]);
-
-            // Actualización de venta
-            await supabase.from('ventas').update({ 
-                saldo_pendiente: parseFloat((v.saldo_pendiente - pagoAAplicar).toFixed(2)), 
-                paid_amount: parseFloat(((v.paid_amount || 0) + pagoAAplicar).toFixed(2)) 
-            }).eq('venta_id', v.venta_id);
-
-            historialDistribucion.push({ venta_id: v.venta_id, amount: pagoAAplicar });
-            restante -= pagoAAplicar;
+            historialDistribucion.push({ venta_id: 'GENERAL/A FAVOR', amount: montoGenerico });
         }
 
-        // 3. Calcular deuda total real para el PDF
-        const { data: todasVentas } = await supabase.from('ventas').select('saldo_pendiente').eq('client_id', clientId);
-        const deudaFinal = todasVentas.reduce((acc, curr) => acc + (parseFloat(curr.saldo_pendiente) || 0), 0);
+        console.log("📊 Distribución del Pago:");
+        console.table(historialDistribucion);
 
-        // 4. CIERRE Y CONFIRMACIÓN (Aquí es donde se detiene la recarga)
-        closeModal('abono-client-modal');
-        
-        // El alert/confirm bloquea el hilo principal, impidiendo que la tabla se recargue sola
-        const imprimir = confirm(`✅ Abono de $${paymentAmount} realizado.\n\n¿Deseas ver el recibo para el cliente?`);
-        
-        if (imprimir) {
-            window.generarComprobanteAbono({
-                cliente: nombreCliente,
-                montoTotal: paymentAmount,
-                metodo: metodo,
-                distribucion: historialDistribucion,
-                deudaRestante: deudaFinal
-            });
-        }
+        // 5. CÁLCULO DE DEUDA FINAL PARA EL RECIBO
+        const { data: resumenVentas } = await supabase
+            .from('ventas')
+            .select('saldo_pendiente')
+            .eq('client_id', clientId);
+        const deudaFinal = resumenVentas?.reduce((acc, curr) => acc + (parseFloat(curr.saldo_pendiente) || 0), 0) || 0;
 
-        // 5. Solo hasta que se cierre el confirm, refrescamos la UI
+        // 6. ACTUALIZACIÓN INMEDIATA DE LA INTERFAZ
+        if (typeof closeModal === 'function') closeModal('abono-client-modal');
+        
         if (window.loadClientsTable) await window.loadClientsTable();
+        
+        // Refrescamos el Estado de Cuenta de fondo
+        if (window.handleViewClientDebt) {
+            await window.handleViewClientDebt(clientId);
+        }
+
+        // 7. NOTIFICACIÓN Y OPCIÓN DE IMPRESIÓN
+        setTimeout(() => {
+            const msg = `✅ Pago de ${formatCurrency(paymentAmount)} registrado correctamente.`;
+            window.showToast?.(msg, "success");
+
+            if (confirm(`${msg}\n\n¿Deseas generar el comprobante para el cliente?`)) {
+                if (window.generarComprobanteAbono) {
+                    window.generarComprobanteAbono({
+                        cliente: nombreCliente,
+                        montoTotal: paymentAmount,
+                        metodo: metodo,
+                        distribucion: historialDistribucion,
+                        deudaRestante: deudaFinal
+                    });
+                }
+            }
+        }, 300);
 
     } catch (err) {
-        console.error("Error:", err);
-        alert("Error al procesar: " + err.message);
+        console.error("❌ Error en registro de pago:", err);
+        alert("Error al procesar el pago: " + err.message);
     } finally {
-        btn.disabled = false;
-        btn.innerText = "Confirmar Pago";
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Confirmar Pago";
+        }
     }
 };
 
