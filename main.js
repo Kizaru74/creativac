@@ -5694,12 +5694,13 @@ if (btnEliminarConfirmar) {
 });
 
 // ==========================================================
-// FUNCIÓN ÚNICA DE ELIMINACIÓN DE CLIENTE (CORREGIDA)
+// FUNCIÓN DE ELIMINACIÓN TOTAL (SIN ERRORES DE VISTA)
 // ==========================================================
 const inicializarEliminacionCliente = () => {
     const btnConfirmar = document.getElementById('confirm-delete-client-btn');
     if (!btnConfirmar) return;
 
+    // Clonamos el botón para limpiar cualquier evento duplicado que cause el error de ID: null
     const btnNuevo = btnConfirmar.cloneNode(true);
     btnConfirmar.parentNode.replaceChild(btnNuevo, btnConfirmar);
 
@@ -5707,59 +5708,67 @@ const inicializarEliminacionCliente = () => {
         e.preventDefault();
         e.stopPropagation();
 
+        // Rescatamos el ID guardado
         const clientId = window.clientIdToDelete;
-        if (!clientId || clientId === 'null') return;
+
+        if (!clientId || clientId === 'null') {
+            console.warn("El ID ya se procesó o es nulo.");
+            return;
+        }
 
         const originalHTML = btnNuevo.innerHTML;
         btnNuevo.disabled = true;
         btnNuevo.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>LIMPIANDO HISTORIAL...';
 
         try {
-            console.log("--- INICIANDO LIMPIEZA DE TABLAS ORIGEN ---");
+            console.log("--- INICIANDO BORRADO EN TABLAS DE ORIGEN (NO EN LA VISTA) ---");
 
-            // 1. Obtener IDs de ventas para limpiar detalles
-            const { data: ventas } = await supabase
+            // 1. Obtener IDs de ventas para borrar detalles primero
+            const { data: ventas, error: errVentas } = await supabase
                 .from('ventas')
                 .select('venta_id')
                 .eq('client_id', clientId);
 
+            if (errVentas) throw errVentas;
             const ventaIds = ventas?.map(v => v.venta_id) || [];
 
-            // 2. BORRAR DETALLES DE PRODUCTOS
+            // 2. Borrar detalles de productos (Evita error de llave foránea)
             if (ventaIds.length > 0) {
                 await supabase.from('detalle_ventas').delete().in('venta_id', ventaIds);
             }
 
-            // 3. BORRAR ABONOS Y PAGOS (Las tablas que alimentan tu vista)
-            // Borramos de la tabla 'pagos'
+            // 3. Borrar de las tablas que alimentan tu vista 'transacciones_deuda'
+            // No podemos borrar de la vista, así que borramos de las tablas reales:
             await supabase.from('pagos').delete().eq('client_id', clientId);
-            
-            // Borramos de la tabla 'abonos'
             await supabase.from('abonos').delete().eq('client_id', clientId);
 
-            // 4. BORRAR VENTAS
+            // 4. Borrar las ventas principales
             if (ventaIds.length > 0) {
                 await supabase.from('ventas').delete().in('venta_id', ventaIds);
             }
 
-            // 5. BORRAR AL CLIENTE
-            const { error: errorCliente } = await supabase
+            // 5. Borrar finalmente al cliente
+            const { error: errCliente } = await supabase
                 .from('clientes')
                 .delete()
                 .eq('client_id', clientId);
 
-            if (errorCliente) throw errorCliente;
+            if (errCliente) throw errCliente;
 
             // EXITO
-            showToast("Cliente y todo su historial eliminados", "success");
+            showToast("Cliente y todo su historial eliminados con éxito", "success");
             closeModal('delete-client-modal');
             
+            // Limpiamos la variable global
             window.clientIdToDelete = null;
-            if (typeof window.loadClientsTable === 'function') await window.loadClientsTable();
+
+            if (typeof window.loadClientsTable === 'function') {
+                await window.loadClientsTable();
+            }
 
         } catch (err) {
-            console.error('Error en cascada:', err);
-            showToast("Error: " + err.message, "error");
+            console.error('Falla en la cascada de borrado:', err);
+            alert('Error al eliminar: ' + err.message);
         } finally {
             btnNuevo.disabled = false;
             btnNuevo.innerHTML = originalHTML;
@@ -5767,6 +5776,7 @@ const inicializarEliminacionCliente = () => {
     });
 };
 
+// Activar la función
 inicializarEliminacionCliente();
 
 // ✅ DEJA ESTO (Pero ajustado):
