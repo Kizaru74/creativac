@@ -1768,13 +1768,18 @@ window.handleViewClientDebt = async function(clientId) {
     try {
         const [clientRes, transactionsRes] = await Promise.all([
             supabase.from('clientes').select('name').eq('client_id', clientId).single(),
-            supabase.from('transacciones_deuda').select('*').eq('client_id', clientId).order('created_at', { ascending: true })
+            supabase.from('transacciones_deuda')
+                .select('*')
+                .eq('client_id', clientId)
+                .order('created_at', { ascending: true })
         ]);
+
+        if (transactionsRes.error) throw transactionsRes.error;
 
         const clientName = clientRes.data?.name || "Cliente #" + clientId;
         const movimientosRaw = transactionsRes.data || [];
 
-        // ... (Lógica de productos se mantiene igual) ...
+        // 1. Obtener productos
         const ventaIds = movimientosRaw.filter(m => m.type === 'cargo_venta').map(m => m.venta_id);
         let productosPorVenta = [];
         if (ventaIds.length > 0) {
@@ -1783,54 +1788,91 @@ window.handleViewClientDebt = async function(clientId) {
         }
 
         let saldoCorriente = 0;
-        const tbody = document.getElementById('client-transactions-body');
-        if (!tbody) return;
 
-        tbody.innerHTML = movimientosRaw.map(mov => {
+        // 2. Procesar filas (esta lógica sirve para el PDF y para el Modal)
+        const filasProcesadas = movimientosRaw.map(mov => {
             const esVenta = mov.type === 'cargo_venta';
-            const montoAbsoluto = Math.abs(parseFloat(mov.amount)); // LIMPIEZA TOTAL DEL NÚMERO
+            const montoAbs = Math.abs(parseFloat(mov.amount));
             
-            if (esVenta) saldoCorriente += montoAbsoluto;
-            else saldoCorriente -= montoAbsoluto;
+            if (esVenta) saldoCorriente += montoAbs;
+            else saldoCorriente -= montoAbs;
 
             const misProds = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
             const textoProds = misProds.map(p => `${p.name} (x${p.quantity})`).join(', ');
 
-            // DECISIÓN DE SIGNO: Solo mostramos el signo que nosotros definamos
-            const signoString = esVenta ? '+' : '-';
-            const colorClase = esVenta ? 'text-red-400' : 'text-emerald-400';
+            return {
+                ...mov,
+                montoAbs,
+                saldoAcumulado: saldoCorriente,
+                textoProds,
+                esVenta,
+                signo: esVenta ? '+' : '-'
+            };
+        });
 
-            return `
+        // 3. GENERAR HTML PARA EL PDF (IMPORTANTE: Corregido aquí también)
+        const transaccionesHTMLParaPDF = filasProcesadas.map(mov => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; font-size: 11px;">
+                    ${new Date(mov.created_at).toLocaleDateString('es-MX')}
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                    <div style="font-weight: bold; color: #333; font-size: 11px;">${mov.description}</div>
+                    ${mov.textoProds ? `<div style="font-size: 10px; color: #d45c01ff;">[ ${mov.textoProds} ]</div>` : ''}
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: ${mov.esVenta ? '#dc2626' : '#16a34a'}; font-weight: bold;">
+                    ${mov.signo}${window.formatCurrency(mov.montoAbs)}
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; background-color: #f9fafb;">
+                    ${window.formatCurrency(mov.saldoAcumulado)}
+                </td>
+            </tr>`).join('');
+
+        window.currentClientDataForPrint = {
+            clientId: clientId,
+            nombre: clientName,
+            totalDeuda: saldoCorriente,
+            transaccionesHTML: transaccionesHTMLParaPDF
+        };
+
+        // 4. RENDERIZAR EN EL MODAL (Pantalla)
+        const tbody = document.getElementById('client-transactions-body');
+        if (tbody) {
+            tbody.innerHTML = filasProcesadas.map(mov => `
                 <tr class="border-b border-white/5 hover:bg-white/[0.02]">
                     <td class="px-6 py-4">
-                        <div class="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">
+                        <div class="text-white/30 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
                             ${new Date(mov.created_at).toLocaleDateString('es-MX')}
                         </div>
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold ${esVenta ? 'text-white' : 'text-emerald-400'} uppercase">
+                            <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-emerald-400'} uppercase">
                                 ${mov.description}
                             </span>
-                            ${textoProds ? `<span class="text-[10px] text-orange-500/80 italic mt-1 font-medium tracking-wide">
-                                <i class="fas fa-box-open mr-1"></i>${textoProds}
-                            </span>` : ''}
+                            ${mov.textoProds ? `
+                                <span class="text-[10px] text-orange-500 font-medium italic mt-1 leading-tight">
+                                    <i class="fas fa-box-open mr-1"></i>${mov.textoProds}
+                                </span>` : ''}
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-right font-mono text-sm ${colorClase} font-bold">
-                        ${signoString}${window.formatCurrency(montoAbsoluto)}
+                    <td class="px-6 py-4 text-right font-mono text-sm ${mov.esVenta ? 'text-red-400' : 'text-emerald-400'} font-bold">
+                        ${mov.signo}${window.formatCurrency(mov.montoAbs)}
                     </td>
                     <td class="px-6 py-4 text-right font-mono text-sm text-white font-black">
-                        ${window.formatCurrency(saldoCorriente)}
+                        ${window.formatCurrency(mov.saldoAcumulado)}
                     </td>
-                </tr>`;
-        }).join('');
+                </tr>`).join('');
+        }
 
         document.getElementById('client-report-name').textContent = clientName;
         document.getElementById('client-report-total-debt').textContent = window.formatCurrency(saldoCorriente);
+        
         openModal('modal-client-debt-report');
 
-    } catch (err) { console.error(err); }
+    } catch (err) {
+        console.error("❌ Error:", err);
+    }
 };
 
 window.prepararAbonoDesdeReporte = function(clientId, clientName, currentDebt) {
