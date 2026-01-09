@@ -619,89 +619,46 @@ window.formatCurrency = (amount) => {
     }).format(amount || 0);
 };
 
-window.handleChangeProductForSale = function() {
-    const mainSelect = document.getElementById('product-main-select');
+window.handleChangeProductForSale = function(e) {
+    const productId = e.target.value;
     const subSelect = document.getElementById('subproduct-select');
-    const priceInput = document.getElementById('product-unit-price');
-    
-    // ... (Verificaciones iniciales de elementos y data) ...
-    if (!mainSelect || !subSelect || !priceInput || typeof window.allProducts === 'undefined') {
-        console.error("Error: Elementos de venta o datos (window.allProducts) no encontrados.");
-        return;
-    }
-    
-    const productId = mainSelect.value;
-    
-    console.log(`[DIAG_CRÍTICO] window.allProducts.length: ${window.allProducts.length} | Producto ID: ${productId}`);
-    
-    if (!productId || productId === 'placeholder-option-value' || productId === '0') { 
-        subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
-        subSelect.disabled = true; 
-        priceInput.value = '0.00';
-        return; 
-    }
+    if (!subSelect) return;
 
-    if (window.allProducts.length < 5) {
-        console.warn("ADVERTENCIA: Data de productos inestable o incompleta.");
-        return; 
-    }
-    
-    window.updatePriceField(productId);
+    subSelect.innerHTML = '<option value="">Seleccione paquete...</option>';
+    subSelect.disabled = true;
 
-    // =======================================================
-    // 3. FILTRADO FINAL Y RÁPIDO (Usando el booleano)
-    // =======================================================
-    
-    const subProducts = window.allProducts.filter(p => { 
-        
-        // ✅ FILTRO ROBUSTO: Compara el booleano 'is_package' con TRUE
-        // Y compara la ID del padre (String) con la ID seleccionada (String)
-        return (
-            p.is_package === true && 
-            String(p.parent_product) === productId
-        );
-    });
+    if (!productId) return;
 
-    console.log(`DIAGNÓSTICO DE FILTRO JS: ${subProducts.length} subproductos encontrados para ID: ${productId}`);
+    // IMPORTANTE: Buscamos 'PACKAGE' en mayúsculas y usamos Number para el ID
+    const subProducts = (window.allProducts || []).filter(p => 
+        p.type === 'PACKAGE' && Number(p.parent_product) === Number(productId)
+    );
 
-    // ... (El resto del código de renderizado es el mismo) ...
     if (subProducts.length > 0) {
-        subSelect.disabled = false; 
-        subSelect.innerHTML = '<option value="" disabled selected>Seleccione un Paquete</option>';
-        
         subProducts.forEach(sub => {
-            const option = document.createElement('option');
-            option.value = sub.producto_id;
-            const priceDisplay = (typeof window.formatCurrency === 'function') 
-                ? window.formatCurrency(sub.price) 
-                : `$${parseFloat(sub.price).toFixed(2)}`;
-            option.textContent = `${sub.name} (${priceDisplay})`; 
-            subSelect.appendChild(option);
+            const opt = document.createElement('option');
+            opt.value = sub.producto_id;
+            opt.textContent = `${sub.name} (+${formatCurrency(sub.price)})`;
+            subSelect.appendChild(opt);
         });
-        console.log(`DIAGNÓSTICO DE RENDERIZADO: Se inyectaron ${subProducts.length} opciones.`);
-    } else {
-        subSelect.disabled = true; 
-        subSelect.innerHTML = '<option value="" selected>Sin Paquete</option>';
+        subSelect.disabled = false;
     }
-}
+    
+    // Actualizar precio base
+    if (window.updatePriceField) window.updatePriceField(productId);
+};
 
 window.loadMainProductsForSaleSelect = function() {
-    // 1. Obtener el selector principal
     const select = document.getElementById('product-main-select');
-    if (!select || !window.allProducts) {
-        console.error("No se encontró el selector principal o los datos de productos.");
-        return;
-    }
+    if (!select || !window.allProducts) return;
 
-    // 2. Limpiar opciones antiguas e iniciar con placeholder
     select.innerHTML = '<option value="" disabled selected>Seleccione un producto...</option>';
     
-    // 3. Filtrar y ordenar los productos principales (MAIN y SERVICE)
+    // Filtramos usando las mayúsculas que genera tu función de limpieza
     const mainProducts = window.allProducts
-        .filter(p => p.type === 'MAIN' || p.type === 'SERVICE')
+        .filter(p => p.type === 'MAIN' || p.type === 'SERVICE' || p.type === 'PRODUCT')
         .sort((a, b) => a.name.localeCompare(b.name));
 
-    // 4. Llenar el selector
     mainProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product.producto_id;
@@ -709,12 +666,7 @@ window.loadMainProductsForSaleSelect = function() {
         select.appendChild(option);
     });
 
-    // 5. Conectar el listener de cambio (que dispara el filtro de subproductos)
-    // Remover el listener antes de añadirlo previene duplicados.
-    select.removeEventListener('change', window.handleChangeProductForSale); 
-    select.addEventListener('change', window.handleChangeProductForSale);
-
-    console.log(`✅ ${mainProducts.length} productos listados en el selector de venta.`);
+    console.log(`✅ ${mainProducts.length} productos listados.`);
 };
 window.loadMainProductsForSaleSelect = window.loadMainProductsForSaleSelect;
 // Asume que 'allProducts' contiene todos los productos cargados
@@ -4360,8 +4312,6 @@ async function confirmDeleteClient() {
     }
 }
 
-
-
 window.handleNewClient = async function(e) {
     // 🛑 CRÍTICO: Detiene el envío nativo del formulario.
     // Esta línea funcionará correctamente porque ahora la función será llamada
@@ -5984,71 +5934,55 @@ if (reportSearchInput) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ==========================================================
-    // 🛑 CONEXIONES DE LISTENERS (TPV)
-    // ==========================================================
+    // 1. CONEXIONES DE LISTENERS (TPV)
     const mainSelect = document.getElementById('product-main-select');
     if (mainSelect) {
         mainSelect.addEventListener('change', window.handleChangeProductForSale);
-        console.log('✅ Listener de Producto Principal (product-main-select) conectado.');
     }
        
-    // ==========================================================
-    // 🛑 CONEXIONES PARA EL FILTRADO DE VENTAS
-    // ==========================================================
+    // 2. CONEXIONES PARA EL FILTRADO DE VENTAS
     const startDateFilter = document.getElementById('filter-start-date');
     const endDateFilter = document.getElementById('filter-end-date');
     const searchFilter = document.getElementById('filter-search-term');
     
-    if (startDateFilter) {
-        startDateFilter.addEventListener('change', window.handleFilterSales);
-    }
-    if (endDateFilter) {
-        endDateFilter.addEventListener('change', window.handleFilterSales);
-    }
-    if (searchFilter) {
-        searchFilter.addEventListener('input', window.handleFilterSales);
-    }
+    if (startDateFilter) startDateFilter.addEventListener('change', window.handleFilterSales);
+    if (endDateFilter) endDateFilter.addEventListener('change', window.handleFilterSales);
+    if (searchFilter) searchFilter.addEventListener('input', window.handleFilterSales);
 
     // ==========================================================
-// 🛑 LLAMADA DE CARGA ÚNICA DE DATOS CRÍTICOS (CORREGIDO)
-// ==========================================================
+    // 🛑 ORDEN DE CARGA CRÍTICO (Ajustado para evitar bloqueos)
+    // ==========================================================
 
-// 1. Cargar Productos
-if (window.loadProductsData) {
-    window.loadProductsData().then(() => {
-        if (window.loadMainProductsForSaleSelect) {
-            window.loadMainProductsForSaleSelect();
-        }
-    });
-}
+    // 1. Cargamos el MAPA primero (para que los tipos pasen a MAYÚSCULAS)
+    if (window.loadAllProductsMap) {
+        window.loadAllProductsMap().then(() => {
+            console.log("✅ Mapa de productos listo.");
 
-// 2. Cargar Ventas Y LUEGO filtrar/renderizar
-if (window.loadSalesData) {
-    window.loadSalesData().then((sales) => {
-        console.log("📊 Datos recibidos de Supabase, preparando tabla...");
-        
-        // Verificamos que realmente llegaron datos antes de filtrar
-        if (sales && sales.length > 0) {
-            if (window.handleFilterSales) {
-                window.handleFilterSales(); // Esta función ahora sí encontrará datos
+            // 2. Una vez listo el mapa, llenamos el selector de ventas
+            if (window.loadMainProductsForSaleSelect) {
+                window.loadMainProductsForSaleSelect();
             }
-        } else {
-            console.warn("La base de datos respondió pero no hay registros de ventas.");
-            // Opcional: limpiar tabla para mostrar mensaje de "vacío"
-            const tableBody = document.getElementById('sales-report-table-body');
-            if (tableBody) tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-500 uppercase text-[10px] font-black tracking-widest">Sin registros en la base de datos</td></tr>';
-        }
-    }).catch(err => {
-        console.error("Error en la cadena de carga de ventas:", err);
-    });
-}
 
-// 3. Cargar Clientes
-if (window.loadAndRenderClients) {
-    window.loadAndRenderClients();
-}
-  
+            // 3. Y renderizamos la tabla de inventario (con el diseño corregido)
+            if (window.loadAndRenderProducts) {
+                window.loadAndRenderProducts();
+            }
+        });
+    }
+
+    // Carga de Ventas
+    if (window.loadSalesData) {
+        window.loadSalesData().then((sales) => {
+            if (sales && sales.length > 0) {
+                if (window.handleFilterSales) window.handleFilterSales();
+            }
+        }).catch(err => console.error("Error en ventas:", err));
+    }
+
+    // Carga de Clientes
+    if (window.loadAndRenderClients) {
+        window.loadAndRenderClients();
+    }
 });
 
 window.showToast = function(mensaje, tipo = 'success') {
