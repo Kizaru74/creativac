@@ -3588,82 +3588,6 @@ window.handlePriceEditSubmit = async function(e) {
     }
 };
 
-window.loadProductsTable = function() {
-    const container = document.getElementById('products-table-body');
-    if (!container) return; 
-    
-    container.innerHTML = '';
-    const rawProducts = window.allProducts || []; 
-
-    // 1. IMPORTANTE: Ordenar para que el hijo no flote lejos del padre
-    const products = [...rawProducts].sort((a, b) => {
-        const rootA = (a.type === 'MAIN' || a.type === 'PRODUCT') ? a.producto_id : a.parent_product;
-        const rootB = (b.type === 'MAIN' || b.type === 'PRODUCT') ? b.producto_id : b.parent_product;
-        if (rootA !== rootB) return rootA - rootB;
-        return (a.type === 'MAIN' || a.type === 'PRODUCT') ? -1 : 1;
-    });
-
-    const productsMap = Object.fromEntries(products.map(p => [String(p.producto_id), p]));
-
-    products.forEach(product => {
-        const isSub = product.type === 'PACKAGE';
-        const row = document.createElement('tr');
-        
-        // 2. MANTENER LAS CLASES DEL CSS (Esto es lo que se perdía en el refresco)
-        row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.02]'}`;
-        
-        // Configuración de iconos y badges
-        let icon = product.type === 'PACKAGE' ? 'fa-box-open' : 'fa-box';
-        let badgeClass = product.type === 'PACKAGE' ? 'glass-badge-danger' : 'glass-badge-success';
-
-        row.innerHTML = `
-            <td class="px-8 py-5">
-                <div class="font-sans font-bold bg-white/5 text-orange-500 px-2 py-1 rounded border border-white/10 text-[10px] inline-block">
-                    #${product.producto_id}
-                </div>
-            </td>
-            
-            <td class="px-8 py-5 ${isSub ? 'subproducto-indent' : ''}">
-                <div class="flex items-center gap-3">
-                    <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
-                        <i class="fas ${icon} text-white text-xs"></i>
-                    </div>
-                    <div>
-                        <div class="text-base font-bold text-white uppercase tracking-wide font-sans">${product.name}</div>
-                        ${isSub ? `<div class="text-[9px] text-white/40 uppercase font-bold mt-0.5">Padre: ${productsMap[product.parent_product]?.name || '---'}</div>` : ''}
-                    </div>
-                </div>
-            </td>
-            
-            <td class="px-8 py-5 whitespace-nowrap">
-                <div class="text-lg font-black text-emerald-500 tracking-tighter font-sans italic">
-                    ${formatCurrency(product.price)}
-                </div>
-            </td>
-            
-            <td class="px-8 py-5 whitespace-nowrap">
-                <div class="glass-badge ${badgeClass} inline-flex">
-                    <span class="text-[10px] font-black uppercase tracking-widest font-sans flex items-center">
-                        ${product.type === 'PACKAGE' ? 'Subproducto' : 'Principal'}
-                    </span>
-                </div>
-            </td>
-            
-            <td class="px-8 py-6 text-right">
-                <div class="flex justify-end items-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-500">
-                    <button onclick="window.handleEditProductClick(${product.producto_id})" class="h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-orange-500 transition-all group/btn">
-                        <i class="fas fa-edit text-orange-500 group-hover/btn:text-white transition-colors"></i>
-                    </button>
-                    <button onclick="window.handleDeleteProductClick(${product.producto_id})" class="h-10 w-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-lg hover:bg-red-500 transition-all group/btn">
-                        <i class="fas fa-trash-alt text-red-500 group-hover/btn:text-white transition-colors"></i>
-                    </button>
-                </div>
-            </td>
-        `;
-        container.appendChild(row);
-    });
-}
-
 function loadProductDataToForm(product) {
     if (!product) return;
 
@@ -5202,32 +5126,31 @@ async function loadAndRenderClients() {
 
 window.loadAndRenderProducts = async function() {
     try {
+        // 1. OBTENER DATOS DE SUPABASE
         const { data, error } = await supabase.from('productos').select('*');
         if (error) throw error;
 
         window.allProducts = data || [];
         
-        // 1. Mapa de referencia para nombres de padres
+        // 2. CREAR MAPA DE REFERENCIA (Para obtener nombres de padres rápidamente)
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
         );
 
-        // 2. ORDENAMIENTO JERÁRQUICO (Corrección de lógica)
+        // 3. ORDENAMIENTO JERÁRQUICO (Lógica de Ancla)
         const sortedProducts = [...window.allProducts].sort((a, b) => {
-            // Obtenemos el ID del "Ancla" (el ID del padre o su propio ID si es Main)
-            const rootA = a.type === 'PRODUCT' ? a.producto_id : a.parent_product;
-            const rootB = b.type === 'PRODUCT' ? b.producto_id : b.parent_product;
+            // Definimos el ID raíz (si es subproducto usamos el ID del padre, si no, el suyo propio)
+            const rootA = (a.type === 'PACKAGE') ? a.parent_product : a.producto_id;
+            const rootB = (b.type === 'PACKAGE') ? b.parent_product : b.producto_id;
 
-            // Si pertenecen a grupos diferentes, ordenamos por el ID del grupo (raíz)
-            if (rootA !== rootB) {
-                return rootA - rootB;
-            }
+            // Si pertenecen a familias diferentes, ordenar por el ID de la familia
+            if (rootA !== rootB) return rootA - rootB;
 
-            // Si son del mismo grupo, el PRODUCT (Main) va obligatoriamente primero
-            if (a.type === 'PRODUCT') return -1;
-            if (b.type === 'PRODUCT') return 1;
+            // Si son de la misma familia, el principal (PRODUCT) va primero
+            if (a.type !== 'PACKAGE' && b.type === 'PACKAGE') return -1;
+            if (a.type === 'PACKAGE' && b.type !== 'PACKAGE') return 1;
 
-            // Si ambos son subproductos del mismo padre, ordenamos por nombre
+            // Si ambos son subproductos del mismo padre, ordenar por nombre
             return a.name.localeCompare(b.name);
         });
 
@@ -5235,20 +5158,21 @@ window.loadAndRenderProducts = async function() {
         if (!tableBody) return;
         tableBody.innerHTML = ''; 
 
+        // 4. GENERAR EL HTML FILA POR FILA
         sortedProducts.forEach(producto => {
-            const isMain = producto.type === 'PRODUCT';
             const isSub = producto.type === 'PACKAGE';
+            const isMain = producto.type === 'PRODUCT' || producto.type === 'MAIN';
             
             let parentName = "N/A";
             if (isSub && producto.parent_product) {
                 const parentObj = window.allProductsMap[String(producto.parent_product)];
-                parentName = parentObj ? parentObj.name : "No asignado";
+                parentName = parentObj ? parentObj.name : "Principal";
             }
 
             const row = document.createElement('tr');
             
-            // ✅ Sincronizado con tu style.css
-            row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'is-subproducto' : ''}`;
+            // ✅ CORRECCIÓN: Aplicamos la clase 'is-subproducto' para el fondo del CSS
+            row.className = `group border-b border-white/5 transition-all duration-300 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.02]'}`;
             
             row.innerHTML = `
                 <td class="px-8 py-5">
@@ -5258,7 +5182,7 @@ window.loadAndRenderProducts = async function() {
                 <td class="px-8 py-5 ${isSub ? 'subproducto-indent' : ''}">
                     <div class="flex items-center">
                         <div class="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center mr-4 border border-white/10 group-hover:border-orange-500/50 transition-all">
-                            <i class="fas ${isMain ? 'fa-box' : 'fa-boxes'} text-xs text-orange-500"></i>
+                            <i class="fas ${isSub ? 'fa-boxes' : 'fa-box'} text-xs text-orange-500"></i>
                         </div>
                         <div class="flex flex-col">
                             <div class="text-sm font-bold text-white uppercase italic tracking-wide">${producto.name}</div>
@@ -5282,11 +5206,13 @@ window.loadAndRenderProducts = async function() {
                 </td>
                 
                 <td class="px-8 py-5 text-right">
-                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onclick="handleEditProductClick(${producto.producto_id})" class="text-white/40 hover:text-blue-400 transition-colors">
+                    <div class="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
+                        <button onclick="handleEditProductClick(${producto.producto_id})" 
+                            class="h-9 w-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-orange-500 hover:border-orange-500/50 transition-all">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button onclick="handleDeleteProductClick(${producto.producto_id})" class="text-white/40 hover:text-red-500 transition-colors">
+                        <button onclick="handleDeleteProductClick(${producto.producto_id})" 
+                            class="h-9 w-9 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-red-500 hover:border-red-500/50 transition-all">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
@@ -5295,12 +5221,14 @@ window.loadAndRenderProducts = async function() {
             tableBody.appendChild(row);
         });
 
+        // 5. ACTUALIZAR SELECTORES DE MODALES (Si existen)
         if (typeof window.fillParentProductSelect === 'function') {
             window.fillParentProductSelect();
         }
 
     } catch (err) {
-        console.error("Error en inventario:", err.message);
+        console.error("❌ Error en el renderizado:", err.message);
+        if (typeof window.showToast === 'function') window.showToast('Error al cargar tabla', 'error');
     }
 };
 
