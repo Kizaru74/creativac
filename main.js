@@ -339,78 +339,56 @@ window.actualizarMetricasDeudas = function(debtList) {
 
 // 2. FUNCIÓN PRINCIPAL (Consulta y Renderizado)
 window.loadDebts = async function() {
-    if (!supabase) {
-        console.error("Supabase no inicializado");
-        return;
-    }
+    if (!supabase) return;
 
     const tbody = document.getElementById('debts-table-body');
-    const noDebtsMessage = document.getElementById('no-debts-message');
-    
     const elTotal = document.getElementById('total-deuda-global');
     const elCount = document.getElementById('total-clientes-deuda');
-    const elMax = document.getElementById('max-deuda-individual');
     const searchInput = document.getElementById('search-debts');
 
     if (!tbody) return;
 
-    // 1. Estado de carga con estilo Premium
-    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-16 text-center italic text-white/20 font-sans uppercase text-[10px] tracking-widest">Sincronizando deudas...</td></tr>`;
-    if (elTotal) elTotal.innerHTML = '<span class="animate-pulse opacity-50">...</span>';
+    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-16 text-center italic text-white/20 font-sans uppercase text-[10px] tracking-widest">Calculando balance real...</td></tr>`;
 
     try {
-        const { data: sales, error } = await supabase
-            .from('ventas')
-            .select(`venta_id, client_id, created_at, saldo_pendiente, clientes(name)`)
-            .gt('saldo_pendiente', 0.01) 
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
+        // 1. Obtenemos TODOS los clientes para calcular su balance real (Ventas - Pagos)
+        const { data: clients } = await supabase.from('clientes').select('client_id, name');
         
-        const clientDebtsMap = {};
+        // 2. Usamos tu función de resumen que ya calcula la deuda neta (ventas - abonos generales)
+        const summaryPromises = clients.map(c => getClientSalesSummary(c.client_id));
+        const summaries = await Promise.all(summaryPromises);
+
         let sumaTotalGlobal = 0;
+        let clientesConDeudaCount = 0;
 
-        (sales || []).forEach(sale => {
-            const clientId = sale.client_id;
-            if (!clientDebtsMap[clientId]) {
-                clientDebtsMap[clientId] = {
-                    clientId: clientId,
-                    name: sale.clientes?.name || 'Cliente Desconocido',
-                    totalDebt: 0,
-                    lastSaleDate: sale.created_at
-                };
-            }
-            clientDebtsMap[clientId].totalDebt += sale.saldo_pendiente;
-            sumaTotalGlobal += sale.saldo_pendiente;
-        });
+        const debtList = clients.map((c, i) => ({
+            clientId: c.client_id,
+            name: c.name,
+            totalDebt: summaries[i].deudaNeta, // Aquí ya viene restado el saldo a favor
+            lastSaleDate: new Date().toISOString() // Opcional: traer fecha real
+        })).filter(d => Math.abs(d.totalDebt) > 0.01); // Mostramos los que deben O tienen saldo a favor
 
-        const debtList = Object.values(clientDebtsMap);
-
-        if (elTotal) elTotal.innerText = formatCurrency(sumaTotalGlobal);
-        if (elCount) elCount.innerText = debtList.length;
-        if (elMax) {
-            const maxVal = debtList.length > 0 ? Math.max(...debtList.map(d => d.totalDebt)) : 0;
-            elMax.innerText = formatCurrency(maxVal);
-        }
-
+        // 3. Renderizado
         const renderTable = (list) => {
             tbody.innerHTML = '';
-            if (list.length === 0) {
-                if (noDebtsMessage) noDebtsMessage.classList.remove('hidden');
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-20 text-center text-emerald-500/20 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">Sin deudas pendientes</td></tr>`;
-                return;
-            }
-            if (noDebtsMessage) noDebtsMessage.classList.add('hidden');
+            sumaTotalGlobal = 0;
+            clientesConDeudaCount = 0;
 
             list.forEach(debt => {
-                const dateObj = new Date(debt.lastSaleDate);
-                const formattedDate = dateObj.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+                const isPositive = debt.totalDebt > 0.01;
+                const balanceColor = isPositive ? 'glass-badge-danger' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+                
+                // Solo sumamos al "Total en la calle" las deudas reales
+                if (isPositive) {
+                    sumaTotalGlobal += debt.totalDebt;
+                    clientesConDeudaCount++;
+                }
 
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300">
                         <td class="px-10 py-6">
                             <div class="flex items-center gap-4">
-                                <div class="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                                <div class="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white">
                                     <i class="fas fa-user text-[10px]"></i>
                                 </div>
                                 <div>
@@ -420,32 +398,25 @@ window.loadDebts = async function() {
                             </div>
                         </td>
                         <td class="px-10 py-6 text-center">
-                            <div class="glass-badge glass-badge-danger inline-flex">
-                                <span class="text-lg font-black text-white font-sans italic tracking-tighter">
-                                    ${formatCurrency(debt.totalDebt)}
+                            <div class="glass-badge ${balanceColor} inline-flex p-1 px-4 rounded-full">
+                                <span class="text-lg font-black font-sans italic tracking-tighter">
+                                    ${formatCurrency(Math.abs(debt.totalDebt))}
+                                    ${!isPositive ? '<span class="text-[9px] not-italic ml-1">A FAVOR</span>' : ''}
                                 </span>
                             </div>
                         </td>
-                        <td class="px-10 py-6 text-base font-bold text-white/40 font-sans uppercase italic">
-                            ${formattedDate}
-                        </td>
                         <td class="px-10 py-6 text-right">
                             <button onclick="window.handleViewClientDebt(${debt.clientId})" 
-                                class="group/btn relative inline-flex items-center gap-3 px-6 py-2.5 rounded-lg backdrop-blur-md transition-all duration-500 !bg-orange-500/10 !border !border-orange-500/30 hover:!bg-orange-500 hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] opacity-0 group-hover:opacity-100 transform translate-x-4 group-hover:translate-x-0"
-                                title="Ver Historial de Deuda">
-                                
-                                <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity rounded-lg"></div>
-                                
-                                <i class="fas fa-history text-orange-500 group-hover/btn:!text-white transition-all duration-300 text-lg !bg-transparent !p-0 !border-none relative z-10"></i>
-                                
-                                <span class="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500 group-hover/btn:!text-white transition-colors duration-300 relative z-10">
-                                    Detalles
-                                </span>
+                                class="px-6 py-2.5 rounded-lg !bg-orange-500/10 !border !border-orange-500/30 text-orange-500 hover:!bg-orange-500 hover:!text-white transition-all text-[11px] font-black uppercase tracking-widest">
+                                Detalles
                             </button>
                         </td>
                     </tr>
                 `);
             });
+
+            if (elTotal) elTotal.innerText = formatCurrency(sumaTotalGlobal);
+            if (elCount) elCount.innerText = clientesConDeudaCount;
         };
 
         renderTable(debtList);
@@ -453,14 +424,13 @@ window.loadDebts = async function() {
         if (searchInput) {
             searchInput.oninput = (e) => {
                 const term = e.target.value.toLowerCase();
-                const filtered = debtList.filter(d => d.name.toLowerCase().includes(term));
-                renderTable(filtered);
+                renderTable(debtList.filter(d => d.name.toLowerCase().includes(term)));
             };
         }
 
     } catch (e) {
-        console.error('Error en loadDebts:', e);
-        tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-red-500 font-bold uppercase text-[10px]">Error al sincronizar datos</td></tr>';
+        console.error(e);
+        tbody.innerHTML = '<tr><td class="text-red-500">Error</td></tr>';
     }
 };
 // Vinculamos para que el HTML la encuentre
@@ -4039,31 +4009,27 @@ async function loadClientDebtsTable() {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-red-500">Error de conexión</td></tr>';
     }
 }
-window.loadClientsTable = async function(mode = 'gestion') {
-    if (!supabase) {
-        console.error("Supabase no está inicializado.");
-        return;
-    }
+window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
+    if (!supabase) return;
 
     const container = document.getElementById('clients-list-body');
     if (!container) return;
 
     const showActions = mode === 'gestion';
 
-    // 1. Estado de carga Premium
+    // 1. Estado de carga visual
     container.innerHTML = `
         <tr>
-            <td colspan="6" class="px-6 py-24 text-center">
-                <div class="flex flex-col justify-center items-center">
-                    <div class="h-12 w-12 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/20 animate-pulse mb-4">
-                        <i class="fas fa-users text-xl"></i>
-                    </div>
-                    <span class="text-[11px] font-bold uppercase tracking-[0.3em] text-white/30 font-sans">Sincronizando Clientes</span>
+            <td colspan="6" class="px-6 py-20 text-center">
+                <div class="flex flex-col items-center">
+                    <div class="h-10 w-10 border-4 border-t-orange-500 border-white/10 rounded-full animate-spin mb-4"></div>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-white/30">Cargando Clientes (${filterType})...</span>
                 </div>
             </td>
         </tr>`;
 
     try {
+        // Traemos todos los clientes
         const { data: clients, error: clientsError } = await supabase
             .from('clientes')
             .select('client_id, name, telefono') 
@@ -4071,132 +4037,97 @@ window.loadClientsTable = async function(mode = 'gestion') {
 
         if (clientsError) throw clientsError;
 
-        window.allClients = clients; 
-        window.allClientsMap = {}; 
-        clients.forEach(c => { window.allClientsMap[c.client_id] = c; });
+        // Calculamos los balances de todos en paralelo para mayor velocidad
+        const summaries = await Promise.all(clients.map(c => getClientSalesSummary(c.client_id)));
 
-        const summaryPromises = clients.map(client => getClientSalesSummary(client.client_id));
-        const summaries = await Promise.all(summaryPromises);
+        // Unimos los datos
+        let dataFull = clients.map((c, i) => ({
+            ...c,
+            balance: summaries[i].deudaNeta,
+            consumo: summaries[i].totalVentas
+        }));
+
+        // 2. APLICACIÓN DE FILTRO DINÁMICO
+        if (filterType === 'deudores') {
+            dataFull = dataFull.filter(d => d.balance > 0.01);
+        } else if (filterType === 'a_favor') {
+            dataFull = dataFull.filter(d => d.balance < -0.01);
+        }
 
         container.innerHTML = '';
 
-        if (clients.length === 0) {
-            container.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-[0.4em] font-sans font-bold">No hay clientes registrados</td></tr>`;
+        if (dataFull.length === 0) {
+            container.innerHTML = `<tr><td colspan="6" class="px-6 py-20 text-center text-white/10 uppercase text-[10px] tracking-widest">No hay clientes que coincidan</td></tr>`;
             return;
         }
 
-        clients.forEach((client, index) => {
-            const summary = summaries[index];
-            const deudaVisual = summary.deudaNeta;
-            const tieneDeuda = deudaVisual > 0.01;
+        dataFull.forEach(client => {
+            const tieneDeuda = client.balance > 0.01;
+            const tieneFavor = client.balance < -0.01;
+
+            // Lógica de colores dinámica
+            let badgeStyle = 'glass-badge-success'; // Por defecto: al día
+            let dotColor = 'bg-emerald-500';
+            let labelExtra = '';
+
+            if (tieneDeuda) {
+                badgeStyle = 'glass-badge-danger';
+                dotColor = 'bg-red-500 animate-pulse';
+            } else if (tieneFavor) {
+                badgeStyle = 'bg-blue-500/10 border border-blue-500/30 text-blue-400';
+                dotColor = 'bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]';
+                labelExtra = '<span class="ml-1 text-[8px] font-black uppercase opacity-60">A Favor</span>';
+            }
 
             const row = document.createElement('tr');
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
-
-            // Celda de Acciones con ESTILO BLINDADO
-            let actionCell = '';
-            if (showActions) {
-                actionCell = `
-                    <td class="px-8 py-5 whitespace-nowrap text-right">
-                        <div class="flex justify-end items-center space-x-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                            
-                            <button type="button" class="edit-client-btn group/btn h-9 w-9 flex items-center justify-center !bg-orange-500/10 !border !border-orange-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-orange-500 hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]" 
-                                    data-id="${client.client_id}" title="Editar Perfil">
-                                <i class="fas fa-edit text-orange-500 group-hover/btn:!text-white transition-colors text-[14px] !bg-transparent !p-0 !border-none"></i>
-                            </button>
-
-                            <button type="button" class="abono-btn group/btn h-9 w-9 flex items-center justify-center !bg-emerald-500/10 !border !border-emerald-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-emerald-500 hover:shadow-[0_0_15px_rgba(16,185,129,0.4)]" 
-                                    data-id="${client.client_id}" title="Registrar Abono">
-                                <i class="fas fa-hand-holding-usd text-emerald-500 group-hover/btn:!text-white transition-colors text-[14px] !bg-transparent !p-0 !border-none"></i>
-                            </button>
-
-                            <button type="button" class="view-debt-btn group/btn h-9 w-9 flex items-center justify-center !bg-blue-500/10 !border !border-blue-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-blue-500 hover:shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
-                                    data-id="${client.client_id}" title="Estado de Cuenta">
-                                <i class="fas fa-file-invoice-dollar text-blue-500 group-hover/btn:!text-white transition-colors text-[14px] !bg-transparent !p-0 !border-none"></i>
-                            </button>
-
-                            <button type="button" class="delete-client-btn group/btn h-9 w-9 flex items-center justify-center !bg-red-500/10 !border !border-red-500/30 rounded-lg backdrop-blur-md transition-all hover:!bg-red-500 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
-                                    data-id="${client.client_id}" data-name="${client.name}" title="Eliminar Cliente">
-                                <i class="fas fa-trash-alt text-red-500 group-hover/btn:!text-white transition-colors text-[14px] !bg-transparent !p-0 !border-none"></i>
-                            </button>
-
-                        </div>
-                    </td>
-                `;
-            }
             
             row.innerHTML = `
-                <td class="px-8 py-5 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 mr-4 group-hover:border-orange-500/30 transition-all duration-300">
-                            <span class="text-[11px] font-black text-white leading-none font-sans uppercase">${client.name.charAt(0)}</span>
-                            <span class="text-[8px] font-bold text-orange-500 leading-none mt-1 font-sans">#${client.client_id}</span>
-                        </div>
+                <td class="px-8 py-5">
+                    <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10">
+                        <span class="text-xs font-black text-white">${client.name.charAt(0)}</span>
+                        <span class="text-[8px] font-bold text-orange-500 mt-0.5">#${client.client_id}</span>
                     </div>
                 </td>
-                <td class="px-8 py-5 whitespace-nowrap">
-                    <div class="flex items-center gap-3">
-                        <div class="flex items-center justify-center bg-orange-500 w-8 h-8 rounded-lg shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
-                            <i class="fas fa-user text-white text-xs"></i>
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold text-white uppercase tracking-wide font-sans">${client.name}</div>
-                            <div class="text-[10px] text-white/30 font-sans mt-0.5 tracking-[0.1em] uppercase font-bold">
-                                <i class="fas fa-phone-alt mr-1 text-[9px] opacity-50"></i> ${client.telefono || 'Sin registro'}
-                            </div>
-                        </div>
+                <td class="px-8 py-5">
+                    <div class="text-sm font-bold text-white uppercase font-sans">${client.name}</div>
+                    <div class="text-[10px] text-white/30 font-sans font-bold">
+                        <i class="fas fa-phone-alt mr-1 opacity-50"></i> ${client.telefono || 'Sin registro'}
                     </div>
                 </td>
-                <td class="px-8 py-5 whitespace-nowrap text-right">
-                    <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Consumo Total</div>
-                    <div class="text-sm font-black text-white font-sans italic tracking-tighter">${formatCurrency(summary.totalVentas)}</div>
+                <td class="px-8 py-5 text-right">
+                    <div class="text-[9px] text-white/30 uppercase font-bold tracking-widest mb-1">Consumo</div>
+                    <div class="text-sm font-black text-white italic">${formatCurrency(client.consumo)}</div>
                 </td>
-                <td class="px-8 py-5 whitespace-nowrap text-right">
-                    <div class="text-[11px] text-white/40 uppercase font-bold mb-1 font-sans tracking-widest">Balance Pendiente</div>
-                    <div class="glass-badge ${tieneDeuda ? 'glass-badge-danger' : 'glass-badge-success'} inline-flex ml-auto">
+                <td class="px-8 py-5 text-right">
+                    <div class="text-[9px] text-white/30 uppercase font-bold tracking-widest mb-1">Balance</div>
+                    <div class="glass-badge ${badgeStyle} inline-flex p-1 px-3 rounded-full">
                         <span class="flex items-center font-bold font-sans text-[13px]">
-                            <span class="h-1.5 w-1.5 rounded-full ${tieneDeuda ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} mr-2"></span>
-                            ${formatCurrency(deudaVisual)}
+                            <span class="h-1.5 w-1.5 rounded-full ${dotColor} mr-2"></span>
+                            ${formatCurrency(Math.abs(client.balance))}
+                            ${labelExtra}
                         </span>
                     </div>
                 </td>
-                ${actionCell} 
+                <td class="px-8 py-5 text-right">
+                    <div class="flex justify-end items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="window.handleEditClientClick(${client.client_id})" class="h-8 w-8 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-500 hover:bg-orange-500 hover:text-white transition-all">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                        <button onclick="window.handleAbonoClick(${client.client_id})" class="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all">
+                            <i class="fas fa-hand-holding-usd text-xs"></i>
+                        </button>
+                        <button onclick="window.handleViewClientDebt(${client.client_id})" class="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
+                            <i class="fas fa-file-invoice-dollar text-xs"></i>
+                        </button>
+                    </div>
+                </td>
             `;
             container.appendChild(row);
         });
 
-        // Reaplica los eventos (Binding)
-        if (showActions) {
-            const bindAction = (selector, callback) => {
-                container.querySelectorAll(selector).forEach(btn => {
-                    btn.onclick = null; 
-                    btn.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopImmediatePropagation();
-                        const id = e.currentTarget.getAttribute('data-id');
-                        if (id && id !== "null") callback(id);
-                    };
-                });
-            };
-
-            bindAction('.edit-client-btn', window.handleEditClientClick);
-            bindAction('.view-debt-btn', window.handleViewClientDebt);
-            bindAction('.abono-btn', window.handleAbonoClick);
-
-            container.querySelectorAll('.delete-client-btn').forEach(btn => {
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    const id = e.currentTarget.getAttribute('data-id');
-                    const name = e.currentTarget.getAttribute('data-name');
-                    if (id && id !== "null") window.handleDeleteClientClick(id, name);
-                };
-            });
-        }
-
     } catch (e) {
-        console.error('Error en loadClientsTable:', e);
-        container.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500 font-sans uppercase text-[10px] tracking-widest font-bold">Error de sincronización</td></tr>';
+        console.error('Error loadClientsTable:', e);
     }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
