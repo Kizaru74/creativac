@@ -2,12 +2,12 @@
 // 1. CONFIGURACIÓN INICIAL DE SUPABASE Y VARIABLES GLOBALES
 // ====================================================================
 
-const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co'; 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo'; 
+const SUPABASE_URL = 'https://wnwftbamyaotqdsivmas.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indud2Z0YmFteWFvdHFkc2l2bWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1OTY0OTcsImV4cCI6MjA3OTE3MjQ5N30.r8Fh7FUYOnUQHboqfKI1eb_37NLuAn3gRLbH8qUPpMo';
 
 let supabase;
-let allProducts = []; 
-let currentSaleItems = []; 
+let allProducts = [];
+let currentSaleItems = [];
 let editingClientId = null;
 let editingProductId = null;
 let debtToPayId = null;
@@ -16,19 +16,19 @@ let allClientsMap = {};
 let allProductsMap = {};
 let reportSelectorsInitialized = false;
 let ventasChartInstance = null;
-let allSales = []; 
+let allSales = [];
 window.allSales = []; // Forzamos que esté en el objeto window
 
 
 // ✅ CORRECCIÓN DE INICIALIZACIÓN
 try {
     // Intentamos detectar si la librería está bajo 'supabase' o 'window.supabase'
-    const supabaseLib = window.supabase || supabase; 
-    
+    const supabaseLib = window.supabase || supabase;
+
     if (supabaseLib && typeof supabaseLib.createClient === 'function') {
         window.supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         // También asignamos a la variable local para que tus funciones la encuentren
-        supabase = window.supabase; 
+        supabase = window.supabase;
         console.log("✅ Cliente de Supabase creado con éxito.");
     } else {
         throw new Error("La librería Supabase no está cargada correctamente.");
@@ -49,11 +49,11 @@ async function initializeApp() {
     try {
         // 1. CARGAR PRODUCTOS
         // Asegúrate de que loadProducts guarde en window.allProducts
-        await loadProducts(); 
-        
+        await loadProducts();
+
         // 2. CARGAR CLIENTES Y MAPAS
         // Esta función debe llenar window.allClients y window.allClientsMap
-        await loadClientsTable('gestion'); 
+        await loadClientsTable('gestion');
 
         // 3. CARGAR MÉTRICAS DEL DASHBOARD
         if (typeof loadDashboardMetrics === 'function') {
@@ -63,16 +63,16 @@ async function initializeApp() {
         // 4. POBLAR SELECTORES DE VENTA
         // Es vital que esto ocurra DESPUÉS de loadProducts
         if (typeof populateProductSelects === 'function') {
-            populateProductSelects(); 
+            populateProductSelects();
         }
 
         // 5. CARGAR PRODUCTOS PARA MODAL SUBPRODUCTO (TU PASO CRÍTICO)
         if (typeof loadMainProductsAndPopulateSelect === 'function') {
-            await loadMainProductsAndPopulateSelect(); 
+            await loadMainProductsAndPopulateSelect();
         }
 
         console.log("✅ Aplicación inicializada correctamente.");
-        
+
     } catch (error) {
         console.error("❌ Error crítico durante la inicialización:", error);
     }
@@ -81,7 +81,7 @@ async function initializeApp() {
 // Ejecutar al cargar el DOM
 document.addEventListener('DOMContentLoaded', initializeApp);
 //FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
-window.loadDashboardMetrics = async function() {
+window.loadDashboardMetrics = async function () {
     if (!supabase) {
         console.error("Supabase no está inicializado para cargar métricas.");
         return;
@@ -115,9 +115,9 @@ window.loadDashboardMetrics = async function() {
         if (salesData && salesData.length > 0) {
             historicalTotalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.total_amount || 0), 0);
         }
-        
+
         // 3. INYECTAR EN EL DOM (usando los IDs que proporcionaste)
-        
+
         // Deuda Pendiente
         const debtElement = document.getElementById('total-debt');
         if (debtElement) {
@@ -144,13 +144,13 @@ function getMonthDateRange(monthString) {
     if (!monthString) return { start: null, end: null };
     const [year, month] = monthString.split('-').map(Number);
     const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 1); 
+    const endDate = new Date(year, month, 1);
     const start = startDate.toISOString().substring(0, 10);
-    const end = endDate.toISOString().substring(0, 10); 
+    const end = endDate.toISOString().substring(0, 10);
     return { start, end };
 }
 
-window.openModal = function(modalId) {
+window.openModal = function (modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('hidden');
@@ -160,7 +160,7 @@ window.openModal = function(modalId) {
     }
 };
 
-window.closeModal = function(modalId) {
+window.closeModal = function (modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.add('hidden');
@@ -189,13 +189,13 @@ async function checkUserSession() {
     const { data: { user } } = await supabase.auth.getUser();
 
     const authContainer = document.getElementById('auth-container');
-    const mainContent = document.getElementById('dashboard-container'); 
+    const mainContent = document.getElementById('dashboard-container');
 
-    
-    
+
+
     if (!authContainer || !mainContent) {
         console.error("Error: Los contenedores 'auth-container' o 'dashboard-container' no se encontraron en el HTML.");
-        return; 
+        return;
     }
 
     if (user) {
@@ -250,7 +250,7 @@ async function loadRecentSales() {
             // 🛑 CORRECCIÓN: Añadimos client_id para poder llamar a handleViewSaleDetails
             .select(`venta_id, created_at, total_amount, saldo_pendiente, clientes(name, client_id), description`)
             .order('created_at', { ascending: false })
-            .limit(7); 
+            .limit(7);
 
         if (error) {
             console.error('Error al cargar ventas recientes:', error);
@@ -259,7 +259,7 @@ async function loadRecentSales() {
 
         const container = document.getElementById('recent-sales-body');
         const noSalesMessage = document.getElementById('no-sales-message');
-        if (!container) return; 
+        if (!container) return;
 
         // 2. Limpieza de Contenedores y Mensajes
         container.innerHTML = '';
@@ -274,10 +274,10 @@ async function loadRecentSales() {
         data.forEach(sale => {
             const clientName = sale.clientes?.name || 'Cliente Desconocido';
             const clientId = sale.clientes?.client_id; // ⬅️ Obtenemos el client_id
-            
+
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50';
-            
+
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${sale.venta_id}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${clientName}</td>
@@ -304,9 +304,9 @@ async function loadRecentSales() {
             button.addEventListener('click', () => {
                 const saleId = button.dataset.saleId;
                 const clientId = button.dataset.clientId; // ⬅️ Leemos el client_id
-                
+
                 // ✅ Llamamos a tu función existente con los dos argumentos
-                handleViewSaleDetails(saleId, clientId); 
+                handleViewSaleDetails(saleId, clientId);
             });
         });
 
@@ -324,7 +324,7 @@ function openSaleDetailModal(saleId) {
 // DEUDAS VIEW - Funciones para mostrar los datos
 // ====================================================================
 // 1. FUNCIÓN DE MÉTRICAS (Actualiza los cuadros superiores)
-window.actualizarMetricasDeudas = function(debtList) {
+window.actualizarMetricasDeudas = function (debtList) {
     const totalGlobal = debtList.reduce((acc, item) => acc + (item.totalDebt || 0), 0);
     const maxIndividual = debtList.length > 0 ? Math.max(...debtList.map(d => d.totalDebt)) : 0;
 
@@ -338,7 +338,7 @@ window.actualizarMetricasDeudas = function(debtList) {
 };
 
 // 2. FUNCIÓN PRINCIPAL (Consulta y Renderizado)
-window.loadDebts = async function() {
+window.loadDebts = async function () {
     if (!supabase) return;
 
     const tbody = document.getElementById('debts-table-body');
@@ -353,7 +353,7 @@ window.loadDebts = async function() {
     try {
         // 1. Obtenemos TODOS los clientes para calcular su balance real (Ventas - Pagos)
         const { data: clients } = await supabase.from('clientes').select('client_id, name');
-        
+
         // 2. Usamos tu función de resumen que ya calcula la deuda neta (ventas - abonos generales)
         const summaryPromises = clients.map(c => getClientSalesSummary(c.client_id));
         const summaries = await Promise.all(summaryPromises);
@@ -377,7 +377,7 @@ window.loadDebts = async function() {
             list.forEach(debt => {
                 const isPositive = debt.totalDebt > 0.01;
                 const balanceColor = isPositive ? 'glass-badge-danger' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
-                
+
                 // Solo sumamos al "Total en la calle" las deudas reales
                 if (isPositive) {
                     sumaTotalGlobal += debt.totalDebt;
@@ -448,7 +448,7 @@ async function loadClientsForSale() {
 
     const { data, error } = await supabase
         .from('clientes')
-        .select('client_id, name') 
+        .select('client_id, name')
         .order('name', { ascending: true });
 
     if (error) {
@@ -461,9 +461,9 @@ async function loadClientsForSale() {
         select.innerHTML = '<option value="" disabled selected>No hay clientes activos</option>';
         return;
     }
-    
+
     select.innerHTML = '<option value="" disabled selected>Seleccione un Cliente</option>';
-    
+
     data.forEach(client => {
         const option = document.createElement('option');
         option.value = client.client_id;
@@ -473,19 +473,19 @@ async function loadClientsForSale() {
 }
 
 //Llena el SELECT de Producto Padre en el modal de edición
-window.loadMainProductsForEditSelect = function() {
+window.loadMainProductsForEditSelect = function () {
     const selectElement = document.getElementById('edit-product-parent');
     if (!selectElement) return;
 
     // Usamos los datos globales ya cargados
-    const allProducts = window.allProducts || []; 
-    const mainProducts = allProducts.filter(product => 
+    const allProducts = window.allProducts || [];
+    const mainProducts = allProducts.filter(product =>
         // Filtra los productos que pueden ser padres (MAIN o SERVICE)
-        product.type === 'MAIN' || product.type === 'SERVICE' 
-    ); 
+        product.type === 'MAIN' || product.type === 'SERVICE'
+    );
 
     selectElement.innerHTML = '';
-    
+
     const defaultOption = document.createElement('option');
     defaultOption.value = '';
     defaultOption.textContent = '--- Seleccione el Producto Principal ---';
@@ -493,26 +493,26 @@ window.loadMainProductsForEditSelect = function() {
 
     mainProducts.forEach(product => {
         const option = document.createElement('option');
-        option.value = product.producto_id; 
+        option.value = product.producto_id;
         option.textContent = product.name;
         selectElement.appendChild(option);
     });
 }
 
-window.loadProductDataToForm = function(product) {
+window.loadProductDataToForm = function (product) {
     if (!product) return;
 
     // 1. Llenar IDs y textos básicos
     document.getElementById('edit-product-id').value = product.producto_id;
     document.getElementById('edit-product-name').value = product.name || '';
     document.getElementById('edit-product-price').value = product.price || 0;
-    
+
     const categorySelect = document.getElementById('edit-product-category');
     const parentContainer = document.getElementById('edit-product-parent-container');
     const parentSelect = document.getElementById('edit-product-parent');
 
     // 2. Sincronizar Categoría (Normalización)
-    let typeValue = "Producto"; 
+    let typeValue = "Producto";
     if (product.type === 'PACKAGE' || product.type === 'Paquete') typeValue = "Paquete";
     else if (product.type === 'SERVICE' || product.type === 'Servicio') typeValue = "Servicio";
 
@@ -521,12 +521,12 @@ window.loadProductDataToForm = function(product) {
     // 3. Lógica para Subproductos (PACKAGE)
     if (typeValue === 'Paquete') {
         if (parentContainer) parentContainer.classList.remove('hidden');
-        
+
         // Poblamos la lista de padres disponibles excluyendo al actual
         if (typeof window.populateParentSelect === 'function') {
             window.populateParentSelect('edit-product-parent', product.producto_id);
         }
-        
+
         // Asignamos el padre guardado
         setTimeout(() => {
             if (parentSelect) parentSelect.value = product.parent_product || '';
@@ -536,18 +536,18 @@ window.loadProductDataToForm = function(product) {
         if (parentSelect) parentSelect.value = '';
     }
 };
-window.loadProductsData = async function() {
+window.loadProductsData = async function () {
     console.log("Cargando productos...");
-    
+
     if (!supabase) {
         console.error("Error: Supabase no inicializado en loadProductsData.");
         return;
     }
-    
+
     try {
         const { data: products, error } = await supabase.from('productos').select('*');
         if (error) throw error;
-        
+
         window.allProducts = (products || []).map(p => {
             const parsedProductId = parseInt(String(p.producto_id).trim(), 10);
             const cleanedParentProduct = p.parent_product ? String(p.parent_product).trim() : null;
@@ -555,24 +555,24 @@ window.loadProductsData = async function() {
 
             // Limpieza rigurosa del tipo para la asignación booleana
             const cleanType = String(p.type || '').replace(/\s/g, '').toUpperCase();
-            
+
             return {
                 ...p,
-                producto_id: isNaN(parsedProductId) ? p.producto_id : parsedProductId, 
+                producto_id: isNaN(parsedProductId) ? p.producto_id : parsedProductId,
                 type: cleanType, // Mantendremos el campo type limpio si lo necesitas para otras cosas
-                parent_product: finalParentId, 
+                parent_product: finalParentId,
                 // ✅ NUEVA COLUMNA BOOLEANA: is_package
-                is_package: cleanType === 'PACKAGE' 
+                is_package: cleanType === 'PACKAGE'
             };
         });
-        
+
         // 3. Post-procesamiento: Creación de Mapas
         // Se crean mapas para facilitar la búsqueda por ID y mejorar el rendimiento
         window.allProductsMap = window.allProducts.reduce((map, product) => {
             map[product.producto_id] = product;
             return map;
         }, {});
-        
+
         console.log(`✅ Productos cargados con bandera is_package: ${window.allProducts.length} ítems.`);
 
     } catch (error) {
@@ -589,7 +589,7 @@ window.formatCurrency = (amount) => {
     }).format(amount || 0);
 };
 
-window.handleChangeProductForSale = function(e) {
+window.handleChangeProductForSale = function (e) {
     const productId = e.target.value;
     const subSelect = document.getElementById('subproduct-select');
     if (!subSelect) return;
@@ -600,7 +600,7 @@ window.handleChangeProductForSale = function(e) {
     if (!productId) return;
 
     // IMPORTANTE: Buscamos 'PACKAGE' en mayúsculas y usamos Number para el ID
-    const subProducts = (window.allProducts || []).filter(p => 
+    const subProducts = (window.allProducts || []).filter(p =>
         p.type === 'PACKAGE' && Number(p.parent_product) === Number(productId)
     );
 
@@ -613,17 +613,17 @@ window.handleChangeProductForSale = function(e) {
         });
         subSelect.disabled = false;
     }
-    
+
     // Actualizar precio base
     if (window.updatePriceField) window.updatePriceField(productId);
 };
 
-window.loadMainProductsForSaleSelect = function() {
+window.loadMainProductsForSaleSelect = function () {
     const select = document.getElementById('product-main-select');
     if (!select || !window.allProducts) return;
 
     select.innerHTML = '<option value="" disabled selected>Seleccione un producto...</option>';
-    
+
     // Filtramos usando las mayúsculas que genera tu función de limpieza
     const mainProducts = window.allProducts
         .filter(p => p.type === 'MAIN' || p.type === 'SERVICE' || p.type === 'PRODUCT')
@@ -645,7 +645,7 @@ async function loadParentProductsForSelect(selectId) {
     if (!select) return;
 
     // Filtra solo los productos principales (MAIN)
-    const mainProducts = allProducts.filter(p => 
+    const mainProducts = allProducts.filter(p =>
         p.type && p.type.trim().toUpperCase() === 'MAIN'
     );
 
@@ -656,7 +656,7 @@ async function loadParentProductsForSelect(selectId) {
         select.innerHTML = '<option value="" disabled selected>❌ No hay Productos Base (Tipo: MAIN)</option>';
         return;
     }
-    
+
     // 2. Llenar el select con los productos filtrados
     mainProducts.forEach(product => {
         const option = document.createElement('option');
@@ -673,7 +673,7 @@ function loadPackageProductsForSelect(mainProductId) {
     const packageProducts = allProducts.filter(p => p.type === 'PACKAGE' && p.parent_product == mainProductId);
 
     select.innerHTML = '<option value="" selected>Sin Paquete</option>';
-    
+
     if (packageProducts.length > 0) {
         select.disabled = false;
         packageProducts.forEach(product => {
@@ -687,16 +687,16 @@ function loadPackageProductsForSelect(mainProductId) {
     }
 }
 
-window.updatePriceField = function(productId) { // <-- ¡Añadir window!
+window.updatePriceField = function (productId) { // <-- ¡Añadir window!
     const priceInput = document.getElementById('product-unit-price');
-    
+
     // Búsqueda robusta del producto (sea principal o paquete)
-    const productData = allProducts.find(p => String(p.producto_id) === String(productId)); 
-    
+    const productData = allProducts.find(p => String(p.producto_id) === String(productId));
+
     if (priceInput) {
         if (productData && productData.price !== undefined) {
             // Usar parseFloat para mayor seguridad antes de toFixed
-            priceInput.value = parseFloat(productData.price).toFixed(2); 
+            priceInput.value = parseFloat(productData.price).toFixed(2);
         } else {
             priceInput.value = '0.00';
         }
@@ -710,44 +710,44 @@ window.updatePriceField = function(productId) { // <-- ¡Añadir window!
 
 
 function updatePaymentDebtStatus(grandTotalFromArgument) {
-    
+
     // 1. DECLARACIÓN DE VARIABLES Y OBTENCIÓN DE ELEMENTOS
     const paidAmountInput = document.getElementById('paid-amount');
-    const saldoInput = document.getElementById('display-saldo-pendiente'); 
+    const saldoInput = document.getElementById('display-saldo-pendiente');
     const paymentMethodSelect = document.getElementById('payment-method');
     const totalInput = document.getElementById('total-amount'); // Necesario para leer el total del DOM
-    
+
     if (!paidAmountInput || !paymentMethodSelect || !saldoInput || !totalInput) {
         console.warn("Faltan elementos DOM para la actualización de Saldo.");
         return;
     }
 
     // 2. OBTENER EL TOTAL Y PAGADO DE FORMA ROBUSTA
-    
+
     // Lee el Grand Total del DOM (por si la función se llama sin argumento)
-    const cleanedTotalStr = cleanCurrencyString(totalInput.value); 
-    const grandTotal = parseFloat(cleanedTotalStr) || 0; 
-    
+    const cleanedTotalStr = cleanCurrencyString(totalInput.value);
+    const grandTotal = parseFloat(cleanedTotalStr) || 0;
+
     // Lectura del Monto Pagado (limpiamos y parseamos)
     const paymentMethod = paymentMethodSelect.value;
-    let paidAmountStr = cleanCurrencyString(paidAmountInput.value); 
-    let currentPaidAmount = parseFloat(paidAmountStr) || 0; 
+    let paidAmountStr = cleanCurrencyString(paidAmountInput.value);
+    let currentPaidAmount = parseFloat(paidAmountStr) || 0;
 
     // Si el campo está vacío, lo inicializamos para el usuario
     if (paidAmountInput.value.trim() === '') {
         paidAmountInput.value = '0.00';
     }
-    
+
     // 3. LÓGICA DE PAGO Y SALDO PENDIENTE
-    
+
     // Si el método seleccionado es 'Deuda' (indica venta fantasma/deuda total), el pago es 0
     if (paymentMethod === 'Deuda') {
         currentPaidAmount = 0;
-    } 
-    
+    }
+
     // Cálculo inicial
     let saldoPendiente = grandTotal - currentPaidAmount;
-    
+
     // Ajuste de Límites: Si la venta total es 0 o hay sobrepago, el saldo no puede ser deuda
     if (grandTotal <= 0) {
         saldoPendiente = 0;
@@ -757,16 +757,16 @@ function updatePaymentDebtStatus(grandTotalFromArgument) {
     }
 
     // 4. ACTUALIZACIÓN VISUAL DEL SALDO Y CLASES
-    
-    saldoInput.value = formatCurrency(saldoPendiente); 
+
+    saldoInput.value = formatCurrency(saldoPendiente);
 
     // Manejo visual de clases
-    saldoInput.classList.remove('bg-red-100', 'bg-green-100', 'text-red-700', 'text-green-700'); 
-    
+    saldoInput.classList.remove('bg-red-100', 'bg-green-100', 'text-red-700', 'text-green-700');
+
     if (saldoPendiente > 0.01) {
         // Hay DEUDA pendiente (Color de advertencia/Rojo)
         saldoInput.classList.add('bg-red-100', 'text-red-700');
-    } else { 
+    } else {
         // Saldo 0, Pago exacto, o Sobrepago (Color de éxito/verde)
         saldoInput.classList.add('bg-green-100', 'text-green-700');
     }
@@ -775,27 +775,27 @@ function updatePaymentDebtStatus(grandTotalFromArgument) {
 function calculateGrandTotal() {
     const grandTotal = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
     console.log("Grand Total calculado:", grandTotal); // DEBE MOSTRAR EL TOTAL DE LA VENTA
-    
+
     const totalInput = document.getElementById('total-amount');
-    if (totalInput) totalInput.value = grandTotal.toFixed(2); 
-    
+    if (totalInput) totalInput.value = grandTotal.toFixed(2);
+
     // ✅ LÍNEA AÑADIDA: Llama a la nueva función
-    updatePaymentDebtStatus(grandTotal); 
-    
+    updatePaymentDebtStatus(grandTotal);
+
     const submitBtn = document.getElementById('submit-sale-btn');
 
-if (currentSaleItems.length > 0) {
-    // Si hay productos en el carrito, habilitar el botón
-    submitBtn?.removeAttribute('disabled');
-} else {
-    // Si el carrito está vacío, deshabilitar el botón
-    submitBtn?.setAttribute('disabled', 'true');
-}
-    
+    if (currentSaleItems.length > 0) {
+        // Si hay productos en el carrito, habilitar el botón
+        submitBtn?.removeAttribute('disabled');
+    } else {
+        // Si el carrito está vacío, deshabilitar el botón
+        submitBtn?.setAttribute('disabled', 'true');
+    }
+
     return grandTotal;
 }
 
-window.updateSaleTableDisplay = function() {
+window.updateSaleTableDisplay = function () {
     const tbody = document.getElementById('sale-items-table-body');
     const totalEl = document.getElementById('sale-total-amount');
     if (!tbody) return;
@@ -835,7 +835,7 @@ function promptEditItemPrice(index, currentPrice) {
     }
 
     const item = currentSaleItems[index];
-    
+
     // Usamos prompt para una interacción rápida.
     const newPriceStr = prompt(`Ingresa el nuevo precio para "${item.name}" (Actual: ${formatCurrency(currentPrice)}):`);
 
@@ -867,14 +867,14 @@ function promptEditItemPrice(index, currentPrice) {
 //Funciones para cotizacion
 // --- FUNCIONES DE CONTROL DE CARRITO ---
 
-window.removeFromSale = function(index) {
+window.removeFromSale = function (index) {
     if (typeof currentSaleItems !== 'undefined' && currentSaleItems[index]) {
         currentSaleItems.splice(index, 1);
         if (window.updateSaleTableDisplay) window.updateSaleTableDisplay();
     }
 };
 
-window.editItemPrice = function(index, newPrice) {
+window.editItemPrice = function (index, newPrice) {
     const price = parseFloat(newPrice) || 0;
     if (currentSaleItems[index]) {
         currentSaleItems[index].price = price;
@@ -884,7 +884,7 @@ window.editItemPrice = function(index, newPrice) {
 };
 
 // --- GENERADOR DE COTIZACIÓN (PDF + WHATSAPP) ---
-window.generateQuotation = function() {
+window.generateQuotation = function () {
     if (!currentSaleItems || currentSaleItems.length === 0) {
         Swal.fire({ title: 'Atención', text: 'El carrito está vacío', icon: 'warning', background: '#1c1c1c', color: '#fff' });
         return;
@@ -962,13 +962,13 @@ window.generateQuotation = function() {
 };
 
 // --- FUNCIÓN A: AGREGAR AL CARRITO (Botón +) ---
-window.handleAddProductToSale = function(e) {
+window.handleAddProductToSale = function (e) {
     if (e) e.preventDefault();
 
     const mainSelect = document.getElementById('product-main-select');
     const subSelect = document.getElementById('subproduct-select');
-    const quantityInput = document.getElementById('product-quantity'); 
-    const priceInput = document.getElementById('product-unit-price'); 
+    const quantityInput = document.getElementById('product-quantity');
+    const priceInput = document.getElementById('product-unit-price');
 
     const mainProductId = mainSelect?.value;
     const subProductId = subSelect?.value;
@@ -976,9 +976,9 @@ window.handleAddProductToSale = function(e) {
 
     // Prioridad al paquete, si no al principal
     let productIdToCharge = (subProductId && subProductId !== "") ? subProductId : mainProductId;
-    
+
     const searchIdStr = String(productIdToCharge || '').trim();
-    let productToCharge = window.allProducts.find(p => String(p.producto_id) === searchIdStr); 
+    let productToCharge = window.allProducts.find(p => String(p.producto_id) === searchIdStr);
 
     if (!productToCharge) {
         alert('Por favor, selecciona un Producto o Paquete válido.');
@@ -991,44 +991,44 @@ window.handleAddProductToSale = function(e) {
     }
 
     const priceStr = priceInput?.value;
-    let price = parseFloat(priceStr?.replace(',', '.')) || 0; 
-    
-    if (price === 0 && productToCharge) { 
-        price = parseFloat(productToCharge.price) || 0; 
+    let price = parseFloat(priceStr?.replace(',', '.')) || 0;
+
+    if (price === 0 && productToCharge) {
+        price = parseFloat(productToCharge.price) || 0;
     }
-    
+
     const subtotal = quantity * price;
 
     // Nombre para el detalle: "Principal (Paquete)"
-    let nameDisplay = productToCharge.name; 
+    let nameDisplay = productToCharge.name;
     if (subProductId && subProductId !== "") {
         const mainProductData = window.allProducts.find(p => String(p.producto_id) === String(mainProductId));
         if (mainProductData) {
-            nameDisplay = `${mainProductData.name} (${productToCharge.name})`; 
+            nameDisplay = `${mainProductData.name} (${productToCharge.name})`;
         }
     }
 
     const newItem = {
-        product_id: parseInt(productIdToCharge, 10), 
-        name: nameDisplay, 
+        product_id: parseInt(productIdToCharge, 10),
+        name: nameDisplay,
         quantity: quantity,
-        price: price, 
+        price: price,
         subtotal: subtotal,
-        type: productToCharge.type || null, 
+        type: productToCharge.type || null,
     };
 
     const searchIdNum = parseInt(productIdToCharge, 10);
     const existingIndex = currentSaleItems.findIndex(item => item.product_id === searchIdNum);
 
-    if (existingIndex > -1) { 
+    if (existingIndex > -1) {
         currentSaleItems[existingIndex].quantity += quantity;
         currentSaleItems[existingIndex].subtotal += subtotal;
     } else {
-        currentSaleItems.push(newItem); 
+        currentSaleItems.push(newItem);
     }
-    
-    window.updateSaleTableDisplay(); 
-    calculateGrandTotal(); 
+
+    window.updateSaleTableDisplay();
+    calculateGrandTotal();
 
     // Limpieza
     mainSelect.value = '';
@@ -1039,19 +1039,19 @@ window.handleAddProductToSale = function(e) {
 };
 
 // --- FUNCIÓN B: REGISTRAR VENTA (Botón Verde) ---
-window.handleNewSale = async function(e) {
+window.handleNewSale = async function (e) {
     if (e) {
         e.preventDefault();
         e.stopPropagation(); // Evita que otros eventos interfieran
     }
-    
+
     const clientSelect = document.getElementById('client-select');
     const client_id = clientSelect ? clientSelect.value : "";
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
-    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
+    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0';
     let paid_amount = parseFloat(paid_amount_str);
-    const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
+    const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
 
     // 1. VALIDACIÓN ANTI-ERRORES
     if (!client_id || client_id === "" || currentSaleItems.length === 0) {
@@ -1073,9 +1073,9 @@ window.handleNewSale = async function(e) {
     }
 
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
-    if (submitBtn) { 
-        submitBtn.disabled = true; 
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...'; 
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
     }
 
     try {
@@ -1134,9 +1134,9 @@ window.handleNewSale = async function(e) {
             Swal.fire({ title: 'Error', text: err.message, icon: 'error', background: '#1c1c1c', color: '#fff' });
         }
     } finally {
-        if (submitBtn) { 
-            submitBtn.disabled = false; 
-            submitBtn.textContent = 'Registrar Venta'; 
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Registrar Venta';
         }
     }
 };
@@ -1164,9 +1164,9 @@ async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newU
         // Esto cambia el precio y el subtotal de ese producto.
         const { error: detailUpdateError } = await supabase
             .from('detalle_ventas')
-            .update({ 
+            .update({
                 price: newUnitPrice,
-                subtotal: newSubtotal 
+                subtotal: newSubtotal
             })
             .eq('id', detalleVentaId);
 
@@ -1185,11 +1185,11 @@ async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newU
 
         // --- Paso 4: Actualizar el registro principal en 'ventas' ---
         // Como la venta inicial fue de $0.00 (pagado $0.00), todo el nuevo total es saldo pendiente.
-        const newSaldoPendiente = newTotalAmount; 
-        
+        const newSaldoPendiente = newTotalAmount;
+
         const { error: saleUpdateError } = await supabase
             .from('ventas')
-            .update({ 
+            .update({
                 total_amount: newTotalAmount,
                 saldo_pendiente: newSaldoPendiente
             })
@@ -1198,7 +1198,7 @@ async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newU
         if (saleUpdateError) throw saleUpdateError;
 
         alert(`✅ Deuda de ${formatCurrency(newSaldoPendiente)} registrada exitosamente.`);
-        
+
         // Refrescar los datos en la UI:
         await loadClientsTable('gestion'); // Actualiza el resumen en la tabla principal
         await handleViewClientDebt(clientId); // Refresca el modal de transacciones
@@ -1211,9 +1211,9 @@ async function handlePostSalePriceUpdate(ventaId, detalleVentaId, clientId, newU
 }
 
 //Funcion para el producto padre
-window.refreshAllProductSelects = function() {
+window.refreshAllProductSelects = function () {
     // 1. Selector en el modal de NUEVA VENTA
-    const saleProductSelect = document.getElementById('sale-product-select'); 
+    const saleProductSelect = document.getElementById('sale-product-select');
     // 2. Selectores en el modal de PRODUCTOS (Padres)
     const newProductParentSelect = document.getElementById('new-product-parent-select');
     const editProductParentSelect = document.getElementById('edit-product-parent');
@@ -1225,11 +1225,11 @@ window.refreshAllProductSelects = function() {
         if (!select) return;
         const currentVal = select.value; // Guardar valor seleccionado actual
         select.innerHTML = '<option value="">-- Seleccionar --</option>';
-        
+
         items.forEach(p => {
             // Si filterPackage es true, solo mostramos productos individuales (para ser padres)
             if (filterPackage && p.type === 'PACKAGE') return;
-            
+
             const opt = document.createElement('option');
             opt.value = p.producto_id;
             opt.textContent = p.name;
@@ -1272,15 +1272,15 @@ async function registrarAbonoCascada(clientId, montoAbonar, metodoPago) {
                 // Actualizar la venta individual en Supabase
                 await supabase
                     .from('ventas')
-                    .update({ 
+                    .update({
                         saldo_pendiente: nuevoSaldoVenta,
-                        paid_amount: (venta.paid_amount || 0) + pagoParaEstaVenta 
+                        paid_amount: (venta.paid_amount || 0) + pagoParaEstaVenta
                     })
                     .eq('venta_id', venta.venta_id);
 
                 // Registrar el detalle del pago vinculado a la venta
                 await supabase
-                    .from('pagos') 
+                    .from('pagos')
                     .insert({
                         client_id: clientId,
                         venta_id: venta.venta_id,
@@ -1302,13 +1302,13 @@ async function registrarAbonoCascada(clientId, montoAbonar, metodoPago) {
                 .from('pagos')
                 .insert({
                     client_id: clientId,
-                    venta_id: null, 
+                    venta_id: null,
                     amount: saldoRestante,
                     metodo_pago: metodoPago,
                     type: 'SALDO_A_FAVOR',
                     description: 'Abono anticipado / Excedente'
                 });
-            
+
             // --- MENSAJE INTELIGENTE TEAL ---
             if (montoAplicadoADeuda > 0) {
                 window.showToast(`Saldado: $${montoAplicadoADeuda.toFixed(2)} | A Favor: $${saldoRestante.toFixed(2)}`, 'success');
@@ -1323,7 +1323,7 @@ async function registrarAbonoCascada(clientId, montoAbonar, metodoPago) {
         // 4. Actualizar interfaz sin recargar
         if (window.loadAndRenderClients) await window.loadAndRenderClients();
         if (window.loadDashboardMetrics) await window.loadDashboardMetrics();
-        
+
         // Si tienes abierto el reporte de deuda, refrescarlo también
         if (window.viewingClientId === clientId) {
             window.handleViewClientDebt(clientId);
@@ -1360,13 +1360,13 @@ async function actualizarTarjetasDeuda() {
         const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
         // Actualizamos los IDs de las tarjetas que pusimos en el HTML
-        if (document.getElementById('total-deuda-global')) 
+        if (document.getElementById('total-deuda-global'))
             document.getElementById('total-deuda-global').innerText = fmt.format(sumaTotal);
-        
-        if (document.getElementById('total-clientes-deuda')) 
+
+        if (document.getElementById('total-clientes-deuda'))
             document.getElementById('total-clientes-deuda').innerText = cantidadVentasConDeuda;
-        
-        if (document.getElementById('max-deuda-individual')) 
+
+        if (document.getElementById('max-deuda-individual'))
             document.getElementById('max-deuda-individual').innerText = fmt.format(maxSaldo);
 
     } catch (err) {
@@ -1377,11 +1377,11 @@ async function actualizarTarjetasDeuda() {
 function cleanCurrencyString(str) {
     if (typeof str !== 'string') return 0;
     // Elimina caracteres no numéricos, excepto el punto decimal y el signo menos.
-    const cleaned = str.replace(/[^\d.-]/g, ''); 
+    const cleaned = str.replace(/[^\d.-]/g, '');
     return cleaned;
 }
 //Ventas a credito
-window.getClientSalesSummary = async function(clientId) {
+window.getClientSalesSummary = async function (clientId) {
     if (!supabase) return { totalVentas: 0, totalAbonos: 0, deudaNeta: 0 };
 
     try {
@@ -1416,7 +1416,7 @@ window.getClientSalesSummary = async function(clientId) {
 };
 
 //Abono boton
-window.handleAbonoSubmit = async function(e) {
+window.handleAbonoSubmit = async function (e) {
     if (e && e.preventDefault) e.preventDefault();
 
     const form = document.getElementById('abono-client-form');
@@ -1500,19 +1500,19 @@ window.handleAbonoSubmit = async function(e) {
 // 8. MANEJO DE FORMULARIO DE NUEVA VENTA (TRANSACCIONAL)
 // ====================================================================
 
-window.handleNewSale = async function(e) {
+window.handleNewSale = async function (e) {
     if (e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    
+
     // 1. CAPTURA DE DATOS
     const client_id = document.getElementById('client-select')?.value;
     const payment_method = document.getElementById('payment-method')?.value ?? 'Efectivo';
     const sale_description = document.getElementById('sale-details')?.value.trim() ?? null;
-    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0'; 
+    const paid_amount_str = document.getElementById('paid-amount')?.value.replace(/[^\d.-]/g, '') ?? '0';
     let paid_amount = parseFloat(paid_amount_str);
-    const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0); 
+    const total_amount = currentSaleItems.reduce((sum, item) => sum + item.subtotal, 0);
 
     // 2. VALIDACIONES CON SWEETALERT
     if (!client_id || currentSaleItems.length === 0) {
@@ -1526,9 +1526,9 @@ window.handleNewSale = async function(e) {
     }
 
     const submitBtn = document.querySelector('#new-sale-form button[type="submit"]');
-    if (submitBtn) { 
-        submitBtn.disabled = true; 
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...'; 
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
     }
 
     try {
@@ -1536,24 +1536,24 @@ window.handleNewSale = async function(e) {
         const { data: saleData, error: saleError } = await supabase
             .from('ventas')
             .insert([{
-                client_id, 
-                total_amount, 
+                client_id,
+                total_amount,
                 paid_amount: (paid_amount > total_amount ? total_amount : paid_amount),
                 saldo_pendiente: Math.max(0, total_amount - paid_amount),
-                metodo_pago: payment_method, 
+                metodo_pago: payment_method,
                 description: sale_description
-            }]).select('venta_id'); 
+            }]).select('venta_id');
 
         if (saleError) throw saleError;
         const new_id = saleData[0].venta_id;
 
         // 4. INSERCIÓN DE DETALLES
         const details = currentSaleItems.map(item => ({
-            venta_id: new_id, 
-            product_id: parseInt(item.product_id, 10), 
+            venta_id: new_id,
+            product_id: parseInt(item.product_id, 10),
             name: item.name,
-            quantity: item.quantity, 
-            price: item.price, 
+            quantity: item.quantity,
+            price: item.price,
             subtotal: item.subtotal
         }));
 
@@ -1562,7 +1562,7 @@ window.handleNewSale = async function(e) {
 
         // 5. LIMPIEZA DE INTERFAZ
         closeModal('new-sale-modal');
-        window.currentSaleItems = []; 
+        window.currentSaleItems = [];
         if (window.updateSaleTableDisplay) window.updateSaleTableDisplay();
         document.getElementById('new-sale-form')?.reset();
 
@@ -1570,7 +1570,7 @@ window.handleNewSale = async function(e) {
         if (window.loadSalesData) {
             await window.loadSalesData(); // Esperamos la descarga de Supabase
         }
-        
+
         // --- AQUÍ VA LA CORRECCIÓN PARA EL REPORTE MENSUAL ---
         const rMonth = document.getElementById('report-month-select')?.value;
         const rYear = document.getElementById('report-year-select')?.value;
@@ -1601,9 +1601,9 @@ window.handleNewSale = async function(e) {
         console.error("Error:", err);
         Swal.fire({ title: 'Error', text: err.message, icon: 'error', background: '#1c1c1c', color: '#fff' });
     } finally {
-        if (submitBtn) { 
-            submitBtn.disabled = false; 
-            submitBtn.textContent = 'Registrar Venta'; 
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Registrar Venta';
         }
     }
 };
@@ -1617,8 +1617,8 @@ function openPostSalePriceModal(ventaId, detalleVentaId, clientId, itemName) {
     // 2. Mostrar nombres y limpiar precio
     document.getElementById('edit-item-name-display').textContent = itemName;
     document.getElementById('edit-venta-id-display').textContent = ventaId;
-    document.getElementById('new-unit-price').value = '0.00'; 
-    
+    document.getElementById('new-unit-price').value = '0.00';
+
     // 3. Abrir el modal
     openModal('modal-edit-sale-item');
 }
@@ -1634,20 +1634,20 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
             .eq('venta_id', ventaId);
 
         if (error) throw error;
-        
+
         if (details.length === 0) {
             alert('Error: No se encontraron ítems para esta venta. No se puede editar.');
             return;
         }
 
         // 2. Tomar el primer ítem para editar (simplificación)
-        const itemToEdit = details[0]; 
-        
+        const itemToEdit = details[0];
+
         // 3. Abrir el modal de edición de precio
         openPostSalePriceModal(
-            ventaId, 
+            ventaId,
             itemToEdit.id, // Este es el detalleVentaId que se actualiza
-            clientId, 
+            clientId,
             `${itemToEdit.name} (${itemToEdit.quantity} und.)` // Nombre para mostrar
         );
 
@@ -1662,12 +1662,12 @@ async function handleOpenEditSaleItem(ventaId, clientId) {
 // ====================================================================
 
 // Variable global para almacenar el ID del cliente cuya deuda estamos viendo
-let viewingClientId = null; 
+let viewingClientId = null;
 
 // ====================================================================
 // FUNCIÓN PARA CARGAR MÉTRICAS DEL DASHBOARD
 // ====================================================================
-window.loadDashboardMetrics = async function() {
+window.loadDashboardMetrics = async function () {
     if (!supabase) {
         console.error("Supabase no está inicializado para cargar métricas.");
         return;
@@ -1701,9 +1701,9 @@ window.loadDashboardMetrics = async function() {
         if (salesData && salesData.length > 0) {
             historicalTotalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.total_amount || 0), 0);
         }
-        
+
         // 3. INYECTAR EN EL DOM (usando los IDs que proporcionaste)
-        
+
         // Deuda Pendiente
         const debtElement = document.getElementById('total-debt');
         if (debtElement) {
@@ -1722,7 +1722,7 @@ window.loadDashboardMetrics = async function() {
 }
 
 // 1. FUNCIÓN DE APOYO: Sincroniza la DB con el historial real
-window.repararSaldoCliente = async function(clientId) {
+window.repararSaldoCliente = async function (clientId) {
     try {
         const { data: ventas } = await supabase.from('ventas').select('*').eq('client_id', clientId).order('created_at', { ascending: true });
         const { data: pagos } = await supabase.from('pagos').select('*').eq('client_id', clientId).order('created_at', { ascending: true });
@@ -1730,7 +1730,7 @@ window.repararSaldoCliente = async function(clientId) {
         if (!ventas || !pagos) return;
 
         let bolsaDinero = pagos.reduce((acc, p) => acc + parseFloat(p.amount), 0);
-        
+
         for (let venta of ventas) {
             let totalVenta = parseFloat(venta.total_amount);
             let nuevoSaldo = totalVenta;
@@ -1744,7 +1744,7 @@ window.repararSaldoCliente = async function(clientId) {
                     bolsaDinero = 0;
                 }
             }
-            
+
             // Actualización física en Supabase
             await supabase.from('ventas').update({ saldo_pendiente: nuevoSaldo }).eq('venta_id', venta.venta_id);
         }
@@ -1755,7 +1755,7 @@ window.repararSaldoCliente = async function(clientId) {
 };
 
 // 2. FUNCIÓN PRINCIPAL: Reporte con Auditoría Automática
-window.handleViewClientDebt = async function(clientId) {
+window.handleViewClientDebt = async function (clientId) {
     if (!supabase) return;
 
     try {
@@ -1774,9 +1774,18 @@ window.handleViewClientDebt = async function(clientId) {
 
         const ventaIds = movimientosRaw.filter(m => m.type === 'cargo_venta').map(m => m.venta_id);
         let productosPorVenta = [];
+        let mapComentarios = {};
+
         if (ventaIds.length > 0) {
-            const { data } = await supabase.from('detalle_ventas').select('venta_id, name, quantity').in('venta_id', ventaIds);
-            if (data) productosPorVenta = data;
+            const [prodsRes, ventasRes] = await Promise.all([
+                supabase.from('detalle_ventas').select('venta_id, name, quantity').in('venta_id', ventaIds),
+                supabase.from('ventas').select('venta_id, description').in('venta_id', ventaIds)
+            ]);
+
+            if (prodsRes.data) productosPorVenta = prodsRes.data;
+            if (ventasRes.data) {
+                ventasRes.data.forEach(v => mapComentarios[v.venta_id] = v.description);
+            }
         }
 
         let saldoCorriente = 0;
@@ -1784,18 +1793,20 @@ window.handleViewClientDebt = async function(clientId) {
         const filasProcesadas = movimientosRaw.map(mov => {
             const esVenta = mov.type === 'cargo_venta';
             const montoAbs = Math.abs(parseFloat(mov.amount));
-            
+
             if (esVenta) saldoCorriente += montoAbs;
             else saldoCorriente -= montoAbs;
 
             const misProds = productosPorVenta.filter(p => p.venta_id === mov.venta_id);
             const textoProds = misProds.map(p => `${p.name} (x${p.quantity})`).join(', ');
+            const saleComment = mapComentarios[mov.venta_id] || '';
 
             return {
                 ...mov,
                 montoAbs,
                 saldoAcumulado: saldoCorriente, // Aquí puede ser negativo
                 textoProds,
+                saleComment,
                 esVenta,
                 signo: esVenta ? '+' : '-'
             };
@@ -1805,15 +1816,27 @@ window.handleViewClientDebt = async function(clientId) {
         const transaccionesHTMLParaPDF = filasProcesadas.map(mov => {
             const esFavor = mov.saldoAcumulado < 0;
             const saldoFormateado = window.formatCurrency(Math.abs(mov.saldoAcumulado));
-            
+
+            // Construcción del contenido de la descripción
+            let descripcionHtml = '';
+            if (mov.esVenta) {
+                descripcionHtml = `
+                    <div style="font-weight: bold; color: #333; font-size: 11px;">
+                        Venta #${mov.venta_id} ${mov.textoProds ? `<span style="color: #d45c01ff; font-weight: normal;"> - ${mov.textoProds}</span>` : ''}
+                    </div>
+                    ${mov.saleComment ? `<div style="font-size: 10px; color: #666; font-style: italic; margin-top:2px;">${mov.saleComment}</div>` : ''}
+                `;
+            } else {
+                descripcionHtml = `<div style="font-weight: bold; color: #333; font-size: 11px;">${mov.description}</div>`;
+            }
+
             return `
             <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; font-size: 11px;">
                     ${new Date(mov.created_at).toLocaleDateString('es-MX')}
                 </td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">
-                    <div style="font-weight: bold; color: #333; font-size: 11px;">${mov.description}</div>
-                    ${mov.textoProds ? `<div style="font-size: 10px; color: #d45c01ff;">[ ${mov.textoProds} ]</div>` : ''}
+                    ${descripcionHtml}
                 </td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: ${mov.esVenta ? '#dc2626' : '#16a34a'}; font-weight: bold;">
                     ${mov.signo}${window.formatCurrency(mov.montoAbs)}
@@ -1847,10 +1870,17 @@ window.handleViewClientDebt = async function(clientId) {
                     </td>
                     <td class="px-6 py-4">
                         <div class="flex flex-col">
-                            <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-emerald-400'} uppercase">
-                                ${mov.description}
-                            </span>
-                            ${mov.textoProds ? `<span class="text-lg text-teal-500 font-medium italic mt-1 leading-tight tracking-wide"><i class="fas fa-box-open mr-1"></i>${mov.textoProds}</span>` : ''}
+                            ${mov.esVenta ? `
+                                <span class="text-sm font-bold text-white uppercase">
+                                    Venta #${mov.venta_id} 
+                                    ${mov.textoProds ? `<span class="text-teal-500 font-medium normal-case ml-1">- ${mov.textoProds}</span>` : ''}
+                                </span>
+                                ${mov.saleComment ? `<span class="text-xs text-gray-400 italic mt-1">${mov.saleComment}</span>` : ''}
+                            ` : `
+                                <span class="text-sm font-bold text-emerald-400 uppercase">
+                                    ${mov.description}
+                                </span>
+                            `}
                         </div>
                     </td>
                     <td class="px-6 py-4 text-right font-sans text-lg ${mov.esVenta ? 'text-red-500' : 'text-emerald-400'} font-bold">
@@ -1867,7 +1897,7 @@ window.handleViewClientDebt = async function(clientId) {
         // Actualizar Cabeceras
         const esFavorTotal = saldoCorriente < 0;
         document.getElementById('client-report-name').textContent = clientName;
-        document.getElementById('client-report-total-debt').textContent = 
+        document.getElementById('client-report-total-debt').textContent =
             window.formatCurrency(Math.abs(saldoCorriente)) + (esFavorTotal ? " (A FAVOR)" : "");
 
         openModal('modal-client-debt-report');
@@ -1877,11 +1907,11 @@ window.handleViewClientDebt = async function(clientId) {
     }
 };
 
-window.prepararAbonoDesdeReporte = function(clientId, clientName, currentDebt) {
+window.prepararAbonoDesdeReporte = function (clientId, clientName, currentDebt) {
     // 1. INTELIGENCIA: Si los parámetros vienen vacíos (desde el botón), 
     // los buscamos en la variable global que llenamos al abrir el reporte.
     const idFinal = clientId || window.currentClientDataForPrint?.clientId;
-    
+
     if (!idFinal) {
         window.showToast("Error al recuperar datos del cliente", "error");
         return;
@@ -1903,7 +1933,7 @@ window.prepararAbonoDesdeReporte = function(clientId, clientName, currentDebt) {
     }
 };
 
-window.handleAbonoClick = function(clientId) {
+window.handleAbonoClick = function (clientId) {
     // Buscamos al cliente en el array global que ya tienes
     const client = (window.allClients || []).find(c => String(c.client_id) === String(clientId));
 
@@ -1933,12 +1963,12 @@ window.handleAbonoClick = function(clientId) {
 
 
 // GENERACIÓN DE PDF: ESTADO DE CUENTA PROFESIONAL
-window.imprimirEstadoCuenta = function() {
+window.imprimirEstadoCuenta = function () {
     const data = window.currentClientDataForPrint;
     if (!data) return alert("Cargue primero el reporte del cliente.");
 
     const colorOxido = "#b45309"; // Naranja óxido profesional
-    
+
     const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -2048,8 +2078,8 @@ window.imprimirEstadoCuenta = function() {
                 </thead>
                 <tbody>
                     ${data.transaccionesHTML
-                        .replace(/text-red-600/g, 'text-red')
-                        .replace(/text-green-600/g, 'text-green')}
+            .replace(/text-red-600/g, 'text-red')
+            .replace(/text-green-600/g, 'text-green')}
                 </tbody>
             </table>
 
@@ -2078,8 +2108,8 @@ window.imprimirEstadoCuenta = function() {
     }
 };
 
-window.generarComprobanteAbono = function(datos) {
-    const colorOxido = '#b45309'; 
+window.generarComprobanteAbono = function (datos) {
+    const colorOxido = '#b45309';
     const fecha = new Date().toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
@@ -2173,19 +2203,19 @@ window.generarComprobanteAbono = function(datos) {
                     </thead>
                     <tbody>
                         ${(datos.distribucion || []).map(item => {
-                            // MEJORA: Detectar si es abono general o a venta
-                            const esGeneral = item.venta_id === 'GENERAL' || item.venta_id === 'GENERAL/A FAVOR';
-                            const descripcion = esGeneral 
-                                ? "Abono a Cuenta General (Saldo a Favor)" 
-                                : `Abono parcial aplicado a Venta Folio <b>#${item.venta_id}</b>`;
-                            
-                            return `
+        // MEJORA: Detectar si es abono general o a venta
+        const esGeneral = item.venta_id === 'GENERAL' || item.venta_id === 'GENERAL/A FAVOR';
+        const descripcion = esGeneral
+            ? "Abono a Cuenta General (Saldo a Favor)"
+            : `Abono parcial aplicado a Venta Folio <b>#${item.venta_id}</b>`;
+
+        return `
                                 <tr>
                                     <td>${descripcion}</td>
                                     <td style="text-align: right; font-weight: bold;">$${parseFloat(item.amount).toFixed(2)}</td>
                                 </tr>
                             `;
-                        }).join('')}
+    }).join('')}
                     </tbody>
                 </table>
 
@@ -2213,7 +2243,7 @@ window.generarComprobanteAbono = function(datos) {
 };
 
 //Detalles de la venta
-window.handleViewSaleDetails = async function(venta_id) {
+window.handleViewSaleDetails = async function (venta_id) {
     try {
         // 1. OBTENER DATOS DE SUPABASE
         const { data: venta, error: vError } = await supabase
@@ -2226,7 +2256,7 @@ window.handleViewSaleDetails = async function(venta_id) {
 
         const [prodRes, pagosRes] = await Promise.all([
             supabase.from('detalle_ventas').select('*').eq('venta_id', venta_id),
-            supabase.from('pagos').select('*').eq('venta_id', venta_id) 
+            supabase.from('pagos').select('*').eq('venta_id', venta_id)
         ]);
 
         const productos = prodRes.data || [];
@@ -2237,7 +2267,7 @@ window.handleViewSaleDetails = async function(venta_id) {
         const formatSecureDate = (dateString) => {
             if (!dateString) return '---';
             // Tomamos solo la parte de la fecha YYYY-MM-DD para evitar errores de zona horaria y formato
-            const onlyDate = dateString.split('T')[0]; 
+            const onlyDate = dateString.split('T')[0];
             const parts = onlyDate.split('-');
             // Creamos la fecha usando componentes (Año, Mes-1, Día) para máxima compatibilidad
             return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString();
@@ -2296,8 +2326,8 @@ window.handleViewSaleDetails = async function(venta_id) {
         const elDesc = document.getElementById('detail-sale-description');
         if (elDesc) {
             const descTxt = venta.description || 'Sin notas adicionales';
-            const escapedDesc = descTxt.replace(/'/g, "\\'"); 
-            
+            const escapedDesc = descTxt.replace(/'/g, "\\'");
+
             elDesc.innerHTML = `
             <div class="bg-black/20 rounded-2xl p-4 border border-white/5">
                 <div class="flex justify-between items-center mb-2 border-b border-white/5 pb-1">
@@ -2333,13 +2363,13 @@ window.handleViewSaleDetails = async function(venta_id) {
         }
 
         // 5. RESUMEN FINANCIERO
-        if (document.getElementById('detail-grand-total')) 
+        if (document.getElementById('detail-grand-total'))
             document.getElementById('detail-grand-total').textContent = formatCurrency(venta.total_amount);
 
-        if (document.getElementById('detail-paid-amount')) 
+        if (document.getElementById('detail-paid-amount'))
             document.getElementById('detail-paid-amount').textContent = formatCurrency(venta.total_amount - (venta.saldo_pendiente || 0));
 
-        if (document.getElementById('detail-remaining-debt')) 
+        if (document.getElementById('detail-remaining-debt'))
             document.getElementById('detail-remaining-debt').textContent = formatCurrency(venta.saldo_pendiente || 0);
 
         // 6. HISTORIAL DE ABONOS (CORREGIDO "Invalid Date")
@@ -2364,10 +2394,10 @@ window.handleViewSaleDetails = async function(venta_id) {
 };
 
 // Función para procesar el cambio de descripción
-window.editSaleDescription = async function(venta_id, descActual) {
+window.editSaleDescription = async function (venta_id, descActual) {
     const valorInicial = (descActual === 'Sin notas adicionales') ? '' : descActual;
     const nuevaDesc = prompt("Editar nota de la venta:", valorInicial);
-    
+
     if (nuevaDesc !== null) {
         try {
             const { error } = await supabase
@@ -2385,7 +2415,7 @@ window.editSaleDescription = async function(venta_id, descActual) {
 };
 
 // Función para procesar el cambio de fecha
-window.actualizarFechaVenta = async function(nuevaFecha) {
+window.actualizarFechaVenta = async function (nuevaFecha) {
     if (!nuevaFecha) return;
 
     const input = document.getElementById('input-fecha-invisible');
@@ -2396,14 +2426,14 @@ window.actualizarFechaVenta = async function(nuevaFecha) {
     try {
         const { error } = await supabase
             .from('ventas')
-            .update({ created_at: `${nuevaFecha}T12:00:00` }) 
+            .update({ created_at: `${nuevaFecha}T12:00:00` })
             .eq('venta_id', parseInt(ventaId));
 
         if (error) throw error;
 
         // AHORA SÍ: Usamos tu función personalizada
         window.showToast("Fecha actualizada correctamente", "success");
-        
+
         // Refrescamos el modal de detalles
         if (typeof window.handleViewSaleDetails === 'function') {
             window.handleViewSaleDetails(ventaId);
@@ -2416,7 +2446,7 @@ window.actualizarFechaVenta = async function(nuevaFecha) {
 };
 
 // --- FUNCIÓN PARA ELIMINAR UN PRODUCTO DE LA VENTA ---
-window.deleteItemFromSale = async function(detalleId, ventaId) {
+window.deleteItemFromSale = async function (detalleId, ventaId) {
     if (!confirm("¿Estás seguro de eliminar este producto? El total de la venta y el saldo se recalcularán.")) return;
 
     try {
@@ -2434,7 +2464,7 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
 
         const { data: pagos } = await supabase.from('pagos').select('amount').eq('venta_id', ventaId);
         const totalAbonado = pagos ? pagos.reduce((acc, curr) => acc + (curr.amount || 0), 0) : 0;
-        
+
         const nuevoSaldo = nuevoTotalVenta - totalAbonado;
 
         // 3. Actualizar la venta principal
@@ -2451,7 +2481,7 @@ window.deleteItemFromSale = async function(detalleId, ventaId) {
 };
 
 //PDF de la VENTA
-window.generarPDFVenta = function() {
+window.generarPDFVenta = function () {
     const venta = window.currentSaleForPrint;
     if (!venta) return window.showToast("No hay datos para generar el PDF");
 
@@ -2459,7 +2489,7 @@ window.generarPDFVenta = function() {
     const fecha = new Date(venta.created_at).toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
-    
+
     // Formateador de moneda interno
     const formatMoney = (amount) => `$${parseFloat(amount || 0).toFixed(2)}`;
 
@@ -2467,7 +2497,7 @@ window.generarPDFVenta = function() {
     const filasProductos = venta.productos.map(p => {
         // Buscamos el ID en product_id o id. Si no hay ninguno, usamos el venta_id como ref.
         const codigoReferencia = p.product_id || p.id || venta.venta_id;
-        
+
         return `
             <tr>
                 <td style="padding: 12px; border-bottom: 1px solid #f0f0f0;">
@@ -2620,7 +2650,7 @@ window.generarPDFVenta = function() {
         window.showToast("Por favor, permite las ventanas emergentes para ver el PDF.");
     }
 };
-window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
+window.verEstadoCuentaCliente = async function (client_id, nombreCliente) {
     try {
         document.getElementById('nombre-cliente-deuda').textContent = "Estado de Cuenta: " + nombreCliente;
         window.currentClientIdForAbono = client_id; // Guardamos para el abono general
@@ -2637,10 +2667,10 @@ window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
         // 2. Calcular Deuda Total
         const deudaTotal = ventas.reduce((acc, v) => acc + (v.saldo_pendiente || 0), 0);
         document.getElementById('total-deuda-general').textContent = formatCurrency(deudaTotal);
-        
+
         // 3. Fecha del último abono
-        document.getElementById('fecha-ultimo-abono').textContent = abonos.length > 0 
-            ? new Date(abonos[0].created_at).toLocaleDateString() 
+        document.getElementById('fecha-ultimo-abono').textContent = abonos.length > 0
+            ? new Date(abonos[0].created_at).toLocaleDateString()
             : 'Sin pagos';
 
         // 4. Renderizar Notas Pendientes
@@ -2670,7 +2700,7 @@ window.verEstadoCuentaCliente = async function(client_id, nombreCliente) {
         window.showToast("No se pudo cargar la información del cliente.");
     }
 };
-window.registrarAbonoGeneral = async function() {
+window.registrarAbonoGeneral = async function () {
     const montoAbono = parseFloat(prompt("Ingrese el monto total del abono:"));
     if (!montoAbono || montoAbono <= 0) return;
 
@@ -2732,9 +2762,9 @@ window.registrarAbonoGeneral = async function() {
         alert("Hubo un error al procesar el abono.");
     }
 };
-window.generarPDFEstadoCuenta = function() {
+window.generarPDFEstadoCuenta = function () {
     const data = window.currentClientDataForPrint;
-    
+
     if (!data || !data.transaccionesHTML) {
         return alert("No hay datos cargados. Por favor, abre el reporte del cliente primero.");
     }
@@ -2743,7 +2773,7 @@ window.generarPDFEstadoCuenta = function() {
     const fechaEmision = new Date().toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
-    
+
     const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -2846,9 +2876,9 @@ window.generarPDFEstadoCuenta = function() {
                     </thead>
                     <tbody>
                         ${data.transaccionesHTML
-                            .replace(/text-red-600/g, 'text-red')
-                            .replace(/text-green-600/g, 'text-green')
-                            .replace(/px-4 py-2/g, '') /* Limpiamos clases de padding de la tabla original si existen */}
+            .replace(/text-red-600/g, 'text-red')
+            .replace(/text-green-600/g, 'text-green')
+            .replace(/px-4 py-2/g, '') /* Limpiamos clases de padding de la tabla original si existen */}
                     </tbody>
                 </table>
 
@@ -2872,7 +2902,7 @@ window.generarPDFEstadoCuenta = function() {
     }
 };
 
-window.generarPDFCotizacion = function(incluirIva = false) {
+window.generarPDFCotizacion = function (incluirIva = false) {
     if (!currentSaleItems || currentSaleItems.length === 0) return;
 
     // 1. CÁLCULOS
@@ -2884,10 +2914,10 @@ window.generarPDFCotizacion = function(incluirIva = false) {
     const fecha = new Date().toLocaleDateString('es-MX', {
         year: 'numeric', month: 'long', day: 'numeric'
     });
-    
+
     const clientSelect = document.getElementById('client-select');
-    const nombreCliente = (clientSelect && clientSelect.selectedIndex > 0) 
-        ? clientSelect.options[clientSelect.selectedIndex].text 
+    const nombreCliente = (clientSelect && clientSelect.selectedIndex > 0)
+        ? clientSelect.options[clientSelect.selectedIndex].text
         : 'PÚBLICO GENERAL';
 
     const colorTema = '#3b82f6'; // Azul para Cotizaciones
@@ -3037,9 +3067,9 @@ function updateTotalUI(total, deuda) {
     document.getElementById('detail-paid-amount').textContent = formatCurrency(total - deuda);
     document.getElementById('detail-remaining-debt').textContent = formatCurrency(deuda);
 }
-window.editSalePaymentMethod = async function(ventaId, metodoActual) {
+window.editSalePaymentMethod = async function (ventaId, metodoActual) {
     const nuevoMetodo = prompt("Ingrese el nuevo método de pago (Efectivo, Transferencia, Tarjeta, etc.):", metodoActual);
-    
+
     if (nuevoMetodo === null || nuevoMetodo.trim() === "") return;
 
     try {
@@ -3049,14 +3079,14 @@ window.editSalePaymentMethod = async function(ventaId, metodoActual) {
             .eq('venta_id', ventaId);
 
         if (error) throw error;
-        
+
         alert("✅ Método de pago actualizado.");
         window.handleViewSaleDetails(ventaId); // Refrescar modal
     } catch (err) {
         alert("Error al actualizar el método de pago.");
     }
 };
-window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaId) {
+window.editItemPrice = async function (detalle_id, precioActual, cantidad, ventaId) {
     const { value: nuevoPrecio } = await Swal.fire({
         title: 'Actualizar Precio',
         input: 'number',
@@ -3079,22 +3109,22 @@ window.editItemPrice = async function(detalle_id, precioActual, cantidad, ventaI
             .eq('detalle_id', detalle_id);
 
         if (error) throw error;
-        
+
         // Refrescar automáticamente
         window.handleViewSaleDetails(ventaId);
         if (window.loadDashboardData) window.loadDashboardData();
-        
+
     } catch (err) {
         Swal.fire({ icon: 'error', title: 'Error al actualizar', background: '#1c1c1c', color: '#fff' });
     }
 };
 
-window.handleAbonoClientSubmit = async function(e) {
+window.handleAbonoClientSubmit = async function (e) {
     e.preventDefault();
     console.log("--- INICIANDO GUARDADO DE ABONO ---");
 
     const form = e.target;
-    
+
     // IMPORTANTE: Si abrimos desde el reporte, el ID está en window.currentClientDataForPrint
     const clientId = document.getElementById('abono-client-id')?.value || window.currentClientDataForPrint?.clientId;
     const monto = parseFloat(form.elements['abono-amount'].value);
@@ -3201,9 +3231,9 @@ document.addEventListener('DOMContentLoaded', () => {
 /**
  * Filtra las ventas basándose en un rango de fechas y una cadena de búsqueda, y luego las renderiza.
  */
-window.handleFilterSales = function() {
+window.handleFilterSales = function () {
     console.log("🔍 Ejecutando filtro...");
-    
+
     // Capturamos los elementos
     const searchInput = document.getElementById('filter-search-term');
     const startInput = document.getElementById('filter-start-date');
@@ -3219,13 +3249,13 @@ window.handleFilterSales = function() {
         // 1. Validar Folio y Nombre
         const cliente = (venta.cliente_nombre || "Consumidor Final").toLowerCase();
         const folio = String(venta.venta_id || "");
-        
+
         // 2. Validar Fecha (Solo si hay fechas seleccionadas)
         const fechaRaw = venta.fecha_venta || "";
         const fechaVenta = fechaRaw.includes('T') ? fechaRaw.split('T')[0] : fechaRaw;
 
         const matchesSearch = !searchTerm || cliente.includes(searchTerm) || folio.includes(searchTerm);
-        
+
         // CORRECCIÓN CRÍTICA: Solo filtrar por fecha si el usuario puso una fecha
         const matchesStart = !startDate || (fechaVenta && fechaVenta >= startDate);
         const matchesEnd = !endDate || (fechaVenta && fechaVenta <= endDate);
@@ -3251,7 +3281,7 @@ window.handleFilterSales = function() {
 
 window.handleFilterSales = window.handleFilterSales; // Exposición global
 
-window.renderSalesTable = function(sales) {
+window.renderSalesTable = function (sales) {
     const tableBody = document.getElementById('sales-report-table-body');
     if (!tableBody) return;
 
@@ -3271,7 +3301,7 @@ window.renderSalesTable = function(sales) {
     sales.forEach(sale => {
         const isPaid = (sale.saldo_pendiente || 0) <= 0;
         const statusBg = isPaid ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20';
-        
+
         const row = document.createElement('tr');
         row.className = 'group border-b border-white/[0.03] hover:bg-white/[0.02] transition-all';
 
@@ -3283,7 +3313,7 @@ window.renderSalesTable = function(sales) {
                 <span class="text-sm font-bold text-white uppercase italic tracking-tight">${sale.cliente_nombre || 'Consumidor Final'}</span>
             </td>
             <td class="px-8 py-5 text-xs text-gray-400 font-medium">
-                ${new Date(sale.fecha_venta).toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}
+                ${new Date(sale.fecha_venta).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}
             </td>
             <td class="px-8 py-5">
                 <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${statusBg} uppercase">
@@ -3311,10 +3341,10 @@ window.renderSalesTable = renderSalesTable; // Exposición global
 /**
  * Carga todas las ventas y las almacena globalmente para su posterior filtrado.
  */
-window.loadSalesData = async function() {
+window.loadSalesData = async function () {
     console.log("Cargando datos de ventas...");
     if (!supabase) return;
-    
+
     try {
         const { data: sales, error } = await supabase
             .from('ventas')
@@ -3328,7 +3358,7 @@ window.loadSalesData = async function() {
             `); // <--- CAMBIADO: 'nombre' por 'name'
 
         if (error) throw error;
-        
+
         window.allSales = (sales || []).map(sale => ({
             venta_id: sale.venta_id,
             total: sale.total_amount,
@@ -3338,41 +3368,41 @@ window.loadSalesData = async function() {
             // Normalizamos para que el resto del código use 'cliente_nombre'
             cliente_nombre: sale.clientes ? sale.clientes.name : 'Consumidor Final'
         }));
-        
+
         console.log(`✅ ${window.allSales.length} ventas cargadas correctamente.`);
-        
+
     } catch (error) {
         console.error('Error al cargar datos de ventas:', error);
         window.allSales = [];
     }
-    return window.allSales; 
+    return window.allSales;
 };
 
 async function openNewProductModal() {
     console.log("DEBUG: Paso 1: Intentando cargar productos principales antes de abrir el modal.");
-    
+
     // 🚨 Esta es la llamada que debe funcionar ahora que la expusiste a window
     if (window.loadMainProductsAndPopulateSelect) {
-        await window.loadMainProductsAndPopulateSelect(); 
+        await window.loadMainProductsAndPopulateSelect();
         console.log("DEBUG: Paso 2: Función de carga ejecutada (debe haber llenado el select).");
     } else {
         console.error("DEBUG: Paso 2: Error. La función loadMainProductsAndPopulateSelect no está en el ámbito global.");
     }
 
     // 3. Abrir el modal (asumo que 'openModal' existe)
-    openModal('new-product-modal'); 
+    openModal('new-product-modal');
     console.log("DEBUG: Paso 3: Modal abierto.");
-    
+
     // 4. Resetear el campo type para el listener
     const typeSelect = document.getElementById('new-product-type');
     if (typeSelect) {
-        typeSelect.value = 'PRODUCT'; 
+        typeSelect.value = 'PRODUCT';
         window.handleProductTypeChange();
     }
 }
 
-window.handlePriceEditSubmit = async function(e) {
-    e.preventDefault(); 
+window.handlePriceEditSubmit = async function (e) {
+    e.preventDefault();
 
     const form = e.target;
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -3380,7 +3410,7 @@ window.handlePriceEditSubmit = async function(e) {
     const ventaId = document.getElementById('edit-sale-transaction-id').value;
     const detalleId = document.getElementById('edit-sale-detail-id').value;
     const newPrice = parseFloat(document.getElementById('edit-new-price').value);
-    
+
     if (!ventaId || !detalleId || isNaN(newPrice)) {
         alert("⚠️ Datos incompletos.");
         return;
@@ -3388,7 +3418,7 @@ window.handlePriceEditSubmit = async function(e) {
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Procesando...';
-    
+
     try {
         // 1. Obtener la cantidad de productos de ese detalle
         // Cambia 'detalles_ventas' si tu tabla se llama distinto
@@ -3417,9 +3447,9 @@ window.handlePriceEditSubmit = async function(e) {
         // Actualizar detalle
         const { error: err1 } = await supabase
             .from('detalles_ventas') // <--- NOMBRE DE TABLA
-            .update({ 
-                unit_price: newPrice, 
-                subtotal: nuevoSubtotal 
+            .update({
+                unit_price: newPrice,
+                subtotal: nuevoSubtotal
             })
             .eq('id', detalleId);
 
@@ -3428,28 +3458,28 @@ window.handlePriceEditSubmit = async function(e) {
         // Actualizar venta
         const { error: err2 } = await supabase
             .from('ventas')
-            .update({ 
-                total_amount: nuevoTotalVenta, 
-                saldo_pendiente: nuevoSaldo 
+            .update({
+                total_amount: nuevoTotalVenta,
+                saldo_pendiente: nuevoSaldo
             })
             .eq('venta_id', ventaId);
 
         if (err2) throw err2;
 
-         window.showToast(`✅ Éxito. Nuevo Total: ${formatCurrency(nuevoTotalVenta)}. Saldo actual: ${formatCurrency(nuevoSaldo)}`);
+        window.showToast(`✅ Éxito. Nuevo Total: ${formatCurrency(nuevoTotalVenta)}. Saldo actual: ${formatCurrency(nuevoSaldo)}`);
 
         // 5. Refrescar UI sin recargar página
         document.getElementById('price-edit-section').classList.add('hidden');
-        
+
         // Esta función recargará los números en el modal de detalles automáticamente
         await window.handleViewSaleDetails(ventaId);
-        
+
         // Actualizar la tabla de clientes/ventas al fondo
         if (window.loadClientsTable) window.loadClientsTable('gestion');
 
     } catch (error) {
         console.error('Error:', error);
-         window.showToast('Error al actualizar: ' + error.message);
+        window.showToast('Error al actualizar: ' + error.message);
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Actualizar Precio y Saldo';
@@ -3465,7 +3495,7 @@ function loadProductDataToForm(product) {
     document.getElementById('edit-product-id').value = product.producto_id;
     document.getElementById('edit-product-name').value = product.name || '';
     document.getElementById('edit-product-price').value = product.price || 0;
-    
+
     // 2. Referencias a elementos de categoría y padres
     const categorySelect = document.getElementById('edit-product-category');
     const parentContainer = document.getElementById('edit-product-parent-container');
@@ -3475,7 +3505,7 @@ function loadProductDataToForm(product) {
     // Usamos directamente los valores de la base de datos (PACKAGE, PRODUCT, SERVICE)
     // Asegúrate de que los <option value="..."> en tu HTML coincidan con estos.
     let typeValue = product.type;
-    
+
     // Pequeño parche por si en la DB tienes "Paquete" en vez de "PACKAGE"
     if (typeValue === 'Paquete') typeValue = 'PACKAGE';
     if (typeValue === 'Producto') typeValue = 'PRODUCT';
@@ -3489,12 +3519,12 @@ function loadProductDataToForm(product) {
     // Comparamos contra el valor normalizado 'PACKAGE'
     if (typeValue === 'PACKAGE') {
         if (parentContainer) parentContainer.classList.remove('hidden');
-        
+
         // --- POBLAR EL SELECTOR DE PADRES ---
         if (typeof window.populateParentSelect === 'function') {
             // Pasamos el ID actual para que no aparezca en la lista (no puede ser su propio padre)
             window.populateParentSelect('edit-product-parent', product.producto_id);
-            
+
             // Asignamos el valor del padre guardado
             if (parentSelect) {
                 parentSelect.value = product.parent_product || '';
@@ -3506,30 +3536,30 @@ function loadProductDataToForm(product) {
         if (parentSelect) parentSelect.value = '';
     }
 }
-window.loadMainProductsAndPopulateSelect = async function() {
-    
+window.loadMainProductsAndPopulateSelect = async function () {
+
     // 1. Obtener el elemento SELECT
     const selectElement = document.getElementById('new-product-parent-select');
     if (!selectElement) return;
 
     // 🚨 CAMBIO CLAVE: Usamos los datos globales ya cargados. 
-    const allProducts = window.allProducts || []; 
+    const allProducts = window.allProducts || [];
 
     // 2. Filtra la lista para obtener solo los productos que pueden ser padres (MAIN)
-    const mainProducts = allProducts.filter(product => product.type === 'MAIN'); 
-    
+    const mainProducts = allProducts.filter(product => product.type === 'MAIN');
+
     // 3. DEBUG: Muestra cuántos productos encontró
-    console.warn(`DEBUG: La función LOCAL devolvió ${mainProducts.length} productos MAIN.`); 
-    
+    console.warn(`DEBUG: La función LOCAL devolvió ${mainProducts.length} productos MAIN.`);
+
     // 4. Poblar el SELECT
     selectElement.innerHTML = '';
-    
+
     // Placeholder que indica el estado
     const defaultOption = document.createElement('option');
     defaultOption.value = '';
-    defaultOption.textContent = (mainProducts.length > 0) 
+    defaultOption.textContent = (mainProducts.length > 0)
         ? '--- Seleccione el Producto Principal ---'
-        : '--- (NO HAY PRODUCTOS MAIN REGISTRADOS) ---'; 
+        : '--- (NO HAY PRODUCTOS MAIN REGISTRADOS) ---';
     defaultOption.setAttribute('disabled', 'disabled');
     defaultOption.setAttribute('selected', 'selected');
     selectElement.appendChild(defaultOption);
@@ -3537,13 +3567,13 @@ window.loadMainProductsAndPopulateSelect = async function() {
     // Agregar las opciones cargadas
     mainProducts.forEach(product => {
         const option = document.createElement('option');
-        option.value = product.producto_id; 
+        option.value = product.producto_id;
         option.textContent = product.name;
         selectElement.appendChild(option);
     });
 }
 function toggleParentProductField() {
-    const typeSelect = document.getElementById('new-product-type'); 
+    const typeSelect = document.getElementById('new-product-type');
     const parentContainer = document.getElementById('parent-product-container');
     const parentSelect = document.getElementById('parent-product-select');
 
@@ -3551,7 +3581,7 @@ function toggleParentProductField() {
 
     if (typeSelect.value === 'PACKAGE') {
         // Mostrar el contenedor y hacerlo requerido
-        parentContainer.classList.remove('hidden'); 
+        parentContainer.classList.remove('hidden');
         parentContainer.classList.add('block');
         parentSelect.setAttribute('required', 'required');
     } else {
@@ -3563,14 +3593,14 @@ function toggleParentProductField() {
     }
 }
 
-window.populateParentSelect = function(selectId, currentProductId = null) {
+window.populateParentSelect = function (selectId, currentProductId = null) {
     const select = document.getElementById(selectId);
     if (!select) return;
 
     select.innerHTML = '<option value="" class="bg-[#1c1c1c] text-gray-400">-- Seleccione Producto Principal --</option>';
 
-    const potentialParents = window.allProducts.filter(p => 
-        String(p.producto_id) !== String(currentProductId) && 
+    const potentialParents = window.allProducts.filter(p =>
+        String(p.producto_id) !== String(currentProductId) &&
         p.type !== 'PACKAGE'
     );
 
@@ -3578,16 +3608,16 @@ window.populateParentSelect = function(selectId, currentProductId = null) {
         const option = document.createElement('option');
         option.value = p.producto_id;
         option.textContent = `${p.name} (ID: ${p.producto_id})`;
-        
+
         // Clases para asegurar visibilidad en tu tema oscuro
-        option.className = "bg-[#1c1c1c] text-white"; 
-        
+        option.className = "bg-[#1c1c1c] text-white";
+
         select.appendChild(option);
     });
 };
 
 // Asegúrate de que esta función exista en tu main.js
-window.fillParentProductSelect = function() {
+window.fillParentProductSelect = function () {
     const parentSelect = document.getElementById('edit-product-parent');
     if (!parentSelect) return;
 
@@ -3609,7 +3639,7 @@ window.fillParentProductSelect = function() {
 function mapCategoryToSupabaseType(category) {
     if (category === 'Producto') return 'MAIN';
     if (category === 'Paquete') return 'PACKAGE';
-    return 'MAIN'; 
+    return 'MAIN';
 }
 // main.js - Función para manejar el guardado de un nuevo producto
 async function handleNewProduct(e) {
@@ -3628,12 +3658,12 @@ async function handleNewProduct(e) {
     const btnText = btn.querySelector('.btn-text');
 
     const nameInput = document.getElementById('new-product-name');
-    const typeInput = document.getElementById('new-product-type'); 
-    const priceInput = document.getElementById('new-product-price'); 
+    const typeInput = document.getElementById('new-product-type');
+    const priceInput = document.getElementById('new-product-price');
     const parentSelect = document.getElementById('new-product-parent-select');
 
     const name = nameInput.value.trim();
-    const type = typeInput.value; 
+    const type = typeInput.value;
     const price = parseFloat(priceInput.value);
     let parentProductId = null;
 
@@ -3649,8 +3679,8 @@ async function handleNewProduct(e) {
     }
 
     if (type === 'PACKAGE') {
-        parentProductId = parentSelect?.value || null; 
-        if (!parentProductId) { 
+        parentProductId = parentSelect?.value || null;
+        if (!parentProductId) {
             window.showToast('Los subproductos requieren un Producto Principal', 'error');
             return;
         }
@@ -3666,18 +3696,18 @@ async function handleNewProduct(e) {
     try {
         const { error } = await supabase
             .from('productos')
-            .insert([{ 
-                name: name, 
-                type: type, 
-                price: price, 
-                parent_product: parentProductId 
+            .insert([{
+                name: name,
+                type: type,
+                price: price,
+                parent_product: parentProductId
             }]);
 
         if (error) throw error;
 
         // --- ✅ ÉXITO CON TOAST ---
         window.showToast('Producto registrado con éxito', 'success');
-        
+
         const form = document.getElementById('new-product-form');
         if (form) form.reset();
 
@@ -3686,7 +3716,7 @@ async function handleNewProduct(e) {
         }
 
         if (typeof window.closeModal === 'function') {
-            window.closeModal('new-product-modal'); 
+            window.closeModal('new-product-modal');
         }
 
         if (typeof window.loadAndRenderProducts === 'function') {
@@ -3708,7 +3738,7 @@ async function handleNewProduct(e) {
     }
 }
 
-window.handleProductTypeChange = function(mode = 'new') {
+window.handleProductTypeChange = function (mode = 'new') {
     // Definimos los prefijos dinámicamente según el modo (new- o edit-)
     const typeSelect = document.getElementById(`${mode}-product-type`) || document.getElementById(`${mode}-product-category`);
     const parentContainer = document.getElementById(`${mode}-product-parent-container`);
@@ -3754,8 +3784,8 @@ window.handleProductTypeChange = function(mode = 'new') {
         };
     }
 };
-let deletingProductId = null; 
-window.handleEditProductClick = function(productId) {
+let deletingProductId = null;
+window.handleEditProductClick = function (productId) {
     const product = window.allProductsMap[String(productId)];
     if (!product) return;
 
@@ -3766,9 +3796,9 @@ window.handleEditProductClick = function(productId) {
     document.getElementById('edit-product-id').value = product.producto_id;
     document.getElementById('edit-product-name').value = product.name;
     document.getElementById('edit-product-price').value = product.price;
-    document.getElementById('edit-product-category').value = 
-        product.type === 'PACKAGE' ? 'Paquete' : 
-        product.type === 'MAIN' ? 'Servicio' : 'Producto';
+    document.getElementById('edit-product-category').value =
+        product.type === 'PACKAGE' ? 'Paquete' :
+            product.type === 'MAIN' ? 'Servicio' : 'Producto';
 
     // 3. Si es paquete, mostramos el selector de padre y ponemos el valor
     const parentContainer = document.getElementById('edit-product-parent-container');
@@ -3783,20 +3813,20 @@ window.handleEditProductClick = function(productId) {
 };
 
 // Variable global para guardar la ID del producto a eliminar
-window.handleDeleteProductClick = function(productId) {
+window.handleDeleteProductClick = function (productId) {
     // 1. Guardar el ID para la confirmación
-    window.productIdToDelete = productId; 
-    
+    window.productIdToDelete = productId;
+
     // 2. Obtener datos del mapa global
     const product = window.allProductsMap[String(productId)];
     if (!product) return;
 
     // 3. Verificación de Seguridad: ¿Tiene subproductos vinculados?
     const children = (window.allProducts || []).filter(p => String(p.parent_product) === String(productId));
-    
+
     const placeholder = document.getElementById('delete-product-name-placeholder');
     const warningContainer = document.getElementById('delete-product-warning');
-    
+
     if (placeholder) {
         placeholder.textContent = product.name;
     }
@@ -3822,7 +3852,7 @@ window.handleDeleteProductClick = function(productId) {
     // 5. Abrir el modal con desenfoque de fondo
     openModal('delete-product-modal');
 };
-window.handleUpdateProduct = async function(e) {
+window.handleUpdateProduct = async function (e) {
     if (e) e.preventDefault(); // Detiene el refresco de página
 
     // 1. Capturar elementos
@@ -3831,7 +3861,7 @@ window.handleUpdateProduct = async function(e) {
     const name = document.getElementById('edit-product-name').value.trim();
     const price = parseFloat(document.getElementById('edit-product-price').value);
     const category = document.getElementById('edit-product-category').value;
-    
+
     // Si la categoría es Paquete, tomamos el parentId; si no, es null
     const parentId = category === "Paquete" ? document.getElementById('edit-product-parent').value : null;
 
@@ -3851,11 +3881,11 @@ window.handleUpdateProduct = async function(e) {
 
     try {
         // Objeto de actualización limpio
-        const updateData = { 
-            name: name, 
-            price: price, 
-            type: typeDB, 
-            parent_product: typeDB === "PACKAGE" ? (parentId || null) : null 
+        const updateData = {
+            name: name,
+            price: price,
+            type: typeDB,
+            parent_product: typeDB === "PACKAGE" ? (parentId || null) : null
         };
 
         const { error } = await supabase
@@ -3867,11 +3897,11 @@ window.handleUpdateProduct = async function(e) {
 
         // 5. ÉXITO
         window.showToast("Producto actualizado con éxito", "success");
-        
+
         if (typeof window.closeModal === 'function') {
             window.closeModal('edit-product-modal');
         }
-        
+
         // 6. Refrescar la tabla y los selectores
         if (typeof window.loadAndRenderProducts === 'function') {
             // Esta función ya incluye fillParentProductSelect() en su interior
@@ -3900,7 +3930,7 @@ async function loadClientDebtsTable() {
     const totalClientesEl = document.getElementById('total-clientes-deuda');
     const maxDeudaEl = document.getElementById('max-deuda-individual');
     const searchInput = document.getElementById('search-debts');
-    
+
     if (!tbody) return;
 
     // Efecto de carga en la tabla
@@ -3910,11 +3940,11 @@ async function loadClientDebtsTable() {
         const { data: sales, error } = await supabase
             .from('ventas')
             .select(`venta_id, client_id, created_at, saldo_pendiente, clientes(name)`)
-            .gt('saldo_pendiente', 0.01) 
+            .gt('saldo_pendiente', 0.01)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        
+
         const clientDebts = {};
         let sumaTotalGlobal = 0;
 
@@ -4000,7 +4030,7 @@ async function loadClientDebtsTable() {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-red-500">Error de conexión</td></tr>';
     }
 }
-window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
+window.loadClientsTable = async function (mode = 'gestion', filterType = 'all') {
     if (!supabase) return;
     const container = document.getElementById('clients-list-body');
     if (!container) return;
@@ -4025,7 +4055,7 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
         if (error) throw error;
 
         const summaries = await Promise.all(clients.map(c => getClientSalesSummary(c.client_id)));
-        
+
         let dataFull = clients.map((c, i) => ({ ...c, summary: summaries[i] }));
 
         // Filtros
@@ -4055,7 +4085,7 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
 
             const row = document.createElement('tr');
             row.className = 'group border-b border-white/5 hover:bg-white/[0.02] transition-all duration-300';
-            
+
             row.innerHTML = `
                 <td class="px-8 py-5">
                     <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-lg h-10 w-10 group-hover:border-orange-500/30 transition-all">
@@ -4111,13 +4141,13 @@ window.loadClientsTable = async function(mode = 'gestion', filterType = 'all') {
     } catch (e) { console.error(e); }
 };
 // Variable Global: Asegúrate de que esta variable esté declarada al inicio de tu main.js
-let clientToDeleteId = null; 
+let clientToDeleteId = null;
 // Asumimos que también tienes el array global 'allClients'
 
-window.handleDeleteClientClick = function(id, name) {
+window.handleDeleteClientClick = function (id, name) {
     console.log("Preparando eliminación - ID:", id, "Nombre:", name);
     window.clientIdToDelete = id;
-    
+
     const placeholder = document.getElementById('delete-client-name-placeholder');
     if (placeholder) {
         placeholder.textContent = name || "este cliente";
@@ -4126,7 +4156,7 @@ window.handleDeleteClientClick = function(id, name) {
 };
 
 async function confirmDeleteClient() {
-    const idToDelete = window.clientIdToDelete; 
+    const idToDelete = window.clientIdToDelete;
     if (!idToDelete) return;
 
     const result = await Swal.fire({
@@ -4154,7 +4184,7 @@ async function confirmDeleteClient() {
                 background: '#1c1c1c',
                 color: '#fff'
             });
-            
+
             closeModal('delete-client-modal');
             await loadDashboardData();
         } catch (err) {
@@ -4169,48 +4199,48 @@ async function confirmDeleteClient() {
     }
 }
 
-window.handleNewClient = async function(e) {
+window.handleNewClient = async function (e) {
     // 🛑 CRÍTICO: Detiene el envío nativo del formulario.
     // Esta línea funcionará correctamente porque ahora la función será llamada
     // por un listener de JS nativo (form.addEventListener('submit', ...))
-    e.preventDefault(); 
-    
+    e.preventDefault();
+
     // 🛑 LOG 1: VERIFICAR SI LA FUNCIÓN FUE LLAMADA
-    console.log('1. FUNCIÓN DE REGISTRO INICIADA.'); 
-    
+    console.log('1. FUNCIÓN DE REGISTRO INICIADA.');
+
     const name = document.getElementById('new-client-name')?.value.trim();
     const phone = document.getElementById('new-client-phone')?.value.trim() || null;
-    
+
     // 🛑 LOG 2: VERIFICAR LA CAPTURA DE DATOS Y LA DISPONIBILIDAD DE SUPABASE
     console.log(`2. Datos capturados: Nombre='${name}', Teléfono='${phone}'.`);
-    
-    if (typeof supabase === 'undefined' || !supabase) { 
+
+    if (typeof supabase === 'undefined' || !supabase) {
         console.error('ERROR CRÍTICO: La variable "supabase" no está definida o accesible globalmente.');
         window.showToast('Error: La conexión a la base de datos no está disponible.');
         return;
     }
-    
+
     if (!name || name.length < 3) {
         console.warn('Registro cancelado: Nombre inválido.');
         window.showToast('Por favor, ingresa un nombre válido para el cliente.');
-        
+
         // Opcional: enfocar el campo para mejor UX
-        document.getElementById('new-client-name')?.focus(); 
-        
+        document.getElementById('new-client-name')?.focus();
+
         return;
     }
 
     // 🛑 LOG 3: INTENTO DE INSERCIÓN
-   // console.log('3. Intentando insertar en Supabase...');
+    // console.log('3. Intentando insertar en Supabase...');
 
     // Usamos un bloque try/catch para manejar errores de red o Supabase
     try {
         const { error } = await supabase
             .from('clientes')
-            .insert([{ 
-                name: name, 
-                telefono: phone, 
-                is_active: true 
+            .insert([{
+                name: name,
+                telefono: phone,
+                is_active: true
             }]);
 
         // 🛑 LOG 4: RESULTADO DE SUPABASE
@@ -4218,31 +4248,31 @@ window.handleNewClient = async function(e) {
             console.error('4. ERROR DE SUPABASE al registrar cliente:', error);
             window.showToast('Error al guardar: ' + error.message, 'error');
         } else {
-        //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
+            //    console.log('4. REGISTRO EXITOSO. Procediendo a actualizar UI.');
             window.showToast('Cliente registrado exitosamente.');
-            
+
             // --- Cierre y Limpieza ---
-            
+
             // 1. Recargar la tabla de clientes
             if (typeof window.loadClientsTable === 'function') { // Verificar en window
-             await window.loadClientsTable('gestion');        // Llamar desde window
-         //    console.log("5. Tabla de clientes recargada exitosamente.");
-            }    else {
-            console.error("ERROR: window.loadClientsTable no está definida para la recarga.");
-}
+                await window.loadClientsTable('gestion');        // Llamar desde window
+                //    console.log("5. Tabla de clientes recargada exitosamente.");
+            } else {
+                console.error("ERROR: window.loadClientsTable no está definida para la recarga.");
+            }
 
             // 2. Limpiar el formulario
             const clientForm = document.getElementById('new-client-form');
-            clientForm?.reset(); 
-            
+            clientForm?.reset();
+
             // 3. Cerrar el modal
             if (typeof closeModal === 'function') {
                 closeModal('new-client-modal');
             } else {
                 console.error("closeModal no está definida globalmente.");
             }
-            
-           // console.log('5. Tarea completada y modal cerrado.');
+
+            // console.log('5. Tarea completada y modal cerrado.');
         }
     } catch (e) {
         console.error('5. ERROR DE RED o EXCEPCIÓN AL REGISTRAR:', e);
@@ -4250,9 +4280,9 @@ window.handleNewClient = async function(e) {
     }
 }
 
-window.handleEditClientClick = function(clientId) {
+window.handleEditClientClick = function (clientId) {
     console.log("Editando cliente ID:", clientId);
-    
+
     // 1. Intentar obtener del mapa (asegurando que el ID sea String)
     let cliente = window.allClientsMap ? window.allClientsMap[String(clientId)] : null;
 
@@ -4281,12 +4311,12 @@ window.handleEditClientClick = function(clientId) {
 
 async function handleEditClient(e) {
     e.preventDefault();
-    
+
     // 1. Obtener los valores del formulario
-    const clientId = document.getElementById('edit-client-id').value; 
+    const clientId = document.getElementById('edit-client-id').value;
     const name = document.getElementById('edit-client-name').value.trim();
     const phone = document.getElementById('edit-client-phone').value.trim();
-    
+
     // Ya no se busca 'edit-client-address'
 
     if (!clientId) {
@@ -4298,37 +4328,37 @@ async function handleEditClient(e) {
     // CRÍTICO: Solo actualizamos 'name' y 'telefono'
     const { error } = await supabase
         .from('clientes')
-        .update({ 
-            name: name, 
+        .update({
+            name: name,
             telefono: phone, // Usando el nombre de columna correcto
-        }) 
-        .eq('client_id', clientId); 
+        })
+        .eq('client_id', clientId);
 
     if (error) {
         console.error('Error al actualizar cliente:', error);
         alert('Error al actualizar cliente: ' + error.message);
-} else {
+    } else {
         alert('Cliente actualizado exitosamente.');
-        
+
         // 🛑 ORDEN CORREGIDO: 
         // 1. Recargar la data (y repintar la tabla) PRIMERO.
-        await loadDashboardData(); 
-        
+        await loadDashboardData();
+
         // 2. Limpiar el formulario y CERRAR el modal DESPUÉS de que la tabla se actualizó.
         document.getElementById('edit-client-form').reset();
-        closeModal('edit-client-modal'); 
+        closeModal('edit-client-modal');
     }
 }
 
 // 11. DETALLE Y ABONO DE VENTA 
-window.handleRegisterPayment = async function(e) {
+window.handleRegisterPayment = async function (e) {
     if (e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    
+
     const btn = document.getElementById('btn-confirm-abono');
-    if (btn && btn.disabled) return; 
+    if (btn && btn.disabled) return;
 
     // 1. CAPTURA DE DATOS
     const clientId = document.getElementById('abono-client-id')?.value;
@@ -4365,24 +4395,24 @@ window.handleRegisterPayment = async function(e) {
         if (ventas && ventas.length > 0) {
             for (let v of ventas) {
                 if (restante <= 0.009) break;
-                
+
                 let pagoAAplicar = Math.min(restante, v.saldo_pendiente);
                 pagoAAplicar = parseFloat(pagoAAplicar.toFixed(2));
 
                 // Registro ligado a la venta
-                await supabase.from('pagos').insert([{ 
-                    client_id: parseInt(clientId), 
-                    venta_id: v.venta_id, 
-                    amount: pagoAAplicar, 
+                await supabase.from('pagos').insert([{
+                    client_id: parseInt(clientId),
+                    venta_id: v.venta_id,
+                    amount: pagoAAplicar,
                     metodo_pago: metodo,
                     note: `Abono aplicado a Venta #${v.venta_id}`,
                     type: 'abono'
                 }]);
 
                 // Actualizar la venta
-                await supabase.from('ventas').update({ 
-                    saldo_pendiente: parseFloat((v.saldo_pendiente - pagoAAplicar).toFixed(2)), 
-                    paid_amount: parseFloat(((v.paid_amount || 0) + pagoAAplicar).toFixed(2)) 
+                await supabase.from('ventas').update({
+                    saldo_pendiente: parseFloat((v.saldo_pendiente - pagoAAplicar).toFixed(2)),
+                    paid_amount: parseFloat(((v.paid_amount || 0) + pagoAAplicar).toFixed(2))
                 }).eq('venta_id', v.venta_id);
 
                 historialDistribucion.push({ venta_id: v.venta_id, amount: pagoAAplicar });
@@ -4393,10 +4423,10 @@ window.handleRegisterPayment = async function(e) {
         // 4. MANEJO DE SALDO SOBRANTE O CUENTA SIN DEUDA (Caso Joana)
         if (restante > 0.009) {
             const montoGenerico = parseFloat(restante.toFixed(2));
-            await supabase.from('pagos').insert([{ 
-                client_id: parseInt(clientId), 
-                venta_id: null, 
-                amount: montoGenerico, 
+            await supabase.from('pagos').insert([{
+                client_id: parseInt(clientId),
+                venta_id: null,
+                amount: montoGenerico,
                 metodo_pago: metodo,
                 note: 'Abono a cuenta general / Saldo a favor',
                 type: 'ABONO_GENERAL'
@@ -4416,9 +4446,9 @@ window.handleRegisterPayment = async function(e) {
 
         // 6. ACTUALIZACIÓN INMEDIATA DE LA INTERFAZ
         if (typeof closeModal === 'function') closeModal('abono-client-modal');
-        
+
         if (window.loadClientsTable) await window.loadClientsTable();
-        
+
         // Refrescamos el Estado de Cuenta de fondo
         if (window.handleViewClientDebt) {
             await window.handleViewClientDebt(clientId);
@@ -4453,7 +4483,7 @@ window.handleRegisterPayment = async function(e) {
     }
 };
 
-window.openAbonoModal = function(clientId, name, remainingDebt = null) {
+window.openAbonoModal = function (clientId, name, remainingDebt = null) {
     console.log(`🎯 Abriendo abono para Cliente ID: ${clientId}, Nombre: ${name}`);
 
     // 1. Referencias de los elementos del NUEVO modal
@@ -4470,7 +4500,7 @@ window.openAbonoModal = function(clientId, name, remainingDebt = null) {
 
     // 3. Inyectar datos
     if (inputId) {
-        inputId.value = clientId; 
+        inputId.value = clientId;
     }
 
     if (displayLabel) {
@@ -4500,7 +4530,7 @@ window.openAbonoModal = function(clientId, name, remainingDebt = null) {
 // Debe ser llamada por el listener del formulario 'register-payment-form'
 // ====================================================================
 async function handleSaleAbono(e) {
-    e.preventDefault(); 
+    e.preventDefault();
     if (!supabase) {
         console.error("Supabase no está inicializado.");
         return;
@@ -4509,37 +4539,37 @@ async function handleSaleAbono(e) {
     // 1. OBTENER DATOS CON LOS NUEVOS IDs
     // Asumimos que los IDs del HTML fueron renombrados para evitar el conflicto.
     const abonoAmountInput = document.getElementById('abono-amount-sale');
-    const paymentMethod = document.getElementById('payment-method-sale').value; 
-    const ventaId = document.getElementById('payment-sale-id').value; 
+    const paymentMethod = document.getElementById('payment-method-sale').value;
+    const ventaId = document.getElementById('payment-sale-id').value;
     // viewingClientId es una variable global establecida en handleViewSaleDetails
-    const clientId = viewingClientId; 
+    const clientId = viewingClientId;
 
     // 2. PROCESAR MONTO (Robusto contra formato o valor vacío)
     let amount = abonoAmountInput ? abonoAmountInput.valueAsNumber : 0;
-    
+
     // Fallback para manejar comas (,) como separador decimal si el navegador no lo soporta
     if (isNaN(amount)) {
         const cleanedStr = abonoAmountInput.value.replace(',', '.');
         amount = parseFloat(cleanedStr) || 0; // Asegura que si es inválido, sea 0
     }
-    
+
     // 3. VALIDACIÓN 
     if (amount <= 0 || !ventaId || !clientId) {
-        alert('Por favor, ingresa un monto de abono válido y asegúrate de que la venta y el cliente estén cargados.'); 
+        alert('Por favor, ingresa un monto de abono válido y asegúrate de que la venta y el cliente estén cargados.');
         return;
     }
-    
+
     try {
         // 4. PRE-CÁLCULO: Calcular el nuevo saldo pendiente
         const currentSaldoPendienteElement = document.getElementById('detail-saldo-pendiente');
         // Limpiamos el texto de moneda (asumiendo que formatCurrency lo formatea)
-        const currentSaldoStr = currentSaldoPendienteElement.textContent.replace(/[^\d.,-]/g, '').replace(',', '.'); 
+        const currentSaldoStr = currentSaldoPendienteElement.textContent.replace(/[^\d.,-]/g, '').replace(',', '.');
         const currentSaldo = parseFloat(currentSaldoStr);
 
         if (isNaN(currentSaldo)) {
-             throw new Error("Error de cálculo: Saldo pendiente actual no es un número válido.");
+            throw new Error("Error de cálculo: Saldo pendiente actual no es un número válido.");
         }
-        
+
         const newSaldoPendiente = currentSaldo - amount;
 
         // 5. INSERTAR REGISTRO EN LA TABLA 'pagos'
@@ -4559,22 +4589,22 @@ async function handleSaleAbono(e) {
             .from('ventas')
             .update({ saldo_pendiente: newSaldoPendiente })
             .eq('venta_id', ventaId);
-            
+
         if (updateError) throw updateError;
-        
+
         // 7. ÉXITO Y ACTUALIZACIÓN DE UI
         alert('✅ Abono registrado con éxito. Saldo pendiente actualizado.');
-        
+
         // Limpiar el campo de monto
-        abonoAmountInput.value = ''; 
+        abonoAmountInput.value = '';
 
         // Recargar el contenido del modal de venta actual (para ver el nuevo saldo y el pago)
-        window.handleViewSaleDetails(ventaId, clientId); 
+        window.handleViewSaleDetails(ventaId, clientId);
 
         // Recargar los datos generales (dashboard y tabla) para reflejar el cambio en la deuda general
         // Asegúrese de que loadDashboardData y loadClientsTable existan.
         await loadDashboardData();
-        await loadClientsTable('gestion'); 
+        await loadClientsTable('gestion');
 
     } catch (error) {
         console.error('Error al registrar abono en venta:', error);
@@ -4585,7 +4615,7 @@ async function handleSaleAbono(e) {
 // ====================================================================
 // 12. MANEJO DE REPORTES Y VENTAS MENSUALES
 // ====================================================================
-window.handleViewAction = async function(btn, ventaId, clientId) {
+window.handleViewAction = async function (btn, ventaId, clientId) {
     btn.classList.add('btn-loading'); // Activa el spinner
     try {
         await handleViewSaleDetails(ventaId, clientId);
@@ -4594,13 +4624,13 @@ window.handleViewAction = async function(btn, ventaId, clientId) {
     }
 };
 
-window.handleDeleteAction = async function(btn, ventaId, month, year) {
+window.handleDeleteAction = async function (btn, ventaId, month, year) {
     // Aquí no activamos el spinner de inmediato porque suele haber un modal de confirmación primero.
     // Solo pasamos el ID al proceso de eliminación que ya tienes.
     handleDeleteSale(ventaId, month, year);
 };
 
-window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFromEvent) {
+window.loadMonthlySalesReport = function (selectedMonthFromEvent, selectedYearFromEvent) {
     (async () => {
         if (!supabase) return;
 
@@ -4610,7 +4640,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         const noDataMessage = document.getElementById('monthly-report-no-data');
         const mSelect = document.getElementById('report-month-select');
         const ySelect = document.getElementById('report-year-select');
-        
+
         const searchInput = document.getElementById('filter-search-term');
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
@@ -4623,18 +4653,18 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
         if (!searchTerm) {
             reportBody.innerHTML = `<tr><td colspan="5" class="px-6 py-24 text-center text-orange-500 animate-pulse uppercase text-[10px] font-black tracking-widest">Sincronizando Detalles...</td></tr>`;
         }
-        
+
         try {
             let startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01T00:00:00.000Z`;
             let nextM = selectedMonth === 12 ? 1 : selectedMonth + 1;
             let nextY = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
             let nextDate = `${nextY}-${String(nextM).padStart(2, '0')}-01T00:00:00.000Z`;
-            
+
             const { data: sales, error: sError } = await supabase
                 .from('ventas')
                 .select(`venta_id, client_id, created_at, total_amount, saldo_pendiente, metodo_pago, clientes(name)`)
                 .gte('created_at', startDate)
-                .lt('created_at', nextDate) 
+                .lt('created_at', nextDate)
                 .order('created_at', { ascending: false });
 
             if (sError) throw sError;
@@ -4658,11 +4688,11 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 const folio = sale.venta_id.toString();
                 const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
                 const prodsText = misProds.map(p => p.name.toLowerCase()).join(' ');
-                
-                return !searchTerm || 
-                       clientName.includes(searchTerm) || 
-                       folio.includes(searchTerm) || 
-                       prodsText.includes(searchTerm);
+
+                return !searchTerm ||
+                    clientName.includes(searchTerm) ||
+                    folio.includes(searchTerm) ||
+                    prodsText.includes(searchTerm);
             }) : [];
 
             if (filteredSales.length > 0) {
@@ -4671,10 +4701,10 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 filteredSales.forEach(sale => {
                     totalSales += (sale.total_amount || 0);
                     totalDebt += (sale.saldo_pendiente || 0);
-                    
+
                     const misProds = productosData.filter(p => p.venta_id === sale.venta_id);
-                    const listaProds = misProds.length > 0 
-                        ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ') 
+                    const listaProds = misProds.length > 0
+                        ? misProds.map(p => `${p.name} (x${p.quantity})`).join(', ')
                         : 'Venta Directa';
 
                     const clientName = sale.clientes?.name || 'Ventanilla';
@@ -4687,11 +4717,11 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                                 <div class="flex items-center">
                                     <div class="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-xl h-12 w-12 mr-5 group-hover:border-orange-500/40 transition-all">
                                         <span class="text-[14px] font-black text-white leading-none font-sans uppercase">${dateObj.getDate()}</span>
-                                        <span class="text-[9px] font-black text-orange-500 uppercase mt-1 font-sans">${dateObj.toLocaleDateString('es-MX', {month:'short'}).replace('.','')}</span>
+                                        <span class="text-[9px] font-black text-orange-500 uppercase mt-1 font-sans">${dateObj.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '')}</span>
                                     </div>
                                     <div class="max-w-[250px]">
                                         <div class="text-[12px] font-mono font-bold text-white/60 uppercase">FOLIO #${sale.venta_id}</div>
-                                        <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 mb-1 font-sans">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} HRS</div>
+                                        <div class="text-[12px] text-gray-500 font-bold uppercase mt-0.5 mb-1 font-sans">${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} HRS</div>
                                         <div class="text-[12px] text-orange-400 font-bold truncate uppercase tracking-tight font-sans" title="${listaProds}">
                                              <i class="fas fa-box-open mr-1 text-base"></i> ${listaProds}
                                         </div>
@@ -4743,7 +4773,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
                 if (noDataMessage) noDataMessage.classList.remove('hidden');
                 reportBody.innerHTML = '<tr><td colspan="5" class="py-20 text-center text-gray-500 italic uppercase text-[10px] tracking-widest font-bold">No se encontraron ventas con ese criterio.</td></tr>';
             }
-            
+
             if (totalSalesEl) totalSalesEl.textContent = window.formatCurrency(totalSales);
             if (totalDebtEl) totalDebtEl.textContent = window.formatCurrency(totalDebt);
 
@@ -4755,7 +4785,7 @@ window.loadMonthlySalesReport = function(selectedMonthFromEvent, selectedYearFro
 };
 
 //Borrar venta
-window.handleDeleteSale = async function(ventaId, currentMonth, currentYear) {
+window.handleDeleteSale = async function (ventaId, currentMonth, currentYear) {
     if (!supabase) {
         alert("Error de conexión a la base de datos.");
         return;
@@ -4782,7 +4812,7 @@ window.handleDeleteSale = async function(ventaId, currentMonth, currentYear) {
             .eq('venta_id', ventaId);
 
         if (error) {
-             // Detalle de error para el desarrollador
+            // Detalle de error para el desarrollador
             console.error("Error de eliminación en Supabase:", error);
             if (error.code === '23503') { // Código de error común para violación de FK (si las cascadas no están)
                 throw new Error("Violación de restricción: La venta tiene registros asociados que no se pudieron eliminar. Revise las reglas de 'ON DELETE CASCADE' en su base de datos.");
@@ -4792,19 +4822,19 @@ window.handleDeleteSale = async function(ventaId, currentMonth, currentYear) {
 
         // 2. Éxito: Notificar y Recargar el Reporte
         alert(`Venta #${ventaId} eliminada exitosamente.`);
-        
+
         // Recargar el reporte mensual con los mismos filtros
         if (typeof loadMonthlySalesReport === 'function') {
-            await loadMonthlySalesReport(currentMonth, currentYear); 
+            await loadMonthlySalesReport(currentMonth, currentYear);
         } else {
             // Último recurso si la recarga falla (NO RECOMENDADO)
-            location.reload(); 
+            location.reload();
         }
-        
+
     } catch (e) {
         console.error('Error al eliminar la venta:', e);
         alert(`Error al eliminar la venta. Detalles: ${e.message}`);
-    } 
+    }
 }
 
 
@@ -4812,7 +4842,7 @@ window.handleDeleteSale = async function(ventaId, currentMonth, currentYear) {
 // Inicializadores de REPORTES
 // ====================================================================
 
-window.initReportSelectors = function() {
+window.initReportSelectors = function () {
     const monthSelect = document.getElementById('report-month-select');
     const yearSelect = document.getElementById('report-year-select');
 
@@ -4862,17 +4892,17 @@ window.initReportSelectors = function() {
 
     monthSelect.onchange = handleReportChange;
     yearSelect.onchange = handleReportChange;
-    
+
     // Cargar los datos por primera vez
     handleReportChange();
 
-const searchInput = document.getElementById('filter-search-term');
-if (searchInput) {
-    searchInput.addEventListener('input', () => {
-        // Volvemos a llamar a la función de carga (ella ya sabe filtrar ahora)
-        window.loadMonthlySalesReport();
-    });
-}
+    const searchInput = document.getElementById('filter-search-term');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            // Volvemos a llamar a la función de carga (ella ya sabe filtrar ahora)
+            window.loadMonthlySalesReport();
+        });
+    }
 
 };
 
@@ -4881,7 +4911,7 @@ if (searchInput) {
 // ====================================================================
 
 async function loadAllClientsMap() {
-        const { data: clients, error } = await supabase
+    const { data: clients, error } = await supabase
         .from('clientes') // ✅ ESTO DEBE SER 'clientes'
         .select('client_id, name');
 
@@ -4901,7 +4931,7 @@ async function loadAndRenderClients() {
     const controlsContainer = document.getElementById('clients-list-controls');
     const toggleButton = document.getElementById('toggle-clients-list');
     const countSummary = document.getElementById('client-count-summary');
-    
+
     // Obtener todos los clientes (se usa la misma tabla 'clientes' corregida)
     const { data: clients, error } = await supabase
         .from('clientes')
@@ -4922,7 +4952,7 @@ async function loadAndRenderClients() {
     clients.forEach((client, index) => {
         // Solo mostrar si el índice es menor a MAX_SHOWN O si la lista está expandida
         const isHidden = !isExpanded && index >= MAX_SHOWN;
-        
+
         const row = clientsListBody.insertRow();
         row.className = isHidden ? 'hidden' : 'hover:bg-gray-50';
         row.dataset.clientId = client.client_id;
@@ -4947,7 +4977,7 @@ async function loadAndRenderClients() {
         const toggleList = () => {
             isExpanded = !isExpanded;
             const rows = clientsListBody.querySelectorAll('tr');
-            
+
             rows.forEach((row, index) => {
                 if (index >= MAX_SHOWN) {
                     row.classList.toggle('hidden', !isExpanded);
@@ -4955,8 +4985,8 @@ async function loadAndRenderClients() {
             });
 
             toggleButton.textContent = isExpanded ? 'Mostrar menos' : `Mostrar los ${totalClients - MAX_SHOWN} restantes`;
-            countSummary.textContent = isExpanded 
-                ? `Mostrando todos (${totalClients}) clientes.` 
+            countSummary.textContent = isExpanded
+                ? `Mostrando todos (${totalClients}) clientes.`
                 : `Mostrando ${MAX_SHOWN} de ${totalClients} clientes.`;
         };
 
@@ -4968,13 +4998,13 @@ async function loadAndRenderClients() {
     }
 }
 
-window.loadAndRenderProducts = async function() {
+window.loadAndRenderProducts = async function () {
     try {
         const { data, error } = await supabase.from('productos').select('*');
         if (error) throw error;
 
         window.allProducts = data || [];
-        
+
         // 1. Mapa de referencia para nombres y búsqueda rápida
         window.allProductsMap = Object.fromEntries(
             window.allProducts.map(p => [String(p.producto_id), p])
@@ -5006,7 +5036,7 @@ window.loadAndRenderProducts = async function() {
 
         sortedProducts.forEach(product => {
             const isSub = product.type === 'PACKAGE';
-            
+
             // Buscamos el nombre del padre real para mostrarlo en la etiqueta pequeña
             let realParentName = "";
             if (isSub && product.parent_product) {
@@ -5016,7 +5046,7 @@ window.loadAndRenderProducts = async function() {
 
             const row = document.createElement('tr');
             row.className = `group transition-all duration-300 border-b border-white/5 ${isSub ? 'is-subproducto' : 'hover:bg-white/[0.03]'}`;
-            
+
             // Lógica de iconos y estilos visuales
             const isMain = product.type === 'PRODUCT' || product.type === 'MAIN';
             const icon = isMain ? 'fa-star' : 'fa-box-open';
@@ -5077,19 +5107,19 @@ window.loadAndRenderProducts = async function() {
 
 async function loadAllProductsMap() {
     console.log("Cargando mapa de productos...");
-    
+
     // ASUMO QUE 'supabase' ESTÁ CORRECTAMENTE INICIALIZADO AQUÍ
     const { data: products, error } = await supabase
         .from('productos')
-        .select('*'); 
+        .select('*');
 
     if (error) {
         console.error("Error al cargar datos de productos para el mapa:", error);
-        window.allProducts = []; 
+        window.allProducts = [];
         window.allProductsMap = {};
         return;
     }
-    
+
     // 🛑 CRÍTICO: Procesar y limpiar los datos antes de guardarlos
     const processedProducts = products.map(p => ({
         ...p,
@@ -5098,14 +5128,14 @@ async function loadAllProductsMap() {
     }));
 
     // 1. Asignar al array global para el renderizado
-    window.allProducts = processedProducts || []; 
-    
+    window.allProducts = processedProducts || [];
+
     // 2. Llenar el mapa: { 'ID_DEL_PRODUCTO': OBJETO_COMPLETO }
     window.allProductsMap = processedProducts.reduce((map, product) => {
-        map[String(product.producto_id)] = product; 
+        map[String(product.producto_id)] = product;
         return map;
     }, {});
-    
+
     console.log(`✅ Mapa y Array de ${window.allProducts.length} productos cargados y limpiados.`);
 }
 function formatDate(isoDateString) {
@@ -5136,60 +5166,60 @@ function formatDate(isoDateString) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => { 
+document.addEventListener('DOMContentLoaded', async () => {
 
     // ====================================================================
     // 0. FUNCIONES UTILITY PARA MANEJO DE MODALES (¡CRÍTICO: VAN PRIMERO!)
     // ====================================================================
-// CRÍTICO: La función base DEBE ser asíncrona.
-async function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (!modal) {
-        console.error(`Error: Modal con ID '${modalId}' no encontrado.`);
-        return; 
-    }
-
-    // 1. --- Gestión Específica por Modal (Carga de Datos) ---
-    // Si el modal es el de Producto, ejecutamos la función de precarga.
-    if (modalId === 'new-product-modal') {
-        // Asume que esta función (Paso 3) solo carga y prepara los selects, sin abrir el modal.
-        if (typeof window.openNewProductModal === 'function') {
-            await window.openNewProductModal(); 
+    // CRÍTICO: La función base DEBE ser asíncrona.
+    async function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) {
+            console.error(`Error: Modal con ID '${modalId}' no encontrado.`);
+            return;
         }
-    }
-    // Si tienes más lógica de precarga, iría aquí (e.g., new-sale-modal)
-    
-    // 2. --- Lógica Universal para Mostrar el Modal ---
-    modal.classList.remove('hidden'); 
-    modal.classList.add('flex');
-}
 
-// --- Apertura Universal para botones con data-open-modal ---
-document.querySelectorAll('[data-open-modal]').forEach(button => {
-    // CRÍTICO: Hacemos el listener asíncrono.
-    button.addEventListener('click', async (e) => { 
-        e.preventDefault();
-        const modalId = button.getAttribute('data-open-modal');
-        // Llamamos a la función ASÍNCRONA y esperamos a que cargue los datos
-        await openModal(modalId); 
+        // 1. --- Gestión Específica por Modal (Carga de Datos) ---
+        // Si el modal es el de Producto, ejecutamos la función de precarga.
+        if (modalId === 'new-product-modal') {
+            // Asume que esta función (Paso 3) solo carga y prepara los selects, sin abrir el modal.
+            if (typeof window.openNewProductModal === 'function') {
+                await window.openNewProductModal();
+            }
+        }
+        // Si tienes más lógica de precarga, iría aquí (e.g., new-sale-modal)
+
+        // 2. --- Lógica Universal para Mostrar el Modal ---
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    // --- Apertura Universal para botones con data-open-modal ---
+    document.querySelectorAll('[data-open-modal]').forEach(button => {
+        // CRÍTICO: Hacemos el listener asíncrono.
+        button.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const modalId = button.getAttribute('data-open-modal');
+            // Llamamos a la función ASÍNCRONA y esperamos a que cargue los datos
+            await openModal(modalId);
+        });
     });
-});
 
-// Esta función ahora solo prepara los datos y los selects del modal de producto
-window.openNewProductModal = async function() {
-    
-      
-    // 2. LLENAR EL SELECT padre (CRÍTICO: Esto usa los datos recién cargados)
-    await window.loadMainProductsAndPopulateSelect(); 
-    
-    // 3. Configuración inicial de UI (si es necesario)
-    const typeSelect = document.getElementById('new-product-type');
-    if (typeSelect && window.handleProductTypeChange) {
-        // Ponemos el valor por defecto y disparamos la función de ocultar/mostrar el select padre
-        typeSelect.value = 'PRODUCT'; 
-        window.handleProductTypeChange();
-    }
-};
+    // Esta función ahora solo prepara los datos y los selects del modal de producto
+    window.openNewProductModal = async function () {
+
+
+        // 2. LLENAR EL SELECT padre (CRÍTICO: Esto usa los datos recién cargados)
+        await window.loadMainProductsAndPopulateSelect();
+
+        // 3. Configuración inicial de UI (si es necesario)
+        const typeSelect = document.getElementById('new-product-type');
+        if (typeSelect && window.handleProductTypeChange) {
+            // Ponemos el valor por defecto y disparamos la función de ocultar/mostrar el select padre
+            typeSelect.value = 'PRODUCT';
+            window.handleProductTypeChange();
+        }
+    };
 
     // --- Cierre de Modales Universal (Botones 'X' y al hacer clic fuera) ---
     document.querySelectorAll('[data-close-modal]').forEach(button => {
@@ -5209,104 +5239,104 @@ window.openNewProductModal = async function() {
             }
         });
     });
-    
+
     // Cierre con la tecla Escape
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
-            const topModal = openModals[openModals.length - 1]; 
-            
+            const topModal = openModals[openModals.length - 1];
+
             if (topModal) {
                 closeModal(topModal.id);
             }
         }
     });
-    
-// ====================================================================
-// FUNCIONES Y LISTENERS PARA CAMBIO DE VISTA
-// ====================================================================
 
-// Agregamos window. al inicio para que el HTML (onclick) siempre la encuentre
-window.switchView = async function(viewId) {
-    console.log(`Cambiando a vista: ${viewId}`);
+    // ====================================================================
+    // FUNCIONES Y LISTENERS PARA CAMBIO DE VISTA
+    // ====================================================================
 
-    // 1. Gestión Visual de Menú y Vistas
-    document.querySelectorAll('.menu-item').forEach(link => link.classList.remove('active-menu-item'));
-    document.querySelectorAll('.dashboard-view').forEach(view => view.classList.add('hidden'));
-    
-    const targetView = document.getElementById(viewId);
-    if (targetView) targetView.classList.remove('hidden');
-    
-    const activeLink = document.querySelector(`[data-view="${viewId}"]`);
-    if (activeLink) activeLink.classList.add('active-menu-item');
+    // Agregamos window. al inicio para que el HTML (onclick) siempre la encuentre
+    window.switchView = async function (viewId) {
+        console.log(`Cambiando a vista: ${viewId}`);
 
-    // 2. Carga de Datos Dinámica
-    try {
-        if (viewId === 'home-view') {
-            if (typeof loadDashboardData === 'function') await loadDashboardData();
-        } 
-        
-        else if (viewId === 'deudas-view') {
-            if (typeof window.loadDebts === 'function') await window.loadDebts();
-        }
+        // 1. Gestión Visual de Menú y Vistas
+        document.querySelectorAll('.menu-item').forEach(link => link.classList.remove('active-menu-item'));
+        document.querySelectorAll('.dashboard-view').forEach(view => view.classList.add('hidden'));
 
-        // ============================================================
-        // AJUSTE PARA REPORTES (ANÁLISIS MENSUAL)
-        // ============================================================
-        else if (viewId === 'report-view' || viewId === 'reports-view') {
-            console.log("📊 Inicializando Análisis Mensual...");
-            
-            // 1. Forzamos la creación de las opciones del Año y Mes si están vacíos
-            if (typeof window.initReportSelectors === 'function') {
-                window.initReportSelectors();
+        const targetView = document.getElementById(viewId);
+        if (targetView) targetView.classList.remove('hidden');
+
+        const activeLink = document.querySelector(`[data-view="${viewId}"]`);
+        if (activeLink) activeLink.classList.add('active-menu-item');
+
+        // 2. Carga de Datos Dinámica
+        try {
+            if (viewId === 'home-view') {
+                if (typeof loadDashboardData === 'function') await loadDashboardData();
             }
 
-            // 2. Obtenemos los valores que acabamos de setear
-            const mSelect = document.getElementById('report-month-select');
-            const ySelect = document.getElementById('report-year-select');
+            else if (viewId === 'deudas-view') {
+                if (typeof window.loadDebts === 'function') await window.loadDebts();
+            }
 
-            if (mSelect && ySelect) {
-                const currentM = mSelect.value;
-                const currentY = ySelect.value;
-                
-                // 3. Cargamos la tabla con esos valores
-                if (typeof window.loadMonthlySalesReport === 'function') {
-                    await window.loadMonthlySalesReport(currentM, currentY);
+            // ============================================================
+            // AJUSTE PARA REPORTES (ANÁLISIS MENSUAL)
+            // ============================================================
+            else if (viewId === 'report-view' || viewId === 'reports-view') {
+                console.log("📊 Inicializando Análisis Mensual...");
+
+                // 1. Forzamos la creación de las opciones del Año y Mes si están vacíos
+                if (typeof window.initReportSelectors === 'function') {
+                    window.initReportSelectors();
+                }
+
+                // 2. Obtenemos los valores que acabamos de setear
+                const mSelect = document.getElementById('report-month-select');
+                const ySelect = document.getElementById('report-year-select');
+
+                if (mSelect && ySelect) {
+                    const currentM = mSelect.value;
+                    const currentY = ySelect.value;
+
+                    // 3. Cargamos la tabla con esos valores
+                    if (typeof window.loadMonthlySalesReport === 'function') {
+                        await window.loadMonthlySalesReport(currentM, currentY);
+                    }
                 }
             }
-        }
-        // ============================================================
+            // ============================================================
 
-        else if (viewId === 'sales-view') {
-            if (typeof window.loadSalesData === 'function') {
-                await window.loadSalesData();
-                if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
+            else if (viewId === 'sales-view') {
+                if (typeof window.loadSalesData === 'function') {
+                    await window.loadSalesData();
+                    if (typeof window.handleFilterSales === 'function') window.handleFilterSales();
+                }
             }
+
+        } catch (error) {
+            console.error(`Error al cargar datos de la vista ${viewId}:`, error);
         }
-
-    } catch (error) {
-        console.error(`Error al cargar datos de la vista ${viewId}:`, error);
     }
-}
 
-// LISTENER para la navegación principal (data-view)
-document.querySelectorAll('[data-view]').forEach(link => {
-    link.addEventListener('click', (e) => {
-        e.preventDefault(); // 🛑 ESTO DETIENE EL '#'
-        
-        const viewId = link.getAttribute('data-view');
-        // El ID de tu vista es el valor de data-view, pero quitando el '-view'
-        // 'home-view' -> 'home'
-        // 'clients-view' -> 'clients'
-        // Vamos a asumir que el ID de tu DIV contenedor es el valor de data-view (ej: 'home-view')
-        switchView(viewId); 
+    // LISTENER para la navegación principal (data-view)
+    document.querySelectorAll('[data-view]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault(); // 🛑 ESTO DETIENE EL '#'
+
+            const viewId = link.getAttribute('data-view');
+            // El ID de tu vista es el valor de data-view, pero quitando el '-view'
+            // 'home-view' -> 'home'
+            // 'clients-view' -> 'clients'
+            // Vamos a asumir que el ID de tu DIV contenedor es el valor de data-view (ej: 'home-view')
+            switchView(viewId);
+        });
     });
-});
 
     // ====================================================================
     // 1. INICIALIZACIÓN DE SUPABASE Y CARGA DE DATOS
     // ====================================================================
-    
+
     // 🚨 MUEVE LA INICIALIZACIÓN DE SUPABASE AQUÍ
     if (window.supabase) {
     } else {
@@ -5330,40 +5360,40 @@ document.querySelectorAll('[data-view]').forEach(link => {
     if (selector) {
         // Al cambiar el mes, se ejecuta loadMonthlySalesReport
         selector.addEventListener('change', loadMonthlySalesReport);
-    } 
+    }
     loadMonthlySalesReport();
 
     // --------------------------------------------------
     // 2. LISTENERS ESPECÍFICOS DE EVENTOS
-   
+
     //Guardar cliente
     const newClientForm = document.getElementById('new-client-form');
-    
-if (newClientForm) {
-    //console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
-    // CÁMBIELO AQUÍ:
-    newClientForm.addEventListener('submit', window.handleNewClient); // <-- AÑADA 'window.'
-}
+
+    if (newClientForm) {
+        //console.log('--- LISTENER DE NUEVO CLIENTE ASOCIADO ---');
+        // CÁMBIELO AQUÍ:
+        newClientForm.addEventListener('submit', window.handleNewClient); // <-- AÑADA 'window.'
+    }
 
     // Listener para el botón de abrir el modal de nueva venta
-    document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => { 
+    document.getElementById('open-sale-modal-btn')?.addEventListener('click', async () => {
         try {
             // Asumiendo que el formulario tiene la ID 'new-sale-form'
-            document.getElementById('new-sale-form')?.reset(); 
-            
-            await loadClientsForSale(); 
-            
+            document.getElementById('new-sale-form')?.reset();
+
+            await loadClientsForSale();
+
             // Carga los productos MAIN en el selector de venta
-            loadMainProductsForSaleSelect(); 
-            
-            currentSaleItems = []; 
-            updateSaleTableDisplay(); 
-            
+            loadMainProductsForSaleSelect();
+
+            currentSaleItems = [];
+            updateSaleTableDisplay();
+
             document.getElementById('total-amount').value = '0.00';
             document.getElementById('paid-amount').value = '0.00';
             document.getElementById('display-saldo-pendiente').value = '0.00';
 
-            openModal('new-sale-modal'); 
+            openModal('new-sale-modal');
         } catch (error) {
             console.error('Error al cargar datos del modal de venta:', error);
             alert('Error al cargar los datos. Revise la consola (F12).');
@@ -5371,7 +5401,7 @@ if (newClientForm) {
     });
 
     // --- Listeners de PAGO/VENTA ---
-    document.getElementById('new-sale-form')?.addEventListener('submit', handleNewSale); 
+    document.getElementById('new-sale-form')?.addEventListener('submit', handleNewSale);
     document.getElementById('paid-amount')?.addEventListener('input', () => updatePaymentDebtStatus());
     document.getElementById('payment-method')?.addEventListener('change', () => updatePaymentDebtStatus());
     document.getElementById('paid-amount')?.addEventListener('input', () => {
@@ -5385,7 +5415,7 @@ if (newClientForm) {
     document.getElementById('add-product-btn')?.addEventListener('click', handleAddProductToSale);
 
     // Listener para el envío del formulario de registro de abonos (GENERAL)
-document.getElementById('abono-client-form')?.addEventListener('submit', handleRegisterPayment);
+    document.getElementById('abono-client-form')?.addEventListener('submit', handleRegisterPayment);
 
     // 🛑 Listener para el envío del formulario de PAGO en el Modal de DETALLES DE VENTA
     document.getElementById('register-payment-form')?.addEventListener('submit', handleSaleAbono);
@@ -5407,16 +5437,16 @@ document.getElementById('abono-client-form')?.addEventListener('submit', handleR
 
     // --- Listeners de DASHBOARD (Filtro y Reporte) ---
     document.getElementById('sales-month-filter')?.addEventListener('change', () => {
-        loadDashboardData(); 
+        loadDashboardData();
     });
 
     // Reseteo de filtro de ventas
     document.getElementById('reset-sales-filter')?.addEventListener('click', () => {
         const filterInput = document.getElementById('sales-month-filter');
         if (filterInput) {
-            filterInput.value = ''; 
+            filterInput.value = '';
         }
-        loadDashboardData(); 
+        loadDashboardData();
     });
 
     // Ejemplo en el código del botón de imprimir ticket:
@@ -5424,41 +5454,41 @@ document.getElementById('abono-client-form')?.addEventListener('submit', handleR
         // Asumiendo que CURRENT_SALE_ID se establece en showTicketPreviewModal
         printTicketQZ(CURRENT_SALE_ID);
     });
-    
+
     // Listener reportes de mes
     document.getElementById('open-monthly-report-btn')?.addEventListener('click', () => {
-        loadMonthlySalesReport(); 
+        loadMonthlySalesReport();
         openModal('modal-monthly-report');
     });
-  // Agrega este Listener ÚNICO que escucha en toda la página
-document.addEventListener('click', function(e) {
-    // Usamos .closest() para capturar el botón, incluso si el clic cae en un ícono dentro de él
-    const target = e.target.closest('.view-sale-details-btn'); 
+    // Agrega este Listener ÚNICO que escucha en toda la página
+    document.addEventListener('click', function (e) {
+        // Usamos .closest() para capturar el botón, incluso si el clic cae en un ícono dentro de él
+        const target = e.target.closest('.view-sale-details-btn');
 
-    if (target) {
-        // Asumimos que tu tabla usa: data-venta-id y data-client-id
-        const ventaId = target.getAttribute('data-venta-id');
-        const clientId = target.getAttribute('data-client-id');
-        
-        if (ventaId && clientId) {
-            console.log(`DEBUG: Clic en Detalle Detectado. Venta ID: ${ventaId}, Cliente ID: ${clientId}`);
-            
-            // Llama a la función de carga que ya corregimos:
-            handleViewSaleDetails(ventaId, clientId);
-        } else {
-            console.error("ERROR: El botón de detalle le faltan atributos (data-venta-id o data-client-id).");
+        if (target) {
+            // Asumimos que tu tabla usa: data-venta-id y data-client-id
+            const ventaId = target.getAttribute('data-venta-id');
+            const clientId = target.getAttribute('data-client-id');
+
+            if (ventaId && clientId) {
+                console.log(`DEBUG: Clic en Detalle Detectado. Venta ID: ${ventaId}, Cliente ID: ${clientId}`);
+
+                // Llama a la función de carga que ya corregimos:
+                handleViewSaleDetails(ventaId, clientId);
+            } else {
+                console.error("ERROR: El botón de detalle le faltan atributos (data-venta-id o data-client-id).");
+            }
         }
-    }
-});
+    });
     // -----------------------------------------------
     // Listeners de MODAL CLIENTES (BLOQUE CORREGIDO)
     // -----------------------------------------------
-document.addEventListener('DOMContentLoaded', () => {
-    const newClientForm = document.getElementById('new-client-form');
-    if (newClientForm) {
-        newClientForm.addEventListener('submit', handleNewClient); // ✅ SOLO AQUÍ
-    }
-});
+    document.addEventListener('DOMContentLoaded', () => {
+        const newClientForm = document.getElementById('new-client-form');
+        if (newClientForm) {
+            newClientForm.addEventListener('submit', handleNewClient); // ✅ SOLO AQUÍ
+        }
+    });
     // ------------------------------------
     // --- LISTENERS DE MODAL PRODUCTOS ---
     // ------------------------------------
@@ -5466,8 +5496,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listener para el botón principal (Abre la LISTA/ADMINISTRACIÓN)
     document.getElementById('open-admin-products-modal')?.addEventListener('click', async () => {
         try {
-            await loadAndRenderProducts(); 
-            openModal('admin-products-modal'); 
+            await loadAndRenderProducts();
+            openModal('admin-products-modal');
         } catch (error) {
             console.error('Error al cargar la administración de productos:', error);
             alert('Error al cargar la lista de productos.');
@@ -5478,15 +5508,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('open-product-modal-btn')?.addEventListener('click', () => {
         closeModal('admin-products-modal');
         document.getElementById('new-product-form')?.reset();
-        toggleParentProductField(); 
-        openModal('modal-register-product'); 
+        toggleParentProductField();
+        openModal('modal-register-product');
     });
 
     // Listener para TIPO DE PRODUCTO: Muestra/Oculta el campo padre y carga datos
     document.getElementById('new-product-type')?.addEventListener('change', (e) => {
         toggleParentProductField();
         if (e.target.value === 'PACKAGE') {
-            loadParentProductsForSelect('parent-product-select'); 
+            loadParentProductsForSelect('parent-product-select');
         }
     });
 
@@ -5498,69 +5528,69 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listener para el cambio del Paquete
     document.getElementById('subproduct-select')?.addEventListener('change', (e) => {
-        updatePriceField(e.target.value); 
+        updatePriceField(e.target.value);
     });
 
-document.addEventListener('DOMContentLoaded', () => {
-    // === LÓGICA DE EDICIÓN DE PRODUCTOS ===
+    document.addEventListener('DOMContentLoaded', () => {
+        // === LÓGICA DE EDICIÓN DE PRODUCTOS ===
 
-    // 1. Vincular el submit del formulario (Asegúrate de que handleUpdateProduct sea la versión async)
-    const editForm = document.getElementById('edit-product-form');
-    if (editForm) {
-        editForm.addEventListener('submit', window.handleUpdateProduct);
-    }
-
-    // 2. Lógica dinámica para el selector de "Padre"
-    const editCategorySelect = document.getElementById('edit-product-category');
-if (editCategorySelect) {
-    editCategorySelect.addEventListener('change', (e) => {
-        const parentContainer = document.getElementById('edit-product-parent-container');
-        if (e.target.value === 'Paquete') {
-            parentContainer.classList.remove('hidden');
-        } else {
-            parentContainer.classList.add('hidden');
+        // 1. Vincular el submit del formulario (Asegúrate de que handleUpdateProduct sea la versión async)
+        const editForm = document.getElementById('edit-product-form');
+        if (editForm) {
+            editForm.addEventListener('submit', window.handleUpdateProduct);
         }
-    });
-}
-    const editParentContainer = document.getElementById('edit-product-parent-container');
-    const editParentSelect = document.getElementById('edit-product-parent');
-    const editIdInput = document.getElementById('edit-product-id');
 
-    editCategorySelect?.addEventListener('change', function(e) {
-        const currentId = editIdInput.value;
-        
-        if (e.target.value === 'Paquete') {
-            // Mostrar y poblar
-            editParentContainer?.classList.remove('hidden');
-            if (typeof window.populateParentSelect === 'function') {
-                window.populateParentSelect('edit-product-parent', currentId);
+        // 2. Lógica dinámica para el selector de "Padre"
+        const editCategorySelect = document.getElementById('edit-product-category');
+        if (editCategorySelect) {
+            editCategorySelect.addEventListener('change', (e) => {
+                const parentContainer = document.getElementById('edit-product-parent-container');
+                if (e.target.value === 'Paquete') {
+                    parentContainer.classList.remove('hidden');
+                } else {
+                    parentContainer.classList.add('hidden');
+                }
+            });
+        }
+        const editParentContainer = document.getElementById('edit-product-parent-container');
+        const editParentSelect = document.getElementById('edit-product-parent');
+        const editIdInput = document.getElementById('edit-product-id');
+
+        editCategorySelect?.addEventListener('change', function (e) {
+            const currentId = editIdInput.value;
+
+            if (e.target.value === 'Paquete') {
+                // Mostrar y poblar
+                editParentContainer?.classList.remove('hidden');
+                if (typeof window.populateParentSelect === 'function') {
+                    window.populateParentSelect('edit-product-parent', currentId);
+                }
+            } else {
+                // Ocultar y muy importante: LIMPIAR el valor
+                editParentContainer?.classList.add('hidden');
+                if (editParentSelect) editParentSelect.value = '';
             }
-        } else {
-            // Ocultar y muy importante: LIMPIAR el valor
-            editParentContainer?.classList.add('hidden');
-            if (editParentSelect) editParentSelect.value = ''; 
+        });
+    });
+
+
+    document.getElementById('clients-list-body')?.addEventListener('click', async (e) => {
+        const button = e.target.closest('button');
+        if (!button) return;
+
+        const clientId = button.getAttribute('data-client-id');
+
+        if (button.classList.contains('edit-client-btn')) {
+            await handleEditClientClick(clientId);
+        }
+
+        // ELIMINAMOS EL BLOQUE DE 'delete-client-btn' DE AQUÍ
+        // Porque ya lo manejamos con el onclick directo en el HTML
+
+        if (button.classList.contains('view-debt-btn')) {
+            await handleViewClientDebt(clientId);
         }
     });
-});
-
-
-document.getElementById('clients-list-body')?.addEventListener('click', async (e) => {
-    const button = e.target.closest('button');
-    if (!button) return;
-
-    const clientId = button.getAttribute('data-client-id');
-
-    if (button.classList.contains('edit-client-btn')) {
-        await handleEditClientClick(clientId);
-    }
-
-    // ELIMINAMOS EL BLOQUE DE 'delete-client-btn' DE AQUÍ
-    // Porque ya lo manejamos con el onclick directo en el HTML
-
-    if (button.classList.contains('view-debt-btn')) { 
-        await handleViewClientDebt(clientId);
-    }
-});
 
     // Y el listener de envío del formulario de edición también debe estar presente:
     document.getElementById('edit-client-form')?.addEventListener('submit', handleEditClient);
@@ -5572,7 +5602,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // 1. Enlace de Formularios
     // =======================================================
-    
+
     // FORMULARIO: Editar Precio
     const editForm = document.getElementById('edit-sale-price-form');
     if (editForm) {
@@ -5582,10 +5612,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // FORMULARIO: Registrar Abono (El nuevo que creamos hoy)
     const abonoForm = document.getElementById('abono-client-form');
     if (abonoForm) {
-        abonoForm.addEventListener('submit', async function(e) {
+        abonoForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             console.log("🚀 Procesando abono en cascada...");
-            
+
             // Aquí llamamos a la lógica que usa la función RPC registrar_abono_cascada
             // Si ya definiste handleAbonoSubmit, puedes usarla aquí:
             if (typeof window.handleAbonoSubmit === 'function') {
@@ -5601,7 +5631,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.loadDashboardData();
         console.log("Datos del Dashboard cargados.");
     }
-    
+
     // =======================================================
     // 3. Listeners Globales (Delegación de Eventos)
     // =======================================================
@@ -5618,7 +5648,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const openBtn = e.target.closest('[data-open-modal]');
         if (openBtn) {
             const modalId = openBtn.dataset.openModal;
-            
+
             // CASO ESPECIAL: Si es el botón de abono dentro del detalle de venta
             if (modalId === 'abono-client-modal' && window.viewingClientId) {
                 window.handleAbonoClick(window.viewingClientId);
@@ -5633,7 +5663,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.openModal(modalId);
             }
         }
-        
+
         // Cierre por clic en el fondo (overlay)
         if (e.target.classList.contains('modal-overlay')) {
             window.closeModal(e.target.id);
@@ -5643,35 +5673,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Listener único para el botón de confirmar eliminación
-const btnEliminarConfirmar = document.getElementById('confirm-delete-btn');
-if (btnEliminarConfirmar) {
-    btnEliminarConfirmar.addEventListener('click', async () => {
-        if (!window.productIdToDelete) return;
+    const btnEliminarConfirmar = document.getElementById('confirm-delete-btn');
+    if (btnEliminarConfirmar) {
+        btnEliminarConfirmar.addEventListener('click', async () => {
+            if (!window.productIdToDelete) return;
 
-        btnEliminarConfirmar.disabled = true;
-        btnEliminarConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+            btnEliminarConfirmar.disabled = true;
+            btnEliminarConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
 
-        const { error } = await supabase
-            .from('productos')
-            .delete()
-            .eq('producto_id', window.productIdToDelete);
+            const { error } = await supabase
+                .from('productos')
+                .delete()
+                .eq('producto_id', window.productIdToDelete);
 
-        if (error) {
-            if (error.code === '23503') {
-                alert("No se puede eliminar porque este producto está en una venta.");
+            if (error) {
+                if (error.code === '23503') {
+                    alert("No se puede eliminar porque este producto está en una venta.");
+                } else {
+                    alert("Error al eliminar: " + error.message);
+                }
             } else {
-                alert("Error al eliminar: " + error.message);
+                alert("Producto eliminado.");
+                closeModal('delete-product-modal');
+                await window.loadAndRenderProducts(); // Esto ahora sí refrescará la tabla
             }
-        } else {
-            alert("Producto eliminado.");
-            closeModal('delete-product-modal');
-            await window.loadAndRenderProducts(); // Esto ahora sí refrescará la tabla
-        }
 
-        btnEliminarConfirmar.disabled = false;
-        btnEliminarConfirmar.textContent = 'Sí, Eliminar';
-    });
-}
+            btnEliminarConfirmar.disabled = false;
+            btnEliminarConfirmar.textContent = 'Sí, Eliminar';
+        });
+    }
 });
 
 // ==========================================================
@@ -5736,7 +5766,7 @@ window.inicializarEliminacionCliente = () => {
             // EXITO
             showToast("Cliente y todo su historial eliminados correctamente", "success");
             closeModal('delete-client-modal');
-            
+
             // Refrescar tabla
             if (typeof window.loadClientsTable === 'function') {
                 await window.loadClientsTable();
@@ -5778,14 +5808,14 @@ document.getElementById('open-abono-from-report-btn')?.addEventListener('click',
 });
 
 // ESCUCHADOR GLOBAL DE ENVÍO DE FORMULARIO - ABONO
-document.addEventListener('submit', async function(e) {
+document.addEventListener('submit', async function (e) {
     if (e.target && e.target.id === 'abono-client-form') {
-        e.preventDefault(); 
+        e.preventDefault();
         e.stopPropagation();
 
         const form = e.target;
         const submitBtn = form.querySelector('button[type="submit"]');
-        
+
         const clientId = document.getElementById('abono-client-id')?.value;
         const amount = parseFloat(document.getElementById('abono-amount')?.value);
         const method = document.getElementById('payment-method-abono')?.value;
@@ -5815,7 +5845,7 @@ document.addEventListener('submit', async function(e) {
             // 2. ÉXITO con Toast Teal (Pasando 'success')
             // Si tienes formatCurrency úsala aquí: formatCurrency(amount)
             window.showToast(`Abono de $${amount.toLocaleString()} registrado`, "success");
-            
+
             if (typeof closeModal === 'function') closeModal('abono-client-modal');
             form.reset();
 
@@ -5850,12 +5880,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mainSelect) {
         mainSelect.addEventListener('change', window.handleChangeProductForSale);
     }
-       
+
     // 2. CONEXIONES PARA EL FILTRADO DE VENTAS
     const startDateFilter = document.getElementById('filter-start-date');
     const endDateFilter = document.getElementById('filter-end-date');
     const searchFilter = document.getElementById('filter-search-term');
-    
+
     if (startDateFilter) startDateFilter.addEventListener('change', window.handleFilterSales);
     if (endDateFilter) endDateFilter.addEventListener('change', window.handleFilterSales);
     if (searchFilter) searchFilter.addEventListener('input', window.handleFilterSales);
@@ -5896,19 +5926,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.showToast = function(mensaje, tipo = 'success') {
+window.showToast = function (mensaje, tipo = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
     // --- 🔊 AUDIO ---
     try {
-        const soundUrl = tipo === 'success' 
-            ? 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3' 
+        const soundUrl = tipo === 'success'
+            ? 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3'
             : 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3';
         const audio = new Audio(soundUrl);
-        audio.volume = 0.3; 
-        audio.play().catch(() => {}); 
-    } catch (err) {}
+        audio.volume = 0.3;
+        audio.play().catch(() => { });
+    } catch (err) { }
 
     const toast = document.createElement('div');
     const isSuccess = tipo === 'success';
@@ -5926,7 +5956,7 @@ window.showToast = function(mensaje, tipo = 'success') {
         flex items-center gap-4 transform translate-x-10 opacity-0 
         transition-all duration-500 min-w-[320px] z-[9999]
     `;
-    
+
     toast.innerHTML = `
         <div class="absolute left-0 top-1/4 bottom-1/4 w-1 ${barColor} rounded-r-full"></div>
         
@@ -5965,7 +5995,7 @@ document.getElementById('search-clients-input')?.addEventListener('input', (e) =
         // Obtenemos el nombre y el ID de las celdas específicas
         const name = row.querySelector('.text-sm.font-bold')?.textContent.toLowerCase() || '';
         const id = row.querySelector('.text-\\[8px\\]')?.textContent.toLowerCase() || '';
-        
+
         // Si el término coincide con nombre o ID, mostramos la fila, si no, la ocultamos
         if (name.includes(term) || id.includes(term)) {
             row.style.display = '';
