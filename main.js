@@ -399,7 +399,7 @@ window.loadDebts = async function() {
                         </td>
                         <td class="px-10 py-6 text-center">
                             <div class="glass-badge ${balanceColor} inline-flex p-1 px-4 rounded-full">
-                                <span class="text-lg font-black font-sans italic tracking-tighter">
+                                <span class="text-lg text-white font-black font-sans italic tracking-tighter">
                                     ${formatCurrency(Math.abs(debt.totalDebt))}
                                     ${!isPositive ? '<span class="text-[9px] not-italic ml-1">A FAVOR</span>' : ''}
                                 </span>
