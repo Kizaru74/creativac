@@ -1850,10 +1850,10 @@ window.handleViewClientDebt = async function(clientId) {
                             <span class="text-sm font-bold ${mov.esVenta ? 'text-white' : 'text-emerald-400'} uppercase">
                                 ${mov.description}
                             </span>
-                            ${mov.textoProds ? `<span class="text-lg text-teal-700 font-medium italic mt-1 leading-tight tracking-wide"><i class="fas fa-box-open mr-1"></i>${mov.textoProds}</span>` : ''}
+                            ${mov.textoProds ? `<span class="text-lg text-teal-500 font-medium italic mt-1 leading-tight tracking-wide"><i class="fas fa-box-open mr-1"></i>${mov.textoProds}</span>` : ''}
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-right font-sans text-lg ${mov.esVenta ? 'text-red-400' : 'text-emerald-400'} font-bold">
+                    <td class="px-6 py-4 text-right font-sans text-lg ${mov.esVenta ? 'text-red-500' : 'text-emerald-400'} font-bold">
                         ${mov.signo}${window.formatCurrency(mov.montoAbs)}
                     </td>
                     <td class="px-6 py-4 text-right font-sans text-lg text-white font-bold">
